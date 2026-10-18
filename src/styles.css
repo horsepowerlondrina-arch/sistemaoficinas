@@ -4462,10 +4462,15 @@ body {
   .os-results-print h2, .os-results-print h3 { break-after: avoid; }
   .os-results-print thead { display: table-header-group; }
 }
-
 .product-batch-fields { border: 0; margin: 0; padding: 0; min-width: 0; }
 .product-batch-list { display: grid; gap: 16px; margin: 16px 0; }
 .product-batch-item { border: 1px solid var(--line, #e4e7ec); border-radius: 12px; padding: 16px; min-width: 0; }
 .product-batch-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 .product-batch-totals { display: grid; gap: 8px; margin-top: 16px; padding: 12px; border-radius: 8px; background: #f6f7fa; }
 .product-batch-totals span { overflow-wrap: anywhere; }
+
+/* Identificação permanente do ambiente isolado. */
+body { padding-top: 36px; }
+.development-notice { position: fixed; top: 0; left: 0; right: 0; z-index: 100000; height: 36px; display: flex; align-items: center; justify-content: center; padding: 4px 8px; background: #5b21b6; color: white; font: 600 12px/1.2 system-ui, sans-serif; text-align: center; }
+.sidebar { top: 36px; height: calc(100dvh - 36px); }
+@media print { body { padding-top: 0; } .development-notice { position: static; height: auto; color: black; background: white; border-bottom: 1px solid; } }
