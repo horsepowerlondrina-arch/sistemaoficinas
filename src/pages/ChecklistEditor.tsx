@@ -21,6 +21,7 @@ import type { Entity } from "../lib/types";
 import { Empty, Field, PageHeading } from "../components/ui";
 import { ChecklistPrint } from "../components/ChecklistPrint";
 import { PlateField } from "../components/PlateField";
+import { fipeFields, emptyFipe } from "../../shared/vehicleFipe";
 
 const conditionItems = [
   "Para-brisa e vidros",
@@ -269,6 +270,7 @@ export function ChecklistEditor() {
     customer_name: initialCustomer?.name || "",
     phone: initialCustomer?.phone || "",
     vehicle_data: {
+      ...fipeFields(initialVehicle),
       brand: initialVehicle?.brand || "",
       model: initialVehicle?.model || "",
       year: initialVehicle?.year || new Date().getFullYear(),
@@ -514,6 +516,7 @@ export function ChecklistEditor() {
                 customer_name: "",
                 phone: "",
                 vehicle_data: {
+                  ...emptyFipe,
                   brand: "",
                   model: "",
                   year: new Date().getFullYear(),
@@ -523,6 +526,10 @@ export function ChecklistEditor() {
               }));
             }}
             onFound={(result) => {
+              if (result.selectionOnly) {
+                setCreating(current => ({ ...current, vehicle_data: { ...current.vehicle_data, ...fipeFields(result.vehicle) } }));
+                return;
+              }
               const found = result.vehicle;
               if (result.source === "local" && found) {
                 const customer = data.customers.find(
@@ -536,6 +543,7 @@ export function ChecklistEditor() {
                   customer_name: customer?.name || "",
                   phone: customer?.phone || "",
                   vehicle_data: {
+                    ...fipeFields(found),
                     brand: String(found.brand || ""),
                     model: String(found.model || ""),
                     year: Number(found.year || new Date().getFullYear()),
@@ -552,6 +560,7 @@ export function ChecklistEditor() {
                   customer_name: "",
                   phone: "",
                   vehicle_data: {
+                    ...fipeFields(found),
                     brand: String(found?.brand || ""),
                     model: String(found?.model || ""),
                     year: Number(found?.year || new Date().getFullYear()),

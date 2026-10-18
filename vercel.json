@@ -3,6 +3,7 @@
   "framework": "vite",
   "env": {
     "APP_ENV": "development",
+    "ENABLE_PAID_VEHICLE_LOOKUP": "true",
     "EXPECTED_DATABASE_PROJECT": "rapvlvstqcqordttqrru",
     "APP_ORIGIN": "https://hpdesenvolvimento-horse-power2.vercel.app",
     "APP_ORIGINS": "https://hpdesenvolvimento-horse-power2.vercel.app",

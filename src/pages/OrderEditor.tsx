@@ -23,6 +23,7 @@ import {
 import { useApp } from "../lib/context";
 import { send } from "../lib/api";
 import { PlateField } from "../components/PlateField";
+import { fipeFields } from "../../shared/vehicleFipe";
 import { RegisterModal } from "./Registers";
 import { money, today, statusLabel, type Entity } from "../lib/types";
 import {
@@ -219,6 +220,7 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
             "Confira a placa, marca, modelo e ano ou selecione um veículo cadastrado.",
           );
         newVehicle = {
+          ...fipeFields(lookedUp),
           plate,
           brand: lookedUp.brand,
           model: lookedUp.model,
@@ -457,6 +459,10 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
                       }));
                     }}
                     onFound={(r) => {
+                      if (r.selectionOnly) {
+                        setLookedUp(current => ({ ...current, ...fipeFields(r.vehicle) }));
+                        return;
+                      }
                       setError("");
                       if (r.source === "local" && r.vehicle) {
                         const owner = data.customers.find(

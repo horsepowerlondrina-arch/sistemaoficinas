@@ -3,6 +3,7 @@ import type { Context } from "../auth/session.js";
 import { transaction, type DB } from "../db/database.js";
 import { requireAdmin } from "./payments.js";
 import { normalizePlate } from "./vehicleLookup.js";
+import { vehicleFipeFields } from "./vehicleFipeFields.js";
 import { audit, id, saveOrder, scoped } from "./workshop.js";
 
 const conditionState = z.enum(["ok", "issue", "unchecked"]);
@@ -13,6 +14,7 @@ const damageSchema = z.object({
   note: z.string().trim().max(200).default(""),
 });
 const vehicleDataSchema = z.object({
+  ...vehicleFipeFields,
   brand: z.string().trim().min(2, "Informe a marca.").max(150),
   model: z.string().trim().min(2, "Informe o modelo.").max(150),
   year: z.number().int().min(1900).max(2100),
@@ -215,6 +217,9 @@ export async function createChecklist(
           year: Number(vehicle.year),
           color: vehicle.color || "",
           chassis: vehicle.chassis || "",
+          fipe_code: vehicle.fipe_code || "",
+          fipe_model: vehicle.fipe_model || "",
+          fipe_year_id: vehicle.fipe_year_id || "",
         }
       : vehicleDataSchema.parse(v.vehicle_data);
 
@@ -385,8 +390,8 @@ export async function finalizeChecklist(
         await db
           .prepare(
             `INSERT INTO vehicles(
-              id,tenant_id,customer_id,plate,brand,model,year,color,km,chassis,active
-            ) VALUES(?,?,?,?,?,?,?,?,?,?,1)`,
+              id,tenant_id,customer_id,plate,brand,model,year,color,km,chassis,fipe_code,fipe_model,fipe_year_id,active
+            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,1)`,
           )
           .run(
             vehicleId,
@@ -399,6 +404,9 @@ export async function finalizeChecklist(
             vehicleData.color,
             Number(value.km || 0),
             vehicleData.chassis,
+            vehicleData.fipe_code,
+            vehicleData.fipe_model,
+            vehicleData.fipe_year_id,
           );
         await audit(db, ctx, "vehicles.created_from_checklist", vehicleId);
         vehicle = await scoped(db, "vehicles", ctx.tenantId, vehicleId);

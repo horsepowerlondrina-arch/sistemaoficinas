@@ -3,7 +3,14 @@ import { Search, LoaderCircle } from "lucide-react";
 import { send } from "../lib/api";
 import { Field } from "./ui";
 import type { Entity } from "../lib/types";
-type Lookup = { source: string; vehicle: Entity | null; message: string };
+import { candidateFields, type FipeCandidate } from "../../shared/vehicleFipe";
+type Lookup = {
+  source: string;
+  vehicle: Entity | null;
+  message: string;
+  fipe_candidates?: FipeCandidate[];
+  selectionOnly?: boolean;
+};
 export function PlateField({
   value,
   onChange,
@@ -17,6 +24,8 @@ export function PlateField({
 }) {
   const [busy, setBusy] = useState(false),
     [message, setMessage] = useState("");
+  const [result, setResult] = useState<Lookup | null>(null);
+  const [selected, setSelected] = useState("");
   const request = useRef(0),
     last = useRef("");
   useEffect(() => {
@@ -24,6 +33,8 @@ export function PlateField({
     last.current = "";
     setBusy(false);
     setMessage("");
+    setResult(null);
+    setSelected("");
     return () => {
       request.current++;
     };
@@ -43,6 +54,13 @@ export function PlateField({
       const result: Lookup = await send("/vehicles/lookup", { plate });
       if (seq !== request.current) return;
       setMessage(result.message);
+      setResult(result);
+      const index = result.fipe_candidates?.findIndex(
+        (candidate) =>
+          candidate.codigoFipe === result.vehicle?.fipe_code &&
+          !!candidate.codigoFipe,
+      );
+      setSelected(index !== undefined && index >= 0 ? String(index) : "");
       onFound(result);
     } catch (e) {
       if (seq === request.current) {
@@ -67,6 +85,8 @@ export function PlateField({
               setBusy(false);
               setMessage("");
               last.current = "";
+              setResult(null);
+              setSelected("");
               onChange(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""));
             }}
             onBlur={() => {
@@ -92,6 +112,55 @@ export function PlateField({
         <p className="lookup-message" role="status">
           {message}
         </p>
+      )}
+      {!!result?.fipe_candidates?.length && (
+        <Field label="Identificação FIPE" full>
+          <select
+            disabled={disabled || busy}
+            value={selected}
+            onChange={(event) => {
+              const vehicle = result.vehicle;
+              if (!vehicle) return;
+              const index = event.target.value;
+              setSelected(index);
+              const candidate =
+                index === ""
+                  ? undefined
+                  : result.fipe_candidates?.[Number(index)];
+              onFound({
+                ...result,
+                selectionOnly: true,
+                vehicle: { ...vehicle, ...candidateFields(candidate) },
+              });
+            }}
+          >
+            <option value="">
+              Não identificado — selecione a versão para confirmar
+            </option>
+            {result.fipe_candidates.map((candidate, index) => (
+              <option
+                key={index}
+                value={String(index)}
+                disabled={!candidate.codigoFipe}
+              >
+                {[
+                  candidate.modelo,
+                  candidate.anoModelo,
+                  candidate.combustivel,
+                  candidate.codigoFipe || "Sem código FIPE",
+                  candidate.matchAno === false ? "Ano divergente" : "",
+                  candidate.confianca && candidate.confianca !== "alta" ? `Confiança ${candidate.confianca}` : "",
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </option>
+            ))}
+          </select>
+          <small>
+            O código será salvo no cadastro. Quando houver mais de uma versão,
+            confirme a correta.
+          </small>
+        </Field>
       )}
     </div>
   );

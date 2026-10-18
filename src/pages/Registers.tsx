@@ -28,6 +28,7 @@ import {
   Empty,
 } from "../components/ui";
 import { PlateField } from "../components/PlateField";
+import { fipeFields, emptyFipe } from "../../shared/vehicleFipe";
 type Kind = "customers" | "vehicles" | "catalog" | "professionals";
 const config = {
   customers: {
@@ -473,6 +474,7 @@ export function RegisterModal({
       active: 1,
     },
     vehicles: {
+      ...emptyFipe,
       customer_id: "",
       plate: "",
       brand: "",
@@ -668,9 +670,13 @@ export function RegisterModal({
                         <PlateField
                           value={vehicle.plate}
                           onChange={(plate) =>
-                            setVehicle((v) => ({ ...v, plate }))
+                            setVehicle((v) => ({ ...v, plate, ...emptyFipe }))
                           }
                           onFound={(r) => {
+                            if (r.selectionOnly) {
+                              setVehicle(current => ({ ...current, ...fipeFields(r.vehicle) }));
+                              return;
+                            }
                             if (r.vehicle && r.source !== "local")
                               setVehicle((v) => ({ ...v, ...r.vehicle }));
                           }}
@@ -728,8 +734,12 @@ export function RegisterModal({
                 </Field>
                 <PlateField
                   value={form.plate}
-                  onChange={(plate) => set("plate", plate)}
+                  onChange={(plate) => setForm(current => ({ ...current, plate, ...emptyFipe }))}
                   onFound={(r) => {
+                    if (r.selectionOnly) {
+                      setForm(current => ({ ...current, ...fipeFields(r.vehicle) }));
+                      return;
+                    }
                     if (
                       r.vehicle &&
                       (r.source !== "local" || r.vehicle.id === record?.id)
@@ -743,6 +753,10 @@ export function RegisterModal({
                 {input("color", "Cor")}
                 {input("km", "Quilometragem", "number")}
                 {input("chassis", "Chassi", "text", false, true)}
+                <Field label="Código FIPE" full>
+                  <input readOnly value={form.fipe_code || ""} placeholder="Não identificado" />
+                  {!!form.fipe_model && <small>{form.fipe_model} · {form.fipe_year_id}</small>}
+                </Field>
               </>
             ) : kind === "catalog" ? (
               <>

@@ -1,4 +1,53 @@
 import { z } from "zod";
+import { automaticFipe, type FipeCandidate } from "../../shared/vehicleFipe.js";
+const candidateSchema = z.object({
+  codigoFipe: z
+    .string()
+    .regex(/^\d{6}-\d$/)
+    .nullable(),
+  modelo: z.string().max(300).nullable(),
+  anoModelo: z.number().int().nullable(),
+  anoId: z.string().max(30).nullable(),
+  combustivel: z.string().max(150).nullable(),
+  confianca: z.enum(["alta", "media", "baixa"]).nullable(),
+  matchAno: z.boolean().nullable(),
+  matchCombustivel: z.boolean().nullable(),
+});
+export async function lookupFipeCandidates(
+  plate: string,
+  token: string,
+  fetcher: typeof fetch,
+) {
+  try {
+    const response = await fetcher(
+      `https://api.fipeplaca.com.br/gateway/v1/placa/${plate}/fipe`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
+        redirect: "error",
+        signal: AbortSignal.timeout(15000),
+      },
+    );
+    if (response.status === 404)
+      return { status: "not_found", candidates: [] as FipeCandidate[] };
+    if (!response.ok)
+      return { status: "unavailable", candidates: [] as FipeCandidate[] };
+    const parsed = z
+      .array(candidateSchema)
+      .max(1000)
+      .safeParse(await response.json());
+    if (!parsed.success)
+      return { status: "unavailable", candidates: [] as FipeCandidate[] };
+    return {
+      status: parsed.data.length ? "found" : "not_found",
+      candidates: parsed.data,
+    };
+  } catch {
+    return { status: "unavailable", candidates: [] as FipeCandidate[] };
+  }
+}
 export function fipePlacaToken(tenant: string): string | null {
   try {
     const entries = JSON.parse(process.env.FIPEPLACA_TOKENS_JSON || "{}");
@@ -20,6 +69,7 @@ export async function lookupFipePlaca(
   plate: string,
   token: string,
   fetcher: typeof fetch,
+  includeFipe = false,
 ) {
   let response: Response;
   try {
@@ -85,6 +135,12 @@ export async function lookupFipePlaca(
     );
   const v = result.data,
     year = v.anoModelo ?? v.anoFabricacao;
+  const fipe = includeFipe
+    ? await lookupFipeCandidates(plate, token, fetcher)
+    : null;
+  const selection = fipe
+    ? automaticFipe(fipe.candidates, year ?? undefined)
+    : null;
   return {
     source: "external",
     vehicle: {
@@ -93,8 +149,19 @@ export async function lookupFipePlaca(
       ...(v.modelo ? { model: v.modelo } : {}),
       ...(year !== null && year >= 1900 && year <= 2100 ? { year } : {}),
       ...(v.cor ? { color: v.cor } : {}),
+      ...(selection || {}),
     },
+    ...(fipe
+      ? { fipe_candidates: fipe.candidates, fipe_status: fipe.status }
+      : {}),
     message:
-      "Dados consultados via FipePlaca. Confira e complete os campos ausentes antes de salvar.",
+      "Dados consultados via FipePlaca. Confira antes de salvar." +
+      (fipe?.status === "unavailable"
+        ? " A busca FIPE não respondeu; os dados do veículo foram preservados."
+        : fipe?.status === "not_found"
+          ? " Não foi encontrada uma identificação FIPE."
+          : fipe && !selection?.fipe_code
+            ? " Confirme a versão na lista FIPE."
+            : ""),
   };
 }

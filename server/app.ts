@@ -68,6 +68,7 @@ import { listSuppliers, supplierDetails, saveSupplier } from "./services/supplie
 import { getWorkshopProfile, saveWorkshopProfile } from "./services/workshopProfile.js";
 import { calculatePaymentPlan, paymentMethods } from "./domain/payments.js";
 import { lookupVehicle, providerToken } from "./services/vehicleLookup.js";
+import { vehicleFipeFields } from "./services/vehicleFipeFields.js";
 const text = z.string().trim().max(500).default("");
 const name = z
   .string()
@@ -94,6 +95,7 @@ const schemas = {
     active: z.number().int().min(0).max(1).default(1),
   }),
   vehicles: z.object({
+    ...vehicleFipeFields,
     customer_id: z.string().min(1),
     plate: z
       .string()

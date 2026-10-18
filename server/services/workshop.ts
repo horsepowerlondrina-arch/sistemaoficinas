@@ -165,7 +165,7 @@ async function resolveOrderIdentity(db: DB, ctx: Context, input: Row) {
       vehicleId = id();
       await db
         .prepare(
-          "INSERT INTO vehicles(id,tenant_id,customer_id,plate,brand,model,year,color,km,chassis) VALUES(?,?,?,?,?,?,?,?,?,?)",
+          "INSERT INTO vehicles(id,tenant_id,customer_id,plate,brand,model,year,color,km,chassis,fipe_code,fipe_model,fipe_year_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
         )
         .run(
           vehicleId,
@@ -178,6 +178,9 @@ async function resolveOrderIdentity(db: DB, ctx: Context, input: Row) {
           v.color || "",
           input.km,
           v.chassis || "",
+          v.fipe_code || "",
+          v.fipe_model || "",
+          v.fipe_year_id || "",
         );
       await audit(db, ctx, "vehicles.created", vehicleId);
     }

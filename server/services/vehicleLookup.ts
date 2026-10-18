@@ -1,6 +1,55 @@
 import { fipePlacaToken, lookupFipePlaca } from "./fipePlaca.js";
 import type { DB } from "../db/database.js";
 import { z } from "zod";
+type FipeLookup = Awaited<ReturnType<typeof lookupFipePlaca>>;
+const pending = new WeakMap<object, Map<string, Promise<FipeLookup>>>();
+async function cachedFipeLookup(
+  db: DB,
+  tenant: string,
+  plate: string,
+  token: string,
+  fetcher: typeof fetch,
+) {
+  const saved = await db
+    .prepare(
+      "SELECT result_json FROM vehicle_lookup_cache WHERE tenant_id=? AND plate=? AND expires_at>?",
+    )
+    .get(tenant, plate, Date.now());
+  if (saved) return JSON.parse(saved.result_json);
+  let running = pending.get(db);
+  if (!running) {
+    running = new Map();
+    pending.set(db, running);
+  }
+  const key = JSON.stringify([tenant, plate]);
+  if (running.has(key)) return running.get(key)!;
+  const task = (async () => {
+    const result = await lookupFipePlaca(plate, token, fetcher, true);
+    const ttl =
+      "fipe_status" in result && result.fipe_status === "found"
+        ? 86400000
+        : 600000;
+    try {
+      await db
+        .prepare(
+          "INSERT INTO vehicle_lookup_cache(tenant_id,plate,result_json,expires_at) VALUES(?,?,?,?) ON CONFLICT(tenant_id,plate) DO UPDATE SET result_json=excluded.result_json,expires_at=excluded.expires_at",
+        )
+        .run(tenant, plate, JSON.stringify(result), Date.now() + ttl);
+      await db
+        .prepare("DELETE FROM vehicle_lookup_cache WHERE tenant_id=? AND expires_at<?")
+        .run(tenant, Date.now());
+    } catch {
+      // Do not discard a paid provider result or trigger a client retry if only caching failed.
+    }
+    return result;
+  })();
+  running.set(key, task);
+  try {
+    return await task;
+  } finally {
+    running.delete(key);
+  }
+}
 export const normalizePlate = (value: string) =>
   value.toUpperCase().replace(/[^A-Z0-9]/g, "");
 export function providerToken(tenant: string) {
@@ -40,7 +89,7 @@ export async function lookupVehicle(
     throw new Error("Informe uma placa válida.");
   const local = await db
     .prepare(
-      "SELECT id,customer_id,plate,brand,model,year,color,km,chassis,active FROM vehicles WHERE tenant_id=? AND plate=?",
+      "SELECT id,customer_id,plate,brand,model,year,color,km,chassis,active,fipe_code,fipe_model,fipe_year_id FROM vehicles WHERE tenant_id=? AND plate=?",
     )
     .get(tenant, plate);
   if (local)
@@ -58,7 +107,8 @@ export async function lookupVehicle(
         "Placa não cadastrada. A consulta externa ainda não foi ativada para esta oficina; preencha os dados manualmente.",
     };
   const currentToken = fipePlacaToken(tenant);
-  if (currentToken) return lookupFipePlaca(plate, currentToken, fetcher);
+  if (currentToken)
+    return cachedFipeLookup(db, tenant, plate, currentToken, fetcher);
   try {
     const response = await fetcher("https://api.placafipe.com.br/getplaca", {
       method: "POST",

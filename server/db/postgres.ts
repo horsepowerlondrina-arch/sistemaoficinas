@@ -27,6 +27,7 @@ export function postgresSql(input: string) {
     "sessions",
     "customers",
     "vehicles",
+    "vehicle_lookup_cache",
     "professionals",
     "catalog",
     "product_categories",
