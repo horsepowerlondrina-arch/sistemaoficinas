@@ -10,7 +10,7 @@ export function assertDevelopmentIsolation(env: Record<string, string | undefine
   if ((!direct && !pooled) || database.href.includes(productionProject))
     throw new Error("HPDesenvolvimento recusou uma conexão fora do banco de testes.");
   const origin = new URL(env.APP_ORIGIN || "");
-  if (origin.hostname !== "hpdesenvolvimento.vercel.app" ||
+  if (origin.hostname !== "hpdesenvolvimento-horse-power2.vercel.app" ||
       env.PUBLIC_ORIGIN !== origin.origin || env.APP_ORIGINS !== origin.origin)
     throw new Error("HPDesenvolvimento exige seu próprio endereço de acesso.");
   if (Object.keys(env).some(key => /^(FIPEPLACA|PLACA_FIPE)_TOKENS_JSON$/.test(key) && env[key] && env[key] !== "{}"))

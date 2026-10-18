@@ -4,7 +4,7 @@ Ambiente independente de testes, iniciado a partir da main 1628c0ea12de50b8e7c1b
 
 - Banco Supabase separado: rapvlvstqcqordttqrru, organização Horse Power.
 - Aplicação Vercel separada: hpdesenvolvimento.
-- Endereço: https://hpdesenvolvimento.vercel.app.
+- Endereço: https://hpdesenvolvimento-horse-power2.vercel.app.
 - Código de desenvolvimento na branch HPDesenvolvimento; não publicar essa branch no projeto de produção.
 - Cópia dos dados operacionais de hp-centro, sem senhas de produção, sessões, ativações, conexões de extensão ou links públicos existentes. Assinaturas e fotos dos checklists não foram copiadas.
 - Consultas externas pagas ficam desativadas até configuração específica para testes.
