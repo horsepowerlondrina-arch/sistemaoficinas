@@ -1,0 +1,17 @@
+CREATE SCHEMA service_catalog AUTHORIZATION postgres;
+REVOKE ALL ON SCHEMA service_catalog FROM PUBLIC,anon,authenticated,service_role,horse_power_app;
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA service_catalog REVOKE ALL ON TABLES FROM PUBLIC,anon,authenticated,service_role,horse_power_app;
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA service_catalog REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC,anon,authenticated,service_role,horse_power_app;
+SET LOCAL search_path=service_catalog,pg_catalog;
+CREATE TABLE releases(version text PRIMARY KEY,status text NOT NULL CHECK(status IN ('loading','active','retired')), source_sha256 text NOT NULL, imported_at timestamptz NOT NULL DEFAULT now(),validated_at timestamptz,model_count integer NOT NULL,time_count integer NOT NULL,application_count bigint NOT NULL);
+INSERT INTO releases(version,status,source_sha256,model_count,time_count,application_count) VALUES ('1.2-operacional','loading','pending',7534,836093,7292579);
+CREATE TABLE tenant_access(tenant_id text PRIMARY KEY REFERENCES horse_power.tenants(id),enabled boolean NOT NULL DEFAULT false,valid_until timestamptz,grant_reason text NOT NULL,updated_at timestamptz NOT NULL DEFAULT now());
+INSERT INTO tenant_access(tenant_id,enabled,grant_reason) SELECT id,true,'Liberação para testes no HPDesenvolvimento; não representa contratação de assinatura' FROM horse_power.tenants WHERE id='hp-centro';
+CREATE TABLE brands(id UUID PRIMARY KEY,name TEXT);
+CREATE TABLE classifications(id UUID PRIMARY KEY,name TEXT NOT NULL UNIQUE);
+CREATE TABLE families(id UUID PRIMARY KEY,brand_id UUID NOT NULL REFERENCES brands(id));
+CREATE TABLE bases(id UUID PRIMARY KEY,family_id UUID NOT NULL REFERENCES families(id),service_count INTEGER NOT NULL);
+CREATE TABLE services(id UUID PRIMARY KEY,name TEXT NOT NULL);
+CREATE TABLE models(id UUID PRIMARY KEY,brand_id UUID NOT NULL REFERENCES brands(id),family_id UUID NOT NULL REFERENCES families(id),classification_id UUID REFERENCES classifications(id),name TEXT NOT NULL,fipe_code TEXT NOT NULL,complete INTEGER NOT NULL,service_count INTEGER NOT NULL,base_id UUID REFERENCES bases(id),excluded_service_ids TEXT NOT NULL);
+CREATE TABLE repair_times(id UUID PRIMARY KEY,base_id UUID REFERENCES bases(id),model_id UUID REFERENCES models(id),service_id UUID NOT NULL REFERENCES services(id),service_name TEXT NOT NULL,minutes DOUBLE PRECISION NOT NULL CHECK(minutes>=0),time_identifier TEXT, CHECK((base_id IS NOT NULL AND model_id IS NULL) OR (base_id IS NULL AND model_id IS NOT NULL)));
+REVOKE ALL ON ALL TABLES IN SCHEMA service_catalog FROM PUBLIC,anon,authenticated,service_role,horse_power_app;
