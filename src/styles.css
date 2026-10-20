@@ -4474,3 +4474,11 @@ body { padding-top: 36px; }
 .development-notice { position: fixed; top: 0; left: 0; right: 0; z-index: 100000; height: 36px; display: flex; align-items: center; justify-content: center; padding: 4px 8px; background: #5b21b6; color: white; font: 600 12px/1.2 system-ui, sans-serif; text-align: center; }
 .sidebar { top: 36px; height: calc(100dvh - 36px); }
 @media print { body { padding-top: 0; } .development-notice { position: static; height: auto; color: black; background: white; border-bottom: 1px solid; } }
+.repair-picker {display:grid;gap:16px;min-width:0;margin:18px 0;}
+.repair-results {display:grid;gap:8px;max-height:360px;overflow:auto;min-width:0;}
+.repair-result {display:grid;gap:6px;min-width:0;}
+.repair-result > .button,.button.repair-result {display:grid;text-align:left;white-space:normal;justify-items:start;overflow-wrap:anywhere;padding:12px;}
+.repair-result small {display:block;color:var(--muted,#64748b);font-weight:400;}
+.repair-model,.repair-model-search,.repair-selection {padding:16px;border:1px solid #e2e8f0;border-radius:10px;display:grid;gap:10px;min-width:0;}
+.repair-picker .capture-actions {flex-wrap:wrap;}
+.repair-picker label:has(> input[type=checkbox]) {display:flex;gap:8px;align-items:center;}

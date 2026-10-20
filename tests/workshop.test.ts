@@ -505,8 +505,10 @@ test("API autentica, protege oficinas, valida entrada e revoga sessão", async (
     db.prepare(
       "UPDATE tenants SET catalog_mode='extension' WHERE id='a'",
     ).run();
-    const manualCatalog = await request("/catalog", "POST", {
-      kind: "service",
+    const porte = db.prepare('SELECT id FROM labor_portes LIMIT 1').get()!.id;
+    db.prepare('INSERT INTO labor_rates VALUES(?,?,?)').run('a',porte,12000);
+    const manualCatalog = await request("/workshop-services", "POST", {
+      execution:'internal',porte_id:porte,minutes:85,pricing_mode:'time',
       name: "Diagnóstico manual",
       sku: "MAN-SVC",
       category: "Manual",
@@ -520,7 +522,7 @@ test("API autentica, protege oficinas, valida entrada e revoga sessão", async (
     assert.equal(
       db
         .prepare(
-          "SELECT COUNT(*) n FROM catalog WHERE tenant_id='a' AND name='Diagnóstico manual'",
+          "SELECT COUNT(*) n FROM workshop_services WHERE tenant_id='a' AND name='Diagnóstico manual'",
         )
         .get()!.n,
       1,

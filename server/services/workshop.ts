@@ -1,4 +1,5 @@
 import { productLabel } from "../../shared/productIdentity.js";
+import { repairModel, resolveService } from './repairCatalog.js';
 import {
   normalizeCustomerName,
   customerPhoneDigits,
@@ -79,6 +80,18 @@ export async function listOrders(db: DB, tenant: string): Promise<Row[]> {
     .all(tenant);
   const byOrder = new Map<string, Row[]>();
   for (const item of items) {
+    if (item.service_snapshot) {
+      const snapshot = JSON.parse(item.service_snapshot);
+      item.repair_service_id = snapshot.service_id;
+      item.repair_model_id = snapshot.model_id;
+      item.workshop_service_id = snapshot.workshop_service_id;
+      item.porte_id = snapshot.porte_id;
+      item.service_execution = snapshot.execution;
+      item.service_cost = snapshot.cost;
+      item.service_minutes = snapshot.minutes;
+      item.duration_seconds = snapshot.minutes * 60;
+      item.service_details = snapshot;
+    }
     const group = byOrder.get(item.order_id) || [];
     group.push(item);
     byOrder.set(item.order_id, group);
@@ -229,8 +242,22 @@ export async function saveOrder(
           .prepare("SELECT * FROM order_items WHERE tenant_id=? AND order_id=?")
           .all(ctx.tenantId, record!)
       : [];
+    if (input.service_model_id && vehicleId && input.service_model_id!==vehicle?.service_model_id) {
+      const selectedModel=await repairModel(db,ctx,input.service_model_id);
+      if (vehicleId) await db.prepare('UPDATE vehicles SET service_model_id=?,service_porte_id=? WHERE tenant_id=? AND id=?').run(input.service_model_id,selectedModel.porte_id||'',ctx.tenantId,vehicleId);
+      if(vehicle) {vehicle.service_model_id=input.service_model_id;vehicle.service_porte_id=selectedModel.porte_id||'';}
+    }
     const items = await Promise.all(
       input.items.map(async (item: Row) => {
+        const priorService=previous.find(p=>p.id===item.id && p.service_snapshot);
+        if(item.repair_service_id || item.workshop_service_id){
+          if(item.repair_service_id && !priorService && item.repair_model_id!==(input.service_model_id||vehicle?.service_model_id))throw new Error('Confirme o modelo usado nos serviços deste veículo.');
+          if(item.professional_id && !(await scoped(db,'professionals',ctx.tenantId,item.professional_id)).active)throw new Error('Profissional inativo.');
+          const service=await resolveService(db,ctx,item,priorService);
+          if(item.workshop_service_id && !priorService && vehicle?.service_porte_id && service.porte_id!==vehicle.service_porte_id)throw new Error('Este serviço não pertence ao porte do veículo.');
+          const details=JSON.parse(service.service_snapshot);details.charged_price=item.price;
+          return {...item,catalog_id:null,snapshotId:priorService?.id||id(),kind:'service',name:service.name,cost:service.cost,professional_id:item.professional_id||null,service_snapshot:JSON.stringify(details)};
+        }
         const catalog = await scoped(
           db,
           "catalog",
@@ -307,7 +334,8 @@ export async function saveOrder(
             String(prior.name) !== String(item.name) ||
             Number(prior.quantity) !== Number(item.quantity) ||
             Number(prior.price) !== Number(item.price) ||
-            Number(prior.cost) !== Number(item.cost)
+            Number(prior.cost) !== Number(item.cost) ||
+            String(prior.service_snapshot||'') !== String(item.service_snapshot||'')
           );
         }));
     const values = [
@@ -356,7 +384,7 @@ export async function saveOrder(
       .run(ctx.tenantId, orderId);
     for (const item of items)
       await db
-        .prepare("INSERT INTO order_items VALUES(?,?,?,?,?,?,?,?,?,?)")
+        .prepare("INSERT INTO order_items(id,tenant_id,order_id,catalog_id,professional_id,kind,name,quantity,price,cost,service_snapshot) VALUES(?,?,?,?,?,?,?,?,?,?,?)")
         .run(
           item.snapshotId,
           ctx.tenantId,
@@ -368,6 +396,7 @@ export async function saveOrder(
           item.quantity,
           item.price,
           item.cost,
+          item.service_snapshot || '',
         );
     if (changed) await invalidateOrderShares(db, ctx.tenantId, orderId);
     await audit(

@@ -1,4 +1,5 @@
 import { NumericInput } from "../components/NumericInput";
+import { RepairServicePicker, ServiceExecutionFields } from '../components/RepairServicePicker';
 import { CapturePanel } from "../components/CapturePanel";
 import { OrderPrint } from "../components/OrderPrint";
 import { CatalogPicker } from "../components/CatalogPicker";
@@ -108,6 +109,9 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
   const [lookedUp, setLookedUp] = useState<Record<string, any>>({});
   const [tab, setTab] = useState(initialCapture && order ? "items" : "details");
   const [itemKind, setItemKind] = useState("product");
+  const [serviceModelId,setServiceModelId]=useState(data.vehicles.find(v=>v.id===order?.vehicle_id)?.service_model_id||'');
+  const storedServiceModelId=data.vehicles.find(v=>v.id===form.vehicle_id)?.service_model_id||'';
+  useEffect(()=>{setServiceModelId(storedServiceModelId);},[form.vehicle_id,lookupPlate,storedServiceModelId]);
   const [pick, setPick] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -233,6 +237,7 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
     }
     return {
       ...form,
+      ...(serviceModelId?{service_model_id:serviceModelId}:{}),
       guest_name: form.customer_id || newCustomer ? "" : form.guest_name,
       new_customer: newCustomer,
       new_vehicle: newVehicle,
@@ -881,10 +886,10 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
                         type="button"
                         className="button"
                         disabled={busy}
-                        onClick={() => void startCapture("tempario")}
+                        onClick={() => setItemKind('service')}
                       >
                         <Wrench size={17} />
-                        Adicionar serviço · Tempario
+                        Adicionar serviço
                       </button>
                     </div>
                   )}
@@ -912,10 +917,10 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
                       : "Serviços do atendimento"}
                   </h3>
                   <p className="muted">
-                    Cadastre um item, importe pela extensão ou reutilize seu
-                    catálogo. Atribua os serviços à sua equipe.
+                    {itemKind==='product'?'Cadastre produtos, importe pelo Sky Peças ou reutilize seu catálogo.':'Escolha o modelo e os serviços compatíveis, ou utilize os serviços da oficina. Atribua a execução à sua equipe.'}
                   </p>
-                  {!locked && (
+                  {!locked && itemKind==='service' && <RepairServicePicker key={form.vehicle_id||lookupPlate||'guest'} vehicle={vehicle||lookedUp} modelId={serviceModelId} onModelChange={setServiceModelId} onAdd={item=>setForm(f=>({...f,items:[...f.items,item]}))}/>}
+                  {!locked && itemKind==='product' && (
                     <div className="item-picker">
                       <CatalogPicker
                         key={itemKind}
@@ -937,7 +942,7 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
                       </button>
                     </div>
                   )}
-                  {!locked && (
+                  {!locked && itemKind==='product' && (
                     <button
                       type="button"
                       className="text-button"
@@ -1084,6 +1089,7 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
                                     </select>
                                   </Field>
                                 )}
+                                {!locked && item.kind==='service' && (item.repair_service_id||item.workshop_service_id) && <ServiceExecutionFields item={item} onChange={updates=>setForm(f=>({...f,items:f.items.map((row,n)=>n===index?{...row,...updates}:row)}))}/>}
                                 <div className="item-total">
                                   <span>Total</span>
                                   <strong>

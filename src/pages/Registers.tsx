@@ -44,10 +44,10 @@ const config = {
     icon: CarFront,
   },
   catalog: {
-    title: "Produtos e serviços",
+    title: "Produtos",
     singular: "item",
     description:
-      "Cadastre produtos e serviços manualmente ou importe pelo Sky Peças e Tempario.",
+      "Cadastre produtos manualmente ou importe pelo Sky Peças.",
     icon: Package,
   },
   professionals: {
@@ -72,7 +72,7 @@ export function Registers({ kind }: { kind: Kind }) {
   const rows = data[kind].filter(
     (r) =>
       (filter === "all" || (filter === "active" ? r.active : !r.active)) &&
-      (kind !== "catalog" || type === "all" || r.kind === type) &&
+      (kind !== "catalog" || r.kind === 'product') &&
       matchesSearch([
         r.name,
         r.search_aliases,
@@ -112,16 +112,7 @@ export function Registers({ kind }: { kind: Kind }) {
               <button className="button" onClick={() => { setType("product"); setBatchOpen(true); }}>
                 <Plus size={18} /> Cadastrar produtos
               </button>
-              <button
-                className="button"
-                onClick={() => {
-                  setType("service");
-                  setEditing(null);
-                }}
-              >
-                <Wrench size={18} />
-                Cadastrar serviço
-              </button>
+              <Link className="button" to="/servicos">Serviços da oficina</Link>
             </div>
           ) : (
             <button className="button primary" onClick={() => setEditing(null)}>
@@ -136,9 +127,6 @@ export function Registers({ kind }: { kind: Kind }) {
           <button className="button" onClick={() => setCategoriesOpen(true)}>Editar categorias</button>
           <button className="button" onClick={() => setCapture("sky")}>
             Importar produto do Sky
-          </button>
-          <button className="button" onClick={() => setCapture("tempario")}>
-            Importar serviço do Tempario
           </button>
           <Link className="button" to="/configuracoes?aba=pecas">
             Configurar lucro das peças
@@ -162,7 +150,6 @@ export function Registers({ kind }: { kind: Kind }) {
           <div className="tabs">
             {[
               ["product", "Produtos"],
-              ["service", "Serviços"],
             ].map(([value, label]) => (
               <button
                 key={value}
@@ -785,7 +772,7 @@ export function RegisterModal({
                       {!!form.category && !(data.product_categories || []).some((c) => c.active && c.name === form.category) && <option value={form.category} disabled>{form.category} (categoria anterior)</option>}
                       {(data.product_categories || []).filter((c) => c.active).map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
                     </select>
-                    <small>Escolha uma categoria da lista. Gerencie as opções em Produtos e serviços → Editar categorias.</small>
+                    <small>Escolha uma categoria da lista. Gerencie as opções em Produtos → Editar categorias.</small>
                   </Field>
                 ) : input("category", "Categoria", "text", false, true)}
                 {moneyInput(

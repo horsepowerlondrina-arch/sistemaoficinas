@@ -3,6 +3,7 @@ import { CashControl } from "./pages/CashControl";
 import { PeopleRegisters } from "./pages/PeopleRegisters";
 import { Suppliers } from "./pages/Suppliers";
 import { ServicesProfit } from "./pages/ServicesProfit";
+import { WorkshopServices } from './components/RepairServicePicker';
 import { PartsProfit } from "./pages/PartsProfit";
 import { Home } from "./pages/Home";
 import { Login } from "./pages/Login";
@@ -170,7 +171,8 @@ export function App() {
       title: "CADASTROS",
       items: [
         ["/cadastros", "Clientes e veículos", Users],
-        ["/catalogo", "Produtos e serviços", Package],
+        ["/catalogo", "Produtos", Package],
+        ["/servicos", "Serviços", Wrench],
         ["/profissionais", "Profissionais", Wrench],
         ["/fornecedores", "Fornecedores", Package],
       ],
@@ -453,6 +455,7 @@ export function App() {
                   element={<Registers kind="professionals" />}
                 />
                 <Route path="/cadastros" element={<PeopleRegisters />} />
+                <Route path="/servicos" element={admin?<WorkshopServices/>:<Navigate to="/ordens" replace/>}/>
                 <Route path="/fornecedores" element={admin ? <Suppliers /> : <Navigate to="/ordens" replace />} />
                 <Route
                   path="/tempos"

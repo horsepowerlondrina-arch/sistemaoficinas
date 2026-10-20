@@ -69,6 +69,7 @@ import { getWorkshopProfile, saveWorkshopProfile } from "./services/workshopProf
 import { calculatePaymentPlan, paymentMethods } from "./domain/payments.js";
 import { lookupVehicle, providerToken } from "./services/vehicleLookup.js";
 import { vehicleFipeFields } from "./services/vehicleFipeFields.js";
+import { serviceInfo, saveLaborRates, searchModels, repairModel, searchRepairServices, listWorkshopServices, saveWorkshopService, resolveService, serviceSelectionSchema } from './services/repairCatalog.js';
 const text = z.string().trim().max(500).default("");
 const name = z
   .string()
@@ -138,6 +139,7 @@ const schemas = {
   }),
 };
 const orderSchema = z.object({
+  service_model_id:z.string().uuid().optional(),
   customer_id: z.string().nullable().optional(),
   vehicle_id: z.string().nullable().optional(),
   new_customer: z.object({ name, phone: z.string().trim().max(60) }).optional(),
@@ -156,7 +158,8 @@ const orderSchema = z.object({
     .array(
       z.object({
         id: z.string().optional(),
-        catalog_id: z.string().min(1),
+        ...serviceSelectionSchema.shape,
+        catalog_id: z.string().nullable().optional(),
         professional_id: z.string().nullable().optional(),
         quantity: z.number().int().min(1).max(10000),
         price: integer,
@@ -927,6 +930,27 @@ export function createApp(db: DB) {
     lookupLimits.set(tenant, entry);
     res.json(await lookupVehicle(db, tenant, plate));
   });
+  app.get('/api/repair-services/config',async(_req,res)=>res.json(await serviceInfo(db,res.locals.context)));
+  app.put('/api/repair-services/rates',async(req,res)=>{
+    await transaction(db,async()=>{await saveLaborRates(db,res.locals.context,req.body.rates);await audit(db,res.locals.context,'labor_rates.updated',res.locals.context.tenantId);});res.json({ok:true});
+  });
+  app.get('/api/repair-services/models',async(req,res)=>res.json(await searchModels(db,res.locals.context,req.query)));
+  app.get('/api/repair-services/models/:id',async(req,res)=>res.json(await repairModel(db,res.locals.context,String(req.params.id))));
+  app.get('/api/repair-services/models/:id/services',async(req,res)=>res.json(await searchRepairServices(db,res.locals.context,String(req.params.id),req.query)));
+  app.get('/api/workshop-services',async(req,res)=>res.json(await listWorkshopServices(db,res.locals.context,req.query)));
+  app.post('/api/workshop-services',async(req,res)=>res.json({id:await transaction(db,async()=>{const key=await saveWorkshopService(db,res.locals.context,req.body);await audit(db,res.locals.context,'workshop_service.created',key);return key;})}));
+  app.put('/api/workshop-services/:id',async(req,res)=>res.json({id:await transaction(db,async()=>{const key=await saveWorkshopService(db,res.locals.context,req.body,String(req.params.id));await audit(db,res.locals.context,'workshop_service.updated',key);return key;})}));
+  app.delete('/api/workshop-services/:id',async(req,res)=>{
+    await transaction(db,async()=>{await scoped(db,'workshop_services',res.locals.context.tenantId,String(req.params.id));await db.prepare('UPDATE workshop_services SET active=0 WHERE tenant_id=? AND id=?').run(res.locals.context.tenantId,String(req.params.id));await audit(db,res.locals.context,'workshop_service.removed',String(req.params.id));});res.json({ok:true});
+  });
+  app.post('/api/repair-services/preview',async(req,res)=>res.json(await resolveService(db,res.locals.context,req.body)));
+  app.post('/api/repair-services/reprice',async(req,res)=>{
+    const input=z.object({order_id:z.string(),item_id:z.string(),execution:z.enum(['internal','outsourced']),cost:integer}).parse(req.body);
+    const prior=await db.prepare('SELECT * FROM order_items WHERE tenant_id=? AND order_id=? AND id=?').get(res.locals.context.tenantId,input.order_id,input.item_id);
+    if(!prior?.service_snapshot)throw new Error('Item não encontrado nesta oficina.');
+    const saved=JSON.parse(prior.service_snapshot);
+    res.json(await resolveService(db,res.locals.context,{repair_service_id:saved.service_id,repair_model_id:saved.model_id,workshop_service_id:saved.workshop_service_id,service_execution:input.execution,service_cost:input.cost},prior));
+  });
   app.post("/api/customers-with-vehicle", async (req, res) => {
     const ctx: Context = res.locals.context;
     const customer = schemas.customers.parse(req.body.customer);
@@ -1087,6 +1111,7 @@ export function createApp(db: DB) {
             await audit(db, ctx, `vehicles.owner_changed:${old.customer_id}:${input.customer_id}`, record!);
         }
         if (table === "catalog") {
+          if(input.kind==='service')throw new Error('Cadastre e edite os serviços no módulo Serviços.');
           if (input.kind === "product") {
             input.category = await validProductCategory(db, ctx, input.category, old?.category);
             input.category_confirmed = 1;

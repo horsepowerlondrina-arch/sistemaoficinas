@@ -1,6 +1,7 @@
 import { workshopDate } from "../lib/workflow";
 import { NumericInput } from "../components/NumericInput";
 import { PartsPricing } from "./PartsPricing";
+import { LaborRates } from '../components/RepairServicePicker';
 import { WorkshopProfile } from "../components/WorkshopProfile";
 import { RegisterModal } from "./Registers";
 import { CapturePanel } from "../components/CapturePanel";
@@ -564,12 +565,13 @@ export function Settings() {
       />
       <div className="tabs">
         <button
-          className={!["pecas","oficina"].includes(params.get("aba") || "") ? "active" : ""}
+          className={!["pecas","oficina","servicos"].includes(params.get("aba") || "") ? "active" : ""}
           onClick={() => setParams({})}
         >
           Geral e taxas
         </button>
         <button className={params.get("aba") === "oficina" ? "active" : ""} onClick={() => setParams({aba:"oficina"})}>Dados da oficina</button>
+        <button className={params.get('aba')==='servicos'?'active':''} onClick={()=>setParams({aba:'servicos'})}>Mão de obra por porte</button>
         <button
           className={params.get("aba") === "pecas" ? "active" : ""}
           onClick={() => setParams({ aba: "pecas" })}
@@ -577,7 +579,7 @@ export function Settings() {
           Lucro de peças e terceiros
         </button>
       </div>
-      {params.get("aba") === "oficina" ? <WorkshopProfile key={session.tenant.id} /> : params.get("aba") === "pecas" ? (
+      {params.get('aba')==='servicos'?<LaborRates/>:params.get("aba") === "oficina" ? <WorkshopProfile key={session.tenant.id} /> : params.get("aba") === "pecas" ? (
         <PartsPricing />
       ) : (
         <>

@@ -16,6 +16,7 @@ export function createDatabase(
 export type Row = Record<string, any>;
 export type MaybePromise<T> = T | Promise<T>;
 export interface DB {
+  withTenantRead?<T>(tenant: string, callback: () => Promise<T>): Promise<T>;
   prepare(sql: string): {
     get(...values: any[]): MaybePromise<Row | undefined>;
     all(...values: any[]): MaybePromise<Row[]>;

@@ -22,7 +22,7 @@ function fixture() {
       ('product','a','product','Filtro de óleo','P1',1000,2000,5),
       ('other','b','service','Troca de óleo','S1',0,10000,0);
     INSERT INTO orders(id,tenant_id,number,kind,status,entered_on,due_on,km,total) VALUES('order','a',1,'quote','quote','2026-10-03','2026-10-03',0,14000),('fresh','a',2,'quote','quote','2026-10-03','2026-10-03',0,0);
-    INSERT INTO order_items VALUES('i1','a','order','service',NULL,'service','Troca de óleo histórica',1,10000,0),('i2','a','order','product',NULL,'product','Filtro histórico',2,2000,1000);
+    INSERT INTO order_items(id,tenant_id,order_id,catalog_id,professional_id,kind,name,quantity,price,cost) VALUES('i1','a','order','service',NULL,'service','Troca de óleo histórica',1,10000,0),('i2','a','order','product',NULL,'product','Filtro histórico',2,2000,1000);
     INSERT INTO service_aliases VALUES('a','troca oleo','Troca de óleo','service');
     INSERT INTO external_catalog_links VALUES('a','tempario','troca oleo','service');`);
   db.prepare("INSERT INTO sessions VALUES(?,?,?,?)").run(
@@ -136,7 +136,7 @@ test("archived items remain editable in their original quote but cannot be added
     db.close();
   }
 });
-test("HTTP hides archived catalog and times, permits new manual creation but blocks reactivation, and permits editing imported prices", async () => {
+test("HTTP preserva histórico e recusa cadastro e edição de serviços pelo módulo de produtos", async () => {
   const db = fixture();
   const token = await beginCapture(db, ctx, "fresh", "session");
   await importCapture(db, token.token, capture());
@@ -173,7 +173,7 @@ test("HTTP hides archived catalog and times, permits new manual creation but blo
       headers,
       body: JSON.stringify(item),
     });
-    assert.equal(r.status, 200);
+    assert.equal(r.status, 400);
     r = await fetch(base + "/catalog/service", {
       method: "PUT",
       headers,
@@ -202,7 +202,7 @@ test("HTTP hides archived catalog and times, permits new manual creation but blo
       headers,
       body: JSON.stringify({ ...item, price: 14000 }),
     });
-    assert.equal(r.status, 200, await r.text());
+    assert.equal(r.status, 400, await r.text());
     assert.equal(
       (await (await fetch(base + "/workspace", { headers })).json()).catalog
         .length,

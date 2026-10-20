@@ -28,6 +28,9 @@ export function postgresSql(input: string) {
     "customers",
     "vehicles",
     "vehicle_lookup_cache",
+    "labor_portes",
+    "labor_rates",
+    "workshop_services",
     "professionals",
     "catalog",
     "product_categories",
@@ -91,6 +94,24 @@ export function createPostgresDatabase(url = process.env.DATABASE_URL) {
     return (client || pool).query(postgresSql(sql), values);
   }
   const db = {
+    async withTenantRead<T>(tenant: string, callback: () => Promise<T>): Promise<T> {
+      const active = context.getStore();
+      if (active) {
+        await active.query("SELECT set_config('app.tenant_id',$1,true)", [tenant]);
+        return callback();
+      }
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN READ ONLY");
+        await client.query("SELECT set_config('app.tenant_id',$1,true)", [tenant]);
+        const result = await context.run(client, callback);
+        await client.query("COMMIT");
+        return result;
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally { client.release(); }
+    },
     prepare(sql: string) {
       return {
         async get(...v: any[]) {
