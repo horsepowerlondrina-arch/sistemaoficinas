@@ -8,6 +8,11 @@ export function createDatabase(
 ) {
   if (path !== ":memory:") mkdirSync(dirname(path), { recursive: true });
   const db = new DatabaseSync(path);
+  db.function('translate',(value,from,to)=>{
+    if(value===null||from===null||to===null)return null;
+    const source=Array.from(String(from)),target=Array.from(String(to));
+    return Array.from(String(value)).map(c=>{const i=source.indexOf(c);return i<0?c:(target[i]||'');}).join('');
+  });
   db.exec("PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;");
   db.exec(readFileSync(new URL("./schema.sql", import.meta.url), "utf8"));
   migrate(db);

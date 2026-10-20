@@ -68,7 +68,7 @@ function fixture() {
       keyBase,
       keyModel,
       service,
-      "Troca de teste",
+      "Troca de Óleo",
       time,
       "tempo",
     );
@@ -85,7 +85,7 @@ test("FIPE ambígua retorna modelos distintos, mantendo tempos por base e difere
       [f.other, 120],
       [f.override, 180],
     ] as const) {
-      const result = await searchRepairServices(f.db, ctx, model, {});
+      const result = await searchRepairServices(f.db, ctx, model, {q:'oleo'});
       assert.equal(result.items.length, 1);
       assert.equal(result.items[0].minutes, time);
     }

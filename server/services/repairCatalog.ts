@@ -11,6 +11,10 @@ import {
 } from "../../shared/servicePricing.js";
 
 const uuid = z.string().uuid();
+const accented='áàâãäéèêëíìîïóòôõöúùûüçñÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇÑ';
+const plain=accented.normalize('NFD').replace(/\p{Diacritic}/gu,'').toLowerCase();
+const searchKey=(value:string)=>value.normalize('NFD').replace(/\p{Diacritic}/gu,'').toLowerCase();
+const searchColumn=(column:string)=>`LOWER(translate(${column},'${accented}','${plain}'))`;
 const cents = z.number().int().min(0).max(100000000);
 export const serviceSelectionSchema = z.object({
   repair_service_id: uuid.optional(),
@@ -123,9 +127,9 @@ export async function searchModels(db: DB, ctx: Context, query: unknown) {
   return withCatalog(db, ctx, async () => {
     const rows = await db
       .prepare(
-        "SELECT m.id,m.name,m.fipe_code,m.classification_id porte_id,b.name brand,p.name porte_name,m.service_count FROM service_catalog.models m JOIN service_catalog.brands b ON b.id=m.brand_id LEFT JOIN service_catalog.classifications p ON p.id=m.classification_id WHERE (?='' OR m.fipe_code=?) AND LOWER(b.name || ' ' || m.name) LIKE LOWER(?) ORDER BY b.name,m.name,m.id LIMIT 31 OFFSET ?",
+        `SELECT m.id,m.name,m.fipe_code,m.classification_id porte_id,b.name brand,p.name porte_name,m.service_count FROM service_catalog.models m JOIN service_catalog.brands b ON b.id=m.brand_id LEFT JOIN service_catalog.classifications p ON p.id=m.classification_id WHERE (?='' OR m.fipe_code=?) AND ${searchColumn("b.name || ' ' || m.name")} LIKE ? ORDER BY b.name,m.name,m.id LIMIT 31 OFFSET ?`,
       )
-      .all(q.fipe, q.fipe, `%${q.q}%`, q.offset);
+      .all(q.fipe, q.fipe, `%${searchKey(q.q)}%`, q.offset);
     return { items: rows.slice(0, 30), has_more: rows.length > 30 };
   });
 }
@@ -145,9 +149,9 @@ export async function searchRepairServices(
   return withCatalog(db, ctx, async () => {
     const rows = await db
       .prepare(
-        "SELECT service_id,service_name name,minutes FROM service_catalog.model_services WHERE model_id=? AND LOWER(service_name) LIKE LOWER(?) ORDER BY service_name,service_id LIMIT 51 OFFSET ?",
+        `SELECT service_id,service_name name,minutes FROM service_catalog.model_services WHERE model_id=? AND ${searchColumn('service_name')} LIKE ? ORDER BY service_name,service_id LIMIT 51 OFFSET ?`,
       )
-      .all(modelId, `%${q.q}%`, q.offset);
+      .all(modelId, `%${searchKey(q.q)}%`, q.offset);
     return { items: rows.slice(0, 50), has_more: rows.length > 50 };
   });
 }
@@ -165,9 +169,9 @@ export async function listWorkshopServices(
     .parse(query);
   const rows = await db
     .prepare(
-      "SELECT s.*,p.name porte_name FROM workshop_services s LEFT JOIN labor_portes p ON p.id=s.porte_id WHERE s.tenant_id=? AND s.active=1 AND (?='' OR s.porte_id IS NULL OR s.porte_id=?) AND LOWER(s.name) LIKE LOWER(?) ORDER BY s.name,s.id LIMIT 51 OFFSET ?",
+      `SELECT s.*,p.name porte_name FROM workshop_services s LEFT JOIN labor_portes p ON p.id=s.porte_id WHERE s.tenant_id=? AND s.active=1 AND (?='' OR s.porte_id IS NULL OR s.porte_id=?) AND ${searchColumn('s.name')} LIKE ? ORDER BY s.name,s.id LIMIT 51 OFFSET ?`,
     )
-    .all(ctx.tenantId, q.porte_id, q.porte_id, `%${q.q}%`, q.offset);
+    .all(ctx.tenantId, q.porte_id, q.porte_id, `%${searchKey(q.q)}%`, q.offset);
   return { items: rows.slice(0, 50), has_more: rows.length > 50 };
 }
 export async function saveWorkshopService(
