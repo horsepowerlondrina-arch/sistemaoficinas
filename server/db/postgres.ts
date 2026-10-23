@@ -31,6 +31,8 @@ export function postgresSql(input: string) {
     "vehicle_lookup_cache",
     "labor_portes",
     "labor_rates",
+    "labor_categories",
+    "labor_commercial_rates",
     "workshop_services",
     "professionals",
     "catalog",

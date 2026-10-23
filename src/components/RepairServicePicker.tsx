@@ -5,7 +5,7 @@ import { money, type Entity } from "../lib/types";
 import { Field, Modal, PageHeading } from "./ui";
 import { NumericInput } from "./NumericInput";
 
-type Info = { enabled: boolean; portes: Entity[]; service_markup_bps: number };
+type Info = { enabled: boolean; categories: Entity[]; service_markup_bps: number };
 export function LaborRates() {
   const [info, setInfo] = useState<Info | null>(null),
     [error, setError] = useState(""),
@@ -22,10 +22,10 @@ export function LaborRates() {
   }, []);
   return (
     <section className="panel work-order-section">
-      <h3>Valor da hora por porte</h3>
+      <h3>Valor da hora por categoria comercial</h3>
       <p>
         O preço dos serviços internos é o tempo em minutos ÷ 60 × valor da hora
-        do porte. Defina os valores usados pela oficina.
+        da categoria comercial. Defina os valores usados pela oficina.
       </p>
       {error && (
         <p className="form-error" role="alert">
@@ -34,7 +34,7 @@ export function LaborRates() {
       )}
       {message && <p role="status">{message}</p>}
       <div className="form-grid">
-        {info?.portes.map((p) => (
+        {info?.categories.map((p) => (
           <Field key={p.id} label={`${p.name} — R$/hora`}>
             <NumericInput
               type="number"
@@ -44,7 +44,7 @@ export function LaborRates() {
               onChange={(e) =>
                 setInfo({
                   ...info,
-                  portes: info.portes.map((r) =>
+              categories: info.categories.map((r) =>
                     r.id === p.id
                       ? {
                           ...r,
@@ -70,8 +70,8 @@ export function LaborRates() {
             await send(
               "/repair-services/rates",
               {
-                rates: info!.portes.map((p) => ({
-                  porte_id: p.id,
+                rates: info!.categories.map((p) => ({
+                  category_id: p.id,
                   hourly_rate: p.hourly_rate,
                 })),
               },
@@ -94,19 +94,22 @@ function ServiceForm({
   info,
   initial,
   porteId,
+  commercialCategoryId,
   onClose,
   onSaved,
 }: {
   info: Info;
   initial?: Entity;
   porteId: string;
+  commercialCategoryId: string;
   onClose: () => void;
   onSaved: () => void;
 }) {
   const [form, setForm] = useState({
     name: initial?.name || "",
     execution: initial?.execution || "internal",
-    porte_id: initial?.porte_id || porteId,
+    porte_id: initial?.porte_id || porteId || null,
+    commercial_category_id: initial?.commercial_category_id || commercialCategoryId || "",
     pricing_mode: initial?.pricing_mode || "time",
     minutes: Number(initial?.minutes || 0),
     price: Number(initial?.price || 0),
@@ -115,7 +118,7 @@ function ServiceForm({
   const [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
   const rate = Number(
-    info.portes.find((p) => p.id === form.porte_id)?.hourly_rate || 0,
+    info.categories.find((p) => p.id === form.commercial_category_id)?.hourly_rate || 0,
   );
   const set = (key: string, value: any) =>
     setForm((f) => ({ ...f, [key]: value }));
@@ -134,7 +137,7 @@ function ServiceForm({
       title={
         initial ? "Editar serviço da oficina" : "Cadastrar serviço da oficina"
       }
-      description="O serviço pertence somente a esta oficina e ao porte escolhido."
+      description="O serviço pertence somente a esta oficina e usa a categoria comercial escolhida."
       onClose={onClose}
     >
       <div className="modal-body">
@@ -155,13 +158,13 @@ function ServiceForm({
               <option value="outsourced">Terceirizado</option>
             </select>
           </Field>
-          <Field label="Porte">
+          <Field label="Categoria comercial">
             <select
-              value={form.porte_id}
-              onChange={(e) => set("porte_id", e.target.value)}
+              value={form.commercial_category_id}
+              onChange={(e) => set("commercial_category_id", e.target.value)}
             >
-              <option value="">Selecione o porte</option>
-              {info.portes.map((p) => (
+              <option value="">Selecione a categoria</option>
+              {info.categories.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
                 </option>
@@ -236,7 +239,7 @@ function ServiceForm({
         <button
           type="button"
           className="button primary"
-          disabled={busy || !form.porte_id}
+        disabled={busy || !form.commercial_category_id || (form.execution === "internal" && rate <= 0)}
           onClick={async () => {
             setBusy(true);
             setError("");
@@ -288,6 +291,7 @@ export function RepairServicePicker({
     [matchingFipe, setMatchingFipe] = useState(true),
     [choosing, setChoosing] = useState(!modelId);
   const [porte, setPorte] = useState(String(vehicle?.service_porte_id || "")),
+    [commercialCategory, setCommercialCategory] = useState(String(vehicle?.service_commercial_category_id || "")),
     [search, setSearch] = useState(""),
     [offset, setOffset] = useState(0),
     [rows, setRows] = useState<Entity[]>([]),
@@ -325,6 +329,7 @@ export function RepairServicePicker({
           if (active) {
             setModel(v);
             setPorte(v.porte_id || "");
+            setCommercialCategory(v.commercial_category_id || "");
             setChoosing(false);
           }
         })
@@ -377,7 +382,7 @@ export function RepairServicePicker({
       const params = new URLSearchParams({
         q: search,
         offset: String(offset),
-        porte_id: porte,
+        category_id: commercialCategory,
       });
       api(
         mode === "catalog"
@@ -397,12 +402,13 @@ export function RepairServicePicker({
       active = false;
       clearTimeout(timer);
     };
-  }, [mode, modelId, porte, search, offset, revision]);
+  }, [mode, modelId, commercialCategory, search, offset, revision]);
   const rate = Number(
-    info?.portes.find((p) => p.id === porte)?.hourly_rate || 0,
+    info?.categories.find((p) => p.id === commercialCategory)?.hourly_rate || 0,
   );
   function choose(row: Entity) {
     setSelected(row);
+    if (row.commercial_category_id) setCommercialCategory(row.commercial_category_id);
     setExecution(row.execution || "internal");
     setCost(Number(row.cost || 0));
     setMinutes(Number(row.minutes || 0));
@@ -451,7 +457,7 @@ export function RepairServicePicker({
             </strong>
             {model && (
               <p>
-                {model.porte_name} · FIPE: {model.fipe_code || "não informado"}
+                Porte técnico: {model.porte_name} · Categoria comercial: {model.commercial_category_name || "não classificada"} · FIPE: {model.fipe_code || "não informado"}
               </p>
             )}
             <button
@@ -504,6 +510,7 @@ export function RepairServicePicker({
                     onClick={() => {
                       setModel(m);
                       setPorte(m.porte_id || "");
+                      setCommercialCategory(m.commercial_category_id || "");
                       onModelChange(m.id);
                       setChoosing(false);
                       setOffset(0);
@@ -514,7 +521,7 @@ export function RepairServicePicker({
                       {m.brand} · {m.name}
                     </strong>
                     <small>
-                      {m.porte_name} · FIPE {m.fipe_code || "não informado"} ·{" "}
+                      {m.porte_name} · {m.commercial_category_name || "Sem categoria comercial"} · FIPE {m.fipe_code || "não informado"} ·{" "}
                       {m.service_count} serviços
                     </small>
                   </button>
@@ -550,19 +557,16 @@ export function RepairServicePicker({
       )}
       {mode === "manual" && (
         <>
-          <Field label="Porte do veículo">
+          <Field label="Categoria comercial do serviço">
             <select
-              value={porte}
-              disabled={
-                !!onAdd && !!(model?.porte_id || vehicle?.service_porte_id)
-              }
+              value={commercialCategory}
               onChange={(e) => {
-                setPorte(e.target.value);
+                setCommercialCategory(e.target.value);
                 setOffset(0);
               }}
             >
-              <option value="">Selecione o porte</option>
-              {info?.portes.map((p) => (
+              <option value="">Selecione a categoria</option>
+              {info?.categories.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
                 </option>
@@ -590,7 +594,8 @@ export function RepairServicePicker({
         />
       </Field>
       <p className="muted">
-        {porte ? `Hora deste porte: ${money(rate)}. ` : ""}
+        {commercialCategory ? `Hora da categoria: ${money(rate)}. ` : ""}
+        {commercialCategory && rate <= 0 ? "Tarifa não configurada. " : ""}
         <Link to="/configuracoes?aba=servicos">Configurar valores da hora</Link>
       </p>
       {error && (
@@ -687,6 +692,17 @@ export function RepairServicePicker({
                 <option value="outsourced">Terceirizado</option>
               </select>
             </Field>
+            <Field label="Categoria comercial nesta OS">
+              <select
+                value={commercialCategory}
+                onChange={(e) => setCommercialCategory(e.target.value)}
+              >
+                <option value="">Selecione a categoria</option>
+                {info?.categories.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            </Field>
             {execution === "outsourced" ? (
               <Field label="Custo do terceiro (R$)">
                 <NumericInput
@@ -741,7 +757,7 @@ export function RepairServicePicker({
           <button
             type="button"
             className="button primary"
-            disabled={adding || loading}
+            disabled={adding || loading || !commercialCategory || (execution === "internal" && rate <= 0)}
             onClick={async () => {
               setAdding(true);
               setError("");
@@ -754,6 +770,7 @@ export function RepairServicePicker({
                       }
                     : { workshop_service_id: selected.id }),
                   ...(porte ? { porte_id: porte } : {}),
+                  ...(commercialCategory ? { commercial_category_id: commercialCategory } : {}),
                   service_execution: execution,
                   service_cost: cost,
                   ...(minutes > 0 ? { service_minutes: minutes } : {}),
@@ -789,6 +806,7 @@ export function RepairServicePicker({
           info={info}
           initial={editing || undefined}
           porteId={porte}
+          commercialCategoryId={commercialCategory}
           onClose={() => setEditing(undefined)}
           onSaved={() => {
             setEditing(undefined);
@@ -823,11 +841,49 @@ export function ServiceExecutionFields({
   onChange: (updates: Record<string, any>) => void;
 }) {
   const detail = item.service_details || {};
+  const [categoryBusy, setCategoryBusy] = useState(false);
+  const [categoryError, setCategoryError] = useState("");
   const execution = item.service_execution || detail.execution || "internal";
   const cost = Number(item.service_cost ?? item.cost ?? 0),
     markup = Number(detail.markup_bps ?? 3000),
     minutes = Number(item.service_minutes ?? detail.minutes ?? 0),
     rate = Number(detail.hourly_rate || 0);
+  const categoryId = String(item.commercial_category_id || detail.commercial_category_id || "");
+  async function updateCategory(value: string) {
+    setCategoryBusy(true);
+    setCategoryError("");
+    try {
+      const selection = {
+        repair_service_id: item.repair_service_id,
+        repair_model_id: item.repair_model_id,
+        workshop_service_id: item.workshop_service_id,
+        commercial_category_id: value,
+        service_execution: execution,
+        service_cost: cost,
+        ...(minutes > 0 ? { service_minutes: minutes } : {}),
+      };
+      const result = item.order_id
+        ? await send("/repair-services/reprice", {
+            order_id: item.order_id,
+            item_id: item.id,
+            execution,
+            cost,
+            commercial_category_id: value,
+          })
+        : await send("/repair-services/preview", selection);
+      onChange({
+        commercial_category_id: value,
+        price: result.price,
+        service_details: result,
+        service_minutes: result.minutes,
+        duration_seconds: Number(result.minutes || 0) * 60,
+      });
+    } catch (e) {
+      setCategoryError((e as Error).message);
+    } finally {
+      setCategoryBusy(false);
+    }
+  }
   function update(mode: string, value: number) {
     onChange({
       service_execution: mode,
@@ -843,6 +899,20 @@ export function ServiceExecutionFields({
   }
   return (
     <>
+      <Field label="Categoria comercial nesta OS">
+        <select
+          value={categoryId}
+          disabled={categoryBusy}
+          onChange={(e) => void updateCategory(e.target.value)}
+        >
+          <option value="">Selecione a categoria</option>
+          <option value="compacto">Compacto</option>
+          <option value="medio">Médio</option>
+          <option value="premium">Premium</option>
+          <option value="pesado">Pesado</option>
+        </select>
+      </Field>
+      {categoryError && <p className="form-error" role="alert">{categoryError}</p>}
       <Field label="Execução nesta OS">
         <select
           value={execution}

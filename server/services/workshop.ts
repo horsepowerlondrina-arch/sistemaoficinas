@@ -86,6 +86,7 @@ export async function listOrders(db: DB, tenant: string): Promise<Row[]> {
       item.repair_model_id = snapshot.model_id;
       item.workshop_service_id = snapshot.workshop_service_id;
       item.porte_id = snapshot.porte_id;
+      item.commercial_category_id = snapshot.commercial_category_id;
       item.service_execution = snapshot.execution;
       item.service_cost = snapshot.cost;
       item.service_minutes = snapshot.minutes;

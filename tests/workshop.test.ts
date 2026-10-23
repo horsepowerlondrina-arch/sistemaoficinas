@@ -507,8 +507,10 @@ test("API autentica, protege oficinas, valida entrada e revoga sessão", async (
     ).run();
     const porte = db.prepare('SELECT id FROM labor_portes LIMIT 1').get()!.id;
     db.prepare('INSERT INTO labor_rates VALUES(?,?,?)').run('a',porte,12000);
+    db.prepare('INSERT INTO labor_commercial_rates(tenant_id,category_id,hourly_rate) VALUES(?,?,?)').run('a','compacto',12000);
     const manualCatalog = await request("/workshop-services", "POST", {
       execution:'internal',porte_id:porte,minutes:85,pricing_mode:'time',
+      commercial_category_id:'compacto',
       name: "Diagnóstico manual",
       sku: "MAN-SVC",
       category: "Manual",

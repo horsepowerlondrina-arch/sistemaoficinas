@@ -26,6 +26,11 @@ test("migração preserva OS, itens, recebimentos e vínculos do banco anterior"
     assert.equal(db.prepare("SELECT identity_legacy FROM orders WHERE id='order'").get()!.identity_legacy,1);
     assert.equal(db.prepare("SELECT profile_data FROM tenants WHERE id='a'").get()!.profile_data,"{}");
     assert.equal(db.prepare("SELECT COUNT(*) n FROM migrations WHERE version=23").get()!.n,1);
+    assert.equal(db.prepare("SELECT COUNT(*) n FROM migrations WHERE version=24").get()!.n,1);
+    assert.deepEqual(
+      db.prepare("SELECT id FROM labor_categories ORDER BY sort_order").all().map((r:any)=>r.id),
+      ["compacto","medio","premium","pesado"],
+    );
     assert.equal(
       db.prepare("SELECT kind FROM orders WHERE id='quote'").get()!.kind,
       "quote",

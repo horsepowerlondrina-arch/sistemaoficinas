@@ -1,6 +1,27 @@
 import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
-import { createHash, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import { adminClient } from "./local-admin.js";
+import { migrationChecksum } from "../server/db/migrationChecksum.js";
+// This checksum predates the committed 003 file. Keep the recorded audit value;
+// accept it only after confirming the expected local schema is present.
+const legacyCustomizationChecksum = "d8f14d0a9c725eeb0c9dc7d6bb8a8c006dbafac9318a09afb609bf11597e673e";
+async function verifiedLegacyCustomization(): Promise<boolean> {
+  const result = await client.query(`SELECT
+    to_regclass('horse_power.checklists') IS NOT NULL AS checklists,
+    to_regclass('horse_power.checklist_photos') IS NOT NULL AS photos,
+    to_regclass('horse_power.document_revisions') IS NOT NULL AS revisions,
+    (SELECT count(*) = 1 FROM horse_power.migrations WHERE version=23) AS version,
+    (SELECT count(*) = 4 FROM information_schema.columns WHERE table_schema='horse_power' AND
+      (table_name,column_name) IN (('tenants','profile_data'),('orders','identity_legacy'),
+       ('checklists','identity_legacy'),('public_shares','document_revision'))) AS columns,
+    (SELECT count(*) = 4 FROM pg_policies WHERE schemaname='horse_power' AND
+      (tablename,policyname) IN (('checklists','backend_checklist_access'),
+       ('checklist_photos','backend_checklist_access'),('document_revisions','backend_document_read'),
+       ('document_revisions','backend_document_insert'))) AS policies,
+    EXISTS(SELECT 1 FROM pg_trigger WHERE tgrelid='horse_power.document_revisions'::regclass
+      AND tgname='document_revision_immutable' AND NOT tgisinternal) AS immutable`);
+  return Object.values(result.rows[0]).every(Boolean);
+}
 if (existsSync(".env.platform-admin.local")) process.loadEnvFile(".env.platform-admin.local");
 const client = adminClient();
 let newAdminEnvironment: string | undefined;
@@ -36,9 +57,11 @@ try {
   const directory = new URL("../local-postgres/", import.meta.url);
   for (const file of readdirSync(directory).filter(name => /^\d{3}-[a-z0-9-]+\.sql$/.test(name)).sort()) {
     const version = file.slice(0, -4), sql = readFileSync(new URL(file, directory), "utf8");
-    const hash = createHash("sha256").update(sql).digest("hex");
+    const hash = migrationChecksum(sql);
     const old = (await client.query("SELECT sha256 FROM local_setup.migrations WHERE version=$1", [version])).rows[0];
-    if (old && old.sha256 !== hash) throw new Error("Migração aplicada foi alterada: " + version);
+    if (old && old.sha256 !== hash && !(version === "003-workshop-customization" &&
+        old.sha256 === legacyCustomizationChecksum && await verifiedLegacyCustomization()))
+      throw new Error("Migração aplicada foi alterada: " + version);
     if (!old) {
       if (version === "001-local") {
         const occupied = await client.query("SELECT nspname FROM pg_namespace WHERE nspname IN ('horse_power','service_catalog')");

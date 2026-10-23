@@ -23,6 +23,7 @@ function fixture() {
   const porte = String(
     db.prepare("SELECT id FROM labor_portes ORDER BY name LIMIT 1").get()!.id,
   );
+  const category = "compacto";
   const brand = randomUUID(),
     model = randomUUID(),
     other = randomUUID(),
@@ -36,6 +37,7 @@ function fixture() {
  CREATE TABLE service_catalog.brands(id TEXT,name TEXT);
  CREATE TABLE service_catalog.classifications(id TEXT,name TEXT);
  CREATE TABLE service_catalog.models(id TEXT,brand_id TEXT,name TEXT,fipe_code TEXT,classification_id TEXT,base_id TEXT,excluded_service_ids TEXT,service_count INTEGER);
+ CREATE TABLE service_catalog.model_labor_categories(model_id TEXT,technical_classification_id TEXT,category_id TEXT,assignment_source TEXT,review_status TEXT);
  CREATE TABLE service_catalog.repair_times(id TEXT,base_id TEXT,model_id TEXT,service_id TEXT,service_name TEXT,minutes REAL,time_identifier TEXT);
  CREATE VIEW service_catalog.model_services AS SELECT m.id model_id,t.service_id,t.service_name,t.minutes,t.time_identifier,t.id repair_time_id FROM models m JOIN repair_times t ON t.base_id=m.base_id WHERE NOT EXISTS(SELECT 1 FROM json_each(m.excluded_service_ids) e WHERE e.value=t.service_id) AND NOT EXISTS(SELECT 1 FROM repair_times x WHERE x.model_id=m.id AND x.service_id=t.service_id) UNION ALL SELECT model_id,service_id,service_name,minutes,time_identifier,id FROM repair_times WHERE model_id IS NOT NULL;
  INSERT INTO service_catalog.tenant_access VALUES('a',1,NULL),('b',0,NULL);
@@ -56,6 +58,8 @@ function fixture() {
     db.prepare(
       "INSERT INTO service_catalog.models VALUES(?,?,?,?,?,?,?,?)",
     ).run(key, brand, name, "123456-7", porte, keyBase, "[]", 1);
+  for (const key of [model, other, override])
+    db.prepare("INSERT INTO service_catalog.model_labor_categories VALUES(?,?,?,'automatic','confirmed')").run(key, porte, category);
   for (const [keyBase, keyModel, time] of [
     [base, null, 60],
     [otherBase, null, 120],
@@ -72,7 +76,7 @@ function fixture() {
       time,
       "tempo",
     );
-  db.prepare("INSERT INTO labor_rates VALUES(?,?,?)").run("a", porte, 12000);
+  db.prepare("INSERT INTO labor_commercial_rates(tenant_id,category_id,hourly_rate) VALUES(?,?,?)").run("a", category, 12000);
   return { db, porte, model, other, override, service };
 }
 test("FIPE ambígua retorna modelos distintos, mantendo tempos por base e diferenças específicas", async () => {
@@ -136,7 +140,7 @@ test("OS preserva snapshots após mudança de tarifa, catálogo e assinatura; no
     );
     const before = (await listOrders(f.db, "a")).find((o) => o.id === id)!;
     f.db.prepare("UPDATE service_catalog.repair_times SET minutes=999").run();
-    f.db.prepare("UPDATE labor_rates SET hourly_rate=99900").run();
+    f.db.prepare("UPDATE labor_commercial_rates SET hourly_rate=99900").run();
     f.db.prepare("UPDATE service_catalog.tenant_access SET enabled=0").run();
     await saveOrder(
       f.db,
@@ -169,6 +173,47 @@ test("OS preserva snapshots após mudança de tarifa, catálogo e assinatura; no
     f.db.close();
   }
 });
+test("quatro tarifas são isoladas por oficina e a categoria manual fica no snapshot", async () => {
+  const f = fixture();
+  try {
+    await saveLaborRates(f.db, ctx, [
+      { category_id: "compacto", hourly_rate: 12000 },
+      { category_id: "medio", hourly_rate: 15000 },
+      { category_id: "premium", hourly_rate: 18000 },
+      { category_id: "pesado", hourly_rate: 22000 },
+    ]);
+    await saveLaborRates(f.db, { ...ctx, tenantId: "b" }, [
+      { category_id: "compacto", hourly_rate: 8000 },
+    ]);
+    const a = await serviceInfo(f.db, ctx);
+    const b = await serviceInfo(f.db, { ...ctx, tenantId: "b" });
+    assert.deepEqual(a.categories.map((row: any) => row.id), ["compacto", "medio", "premium", "pesado"]);
+    assert.equal(a.categories.find((row: any) => row.id === "premium")!.hourly_rate, 18000);
+    assert.equal(b.categories.find((row: any) => row.id === "compacto")!.hourly_rate, 8000);
+    assert.equal(b.categories.find((row: any) => row.id === "premium")!.hourly_rate, 0);
+    const priced = await resolveService(f.db, ctx, {
+      repair_service_id: f.service,
+      repair_model_id: f.model,
+      commercial_category_id: "premium",
+    });
+    assert.equal(priced.price, 18000);
+    assert.equal(priced.commercial_category_id, "premium");
+    assert.equal(priced.category_override, true);
+    const snapshot = JSON.parse(priced.service_snapshot);
+    assert.equal(snapshot.hourly_rate, 18000);
+    assert.equal(snapshot.technical_classification, "Porte");
+    await saveLaborRates(f.db, ctx, [{ category_id: "premium", hourly_rate: 30000 }]);
+    const preserved = await resolveService(f.db, ctx, {
+      repair_service_id: f.service,
+      repair_model_id: f.model,
+      commercial_category_id: "premium",
+    }, { service_snapshot: JSON.stringify(snapshot) });
+    assert.equal(preserved.price, 18000);
+    assert.equal(JSON.parse(preserved.service_snapshot).hourly_rate, 18000);
+  } finally {
+    f.db.close();
+  }
+});
 test("serviços particulares têm isolamento e porte; tempo/preço são calculados; custos de terceiros não viram estoque", async () => {
   const f = fixture();
   try {
@@ -176,11 +221,14 @@ test("serviços particulares têm isolamento e porte; tempo/preço são calculad
       name: "Serviço privado",
       execution: "internal",
       porte_id: f.porte,
+      commercial_category_id: "compacto",
       pricing_mode: "price",
       minutes: 0,
       price: 6000,
       cost: 999,
     });
+    assert.equal((await listWorkshopServices(f.db, ctx, { category_id: "compacto" })).items.length, 1);
+    assert.equal((await listWorkshopServices(f.db, ctx, { category_id: "medio" })).items.length, 0);
     assert.equal(
       (await listWorkshopServices(f.db, { ...ctx, tenantId: "b" }, {})).items
         .length,
@@ -197,6 +245,7 @@ test("serviços particulares têm isolamento e porte; tempo/preço são calculad
     const preview = await resolveService(f.db, ctx, {
       workshop_service_id: manual,
       porte_id: f.porte,
+      commercial_category_id: "compacto",
     });
     assert.equal(preview.minutes, 30);
     assert.equal(preview.cost, 0);
@@ -209,12 +258,12 @@ test("serviços particulares têm isolamento e porte; tempo/preço são calculad
       /outro porte/,
     );
     assert.equal(
-      (await serviceInfo(f.db, ctx)).portes.find((p) => p.id === f.porte)!
+      (await serviceInfo(f.db, ctx)).categories.find((p) => p.id === "compacto")!
         .hourly_rate,
       12000,
     );
     await saveLaborRates(f.db, ctx, [
-      { porte_id: f.porte, hourly_rate: 15000 },
+      { category_id: "compacto", hourly_rate: 15000 },
     ]);
     assert.equal(servicePrice(30, 15000), 7500);
     assert.equal(serviceMinutes(7500, 15000), 30);

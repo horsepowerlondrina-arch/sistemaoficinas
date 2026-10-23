@@ -9,7 +9,20 @@ test("PostgreSQL local: autenticação, oficinas, transações e RLS do catálog
   const db = await createLocalDatabase();
   t.after(()=>db.close());
   const credentials=JSON.parse(readFileSync("data/local-credentials.json","utf8"));
-  await t.test("catálogo sem contexto não é visível; autorização da oficina é obrigatória",async()=>{
+  await t.test("importação posterior classifica automaticamente e aplica a exceção CAT-007 persistente",async()=>{
+    const {adminClient}=await import("../scripts/local-admin");const admin=adminClient();await admin.connect();
+    try{
+      await admin.query("BEGIN");
+      const brand="00000000-0000-4000-8000-000000000009",family="00000000-0000-4000-8000-000000000010",base="00000000-0000-4000-8000-000000000011",classification="00000000-0000-4000-8000-000000000012",model="ab7b2905-17d3-4664-8743-62ef07085599";
+      await admin.query("INSERT INTO service_catalog.brands(id,name) VALUES($1,'Marca Fictícia Importada')",[brand]);
+      await admin.query("INSERT INTO service_catalog.families(id,brand_id) VALUES($1,$2)",[family,brand]);
+      await admin.query("INSERT INTO service_catalog.bases(id,family_id,service_count) VALUES($1,$2,0)",[base,family]);
+      await admin.query("INSERT INTO service_catalog.classifications(id,name) VALUES($1,'Veículo Médio')",[classification]);
+      await admin.query("INSERT INTO service_catalog.models(id,brand_id,family_id,classification_id,name,fipe_code,complete,service_count,base_id,excluded_service_ids) VALUES($1,$2,$3,$4,'Modelo Fictício Importado','999999-9',1,0,$5,'[]')",[model,brand,family,classification,base]);
+      const category=(await admin.query("SELECT category_id,assignment_source,review_status FROM service_catalog.model_labor_categories WHERE model_id=$1",[model])).rows[0];
+      assert.deepEqual(category,{category_id:"premium",assignment_source:"reviewed",review_status:"confirmed"});
+    }finally{await admin.query("ROLLBACK");await admin.end();}
+  });  await t.test("catálogo sem contexto não é visível; autorização da oficina é obrigatória",async()=>{
     assert.equal((await db.prepare("SELECT * FROM service_catalog.models").all()).length,0);
     assert.equal(await db.withTenantRead("local-a",async()=>(await db.prepare("SELECT * FROM service_catalog.models").all()).length),1);
     assert.equal(await db.withTenantRead("local-b",async()=>(await db.prepare("SELECT * FROM service_catalog.models").all()).length),0);
@@ -59,11 +72,13 @@ test("PostgreSQL local: autenticação, oficinas, transações e RLS do catálog
     const ctx={tenantId:"local-a",userId:"local-owner-a",role:"owner"};
     const models=await searchModels(db,ctx,{q:"ficticio"});
     assert.equal(models.items.length,1);
+    assert.equal(models.items[0].commercial_category_id,"compacto");
     const model=models.items[0].id;
     const services=await searchRepairServices(db,ctx,model,{q:"inspecao"});
     assert.equal(services.items.length,1);
     const stop=new Error("rollback fixture OS");
     await assert.rejects(db.transaction(async()=>{
+      await db.withTenantRead("local-a",async()=>db.prepare("INSERT INTO labor_commercial_rates(tenant_id,category_id,hourly_rate) VALUES('local-a','compacto',12000)").run());
       const id=await saveOrder(db,ctx,{status:"quote",customer_id:"local-a-customer",vehicle_id:"local-a-vehicle",service_model_id:model,entered_on:"2026-10-20",due_on:"2026-10-20",km:0,discount:0,notes:"",problem:"",
         items:[{repair_service_id:services.items[0].service_id,repair_model_id:model,price:6000,quantity:1}]});
       const saved=(await listOrders(db,"local-a")).find(row=>row.id===id)!;
@@ -74,6 +89,38 @@ test("PostgreSQL local: autenticação, oficinas, transações e RLS do catálog
       throw stop;
     }),e=>e===stop);
     assert.equal((await listOrders(db,"local-a")).length,0);
+  });
+  await t.test("RLS limita tarifas e serviços particulares ao tenant do contexto",async()=>{
+    const {listWorkshopServices}=await import("../server/services/repairCatalog");
+    const serviceContext={tenantId:"local-a",userId:"local-owner-a",role:"owner"};
+    const stop=new Error("rollback fixture RLS");
+    await assert.rejects(db.transaction(async()=>{
+    await db.withTenantRead("local-a",async()=>{
+      await db.prepare("INSERT INTO labor_commercial_rates(tenant_id,category_id,hourly_rate) VALUES('local-a','compacto',12000)").run();
+      await db.prepare("INSERT INTO workshop_services(id,tenant_id,name,execution,commercial_category_id) VALUES('00000000-0000-4000-8000-000000000091','local-a','Serviço Fictício Compacto','internal','compacto'),('00000000-0000-4000-8000-000000000092','local-a','Serviço Fictício Premium','internal','premium')").run();
+    });
+    assert.equal((await listWorkshopServices(db,serviceContext,{})).items.length,2);
+    assert.equal((await listWorkshopServices(db,serviceContext,{category_id:"compacto"})).items.length,1);
+    assert.equal((await listWorkshopServices(db,serviceContext,{category_id:"premium"})).items.length,1);
+    assert.equal((await listWorkshopServices(db,{...serviceContext,tenantId:"local-b",userId:"local-owner-b"},{})).items.length,0);
+    const a=await db.withTenantRead("local-a",async()=>db.prepare("SELECT tenant_id,category_id,hourly_rate FROM labor_commercial_rates WHERE tenant_id='local-a'").all());
+    const crossRate=await db.withTenantRead("local-a",async()=>db.prepare("SELECT tenant_id FROM labor_commercial_rates WHERE tenant_id='local-b'").all());
+    const crossService=await db.withTenantRead("local-a",async()=>db.prepare("SELECT tenant_id FROM workshop_services WHERE tenant_id='local-b'").all());
+    assert.deepEqual(a.map((row:any)=>[row.tenant_id,row.category_id,row.hourly_rate]),[["local-a","compacto",12000]]);
+    assert.deepEqual(crossRate,[]);
+    assert.deepEqual(crossService,[]);
+    const {adminClient}=await import("../scripts/local-admin");const admin=adminClient();await admin.connect();
+    try{
+      await admin.query("BEGIN");
+      await admin.query("INSERT INTO horse_power.workshop_services(id,tenant_id,name,execution) VALUES('00000000-0000-4000-8000-000000000099','local-b','Serviço Fictício B','internal')");
+      await admin.query("SET LOCAL ROLE hp_local_app");
+      await admin.query("SELECT set_config('app.tenant_id','local-a',true)");
+      assert.deepEqual((await admin.query("SELECT tenant_id FROM horse_power.labor_commercial_rates WHERE tenant_id='local-b'")).rows,[]);
+      assert.deepEqual((await admin.query("SELECT tenant_id FROM horse_power.workshop_services WHERE tenant_id='local-b'")).rows,[]);
+      await assert.rejects(admin.query("INSERT INTO horse_power.labor_commercial_rates(tenant_id,category_id,hourly_rate) VALUES('local-b','medio',9999)"),{code:"42501"});
+    } finally {await admin.query("ROLLBACK");await admin.end();}
+    throw stop;
+    }),e=>e===stop);
   });
   await t.test("PROD-001.1: identidade, documentos e links públicos isolados entre oficinas",async()=>{
     const { saveWorkshopProfile,getWorkshopProfile }=await import("../server/services/workshopProfile");
