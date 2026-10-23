@@ -27,11 +27,11 @@ try {
   await client.query("INSERT INTO service_catalog.brands VALUES($1,'Marca Fictícia')",[id(1)]);
   await client.query("INSERT INTO service_catalog.families VALUES($1,$2)",[id(2),id(1)]);
   await client.query("INSERT INTO service_catalog.bases VALUES($1,$2,1)",[id(3),id(2)]);
-  const porte = (await client.query("SELECT id FROM horse_power.labor_portes ORDER BY name LIMIT 1")).rows[0].id;
-  await client.query("INSERT INTO service_catalog.classifications VALUES($1,'Porte Fictício')",[porte]);
+  const technicalClass = (await client.query("SELECT id,name FROM horse_power.labor_portes ORDER BY name LIMIT 1")).rows[0];
+  const porte = technicalClass.id;
+  await client.query("INSERT INTO service_catalog.classifications VALUES($1,$2)",[porte,technicalClass.name]);
   await client.query("INSERT INTO service_catalog.services VALUES($1,'Inspeção Fictícia')",[id(4)]);
   await client.query("INSERT INTO service_catalog.models VALUES($1,$2,$3,$4,'Modelo Fictício','000000-0',1,1,$5,'[]')",[id(5),id(1),id(2),porte,id(3)]);
-  await client.query("INSERT INTO service_catalog.model_labor_categories(model_id,technical_classification_id,category_id,assignment_source,review_status,change_reason) VALUES($1,$2,'compacto','manual','confirmed','Classificação fictícia do seed local.')",[id(5),porte]);
   await client.query("INSERT INTO service_catalog.repair_times VALUES($1,$2,NULL,$3,'Inspeção Fictícia',30,'local-demo')",[id(6),id(3),id(4)]);
   await client.query("INSERT INTO service_catalog.releases(version,status,source_sha256,model_count,time_count,application_count,validated_at) VALUES('local-ficticio','active','synthetic',1,1,1,now())");
   await client.query("INSERT INTO service_catalog.tenant_access(tenant_id,enabled,grant_reason) VALUES('local-a',true,'Fixture local fictícia'),('local-b',false,'Fixture sem liberação')");

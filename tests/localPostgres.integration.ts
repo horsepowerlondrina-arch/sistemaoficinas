@@ -21,6 +21,11 @@ test("PostgreSQL local: autenticação, oficinas, transações e RLS do catálog
       await admin.query("INSERT INTO service_catalog.models(id,brand_id,family_id,classification_id,name,fipe_code,complete,service_count,base_id,excluded_service_ids) VALUES($1,$2,$3,$4,'Modelo Fictício Importado','999999-9',1,0,$5,'[]')",[model,brand,family,classification,base]);
       const category=(await admin.query("SELECT category_id,assignment_source,review_status FROM service_catalog.model_labor_categories WHERE model_id=$1",[model])).rows[0];
       assert.deepEqual(category,{category_id:"premium",assignment_source:"reviewed",review_status:"confirmed"});
+      const compactClass="00000000-0000-4000-8000-000000000013",compactModel="00000000-0000-4000-8000-000000000014";
+      await admin.query("INSERT INTO service_catalog.classifications(id,name) VALUES($1,'Básico Elétrico')",[compactClass]);
+      await admin.query("INSERT INTO service_catalog.models(id,brand_id,family_id,classification_id,name,fipe_code,complete,service_count,base_id,excluded_service_ids) VALUES($1,$2,$3,$4,'Modelo Fictício Novo','999998-9',1,0,$5,'[]')",[compactModel,brand,family,compactClass,base]);
+      const compact=(await admin.query("SELECT category_id,assignment_source FROM service_catalog.model_labor_categories WHERE model_id=$1",[compactModel])).rows[0];
+      assert.deepEqual(compact,{category_id:"compacto",assignment_source:"automatic"});
     }finally{await admin.query("ROLLBACK");await admin.end();}
   });  await t.test("catálogo sem contexto não é visível; autorização da oficina é obrigatória",async()=>{
     assert.equal((await db.prepare("SELECT * FROM service_catalog.models").all()).length,0);
