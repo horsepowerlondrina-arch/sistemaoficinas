@@ -174,7 +174,7 @@ export function downloadResults(
   );
   const anchor = document.createElement("a");
   anchor.href = url;
-  anchor.download = `horse-power-resultado-os-${new Date().toISOString().slice(0, 10)}.xlsx`;
+  anchor.download = `oficina-resultado-os-${new Date().toISOString().slice(0, 10)}.xlsx`;
   anchor.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

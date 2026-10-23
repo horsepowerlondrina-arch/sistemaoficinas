@@ -11,6 +11,7 @@ import {
   removeChecklistPhoto,
   updateChecklist,
 } from "../server/services/checklists";
+import { readDocument } from "../server/services/documents";
 
 const ctx = { userId: "u", tenantId: "t", role: "owner" };
 
@@ -113,6 +114,11 @@ test("checklist vincula OS/veículo, salva fotos e finaliza com assinatura", asy
     const completed = await finalizeChecklist(db, ctx, created.id);
     assert.equal(completed.status, "completed");
     assert.equal((await listChecklists(db, ctx)).length, 1);
+    const issued=await readDocument(db,ctx,"checklist",created.id,1);
+    assert.equal(issued.checklist.signature_data,"data:image/png;base64,QUJDRA==");
+    assert.equal(issued.checklist.photos[0].image_url,"data:image/jpeg;base64,"+Buffer.alloc(200,1).toString("base64"));
+    db.prepare("UPDATE checklist_photos SET image_data='changed' WHERE tenant_id='t' AND checklist_id=?").run(created.id);
+    assert.notEqual((await readDocument(db,ctx,"checklist",created.id,1)).checklist.photos[0].image_url,"data:image/jpeg;base64,changed");
   } finally {
     db.close();
   }

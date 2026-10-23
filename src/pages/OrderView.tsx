@@ -1,6 +1,4 @@
-import { ShareOrder } from "../components/ShareOrder";
-import { OrderPrint } from "../components/OrderPrint";
-import { customerPayments } from "../../shared/customerPayments";
+import { IssuedDocument } from "../components/IssuedDocument";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useApp } from "../lib/context";
@@ -75,12 +73,7 @@ export function OrderView() {
       >
         ← Voltar à lista
       </button>
-      <OrderPrint
-        order={{...order,payment_summary:customerPayments(order.status,data.receivables.find(r=>r.order_id===order.id),data.installments)}}
-        tenant={session.tenant}
-        customer={customer}
-        vehicle={vehicle}
-      />
+      <IssuedDocument key={id} kind="order" id={id!} />
       <div className="no-print">
       <PageHeading
         eyebrow="ORDEM DE SERVIÇO"
@@ -96,15 +89,12 @@ export function OrderView() {
                 Checklist de entrada
               </button>
             )}
-            {admin && <ShareOrder order={order} />}
             {admin && (
               <button className="button" onClick={() => setStatusPicker(true)}>
                 Alterar status
               </button>
             )}
-            <button className="button" onClick={() => window.print()}>
-              Imprimir / PDF
-            </button>
+
             {admin && editable && (
               <button
                 className="button"

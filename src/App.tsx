@@ -1,3 +1,6 @@
+import { platformTitle } from "../shared/platformIdentity";
+import { PlatformBrand } from "./components/PlatformBrand";
+import { WorkshopBrand } from "./components/WorkshopBrand";
 import { advanceOnEnter } from "./lib/enterNavigation";
 import { CashControl } from "./pages/CashControl";
 import { PeopleRegisters } from "./pages/PeopleRegisters";
@@ -119,17 +122,11 @@ export function App() {
     document.addEventListener("keydown", advanceOnEnter);
     return () => document.removeEventListener("keydown", advanceOnEnter);
   }, [session]);
+  useEffect(() => { document.title = platformTitle(session?.tenant.name); }, [session?.tenant.id, session?.tenant.name]);
   if (loading)
     return (
       <div className="loading-screen" role="status" aria-live="polite">
-        <img
-          className="loading-logo"
-          src="/brand/horse-power.jpg"
-          alt="Horse Power Car Service"
-          width="3000"
-          height="1356"
-          fetchPriority="high"
-        />
+        <PlatformBrand />
         <LoaderCircle className="spin loading-spinner" aria-hidden="true" />
         <p>Preparando sua oficina...</p>
       </div>
@@ -288,12 +285,8 @@ export function App() {
           />
         )}
         <aside className={`sidebar ${mobile ? "mobile-open" : ""}`}>
-          <NavLink className="brand" to="/inicio">
-            <img
-              className="official-logo"
-              src="/brand/horse-power.jpg"
-              alt="Horse Power Car Service"
-            />
+          <NavLink className="brand" to="/inicio" aria-label={"Início de " + session.tenant.name}>
+            <WorkshopBrand key={session.tenant.id} shop={session.tenant} />
           </NavLink>
           <NavLink
             to="/inicio"
@@ -359,6 +352,7 @@ export function App() {
                 <LogOut size={17} />
               </button>
             </div>
+            <div className="software-credit"><small>Software de gestão</small><PlatformBrand compact /></div>
           </div>
         </aside>
         <div className="app-main">

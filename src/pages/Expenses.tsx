@@ -117,7 +117,7 @@ export function Expenses({ cash = false }: { cash?: boolean }) {
         description={
           cash
             ? "Entradas recebidas e despesas efetivamente pagas."
-            : "Vencimentos, pagamentos e planejamento dos gastos da Horse Power."
+            : "Vencimentos, pagamentos e planejamento dos gastos da sua oficina."
         }
         actions={
           !cash && (

@@ -1,3 +1,4 @@
+import { documentHistory, readDocument, issueDocument } from "./services/documents.js";
 import {
   partsPricingSchema,
   workshopPrice,
@@ -372,6 +373,7 @@ export function createApp(db: DB) {
   app.use("/api", (req, res, next) => {
     if (
       res.locals.context.role === "owner" ||
+      (/^\/documents\/order\/[^/]+$/.test(req.path) && ["GET","POST"].includes(req.method)) ||
       (req.method === "GET" && req.path === "/workspace") ||
       (req.method === "POST" && /^\/orders\/[^/]+\/status$/.test(req.path)) ||
       (req.method === "PATCH" && /^\/orders\/[^/]+\/notes$/.test(req.path))
@@ -901,7 +903,7 @@ export function createApp(db: DB) {
   });
   app.post("/api/orders/:id/share", async (req, res) =>
     res.json({
-      ...(await createShare(db, res.locals.context, String(req.params.id))),
+      ...(await createShare(db, res.locals.context, String(req.params.id), z.object({revision:z.number().int().positive().optional()}).parse(req.body).revision)),
       public_origin: process.env.PUBLIC_ORIGIN || "",
     }),
   );
@@ -1174,6 +1176,17 @@ export function createApp(db: DB) {
   app.post("/api/catalog-batch", async (req,res) => {
     res.json(await createProductBatch(db,res.locals.context,req.body));
   });
+
+  app.get("/api/documents/:kind/:id",async(req,res)=>{
+    const kind=z.enum(["order","checklist"]).parse(req.params.kind),id=String(req.params.id),ctx=res.locals.context;
+    const revision=req.query.revision===undefined?undefined:z.coerce.number().int().positive().parse(req.query.revision);
+    res.json(revision?await readDocument(db,ctx,kind,id,revision):await documentHistory(db,ctx,kind,id));
+  });
+  app.post("/api/documents/:kind/:id",async(req,res)=>{
+    const kind=z.enum(["order","checklist"]).parse(req.params.kind),body=z.object({new_revision:z.boolean().default(false)}).parse(req.body);
+    res.json(await issueDocument(db,res.locals.context,kind,String(req.params.id),body.new_revision));
+  });
+
   app.get("/api/workshop-profile", async (_req,res) => {
     res.json(await getWorkshopProfile(db,res.locals.context));
   });

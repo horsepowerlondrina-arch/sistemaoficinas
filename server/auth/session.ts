@@ -5,6 +5,7 @@ import {
   createHash,
 } from "node:crypto";
 import type { DB } from "../db/database.js";
+import { tenantAccessDecision } from "./tenantAccess.js";
 import type { Request, Response, NextFunction } from "express";
 export type Context = { userId: string; tenantId: string; role: string };
 export function hashPassword(password: string) {
@@ -56,6 +57,16 @@ export function auth(db: DB) {
       .get(digest(tokenFrom(req)), Date.now());
     if (!session) {
       res.status(401).json({ error: "Entre na sua conta para continuar." });
+      return;
+    }
+    const accessState = await db.getTenantAccessState?.(String(session.tenantId)) || "legacy";
+    const decision = tenantAccessDecision(accessState, req.method, req.path);
+    if (decision === "unavailable") {
+      res.status(403).json({ error: "O acesso operacional desta oficina está indisponível." });
+      return;
+    }
+    if (decision === "read_only") {
+      res.status(403).json({ error: "Esta oficina está em modo somente leitura." });
       return;
     }
     res.locals.context = session;

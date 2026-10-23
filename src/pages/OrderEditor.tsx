@@ -1,7 +1,6 @@
 import { NumericInput } from "../components/NumericInput";
 import { RepairServicePicker, ServiceExecutionFields } from '../components/RepairServicePicker';
 import { CapturePanel } from "../components/CapturePanel";
-import { OrderPrint } from "../components/OrderPrint";
 import { CatalogPicker } from "../components/CatalogPicker";
 import { CustomerPicker } from "../components/CustomerPicker";
 import { validNewCustomerPhone } from "../../shared/customerIdentity";
@@ -11,7 +10,6 @@ import {
   ArrowLeft,
   Plus,
   Trash2,
-  Printer,
   Check,
   CarFront,
   UserRound,
@@ -368,9 +366,8 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
           actions={
             <>
               {order && (
-                <button className="button" onClick={() => window.print()}>
-                  <Printer size={17} />
-                  Imprimir / PDF
+                <button className="button" onClick={() => navigate(`/ordens/${order.id}`)}>
+                  Ver revisões e imprimir
                 </button>
               )}
               {!locked && (
@@ -387,23 +384,6 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
           }
         />
       </div>
-      <OrderPrint
-        order={{
-          ...(order || {}),
-          ...form,
-          id: order?.id || "print-preview",
-          number: order?.number || "—",
-          kind: "order",
-          customer_name: customer?.name || form.guest_name,
-          plate: vehicle?.plate || form.guest_plate,
-          brand: vehicle?.brand || "",
-          model: vehicle?.model || form.guest_vehicle,
-          items: form.items,
-        }}
-        tenant={session.tenant}
-        customer={customer}
-        vehicle={vehicle}
-      />
       <div className="editor-layout no-print">
         <section className="panel editor-main">
           <div className="tabs">

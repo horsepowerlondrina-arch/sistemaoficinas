@@ -22,6 +22,7 @@ export type Row = Record<string, any>;
 export type MaybePromise<T> = T | Promise<T>;
 export interface DB {
   withTenantRead?<T>(tenant: string, callback: () => Promise<T>): Promise<T>;
+  getTenantAccessState?(tenant: string): Promise<string>;
   prepare(sql: string): {
     get(...values: any[]): MaybePromise<Row | undefined>;
     all(...values: any[]): MaybePromise<Row[]>;

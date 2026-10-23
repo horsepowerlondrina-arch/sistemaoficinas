@@ -10,6 +10,7 @@ Gastos Oficina.xlsx
 
 .env.*
 !.env.example
+.platform-admin-local.json
 .vercel/
 .DS_Store
 Imagens minha oficina/

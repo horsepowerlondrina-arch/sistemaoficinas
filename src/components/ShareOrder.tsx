@@ -4,7 +4,7 @@ import { useApp } from "../lib/context";
 import { send } from "../lib/api";
 import { money, type Order } from "../lib/types";
 import { Modal, Field } from "./ui";
-export function ShareOrder({ order }: { order: Order }) {
+export function ShareOrder({ order, revision, shopName, customerPhone }: { order: Pick<Order,"id"|"number"|"status"|"total"|"plate"|"customer_name"|"customer_id">; revision?:number; shopName?:string; customerPhone?:string }) {
   const { data, session } = useApp();
   const customer = data.customers.find((c) => c.id === order.customer_id);
   const [open, setOpen] = useState(false),
@@ -13,7 +13,7 @@ export function ShareOrder({ order }: { order: Order }) {
     [url, setUrl] = useState(""),
     [publicReady, setPublicReady] = useState(false);
   const [phone, setPhone] = useState(
-      (customer?.phone || "").split("/")[0].trim(),
+      (customerPhone || customer?.phone || "").split("/")[0].trim(),
     ),
     [template, setTemplate] = useState(
       order.status === "quote"
@@ -26,13 +26,13 @@ export function ShareOrder({ order }: { order: Order }) {
     ),
     [message, setMessage] = useState("");
   const text = (link: string, type: string) =>
-    `Olá${order.customer_name && order.customer_name !== "Cliente não informado" ? ", " + order.customer_name.split(" ")[0] : ""}! Aqui é da ${session.tenant.name}.\n\n${type === "quote" ? `Sua OS #${order.number} está em orçamento. Total: ${money(order.total)}.` : type === "completed" ? `Sua OS #${order.number}${order.plate ? `, referente ao veículo ${order.plate},` : ""} foi finalizada. Agradecemos pela confiança!` : type === "ready" ? `O serviço do seu veículo ${order.plate} foi concluído. Entre em contato para combinar a retirada.` : `Confira a atualização do atendimento #${order.number} do seu veículo ${order.plate}.`}\n\n${type === "completed" ? "Confira os detalhes da OS e os pagamentos registrados" : "Veja os serviços, peças e valores"}: ${link}\n\nQualquer dúvida, estamos à disposição!`;
+    `Olá${order.customer_name && order.customer_name !== "Cliente não informado" ? ", " + order.customer_name.split(" ")[0] : ""}! Aqui é da ${shopName || session.tenant.name}.\n\n${type === "quote" ? `Sua OS #${order.number} está em orçamento. Total: ${money(order.total)}.` : type === "completed" ? `Sua OS #${order.number}${order.plate ? `, referente ao veículo ${order.plate},` : ""} foi finalizada. Agradecemos pela confiança!` : type === "ready" ? `O serviço do seu veículo ${order.plate} foi concluído. Entre em contato para combinar a retirada.` : `Confira a atualização do atendimento #${order.number} do seu veículo ${order.plate}.`}\n\n${type === "completed" ? "Confira os detalhes da OS e os pagamentos registrados" : "Veja os serviços, peças e valores"}: ${link}\n\nQualquer dúvida, estamos à disposição!`;
   async function prepare() {
     setOpen(true);
     setBusy(true);
     setError("");
     try {
-      const s = await send(`/orders/${order.id}/share`, {});
+      const s = await send(`/orders/${order.id}/share`, revision ? {revision} : {});
       const base = s.public_origin || window.location.origin;
       const shareUrl = new URL(s.path, base);
       shareUrl.searchParams.set("preview", "2");
@@ -99,10 +99,9 @@ export function ShareOrder({ order }: { order: Order }) {
                   />
                 </Field>
                 <p className="muted">
-                  Este link permanece o mesmo enquanto a OS não for
-                  alterado. Ao mudar dados, itens, valores ou status, o link
-                  atual é invalidado e um novo será criado no próximo
-                  compartilhamento. Você também pode desativá-lo manualmente.
+                Este link abre a revisão imutável selecionada. Alterações
+                posteriores na oficina, na OS ou nos pagamentos não mudam o
+                documento. Você pode desativar os links da OS manualmente.
                 </p>
                 {!publicReady && (
                   <div className="error-box">

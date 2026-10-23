@@ -1,3 +1,4 @@
+import { DocumentTerms } from "./DocumentTerms";
 import { money, statusLabel, type Entity } from "../lib/types";
 import { DocumentHeader } from "./DocumentHeader";
 
@@ -168,6 +169,7 @@ export function OrderPrint({
         </tbody></table>
         <p>Total cobrado: <strong>{money(order.payment_summary.total)}</strong> · Total pago: <strong>{money(order.payment_summary.paid)}</strong> · Saldo a pagar: <strong>{money(order.payment_summary.balance)}</strong></p>
       </section>}
+      <DocumentTerms shop={tenant} validUntil={order.quote_valid_until} />
       <footer className="hp-print-footer">
         {!publicView && (
 <div className="hp-print-dates">

@@ -1,3 +1,4 @@
+import { localDatabaseUrl } from "../localConfig.js";
 import { AsyncLocalStorage } from "node:async_hooks";
 import pg from "pg";
 import { readFileSync } from "node:fs";
@@ -62,6 +63,7 @@ export function postgresSql(input: string) {
     "service_times",
     "checklists",
     "checklist_photos",
+    "document_revisions",
   ]);
   sql = sql.replace(
     /'(?:''|[^'])*'|\b(FROM|JOIN|UPDATE|INTO|TABLE)\s+("?[a-z_]+"?)/gi,
@@ -72,14 +74,15 @@ export function postgresSql(input: string) {
   );
   return sql;
 }
-export function createPostgresDatabase(url = process.env.DATABASE_URL) {
+export function createPostgresDatabase(url = process.env.DATABASE_URL, options: { local?: boolean } = {}) {
   if (!url) throw new Error("Configure DATABASE_URL.");
+  if (options.local) url = localDatabaseUrl(url);
   const pool = new pg.Pool({
     connectionString: url,
     max: 3,
     connectionTimeoutMillis: 10000,
     idleTimeoutMillis: 20000,
-    ssl: {
+    ssl: options.local ? false : {
       rejectUnauthorized: true,
       ca: readFileSync(
         new URL("./certs/supabase-ca.crt", import.meta.url),
@@ -94,6 +97,10 @@ export function createPostgresDatabase(url = process.env.DATABASE_URL) {
     return (client || pool).query(postgresSql(sql), values);
   }
   const db = {
+    async getTenantAccessState(tenant: string) {
+      const result = await query("SELECT horse_power.local_tenant_access_state($1) AS state", [tenant]);
+      return String(result.rows[0]?.state || "legacy");
+    },
     async withTenantRead<T>(tenant: string, callback: () => Promise<T>): Promise<T> {
       const active = context.getStore();
       if (active) {

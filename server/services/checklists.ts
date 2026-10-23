@@ -463,6 +463,11 @@ export async function finalizeChecklist(
       );
     await audit(db, ctx, "checklist.completed", checklistId);
 
+    // A completed checklist is an issued customer document. Capture it in
+    // this transaction so its signature and photos cannot drift later.
+    const { issueDocument } = await import("./documents.js");
+    await issueDocument(db, ctx, "checklist", checklistId, true);
+
     return {
       ...(await getChecklist(db, ctx, checklistId)),
       created_quote: createdQuote,

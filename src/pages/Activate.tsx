@@ -1,3 +1,4 @@
+import { PlatformBrand } from "../components/PlatformBrand";
 import { useState, useEffect } from "react";
 import { send } from "../lib/api";
 export function Activate() {
@@ -13,11 +14,7 @@ export function Activate() {
   return (
     <main className="activation-page">
       <section className="activation-card">
-        <img
-          src="/brand/horse-power.jpg"
-          alt="Horse Power"
-          style={{ width: 220, maxWidth: "100%", marginBottom: 24 }}
-        />
+        <PlatformBrand />
         <h1>{done ? "Acesso ativado" : "Defina sua senha"}</h1>
         {done ? (
           <>
@@ -46,7 +43,7 @@ export function Activate() {
               }
             }}
           >
-            <p>Administrador: horsepowerlondrina@gmail.com</p>
+            <p>Defina a senha da conta vinculada ao seu convite.</p>
             <label>
               Nova senha
               <input

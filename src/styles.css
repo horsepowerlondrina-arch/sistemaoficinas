@@ -2821,7 +2821,7 @@ body {
 .work-order-section > .button {
   margin-top: 20px;
 }
-/* Horse Power identity and customer / finance workflows */
+/* Customer / finance workflows */
 .official-logo {
   display: block;
   width: 196px;
@@ -3126,7 +3126,7 @@ body {
   }
 }
 
-/* Horse Power cinematic access screen. */
+/* Shared access screen. */
 .sr-only {
   position: absolute;
   width: 1px;
@@ -3155,7 +3155,7 @@ body {
   z-index: -2;
   background:
     linear-gradient(180deg, #0003 0%, #0003 45%, #050506e8 100%),
-    url("/brand/login-workshop.png") center / cover no-repeat;
+    linear-gradient(135deg,#233047,#111a29);
 }
 .hp-login::after {
   content: "";
@@ -4482,3 +4482,76 @@ body { padding-top: 36px; }
 .repair-model,.repair-model-search,.repair-selection {padding:16px;border:1px solid #e2e8f0;border-radius:10px;display:grid;gap:10px;min-width:0;}
 .repair-picker .capture-actions {flex-wrap:wrap;}
 .repair-picker label:has(> input[type=checkbox]) {display:flex;gap:8px;align-items:center;}
+
+/* PROD-001.1: platform and authenticated workshop have independent identities. */
+.platform-brand { display:inline-flex; align-items:center; gap:12px; color:inherit; text-align:left; }
+.platform-brand > img { flex:none; border-radius:12px; }
+.platform-brand > span { display:grid; gap:4px; min-width:0; }
+.platform-brand strong { font-size:20px; font-weight:750; letter-spacing:-.5px; }
+.platform-brand small { font-size:12px; color:inherit; opacity:.7; }
+.platform-brand--compact { gap:8px; }
+.platform-brand--compact strong { font-size:12px; font-weight:600; letter-spacing:0; }
+.platform-brand--compact > img { border-radius:6px; }
+.sidebar .brand { display:block; padding:10px 4px 18px; min-width:0; }
+.workshop-brand { display:flex; flex-direction:column; align-items:flex-start; gap:12px; min-width:0; }
+.workshop-brand-logo { display:block; width:100%; max-width:190px; height:76px; object-fit:contain; object-position:left center; }
+.workshop-brand-monogram { display:grid; place-items:center; width:52px; height:52px; flex:none; border-radius:14px; background:#edf1f6; color:#26364b; font-size:20px; font-weight:750; }
+.workshop-brand-name { display:block; font-size:17px; line-height:1.35; font-weight:750; color:#202938; overflow-wrap:anywhere; }
+.software-credit { padding:13px 4px 16px; color:#687080; border-top:1px solid var(--border); }
+.software-credit > small { display:block; font-size:10px; margin-bottom:7px; }
+.loading-screen > .platform-brand { margin-bottom:24px; }
+.activation-card > .platform-brand { margin-bottom:24px; }
+/* No workshop photography or logo is used on the shared login. */
+.hp-login { background:#111a29; }
+.hp-login-scenery { background:radial-gradient(ellipse at 15% 10%,#31445e 0%,transparent 55%),radial-gradient(ellipse at 90% 90%,#213d47 0%,transparent 50%),#111a29; }
+.hp-login-card { background:linear-gradient(135deg,#6a7f95,#233047) border-box; border-radius:24px; }
+.hp-login-card::before { border-radius:23px; background:linear-gradient(145deg,#1a2639,#111b2c); }
+.platform-login-heading { display:flex; justify-content:center; padding:25px 0 20px; }
+.hp-login-card h1 { border-top-color:#ffffff20; font-size:16px; line-height:1.5; letter-spacing:0; text-transform:none; margin:10px 0 26px; padding-top:20px; }
+.hp-login-submit { background:#e9eef5; color:#172236; box-shadow:none; }
+.hp-login-field:focus-within { border-color:#a7bed7; box-shadow:0 0 0 3px #a7bed720; }
+.hp-login-location { color:#aab8ca; font-size:12px; text-align:center; }
+.hp-login-benefits { color:#b4c1d2; }
+@media(max-width:480px) {
+ .hp-login { padding:22px 16px; }
+ .hp-login-card { padding:22px 24px; }
+ .platform-brand strong { font-size:18px; }
+ .platform-brand--compact strong { font-size:12px; }
+ .platform-login-heading { padding:16px 0; }
+ .hp-login-benefits { gap:12px; }
+}
+
+.hp-login-submit { border-color:#d2ddec; }
+.hp-login-options input { accent-color:#a7bed7; }
+.hp-login button:focus-visible, .hp-login input[type="checkbox"]:focus-visible { outline-color:#a7bed7; }
+
+.sidebar { overflow-y:auto; }
+.sidebar > .brand, .sidebar > .home-nav, .sidebar > nav, .sidebar-bottom { flex-shrink:0; }
+.sidebar .brand .workshop-brand-name { color:#202938; }
+.sidebar .brand .workshop-brand-monogram { color:#26364b; }
+
+.workshop-profile-form { display:grid; gap:18px; min-width:0; }
+.workshop-profile-form .work-order-section { margin:0; }
+.business-day { border:1px solid var(--border); border-radius:8px; padding:12px; margin-top:12px; min-width:0; }
+.business-day legend { padding:0 6px; font-weight:600; }
+.business-day > label,.schedule-enabled { display:flex; align-items:center; gap:8px; }
+.business-day input[type=checkbox],.schedule-enabled input { width:auto; }
+.document-text { white-space:pre-wrap; overflow-wrap:anywhere; }
+.document-hours { margin-top:8px; font-size:10px; }
+.document-hours p { margin:2px 0; }
+.document-terms { font-size:10px; line-height:1.45; margin:14px 0; }
+.document-rights { font-size:9px; color:#333; }
+.document-revision-label { font-size:9px; margin-bottom:8px; }
+.issued-document-controls { margin:16px 0; }
+.issued-document-controls select { max-width:100%; margin:8px 0; }
+@media screen {
+ .profile-document-preview .print-only { display:block; }
+ .profile-document-preview .workshop-document { padding:18px; border:1px solid var(--border); min-width:0; }
+ .profile-document-preview .document-header { flex-wrap:wrap; }
+}
+@media print { .profile-document-preview { display:none!important; } }
+@media(max-width:640px) {
+ .workshop-profile-form .form-grid { grid-template-columns:minmax(0,1fr); }
+ .document-header { flex-wrap:wrap; }
+ .document-company { min-width:0; overflow-wrap:anywhere; }
+}

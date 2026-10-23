@@ -68,7 +68,7 @@ export function downloadCashWorkbook(report: CashReport, company: string) {
   const a = document.createElement("a");
   a.href = url;
   a.download =
-    "horse-power-caixa-" +
+    "oficina-caixa-" +
     report.filters.from +
     "-a-" +
     report.filters.to +

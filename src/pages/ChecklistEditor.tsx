@@ -1,3 +1,4 @@
+import { IssuedDocument } from "../components/IssuedDocument";
 import { NumericInput } from "../components/NumericInput";
 import {
   useEffect,
@@ -19,7 +20,6 @@ import { api, send } from "../lib/api";
 import { useApp } from "../lib/context";
 import type { Entity } from "../lib/types";
 import { Empty, Field, PageHeading } from "../components/ui";
-import { ChecklistPrint } from "../components/ChecklistPrint";
 import { PlateField } from "../components/PlateField";
 import { fipeFields, emptyFipe } from "../../shared/vehicleFipe";
 
@@ -815,7 +815,7 @@ export function ChecklistEditor() {
 
   return (
     <>
-      <ChecklistPrint checklist={record} tenant={session.tenant} />
+      <IssuedDocument key={record.id} kind="checklist" id={record.id} />
       <div className="no-print">
         <button className="back-link" onClick={() => navigate("/checklists")}>
           ← Voltar aos checklists
@@ -836,10 +836,7 @@ export function ChecklistEditor() {
               >
                 Consultar entradas desta placa
               </Link>
-              <button className="button" onClick={() => window.print()}>
-                <Printer size={17} />
-                Imprimir / PDF
-              </button>
+
             </>
           }
         />

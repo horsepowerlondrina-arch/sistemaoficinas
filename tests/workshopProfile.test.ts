@@ -17,7 +17,7 @@ function fixture(){
  db.exec("INSERT INTO tenants(id,name) VALUES('a','Oficina A'),('b','Oficina B'); INSERT INTO users VALUES('u','Admin','test@example.test','disabled'),('m','Operador','m@example.test','disabled'); INSERT INTO memberships VALUES('u','a','owner'),('m','a','operator'); INSERT INTO orders(id,tenant_id,number,kind,status,entered_on,due_on,km,total) VALUES('o','a',1,'quote','quote','2026-10-11','2026-10-11',0,8000); INSERT INTO catalog(id,tenant_id,kind,name,sku,cost,price,stock) VALUES('p','a','product','Filtro','F',2500,4000,5)");
  return db;
 }
-test("workshop identity editing is scoped, refreshes the share and preserves business data and login",async()=>{
+test("workshop identity editing is scoped and affects only explicitly issued document revisions",async()=>{
  const db=fixture();try{
   const before=db.prepare("SELECT * FROM catalog").get(),user=db.prepare("SELECT * FROM users WHERE id='u'").get(),order=db.prepare("SELECT * FROM orders").get();
   const share=await createShare(db,ctx,"o");
@@ -29,9 +29,13 @@ test("workshop identity editing is scoped, refreshes the share and preserves bus
   assert.deepEqual(db.prepare("SELECT * FROM users WHERE id='u'").get(),user);
   assert.deepEqual(db.prepare("SELECT * FROM orders").get(),order);
   const publicData=(await readShare(db,share.path.slice(3)))!;
-  assert.equal(publicData.shop!.name,"Minha oficina");assert.equal(publicData.shop!.email,"contato@example.test");
-  assert.equal(publicData.shop!.document_logo,png);
-  assert.equal(publicData.shop!.parts_pricing_mode,undefined);
+  assert.equal(publicData.shop!.name,"Oficina A");
+  const {issueDocument}=await import("../server/services/documents");
+  const revision=await issueDocument(db,ctx,"order","o",true);
+  const newer=await createShare(db,ctx,"o",revision.revision);
+  const newPublicData=(await readShare(db,newer.path.slice(3)))!;
+  assert.equal(newPublicData.shop!.name,"Minha oficina");assert.equal(newPublicData.shop!.email,"contato@example.test");
+  assert.equal(newPublicData.shop!.document_logo,png);
   await assert.rejects(()=>saveWorkshopProfile(db,{...ctx,role:"operator"},profile),/administrador/);
   await assert.rejects(()=>saveWorkshopProfile(db,ctx,{...profile,tenant_id:"b"}),/oficina selecionada mudou/);
   await assert.rejects(()=>saveWorkshopProfile(db,ctx,{...profile,email:"invalid"}));

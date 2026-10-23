@@ -331,7 +331,7 @@ export function CapturePanel({
               </li>
               <li>Clique em Usar no Chrome e confirme Adicionar extensão.</li>
               <li>
-                Recarregue Horse Power, Sky Peças e Tempario e conecte a captura
+                Recarregue o sistema, Sky Peças e Tempario e conecte a captura
                 novamente.
               </li>
             </ol>

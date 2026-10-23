@@ -548,6 +548,7 @@ export function Finance() {
 }
 export function Settings() {
   const [params, setParams] = useSearchParams();
+  const activeTab = params.get("aba") || "oficina";
   const { session, data, refresh, notify } = useApp();
   const [rates, setRates] = useState({
     debit_fee_bps: data.payment_settings?.debit_fee_bps || 0,
@@ -564,13 +565,14 @@ export function Settings() {
         description="Sua oficina e a base para os próximos passos."
       />
       <div className="tabs">
+        <button className={activeTab === "oficina" ? "active" : ""} onClick={() => setParams({aba:"oficina"})}>Dados da oficina</button>
         <button
-          className={!["pecas","oficina","servicos"].includes(params.get("aba") || "") ? "active" : ""}
-          onClick={() => setParams({})}
+          className={activeTab === "geral" ? "active" : ""}
+          onClick={() => setParams({aba:"geral"})}
         >
           Geral e taxas
         </button>
-        <button className={params.get("aba") === "oficina" ? "active" : ""} onClick={() => setParams({aba:"oficina"})}>Dados da oficina</button>
+
         <button className={params.get('aba')==='servicos'?'active':''} onClick={()=>setParams({aba:'servicos'})}>Mão de obra por porte</button>
         <button
           className={params.get("aba") === "pecas" ? "active" : ""}
@@ -579,7 +581,7 @@ export function Settings() {
           Lucro de peças e terceiros
         </button>
       </div>
-      {params.get('aba')==='servicos'?<LaborRates/>:params.get("aba") === "oficina" ? <WorkshopProfile key={session.tenant.id} /> : params.get("aba") === "pecas" ? (
+      {params.get('aba')==='servicos'?<LaborRates/>:activeTab === "oficina" ? <WorkshopProfile key={session.tenant.id} /> : params.get("aba") === "pecas" ? (
         <PartsPricing />
       ) : (
         <>
@@ -647,7 +649,7 @@ export function Settings() {
             <section className="panel work-order-section">
               <h2>Taxas Banco Inter por parcela</h2>
               <p className="muted">
-                Tabela enviada pela Horse Power. No recebimento, a taxa é
+                Tabela configurada para a oficina. No recebimento, a taxa é
                 aplicada conforme o número de parcelas. O repasse usa a taxa
                 real para preservar o líquido, evitando a diferença dos fatores
                 arredondados do PDF.

@@ -1,3 +1,4 @@
+import { PLATFORM } from "../../shared/platformIdentity";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -384,7 +385,7 @@ export function Dashboard() {
       </div>
       <div className="workspace-footer">
         <span>
-          HORSE POWER <i /> GESTÃO QUE MOVE SUA OFICINA.
+          {PLATFORM.name} <i /> {PLATFORM.description}
         </span>
         <span>Ambiente de demonstração · dados fictícios</span>
       </div>

@@ -9,7 +9,7 @@ test("migração preserva OS, itens, recebimentos e vínculos do banco anterior"
     db.exec(
       readFileSync(new URL("../server/db/schema.sql", import.meta.url), "utf8"),
     );
-    db.exec(`INSERT INTO tenants(id,name) VALUES('a','Oficina');
+    db.exec(`INSERT INTO tenants(id,name,address) VALUES('a','Oficina','Rua Histórica, 123');
  INSERT INTO users VALUES('user','Admin','test@example.com','hash');
  INSERT INTO customers(id,tenant_id,name) VALUES('customer','a','Cliente');
  INSERT INTO vehicles(id,tenant_id,customer_id,plate,brand,model,year) VALUES('vehicle','a','customer','ABC1D23','Honda','Fit',2020);
@@ -22,6 +22,10 @@ test("migração preserva OS, itens, recebimentos e vínculos do banco anterior"
     migrate(db);
     migrate(db);
     assert.equal(db.prepare("SELECT COUNT(*) n FROM orders").get()!.n, 2);
+    assert.equal(db.prepare("SELECT address FROM tenants WHERE id='a'").get()!.address,"Rua Histórica, 123");
+    assert.equal(db.prepare("SELECT identity_legacy FROM orders WHERE id='order'").get()!.identity_legacy,1);
+    assert.equal(db.prepare("SELECT profile_data FROM tenants WHERE id='a'").get()!.profile_data,"{}");
+    assert.equal(db.prepare("SELECT COUNT(*) n FROM migrations WHERE version=23").get()!.n,1);
     assert.equal(
       db.prepare("SELECT kind FROM orders WHERE id='quote'").get()!.kind,
       "quote",

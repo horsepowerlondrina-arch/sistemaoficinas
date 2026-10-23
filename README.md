@@ -1,34 +1,38 @@
-> Produção: configuração Supabase/Vercel e ativação do administrador em [docs/07-supabase-vercel.md](docs/07-supabase-vercel.md). As credenciais de demonstração abaixo são somente para desenvolvimento local.
+> Configuração online: [docs/07-supabase-vercel.md](docs/07-supabase-vercel.md). Esta branch prepara desenvolvimento PostgreSQL local e não publica alterações.
 
 # Horse Power
 
-Fundação de um SaaS de gestão para oficinas mecânicas, construída a partir da análise visual de todas as **22 referências** do MinhaOficina. Identidade própria em preto, branco e vermelho.
+Fundação de um SaaS de gestão para oficinas mecânicas.
 
 ## Executar localmente
 
-Requer Node.js 24 e npm. Na pasta do projeto:
+Requer Node.js 24, npm e PostgreSQL 17 local. Siga primeiro o
+[guia PostgreSQL no Windows](docs/postgresql-local.md) para criar o banco
+`horse_power_local`, o usuário restrito e o arquivo ignorado `.env.local`.
 
-```sh
-npm install
-npm run dev
+```powershell
+npm.cmd ci
+npm.cmd run db:local:migrate
+npm.cmd run db:local:seed
+npm.cmd run dev
 ```
 
-Abra **http://127.0.0.1:5173**. O acesso provisório existente continua disponível; os campos não vêm mais preenchidos:
+Abra **http://127.0.0.1:5173**. O seed cria somente oficinas e dados fictícios;
+as senhas aleatórias ficam em `data/local-credentials.json`, fora do Git.
+O servidor local exige PostgreSQL e não abre nem altera o SQLite anterior.
 
-- E-mail: `demo@horsepower.local`
-- Senha: `HorsePower@2026`
-- Mecânico: `mecanico@horsepower.local` / `Mecanico@2026` (Horse Power Centro).
-- A instalação mostra apenas **Horse Power Car Service**. A configuração definitiva do login fica para a próxima etapa.
-
-Os dados reais importados persistem em `data/horse-power.sqlite`. A importação foi reconciliada com os relatórios. Os dados anteriores foram arquivados e há uma cópia de segurança; a rotina de demonstração é desativada após a importação. Não apague esse arquivo se quiser preservar seus cadastros. Os testes automatizados usam bancos separados.
-
-```sh
-npm run build   # Verificação de tipos + versão compilada
-npm test        # Testes de domínio, banco e API
-npm start       # API + arquivos compilados em http://127.0.0.1:3001
+```powershell
+npm.cmd run build
+npm.cmd test
+npm.cmd run test:postgres
+npm.cmd start
 ```
 
-`npm start` requer `npm run build` antes. Os servidores escutam somente no computador local. Esta entrega não foi publicada na internet e ainda não é uma operação SaaS comercial.
+`npm start` requer build prévio e serve a versão compilada em
+http://127.0.0.1:3001. Os testes existentes preservam SQLite em memória como
+infraestrutura de testes, sem fallback SQLite na execução da aplicação.
+A [análise do catálogo original](docs/catalogo-importacao-local.md) descreve
+as duas fontes encontradas e o plano de importação; nenhuma foi importada.
 
 ## Funcional nesta fase
 
@@ -40,7 +44,7 @@ npm start       # API + arquivos compilados em http://127.0.0.1:3001
 - Orçamento → aprovação → aberta → execução → pronta → finalizada; cancelamento antes da conclusão.
 - Orçamento sem cadastro obrigatório, cancelados na listagem e OS a receber visíveis até a quitação.
 - Visualização simples da OS separada da edição, com acesso próprio do mecânico e proteção financeira no servidor.
-- Consulta por placa no cadastro local; conector FipePlaca configurado na instalação local para Horse Power Centro.
+- Consulta por placa no cadastro local; conector FipePlaca preservado; consultas pagas ficam desativadas nesta configuração local.
 - Itens, quantidades, preço, atribuição de profissional, desconto, relato, observações e datas.
 - Impressão de OS/orçamento; o navegador permite salvar em PDF.
 - Estoque com ajustes justificados, histórico de movimentos e alertas de mínimo.

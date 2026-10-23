@@ -1,0 +1,7 @@
+\set ON_ERROR_STOP on
+-- Run once using a local administrator. No existing database is dropped.
+CREATE ROLE hp_local_app LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS;
+\password hp_local_app
+CREATE DATABASE horse_power_local ENCODING 'UTF8' TEMPLATE template0;
+REVOKE ALL ON DATABASE horse_power_local FROM PUBLIC;
+GRANT CONNECT ON DATABASE horse_power_local TO hp_local_app;

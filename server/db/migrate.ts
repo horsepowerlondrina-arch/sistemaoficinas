@@ -23,6 +23,7 @@ export function migrate(db: DatabaseSync) {
     [20, "020-workshop-profile.sql"],
     [21, "021-vehicle-fipe.sql"],
     [22, "022-repair-services.sql"],
+    [23, "023-workshop-customization.sql"],
   ] as const) {
     if (db.prepare("SELECT 1 FROM migrations WHERE version=?").get(version))
       continue;

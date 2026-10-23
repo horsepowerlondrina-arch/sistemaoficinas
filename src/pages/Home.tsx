@@ -104,7 +104,7 @@ export function Home() {
   return (
     <div className="module-home">
       <header className="module-home-heading">
-        <span>HORSE POWER · CAR SERVICE</span>
+        <span>{session.tenant.name}</span>
         <h1>Por onde vamos começar?</h1>
         <p>Escolha uma área para cuidar da sua oficina.</p>
       </header>

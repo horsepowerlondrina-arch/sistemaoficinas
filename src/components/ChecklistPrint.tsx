@@ -1,3 +1,4 @@
+import { DocumentTerms } from "./DocumentTerms";
 import type { Entity } from "../lib/types";
 import { DocumentHeader } from "./DocumentHeader";
 
@@ -110,7 +111,7 @@ export function ChecklistPrint({
             {photos.map((photo: Entity) => (
               <figure key={photo.id}>
                 <img
-                  src={`/api/checklist-photos/${photo.id}`}
+                  src={photo.image_url || `/api/checklist-photos/${photo.id}`}
                   alt={photoLabels[photo.kind] || "Foto"}
                 />
                 <figcaption>
@@ -138,6 +139,7 @@ export function ChecklistPrint({
           </p>
         )}
       </section>
+      <DocumentTerms shop={tenant} />
     </section>
   );
 }
