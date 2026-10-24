@@ -1,90 +1,212 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { test } from "node:test";
 import type { DB, Row, TransactionalDB } from "../server/db/database.js";
-import { importWorkshopPackage, previewWorkshopImport } from "../server/services/dataTransferImport.js";
-import { createTransferPayload, sealTransferPackage, TRANSFER_TABLES } from "../shared/transferPackage.js";
+import { getWorkshopTransferBackup, importWorkshopPackage, previewWorkshopImport } from "../server/services/dataTransferImport.js";
+import { createTransferPayload, sealTransferPackage, TRANSFER_TABLES, transferFileSha256 } from "../shared/transferPackage.js";
 
 const phrase = "frase-ficticia-importacao-2026";
-const sourceTenant = "source-fake";
-const targetTenant = "target-fake";
-function makePackage(customerTenant = sourceTenant) {
-  return sealTransferPackage(createTransferPayload("fixture", { id: sourceTenant, name: "Oficina Fictícia Origem" }, {
+const sourceTenant = "source-fake", targetTenant = "target-fake";
+const customer = (name = "Cliente Fictício") => ({ id: "customer-fake", tenant_id: sourceTenant, name, phone: "", email: "", document: "", birthday: "", address: "", notes: "", active: 1, created_at: "2026-10-24T00:00:00.000Z" });
+function makePackage(options: { customerTenant?: string; customerName?: string; application?: string; records?: Record<string, Row[]> } = {}) {
+  return sealTransferPackage(createTransferPayload(options.application || "fixture", { id: sourceTenant, name: "Oficina Fictícia Origem" }, {
     tenant: { id: sourceTenant, name: "Oficina Fictícia Origem" },
     users: [{ id: "source-owner", name: "Proprietário Fictício", email: "owner@example.invalid" }],
     memberships: [{ user_id: "source-owner", tenant_id: sourceTenant, role: "owner" }],
-    customers: [{ id: "customer-fake", tenant_id: customerTenant, name: "Cliente Fictício", phone: "", email: "", document: "", birthday: "", address: "", notes: "", active: 1, created_at: "2026-10-24T00:00:00.000Z" }],
+    customers: [{ ...customer(options.customerName), tenant_id: options.customerTenant || sourceTenant }],
+    ...(options.records || {}),
   }, "2026-10-24T12:00:00.000Z"), phrase);
 }
 
 class MemoryDb {
-  tenant: Row = { id: targetTenant, name: "Oficina Fictícia Destino" };
+  tenant: Row = { id: targetTenant, name: "Oficina Fictícia Destino", document: "", phone: "", address: "" };
   users: Row[] = [{ id: "target-owner", name: "Proprietário Destino", email: "owner@example.invalid", password_hash: "preserved-hash" }];
   memberships: Row[] = [{ user_id: "target-owner", tenant_id: targetTenant, role: "owner" }];
-  tables: Record<string, Row[]> = Object.fromEntries(TRANSFER_TABLES.map((table) => [table, []]));
+  tables: Record<string, Row[]> = Object.fromEntries([...TRANSFER_TABLES, "public_shares", "data_transfer_archived_documents"].map((table) => [table, []]));
+  tracking: Row[] = [];
+  backups: Row[] = [];
   columns: Record<string, string[]> = {
     tenants: ["id", "name", "document", "phone", "address"],
-    users: ["id", "name", "email", "password_hash"],
-    memberships: ["user_id", "tenant_id", "role"],
+    users: ["id", "name", "email", "password_hash"], memberships: ["user_id", "tenant_id", "role"],
     customers: ["id", "tenant_id", "name", "phone", "email", "document", "birthday", "address", "notes", "active", "created_at"],
+    vehicles: ["id", "tenant_id", "customer_id", "plate", "brand", "model", "year", "color", "km", "chassis", "active"],
+    orders: ["id", "tenant_id", "number", "kind", "status", "customer_id", "vehicle_id", "entered_on", "due_on", "completed_on", "km", "problem", "notes", "discount", "total", "created_at"],
     audit_events: ["id", "tenant_id", "user_id", "action", "entity_id", "created_at"],
+    document_revisions: ["id", "tenant_id", "kind", "entity_id", "revision", "issued_at", "issued_by", "payload", "digest"],
+    data_transfer_records: ["tenant_id", "source_application", "source_tenant_id", "table_name", "source_record_id", "source_hash", "target_record_id", "target_hash", "updated_at"],
+    data_transfer_backups: ["id", "tenant_id", "created_by", "package_sha256", "package", "created_at", "expires_at"],
+    data_transfer_archived_documents: ["tenant_id", "revision_id", "backup_id", "kind", "entity_id", "revision", "archived_at"],
   };
-
   prepare(sql: string) {
     return {
       all: async (...values: unknown[]) => {
         if (sql.includes("information_schema.columns")) return (this.columns[String(values[0])] || []).map((column_name) => ({ column_name }));
+        if (sql.includes("FROM data_transfer_records")) return this.tracking.filter((row) => row.tenant_id === values[0]);
+        if (sql.includes("FROM users u JOIN memberships")) return this.users.filter((u) => this.memberships.some((m) => m.user_id === u.id && m.tenant_id === values[0])).map(({ id, name, email }) => ({ id, name, email }));
+        if (sql.includes("FROM memberships WHERE tenant_id=?")) return this.memberships.filter((row) => row.tenant_id === values[0]).map(({ user_id, tenant_id, role }) => ({ user_id, tenant_id, role }));
+        const table = sql.match(/FROM ([a-z_]+)/i)?.[1];
+        if (table && this.tables[table] && sql.includes("WHERE tenant_id=?")) return this.tables[table].filter((row) => row.tenant_id === values[0]);
         throw new Error(`Consulta all inesperada: ${sql}`);
       },
       get: async (...values: unknown[]) => {
         if (sql.startsWith("SELECT id,name FROM tenants")) return this.tenant.id === values[0] ? { id: this.tenant.id, name: this.tenant.name } : undefined;
-        if (sql.startsWith("SELECT email FROM users WHERE id=")) return this.users.find((row) => row.id === values[0]);
+        if (sql.startsWith("SELECT * FROM tenants WHERE id=")) return this.tenant.id === values[0] ? this.tenant : undefined;
+        if (/SELECT (?:email|id,email) FROM users WHERE id=/.test(sql)) return this.users.find((row) => row.id === values[0]);
         if (sql.startsWith("SELECT id FROM users WHERE lower(email)")) return this.users.find((row) => String(row.email).toLowerCase() === String(values[0]).toLowerCase());
+        if (sql.startsWith("SELECT role FROM memberships")) return this.memberships.find((row) => row.user_id === values[0] && row.tenant_id === values[1]);
         if (sql.startsWith("SELECT 1 FROM memberships")) return this.memberships.some((row) => row.user_id === values[0] && row.tenant_id === values[1]) ? { ok: 1 } : undefined;
-        const table = sql.match(/(?:FROM|UPDATE|INTO) ([a-z_]+)/i)?.[1];
-        if (table === "customers" && /WHERE id=\?/i.test(sql)) return this.tables.customers.some((row) => row.id === values[0]) ? { ok: 1 } : undefined;
-        if (table && /SELECT count\(\*\) AS count/i.test(sql)) return { count: this.tables[table].filter((row) => row.tenant_id === values[0]).length };
-        if (table && /WHERE tenant_id=\? LIMIT 1/i.test(sql)) return this.tables[table].some((row) => row.tenant_id === values[0]) ? { ok: 1 } : undefined;
+        if (sql.includes("FROM data_transfer_records")) return this.tracking.find((row) => ["tenant_id", "source_application", "source_tenant_id", "table_name", "source_record_id"].every((key, index) => row[key] === values[index]));
+        if (sql.startsWith("SELECT 1 FROM data_transfer_archived_documents")) return this.tables.data_transfer_archived_documents.find((row) => row.tenant_id === values[0] && row.revision_id === values[1]) ? { ok: 1 } : undefined;
+        if (sql.includes("FROM data_transfer_backups") && sql.includes("package_sha256,package")) {
+          const tenantFirst = sql.indexOf("tenant_id=?") < sql.indexOf("id=?");
+          return this.backups.find((row) => tenantFirst ? row.tenant_id === values[0] && row.id === values[1] : row.id === values[0] && row.tenant_id === values[1]);
+        }
+        if (sql.includes("FROM public_shares")) return { count: this.tables.public_shares.filter((row) => row.tenant_id === values[0] && row.revoked === 0).length };
+        const table = sql.match(/FROM ([a-z_]+)/i)?.[1];
+        if (table && /SELECT count\(\*\) AS count/i.test(sql)) return { count: (this.tables[table] || []).filter((row) => row.tenant_id === values[0]).length };
+        if (table && this.tables[table] && sql.includes("SELECT * FROM")) {
+          const fields = [...sql.matchAll(/([a-z_]+) IS NOT DISTINCT FROM \?/g)].map((match) => match[1]);
+          const tenant = values[0];
+          return this.tables[table].find((row) => row.tenant_id === tenant && fields.every((field, index) => row[field] === values[index + 1]));
+        }
         throw new Error(`Consulta get inesperada: ${sql}`);
       },
       run: async (...values: unknown[]) => {
         if (sql.startsWith("UPDATE tenants SET")) {
-          const keys = [...sql.matchAll(/([a-z_]+)=\?/g)].map((match) => match[1]).filter((key) => key !== "id");
-          keys.forEach((key, index) => { this.tenant[key] = values[index]; });
-          return { changes: 1 };
+          const keys = [...sql.slice(sql.indexOf("SET") + 3, sql.indexOf("WHERE")).matchAll(/([a-z_]+)=\?/g)].map((match) => match[1]);
+          keys.forEach((key, index) => { this.tenant[key] = values[index]; }); return { changes: 1 };
         }
-        const match = sql.match(/^INSERT INTO ([a-z_]+) \(([^)]+)\)/i);
+        if (sql.startsWith("UPDATE public_shares")) { this.tables.public_shares.forEach((row) => { if (row.tenant_id === values[0]) row.revoked = 1; }); return { changes: 1 }; }
+        if (sql.startsWith("DELETE FROM data_transfer_records")) { this.tracking = this.tracking.filter((row) => row.tenant_id !== values[0]); return { changes: 1 }; }
+        if (sql.startsWith("DELETE FROM data_transfer_archived_documents")) { const before = this.tables.data_transfer_archived_documents.length; this.tables.data_transfer_archived_documents = this.tables.data_transfer_archived_documents.filter((row) => row.tenant_id !== values[0] || row.revision_id !== values[1]); return { changes: before - this.tables.data_transfer_archived_documents.length }; }
+        if (sql.startsWith("DELETE FROM data_transfer_backups")) return { changes: 0 };
+        if (sql.startsWith("DELETE FROM")) { const table = sql.match(/DELETE FROM ([a-z_]+)/i)![1]; const before = this.tables[table].length; this.tables[table] = this.tables[table].filter((row) => row.tenant_id !== values[0]); return { changes: before - this.tables[table].length }; }
+        if (sql.startsWith("UPDATE customers SET")) {
+          const keys = [...sql.slice(sql.indexOf("SET") + 3, sql.indexOf("WHERE")).matchAll(/([a-z_]+)=\?/g)].map((match) => match[1]);
+          const tenantIndex = keys.length, tenant = values[tenantIndex], id = values[tenantIndex + 1];
+          const row = this.tables.customers.find((item) => item.tenant_id === tenant && item.id === id);
+          if (!row) return { changes: 0 }; keys.forEach((key, index) => { row[key] = values[index]; }); return { changes: 1 };
+        }
+        const match = sql.match(/^INSERT(?: OR IGNORE)? INTO ([a-z_]+)\s*\(([^)]+)\)/i);
         if (!match) throw new Error(`Comando run inesperado: ${sql}`);
-        const table = match[1], keys = match[2].split(",");
-        const row = Object.fromEntries(keys.map((key, index) => [key, values[index]]));
+        const table = match[1], keys = match[2].split(","), row = Object.fromEntries(keys.map((key, index) => [key, values[index]]));
         if (table === "users") this.users.push(row);
         else if (table === "memberships") this.memberships.push(row);
+        else if (table === "data_transfer_records") {
+          const existing = this.tracking.find((item) => item.tenant_id === row.tenant_id && item.source_application === row.source_application && item.source_tenant_id === row.source_tenant_id && item.table_name === row.table_name && item.source_record_id === row.source_record_id);
+          if (existing) Object.assign(existing, row); else this.tracking.push(row);
+        } else if (table === "data_transfer_backups") this.backups.push(row);
+        else if (table === "data_transfer_archived_documents") {
+          const existing = this.tables.data_transfer_archived_documents.find((item) => item.tenant_id === row.tenant_id && item.revision_id === row.revision_id);
+          if (!existing) this.tables.data_transfer_archived_documents.push(row);
+        }
         else this.tables[table].push(row);
         return { changes: 1 };
       },
     };
   }
-  async transaction<T>(callback: () => Promise<T>) { return callback(); }
+  async transaction<T>(callback: () => Promise<T>) {
+    const before = structuredClone({ tenant: this.tenant, users: this.users, memberships: this.memberships, tables: this.tables, tracking: this.tracking, backups: this.backups });
+    try { return await callback(); }
+    catch (error) { Object.assign(this, before); throw error; }
+  }
 }
 
-test("prévia não grava e importação mantém IDs, remapeia oficina e bloqueia repetição", async () => {
-  const db = new MemoryDb();
-  const file = makePackage();
+test("prévia não grava, importação inicial remapeia oficina e repetição em modo vazio é bloqueada", async () => {
+  const db = new MemoryDb(), file = makePackage();
   const preview = await previewWorkshopImport(db as unknown as DB, targetTenant, file, phrase);
-  assert.equal(preview.canImport, true);
-  assert.equal(db.tables.customers.length, 0);
+  assert.equal(preview.canImport, true); assert.equal(db.tables.customers.length, 0);
   const result = await importWorkshopPackage(db as unknown as DB & TransactionalDB, targetTenant, file, phrase, preview.confirmationId, "target-owner");
-  assert.equal(db.tables.customers[0].id, "customer-fake");
-  assert.equal(db.tables.customers[0].tenant_id, targetTenant);
-  assert.equal(result.counts.customers, 1);
-  assert.equal(db.users[0].password_hash, "preserved-hash");
+  assert.equal(db.tables.customers[0].id, "customer-fake"); assert.equal(db.tables.customers[0].tenant_id, targetTenant);
+  assert.equal(result.counts.customers, 1); assert.equal(db.users[0].password_hash, "preserved-hash");
   assert.equal(db.tables.audit_events[0].action, "data_transfer.imported");
   const repeated = await previewWorkshopImport(db as unknown as DB, targetTenant, file, phrase);
-  assert.equal(repeated.canImport, false);
-  assert.match(repeated.issues.join(" "), /já possui dados/);
+  assert.equal(repeated.canImport, false); assert.match(repeated.issues.join(" "), /já possui registros/);
 });
 
-test("prévia rejeita qualquer registro pertencente a outra oficina", async () => {
-  const preview = await previewWorkshopImport(new MemoryDb() as unknown as DB, targetTenant, makePackage("foreign-fake"), phrase);
+test("mesclagem repetida é idempotente e atualiza somente cadastros ainda iguais à versão importada", async () => {
+  const db = new MemoryDb(), first = makePackage();
+  const p1 = await previewWorkshopImport(db as unknown as DB, targetTenant, first, phrase);
+  await importWorkshopPackage(db as unknown as DB, targetTenant, first, phrase, p1.confirmationId, "target-owner");
+  const same = await previewWorkshopImport(db as unknown as DB, targetTenant, first, phrase, "merge");
+  assert.equal(same.canImport, true); assert.equal(same.entities.customers.equal, 1); assert.equal(same.entities.customers.new, 0);
+  await importWorkshopPackage(db as unknown as DB, targetTenant, first, phrase, same.confirmationId, "target-owner", "merge");
+  assert.equal(db.tables.customers.length, 1);
+  const updatedFile = makePackage({ customerName: "Cliente Fictício Atualizado" });
+  const update = await previewWorkshopImport(db as unknown as DB, targetTenant, updatedFile, phrase, "merge");
+  assert.equal(update.entities.customers.updates, 1); assert.equal(update.canImport, true);
+  await importWorkshopPackage(db as unknown as DB, targetTenant, updatedFile, phrase, update.confirmationId, "target-owner", "merge");
+  assert.equal(db.tables.customers[0].name, "Cliente Fictício Atualizado");
+});
+
+test("mesclagem bloqueia conflito local e não vaza para outra oficina", async () => {
+  const db = new MemoryDb(), original = makePackage();
+  const first = await previewWorkshopImport(db as unknown as DB, targetTenant, original, phrase);
+  await importWorkshopPackage(db as unknown as DB, targetTenant, original, phrase, first.confirmationId, "target-owner");
+  db.tables.customers[0].name = "Alteração local fictícia";
+  const changed = makePackage({ customerName: "Versão de origem alterada" });
+  const conflict = await previewWorkshopImport(db as unknown as DB, targetTenant, changed, phrase, "merge");
+  assert.equal(conflict.canImport, false); assert.equal(conflict.entities.customers.conflicts, 1);
+  const foreign = makePackage({ customerTenant: "other-fake" });
+  const foreignPreview = await previewWorkshopImport(new MemoryDb() as unknown as DB, targetTenant, foreign, phrase, "merge");
+  assert.equal(foreignPreview.canImport, false); assert.match(foreignPreview.issues.join(" "), /outra oficina/);
+});
+
+test("mesclagem identifica conflitos de placa e número de OS sem duplicar registros", async () => {
+  const db = new MemoryDb();
+  db.tables.vehicles.push({ id: "vehicle-existing", tenant_id: targetTenant, customer_id: "customer-existing", plate: "ABC1D23", brand: "Marca", model: "Modelo", year: 2020, color: "", km: 10, chassis: "", active: 1 });
+  db.tables.orders.push({ id: "order-existing", tenant_id: targetTenant, number: 204, kind: "order", status: "completed", customer_id: "customer-existing", vehicle_id: "vehicle-existing", entered_on: "2026-10-20", due_on: "2026-10-21", completed_on: "2026-10-21", km: 10, problem: "Histórico fictício", notes: "", discount: 0, total: 5000, created_at: "2026-10-20T00:00:00.000Z" });
+  const file = makePackage({ records: {
+    vehicles: [{ id: "vehicle-imported", tenant_id: sourceTenant, customer_id: "customer-fake", plate: "ABC1D23", brand: "Marca", model: "Modelo", year: 2020, color: "", km: 10, chassis: "", active: 1 }],
+    orders: [{ id: "order-imported", tenant_id: sourceTenant, number: 204, kind: "order", status: "completed", customer_id: "customer-fake", vehicle_id: "vehicle-imported", entered_on: "2026-10-20", due_on: "2026-10-21", completed_on: "2026-10-21", km: 10, problem: "Histórico fictício", notes: "", discount: 0, total: 5000, created_at: "2026-10-20T00:00:00.000Z" }],
+  } });
+  const preview = await previewWorkshopImport(db as unknown as DB, targetTenant, file, phrase, "merge");
   assert.equal(preview.canImport, false);
-  assert.ok(preview.issues.some((issue) => issue.includes("outra oficina")));
+  assert.ok(preview.issues.some((issue) => issue.includes("vehicles") && issue.includes("chave única")));
+  assert.ok(preview.issues.some((issue) => issue.includes("orders") && issue.includes("chave única")));
+  assert.equal(db.tables.vehicles.length, 1); assert.equal(db.tables.orders.length, 1);
+});
+
+test("substituição exige confirmação do nome, mantém documentos/auditoria e guarda backup recuperável", async () => {
+  const db = new MemoryDb();
+  db.tables.customers.push({ id: "old-customer", tenant_id: targetTenant, name: "Cliente antigo fictício", phone: "", email: "", document: "", birthday: "", address: "", notes: "", active: 1, created_at: "2026-10-20T00:00:00.000Z" });
+  db.tables.customers.push({ id: "other-customer", tenant_id: "other-fake", name: "Cliente de outra oficina", phone: "", email: "", document: "", birthday: "", address: "", notes: "", active: 1, created_at: "2026-10-20T00:00:00.000Z" });
+  db.tables.document_revisions.push({ id: "revision-old", tenant_id: targetTenant, kind: "order", entity_id: "old-order", revision: 1, issued_at: "2026-10-20T00:00:00.000Z", issued_by: "target-owner", payload: "{\"workshop\":\"Oficina Fictícia Destino\"}", digest: "digest-old" });
+  db.tables.audit_events.push({ id: "audit-old", tenant_id: targetTenant, user_id: "target-owner", action: "historical.fake", entity_id: "old-order", created_at: "2026-10-20T00:00:00.000Z" });
+  const file = makePackage(), preview = await previewWorkshopImport(db as unknown as DB, targetTenant, file, phrase, "replace");
+  assert.equal(preview.canImport, true); assert.equal(preview.entities.customers.removed, 1); assert.equal(preview.entities.document_revisions.removed, 0);
+  await assert.rejects(importWorkshopPackage(db as unknown as DB, targetTenant, file, phrase, preview.confirmationId, "target-owner", "replace", "Nome errado"), /nome exato/);
+  assert.equal(db.tables.customers[0].id, "old-customer"); assert.equal(db.backups.length, 0);
+  const result = await importWorkshopPackage(db as unknown as DB, targetTenant, file, phrase, preview.confirmationId, "target-owner", "replace", "Oficina Fictícia Destino");
+  assert.ok(result.backupId); assert.equal(db.tables.customers.filter((row) => row.tenant_id === targetTenant).length, 1);
+  assert.equal(db.tables.customers.find((row) => row.tenant_id === targetTenant)?.id, "customer-fake");
+  assert.equal(db.tables.document_revisions[0].id, "revision-old"); assert.equal(db.tables.audit_events[0].id, "audit-old");
+  assert.ok(db.tables.customers.some((row) => row.id === "other-customer" && row.tenant_id === "other-fake"));
+  assert.equal(db.users[0].password_hash, "preserved-hash"); assert.equal(db.memberships[0].user_id, "target-owner");
+  const backup = await getWorkshopTransferBackup(db as unknown as DB, targetTenant, String(result.backupId));
+  assert.ok(backup); assert.equal(transferFileSha256(backup!), db.backups[0].package_sha256);
+  assert.equal(createHash("sha256").update(backup!).digest("hex"), db.backups[0].package_sha256);
+});
+
+test("substituição bloqueia colisão com revisão imutável diferente", async () => {
+  const db = new MemoryDb();
+  db.tables.document_revisions.push({ id: "revision-conflict", tenant_id: targetTenant, kind: "order", entity_id: "same-order", revision: 1, issued_at: "2026-10-20T00:00:00.000Z", issued_by: "target-owner", payload: "old", digest: "old" });
+  const records = { document_revisions: [{ id: "revision-other", tenant_id: sourceTenant, kind: "order", entity_id: "same-order", revision: 1, issued_at: "2026-10-21T00:00:00.000Z", issued_by: "source-owner", payload: "new", digest: "new" }] };
+  const file = makePackage({ records }), preview = await previewWorkshopImport(db as unknown as DB, targetTenant, file, phrase, "replace");
+  assert.equal(preview.canImport, false); assert.ok(preview.issues.some((issue) => issue.includes("histórico imutável")));
+  assert.equal(db.tables.document_revisions.length, 1);
+});
+
+test("pacote novo transporta o vínculo de arquivamento e pacotes antigos sem essa entidade continuam compatíveis", async () => {
+  const db = new MemoryDb();
+  const revision = { id: "archived-transfer-revision", tenant_id: sourceTenant, kind: "order", entity_id: "old-order", revision: 1, issued_at: "2026-10-20T00:00:00.000Z", issued_by: "source-owner", payload: '{"shop":"Oficina Fictícia Origem"}', digest: "fictitious-digest" };
+  const archive = { tenant_id: sourceTenant, revision_id: revision.id, backup_id: "origin-backup-reference", kind: "order", entity_id: "old-order", revision: 1, archived_at: "2026-10-21T00:00:00.000Z" };
+  const file = makePackage({ records: { document_revisions: [revision], data_transfer_archived_documents: [archive] } });
+  const preview = await previewWorkshopImport(db as unknown as DB, targetTenant, file, phrase);
+  assert.equal(preview.canImport, true, preview.issues.join("; "));
+  await importWorkshopPackage(db as unknown as DB, targetTenant, file, phrase, preview.confirmationId, "target-owner");
+  assert.equal(db.tables.document_revisions.length, 1);
+  assert.equal(db.tables.data_transfer_archived_documents.length, 1);
+  assert.equal(db.tables.data_transfer_archived_documents[0].tenant_id, targetTenant);
+  assert.equal(db.tables.data_transfer_archived_documents[0].revision_id, revision.id);
 });

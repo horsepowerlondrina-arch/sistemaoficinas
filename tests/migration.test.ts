@@ -27,6 +27,12 @@ test("migração preserva OS, itens, recebimentos e vínculos do banco anterior"
     assert.equal(db.prepare("SELECT profile_data FROM tenants WHERE id='a'").get()!.profile_data,"{}");
     assert.equal(db.prepare("SELECT COUNT(*) n FROM migrations WHERE version=23").get()!.n,1);
     assert.equal(db.prepare("SELECT COUNT(*) n FROM migrations WHERE version=24").get()!.n,1);
+    assert.equal(db.prepare("SELECT COUNT(*) n FROM migrations WHERE version=25").get()!.n,1);
+    assert.equal(db.prepare("SELECT COUNT(*) n FROM migrations WHERE version=26").get()!.n,1);
+    assert.ok(db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='data_transfer_records'").get());
+    assert.ok(db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='data_transfer_backups'").get());
+    assert.ok(db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='data_transfer_archived_documents'").get());
+    assert.ok(db.prepare("SELECT name FROM pragma_table_info('data_transfer_backups') WHERE name='expires_at'").get());
     assert.deepEqual(
       db.prepare("SELECT id FROM labor_categories ORDER BY sort_order").all().map((r:any)=>r.id),
       ["compacto","medio","premium","pesado"],

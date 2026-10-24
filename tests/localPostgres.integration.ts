@@ -22,8 +22,7 @@ test("PostgreSQL local: autenticação, oficinas, transações e RLS do catálog
       await admin.query("INSERT INTO service_catalog.models(id,brand_id,family_id,classification_id,name,fipe_code,complete,service_count,base_id,excluded_service_ids) VALUES($1,$2,$3,$4,'Modelo Fictício Importado','999999-9',1,0,$5,'[]')",[model,brand,family,classification,base]);
       const category=(await admin.query("SELECT category_id,assignment_source,review_status FROM service_catalog.model_labor_categories WHERE model_id=$1",[model])).rows[0];
       assert.deepEqual(category,{category_id:"premium",assignment_source:"reviewed",review_status:"confirmed"});
-      const compactClass="00000000-0000-4000-8000-000000000013",compactModel="00000000-0000-4000-8000-000000000014";
-      await admin.query("INSERT INTO service_catalog.classifications(id,name) VALUES($1,'Básico Elétrico')",[compactClass]);
+       const compactClass=(await admin.query("SELECT id FROM service_catalog.classifications WHERE name='Básico Elétrico'")).rows[0].id,compactModel="00000000-0000-4000-8000-000000000014";
       await admin.query("INSERT INTO service_catalog.models(id,brand_id,family_id,classification_id,name,fipe_code,complete,service_count,base_id,excluded_service_ids) VALUES($1,$2,$3,$4,'Modelo Fictício Novo','999998-9',1,0,$5,'[]')",[compactModel,brand,family,compactClass,base]);
       const compact=(await admin.query("SELECT category_id,assignment_source FROM service_catalog.model_labor_categories WHERE model_id=$1",[compactModel])).rows[0];
       assert.deepEqual(compact,{category_id:"compacto",assignment_source:"automatic"});
@@ -84,7 +83,7 @@ test("PostgreSQL local: autenticação, oficinas, transações e RLS do catálog
     assert.equal(services.items.length,1);
     const stop=new Error("rollback fixture OS");
     await assert.rejects(db.transaction(async()=>{
-      await db.withTenantRead("local-a",async()=>db.prepare("INSERT INTO labor_commercial_rates(tenant_id,category_id,hourly_rate) VALUES('local-a','compacto',12000)").run());
+       await db.withTenantRead("local-a",async()=>db.prepare("INSERT INTO labor_commercial_rates(tenant_id,category_id,hourly_rate) VALUES('local-a','compacto',12000) ON CONFLICT(tenant_id,category_id) DO UPDATE SET hourly_rate=excluded.hourly_rate").run());
       const id=await saveOrder(db,ctx,{status:"quote",customer_id:"local-a-customer",vehicle_id:"local-a-vehicle",service_model_id:model,entered_on:"2026-10-20",due_on:"2026-10-20",km:0,discount:0,notes:"",problem:"",
         items:[{repair_service_id:services.items[0].service_id,repair_model_id:model,price:6000,quantity:1}]});
       const saved=(await listOrders(db,"local-a")).find(row=>row.id===id)!;
@@ -102,7 +101,7 @@ test("PostgreSQL local: autenticação, oficinas, transações e RLS do catálog
     const stop=new Error("rollback fixture RLS");
     await assert.rejects(db.transaction(async()=>{
     await db.withTenantRead("local-a",async()=>{
-      await db.prepare("INSERT INTO labor_commercial_rates(tenant_id,category_id,hourly_rate) VALUES('local-a','compacto',12000)").run();
+       await db.prepare("INSERT INTO labor_commercial_rates(tenant_id,category_id,hourly_rate) VALUES('local-a','compacto',12000) ON CONFLICT(tenant_id,category_id) DO UPDATE SET hourly_rate=excluded.hourly_rate").run();
       await db.prepare("INSERT INTO workshop_services(id,tenant_id,name,execution,commercial_category_id) VALUES('00000000-0000-4000-8000-000000000091','local-a','Serviço Fictício Compacto','internal','compacto'),('00000000-0000-4000-8000-000000000092','local-a','Serviço Fictício Premium','internal','premium')").run();
     });
     assert.equal((await listWorkshopServices(db,serviceContext,{})).items.length,2);

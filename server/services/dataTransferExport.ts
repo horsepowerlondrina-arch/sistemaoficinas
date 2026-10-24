@@ -9,7 +9,9 @@ import type { TransferPayload, TransferRow } from "../../shared/transferPackage.
 
 const privateField = /(?:password|secret|token|session|credential|api[_-]?key|authorization)/i;
 function safeRecord(row: TransferRow) {
-  return Object.fromEntries(Object.entries(row).filter(([key]) => !privateField.test(key)));
+  return Object.fromEntries(Object.entries(row)
+    .filter(([key]) => !privateField.test(key))
+    .map(([key, value]) => [key, value instanceof Date ? value.toISOString() : value]));
 }
 
 /** Reads the authenticated tenant only. It performs no writes or audit mutations. */

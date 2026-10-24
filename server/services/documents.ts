@@ -33,14 +33,25 @@ async function source(db:DB,ctx:Context,kind:DocumentKind,id:string){
 }
 export async function documentHistory(db:DB,ctx:Context,kind:DocumentKind,id:string){
  const entity=await source(db,ctx,kind,id);
- return {legacy:!!entity.identity_legacy,revisions:await db.prepare("SELECT revision,issued_at,digest FROM document_revisions WHERE tenant_id=? AND kind=? AND entity_id=? ORDER BY revision DESC").all(ctx.tenantId,kind,id)};
+ return {legacy:!!entity.identity_legacy,revisions:await db.prepare("SELECT revision,issued_at,digest FROM document_revisions WHERE tenant_id=? AND kind=? AND entity_id=? AND NOT EXISTS (SELECT 1 FROM data_transfer_archived_documents a WHERE a.tenant_id=document_revisions.tenant_id AND a.revision_id=document_revisions.id) ORDER BY revision DESC").all(ctx.tenantId,kind,id)};
 }
 export async function readDocument(db:DB,ctx:Context,kind:DocumentKind,id:string,revision:number){
  await source(db,ctx,kind,id);
- const row=await db.prepare("SELECT payload,digest FROM document_revisions WHERE tenant_id=? AND kind=? AND entity_id=? AND revision=?").get(ctx.tenantId,kind,id,revision);
+ const row=await db.prepare("SELECT payload,digest FROM document_revisions WHERE tenant_id=? AND kind=? AND entity_id=? AND revision=? AND NOT EXISTS (SELECT 1 FROM data_transfer_archived_documents a WHERE a.tenant_id=document_revisions.tenant_id AND a.revision_id=document_revisions.id)").get(ctx.tenantId,kind,id,revision);
  if(!row)throw Object.assign(new Error("Revisão não encontrada nesta oficina."),{status:404});
  if(createHash("sha256").update(String(row.payload)).digest("hex")!==row.digest)throw new Error("Integridade do documento inválida.");
  return JSON.parse(row.payload);
+}
+export async function listArchivedDocuments(db:DB,ctx:Context){
+ requireAdmin(ctx);
+ return db.prepare("SELECT a.revision_id AS id,a.kind,a.entity_id,a.revision,r.issued_at,r.digest,a.archived_at FROM data_transfer_archived_documents a JOIN document_revisions r ON r.tenant_id=a.tenant_id AND r.id=a.revision_id WHERE a.tenant_id=? ORDER BY r.issued_at DESC,a.revision_id").all(ctx.tenantId);
+}
+export async function readArchivedDocument(db:DB,ctx:Context,id:string){
+ requireAdmin(ctx);
+ const row=await db.prepare("SELECT a.revision_id AS id,a.kind,a.entity_id,a.revision,a.archived_at,r.issued_at,r.payload,r.digest FROM data_transfer_archived_documents a JOIN document_revisions r ON r.tenant_id=a.tenant_id AND r.id=a.revision_id WHERE a.tenant_id=? AND a.revision_id=?").get(ctx.tenantId,id);
+ if(!row)throw Object.assign(new Error("Documento histórico não encontrado nesta oficina."),{status:404});
+ if(createHash("sha256").update(String(row.payload)).digest("hex")!==row.digest)throw new Error("Integridade do documento histórico inválida.");
+ return {archive:{id:row.id,kind:row.kind,entity_id:row.entity_id,revision:row.revision,issued_at:row.issued_at,archived_at:row.archived_at},document:JSON.parse(row.payload)};
 }
 export async function issueDocument(db:DB,ctx:Context,kind:DocumentKind,id:string,newRevision=false){
  if(newRevision)requireAdmin(ctx);
@@ -57,7 +68,8 @@ export async function issueDocument(db:DB,ctx:Context,kind:DocumentKind,id:strin
    shop.document_logo="data:image/jpeg;base64,"+readFileSync(new URL("../../public/brand/icon.jpg",import.meta.url)).toString("base64");
   }
   const issuedAt=new Date().toISOString();
-  const revision=Number(history.revisions[0]?.revision||0)+1;
+  const highest=await db.prepare("SELECT revision FROM document_revisions WHERE tenant_id=? AND kind=? AND entity_id=? ORDER BY revision DESC LIMIT 1").get(ctx.tenantId,kind,id);
+  const revision=Number(highest?.revision||history.revisions[0]?.revision||0)+1;
   const payload:Record<string,any>={schema_version:1,kind,entity_id:id,revision,issued_at:issuedAt,reissued_legacy:!!entity.identity_legacy,shop};
   if(kind==="order"){
    const keys=["id","number","kind","status","entered_on","due_on","completed_on","km","problem","notes","discount","total","guest_name","guest_plate","guest_vehicle"];

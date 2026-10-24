@@ -29,6 +29,7 @@ export interface DB {
   ): Promise<T>;
   withTenantRead?<T>(tenant: string, callback: () => Promise<T>): Promise<T>;
   getTenantAccessState?(tenant: string): Promise<string>;
+  lockTenantMutations?(tenant: string): Promise<void>;
   prepare(sql: string): {
     get(...values: any[]): MaybePromise<Row | undefined>;
     all(...values: any[]): MaybePromise<Row[]>;

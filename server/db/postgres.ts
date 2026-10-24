@@ -66,6 +66,9 @@ export function postgresSql(input: string) {
     "checklists",
     "checklist_photos",
     "document_revisions",
+    "data_transfer_records",
+    "data_transfer_backups",
+    "data_transfer_archived_documents",
   ]);
   sql = sql.replace(
     /'(?:''|[^'])*'|\b(FROM|JOIN|UPDATE|INTO|TABLE)\s+("?[a-z_]+"?)/gi,
@@ -149,6 +152,12 @@ export function createPostgresDatabase(url = process.env.DATABASE_URL, options: 
     async getTenantAccessState(tenant: string) {
       const result = await query("SELECT horse_power.local_tenant_access_state($1) AS state", [tenant]);
       return String(result.rows[0]?.state || "legacy");
+    },
+    async lockTenantMutations(tenant: string) {
+      if (!tenant) return;
+      const client = context.getStore();
+      if (!client) throw new Error("A alteração exige uma transação autenticada.");
+      await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 2089))", [tenant]);
     },
     async withTenantRead<T>(tenant: string, callback: () => Promise<T>): Promise<T> {
       const active = context.getStore();
