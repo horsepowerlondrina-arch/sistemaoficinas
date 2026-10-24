@@ -93,7 +93,7 @@ test("PostgreSQL local: transferência fictícia completa preserva IDs, relaçõ
       assert.equal(result.counts.vehicles, 1);
       assert.equal(result.counts.orders, 1);
       assert.equal(result.counts.stock_movements, 1);
-      assert.equal(result.counts.payment_installments, 1);
+      assert.equal(result.counts.payment_installments, 2);
       assert.equal(result.counts.cash_entries, 2);
       await admin.query("INSERT INTO horse_power.customers(id,tenant_id,name,email) VALUES($1,$2,$3,$4)", ["unrelated-customer-" + tenantId, tenantId, "Cliente Fictício Não Importado", "unrelated@example.invalid"]);
       const rows = await db.prepare(`SELECT c.id AS customer_id,v.customer_id AS vehicle_customer,o.vehicle_id,i.price,r.issued_by,r.payload
@@ -129,6 +129,7 @@ test("PostgreSQL local: transferência fictícia completa preserva IDs, relaçõ
       assert.equal((await db.prepare("SELECT count(*) AS count FROM customers WHERE tenant_id=?").get(tenantId))?.count, 2);
       assert.equal((await db.prepare("SELECT count(*) AS count FROM stock_movements WHERE tenant_id=?").get(tenantId))?.count, 1);
       assert.equal((await db.prepare("SELECT count(*) AS count FROM cash_entries WHERE tenant_id=?").get(tenantId))?.count, 2);
+      assert.equal((await db.prepare("SELECT sum(amount) AS total FROM cash_entries WHERE tenant_id=?").get(tenantId))?.total, 8000);
 
       const replacementFile = sealTransferPackage(createTransferPayload("fixture", payload.source.tenant, {
         ...payload.records,
