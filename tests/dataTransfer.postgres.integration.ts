@@ -125,8 +125,10 @@ test("PostgreSQL local: transferência fictícia completa preserva IDs, relaçõ
     }, () => false);
 
     await admin.query("INSERT INTO horse_power.customers(id,tenant_id,name,email) VALUES($1,$2,$3,$4)", ["rollback-customer-" + tenantId, tenantId, "Cliente Fictício Preservado", "rollback@example.invalid"]);
-    const invalidPayload = structuredClone(payload);
-    invalidPayload.records.catalog![0].cost = -1;
+    const invalidPayload = createTransferPayload(payload.source.application, payload.source.tenant, {
+      ...payload.records,
+      catalog: payload.records.catalog!.map((row, index) => index === 0 ? { ...row, cost: -1 } : row),
+    }, payload.generatedAt);
     const invalidFile = sealTransferPackage(invalidPayload, phrase);
     await assert.rejects(db.withRequestContext(settings, async () => {
       await db.setRequestIdentity(tenantId, userId);
