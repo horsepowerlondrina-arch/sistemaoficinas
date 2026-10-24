@@ -68,6 +68,8 @@ Esses papéis descrevem o processo acordado; não afirmam identidades ou permiss
 
 ## Registro de auditoria
 
-- **INF-004 — Auditoria de branches e ambientes:** Em revisão na branch `infra/inf-004-auditoria-ambientes`, baseada na `main` `939afd173f0362d5694d8d6c192e283588c778e6`.
-- Resultado provisório, evidências e bloqueios: [docs/INF-004-AUDITORIA-AMBIENTES.md](INF-004-AUDITORIA-AMBIENTES.md).
-- Não declarar a auditoria concluída nem remover branches até resolver os itens bloqueantes e obter aprovação para a limpeza.
+- **INF-004 — Auditoria de branches e ambientes:** **Aceita**, com a atualização documental final no PR #10, após integração do PR #9 na `main` em `ed48c7d05d2c3a5aec8256265e615e24e5fef43c`.
+- O responsável confirmou que os testes de login e logout online passaram.
+- Destinos das conexões confirmados por evidências indiretas, sem revelar credenciais; a role administrativa está segregada da operacional.
+- A lacuna de RLS identificada no banco histórico Horse Power permanece pendente e separada na frente de segurança.
+- Consulte [relatório de auditoria INF-004](INF-004-AUDITORIA-AMBIENTES.md) e [estado atual](ESTADO-ATUAL.md).

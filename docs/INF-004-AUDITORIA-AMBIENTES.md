@@ -4,7 +4,10 @@
 **Repositório:** `horsepowerlondrina-arch/sistemaoficinas`  
 **Branch da auditoria:** `infra/inf-004-auditoria-ambientes`  
 **Commit base de `main`:** `939afd173f0362d5694d8d6c192e283588c778e6`  
-**Escopo:** consultas somente leitura ao GitHub, Vercel e Supabase. Nenhum banco, variável, projeto ou deployment foi alterado.
+**Escopo original:** consultas somente leitura ao GitHub, Vercel e Supabase.
+
+
+> **Nota de vigência:** as seções abaixo registram o retrato inicial, anterior à integração do PR #9 e às verificações finais. A conclusão e as evidências atualizadas estão no adendo “Validação final e encerramento” ao fim deste documento; esse adendo prevalece sobre estados provisórios descritos no retrato inicial.
 
 ## 1. Branches e Pull Requests
 
@@ -105,3 +108,36 @@ Na configuração Vercel de homologação foram vistas as variáveis de teste pa
 6. Limpeza das oito branches candidatas depende de aprovação posterior.
 
 **Conclusão:** **INF-004 parcialmente concluída, com CI aprovado.** A auditoria remota de branches e metadados das plataformas foi feita e a guarda adicional do MFA foi preparada na branch `infra/inf-004-auditoria-ambientes`, PR #9, ainda em rascunho. O destino dos segredos de conexão e o risco de RLS no banco histórico permanecem sem resolução; nenhuma configuração de Vercel/Supabase, migração ou deployment manual foi alterado.
+
+
+## Validação final e encerramento — 24/10/2026
+
+**Estado:** INF-004 validada para encerramento administrativo após integração do PR #9. O PR #10 atualiza este relatório e os documentos de estado/governança; seu merge é o passo final desta autorização.
+
+### Conexões Supabase
+
+Os destinos foram verificados por evidências indiretas de execução, sem revelar valores das variáveis:
+
+- `DATABASE_URL`: **CORRESPONDE** ao Supabase de homologação `vnclahdnirqlcbamodqy`; não aponta para o banco histórico Horse Power. Evidência: uma requisição somente leitura ao fluxo operacional existente coincidiu com atividade recente da role operacional no projeto de homologação, sem atividade correspondente observada no banco histórico durante a janela de consulta.
+- `PLATFORM_ADMIN_DATABASE_URL`: **CORRESPONDE** ao mesmo projeto de homologação; não aponta para o banco histórico. Evidência: a inicialização do backend administrativo satisfez a asserção do papel/schema administrativo restrito; o projeto histórico não contém esse papel nem o schema administrativo, e a sessão esperada foi observada no destino de homologação.
+- No banco de homologação, as roles operacional e administrativa são não-superusuárias, sem `BYPASSRLS), e têm privilégios separados entre schemas. RLS está habilitado nas 48 tabelas operacionais verificadas.
+
+Esta correlação comprova os destinos na execução observada, sem exibir segredos. Não equivale a uma auditoria integral de todos os acessos.
+
+### Autenticação e verificações
+
+- O responsável confirmou que realizou os testes online de login e logout e que passaram. Isso é confirmação do responsável; não se registraram credenciais nem se atribui a execução ao Codex.
+- GitHub Actions run #30 (`40140433341`) aprovou build, testes gerais e integração PostgreSQL no head do PR #9. Não foi localizado um run distinto no SHA squash de integração.
+- O PR #9 foi integrado à `main` em `ed48c7d05d2c3a5aec8256265e615e24e5fef43c). A deployment Vercel observada para esse SHA estava READY no projeto `sistema-oficinas-homologacao`. O target interno Production pertence a esse projeto de homologação.
+- A exceção de MFA para conta fictícia de homologação permanece vinculada ao identificador do projeto Vercel e não remove a validação MFA do fluxo normal.
+
+### Limites e pendências independentes
+
+- A lacuna histórica de RLS em `checklists` e `checklist_photos` no banco Horse Power continua pendente na frente de segurança. Não foi corrigida nesta INF-004.
+- Login/logout e CI aprovados não certificam todos os módulos, importação/exportação `.hptx`, carga, recuperação de desastre ou auditoria completa.
+- Execução completa das rotas de servidor em Preview não foi validada. O Preview documental autorizado é separado do alias de homologação.
+- Branches antigas candidatas à limpeza não foram removidas.
+
+### Nota de privacidade
+
+Durante uma verificação de conexão, uma requisição GET à rota de sessão operacional reutilizou uma sessão já autenticada no navegador e recebeu conteúdo operacional. Não houve escrita; nenhum dado da resposta foi copiado para o relatório. Detalhes foram omitidos para proteger a oficina. Em diagnósticos futuros, não reutilizar uma sessão autenticada para verificar conectividade.
