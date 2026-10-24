@@ -19,7 +19,7 @@ CREATE INDEX data_transfer_archived_documents_tenant
 
 ALTER TABLE horse_power.data_transfer_archived_documents ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON horse_power.data_transfer_archived_documents FROM PUBLIC,anon,authenticated;
-GRANT SELECT,INSERT ON horse_power.data_transfer_archived_documents TO horse_power_app;
+GRANT SELECT,INSERT,DELETE ON horse_power.data_transfer_archived_documents TO horse_power_app;
 CREATE POLICY data_transfer_archived_documents_tenant ON horse_power.data_transfer_archived_documents
   FOR ALL TO horse_power_app
   USING(tenant_id=nullif(current_setting('app.tenant_id',true),''))
