@@ -11,6 +11,7 @@
     "admin:bootstrap": "tsx scripts/platform-admin-bootstrap.ts",
     "admin:seed:local": "tsx scripts/platform-admin-local-seed.ts seed",
     "admin:totp:local": "tsx scripts/platform-admin-local-seed.ts totp",
+    "admin:totp:homologation": "tsx scripts/platform-admin-homologation-totp.ts",
     "test": "tsx --test tests/*.test.ts",
     "format": "prettier --write src server tests docs README.md",
     "db:local:migrate": "tsx scripts/local-migrate.ts",

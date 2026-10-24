@@ -22,6 +22,7 @@ export async function readShare(db:DB,token:string):Promise<(PublicOrderDocument
  if(!/^[a-f0-9]{64}$/.test(token))return null;
  const link=await db.prepare("SELECT tenant_id,order_id,document_revision FROM public_shares WHERE token_hash=? AND revoked=0 AND expires_at>?").get(digest(token),Date.now());
  if(!link)return null;
+ await db.setRequestIdentity?.(String(link.tenant_id), "public");
  const accessState=await db.getTenantAccessState?.(String(link.tenant_id))||"legacy";
  if(["pending_verification","blocked","archived"].includes(accessState))return null;
  await scoped(db,"orders",link.tenant_id,link.order_id);

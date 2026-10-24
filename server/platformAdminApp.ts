@@ -30,7 +30,13 @@ function permissionsOf(value: unknown): PlatformPermission[] {
 }
 function validOrigin(req: Request, res: Response) {
   const origin = req.headers.origin;
-  if (origin && !["http://127.0.0.1:5173", "http://localhost:5173"].includes(origin)) {
+  const allowed = new Set([
+    "http://127.0.0.1:5173",
+    "http://localhost:5173",
+    process.env.APP_ORIGIN,
+    ...(process.env.APP_ORIGINS || "").split(",").map((value) => value.trim()),
+  ].filter((value): value is string => Boolean(value)));
+  if (origin && !allowed.has(origin)) {
     res.status(403).json({ error: "Origem não autorizada." }); return false;
   }
   return true;

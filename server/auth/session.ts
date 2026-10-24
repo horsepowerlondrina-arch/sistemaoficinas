@@ -52,10 +52,18 @@ export function auth(db: DB) {
   return async (req: Request, res: Response, next: NextFunction) => {
     const session = await db
       .prepare(
-        'SELECT s.user_id "userId",s.tenant_id "tenantId",m.role FROM sessions s JOIN memberships m ON m.user_id=s.user_id AND m.tenant_id=s.tenant_id WHERE token_hash=? AND expires_at>?',
+        'SELECT s.user_id "userId",s.tenant_id "tenantId" FROM sessions s WHERE token_hash=? AND expires_at>?',
       )
       .get(digest(tokenFrom(req)), Date.now());
     if (!session) {
+      res.status(401).json({ error: "Entre na sua conta para continuar." });
+      return;
+    }
+    await db.setRequestIdentity?.(String(session.tenantId), String(session.userId));
+    const membership = await db.prepare(
+      "SELECT role FROM memberships WHERE user_id=? AND tenant_id=?",
+    ).get(session.userId, session.tenantId);
+    if (!membership) {
       res.status(401).json({ error: "Entre na sua conta para continuar." });
       return;
     }
@@ -69,7 +77,7 @@ export function auth(db: DB) {
       res.status(403).json({ error: "Esta oficina está em modo somente leitura." });
       return;
     }
-    res.locals.context = session;
+    res.locals.context = { ...session, role: membership.role };
     next();
   };
 }

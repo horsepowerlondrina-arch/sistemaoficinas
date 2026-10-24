@@ -180,7 +180,28 @@ const paymentSchema = z.object({
   sale_on: date.optional(),
 });
 const receiptPlanSchema = z.union([paymentSchema,z.object({payments:z.array(paymentSchema.extend({amount:integer.refine(v=>v>0,"Informe o valor desta forma de pagamento.")})).min(1).max(6)})]);
-export function createApp(db: DB) {
+function requestSecuritySettings(req: express.Request) {
+  const loginEmail = req.path === "/login" && typeof req.body?.email === "string"
+    ? req.body.email.trim().toLowerCase()
+    : "";
+  const setupToken = req.path === "/setup" && typeof req.body?.token === "string"
+    ? req.body.token
+    : "";
+  const publicToken = req.path.match(/^\/public\/([a-f0-9]{64})$/)?.[1] || "";
+  const extensionToken = /^\/extension\/(discard|import|freight)$/.test(req.path)
+    ? req.headers.authorization?.replace(/^Bearer /, "") || ""
+    : "";
+  return {
+    "app.session_hash": digest(tokenFrom(req)),
+    "app.login_email": loginEmail,
+    "app.login_key": loginEmail ? digest((req.ip || "local") + ":" + loginEmail) : "",
+    "app.setup_hash": /^[a-f0-9]{64}$/.test(setupToken) ? digest(setupToken) : "",
+    "app.public_share_hash": publicToken ? digest(publicToken) : "",
+    "app.extension_hash": /^[a-f0-9]{64}$/.test(extensionToken) ? digest(extensionToken) : "",
+  };
+}
+
+export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
   const app = express();
   app.disable("x-powered-by");
   app.use("/api/stock-invoices", express.json({ limit: "3mb" }));
@@ -224,6 +245,26 @@ export function createApp(db: DB) {
       }
     }
     next();
+  });
+  app.use("/api", (req, res, next) => {
+    if (!db.withRequestContext || req.path.startsWith("/admin-api")) {
+      next();
+      return;
+    }
+    let complete!: () => void;
+    const finished = new Promise<void>((resolve) => { complete = resolve; });
+    res.once("finish", complete);
+    res.once("close", complete);
+    void db.withRequestContext(
+      requestSecuritySettings(req),
+      async () => {
+        next();
+        await finished;
+      },
+      () => res.writableEnded && res.statusCode < 400,
+    ).catch((error) => {
+      if (!res.headersSent) next(error);
+    });
   });
   if (process.env.VERCEL) app.set("trust proxy", 1);
   app.post("/api/setup", async (req, res) => {
@@ -284,21 +325,23 @@ export function createApp(db: DB) {
       res.status(401).json({ error: "E-mail ou senha incorretos." });
       return;
     }
+    await db.setRequestIdentity?.("", String(user.id));
     await db
       .prepare("DELETE FROM login_attempts WHERE key=? OR until_at<?")
       .run(key, now);
-    const membership = (await db
+    const membership = await db
       .prepare(
         "SELECT tenant_id FROM memberships WHERE user_id=? ORDER BY tenant_id LIMIT 1",
       )
-      .get(user.id))!;
-    await db
-      .prepare("DELETE FROM sessions WHERE expires_at<? OR token_hash=?")
-      .run(Date.now(), digest(tokenFrom(req)));
+      .get(user.id);
     if (!membership) {
       res.status(403).json({ error: "Acesso não habilitado." });
       return;
     }
+    await db.setRequestIdentity?.(String(membership.tenant_id), String(user.id));
+    await db
+      .prepare("DELETE FROM sessions WHERE expires_at<? OR token_hash=?")
+      .run(Date.now(), digest(tokenFrom(req)));
     await startSession(db, res, String(user.id), String(membership.tenant_id));
     res.json({ ok: true });
   });
@@ -365,6 +408,7 @@ export function createApp(db: DB) {
       res.status(403).json({ error: "Você não tem acesso a esta oficina." });
       return;
     }
+    await db.setRequestIdentity?.(tenant, ctx.userId);
     await db
       .prepare("UPDATE sessions SET tenant_id=? WHERE token_hash=?")
       .run(tenant, digest(tokenFrom(req)));
@@ -1349,6 +1393,7 @@ export function createApp(db: DB) {
     );
     res.json({ ok: true });
   });
+  if (platformAdminApp) app.use("/api", platformAdminApp);
   app.use("/api", (_req, res) =>
     res.status(404).json({ error: "Recurso não encontrado." }),
   );

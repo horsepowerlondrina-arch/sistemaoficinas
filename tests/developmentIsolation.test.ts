@@ -24,7 +24,15 @@ test("development accepts only its configured database and own origin", () => {
     { EXPECTED_DATABASE_PROJECT: "cbdwgocofigrdigfgwkp" },
     {
       DATABASE_URL:
+        "postgresql://postgres.fake-password@db.testproject.supabase.co:5432/postgres",
+    },
+    {
+      DATABASE_URL:
         "postgresql://horse_power_app.cbdwgocofigrdigfgwkp:fake@aws-1-ca-central-1.pooler.supabase.com:6543/postgres",
+    },
+    {
+      DATABASE_URL:
+        "postgresql://horse_power_app.testproject:fake@aws-1-ca-central-1.pooler.supabase.com:5432/postgres",
     },
     { APP_ORIGIN: "https://horse-power.vercel.app" },
     { PUBLIC_ORIGIN: "https://horse-power.vercel.app" },

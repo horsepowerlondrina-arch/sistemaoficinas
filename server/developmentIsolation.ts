@@ -12,21 +12,35 @@ export function assertDevelopmentIsolation(
       "HPDesenvolvimento exige configuração isolada de desenvolvimento.",
     );
   const database = new URL(env.DATABASE_URL || "");
-  const direct = database.hostname === `db.${expected}.supabase.co`;
+  const direct =
+    database.hostname === `db.${expected}.supabase.co` &&
+    decodeURIComponent(database.username) === "horse_power_app";
   const pooled =
     database.hostname.endsWith(".pooler.supabase.com") &&
+    database.port === "6543" &&
     decodeURIComponent(database.username) === `horse_power_app.${expected}`;
-  if ((!direct && !pooled) || database.href.includes(productionProject))
+  if (
+    (!direct && !pooled) ||
+    database.pathname !== "/postgres" ||
+    database.search ||
+    database.hash ||
+    database.href.includes(productionProject)
+  )
     throw new Error(
-      "HPDesenvolvimento recusou uma conexão fora do banco de testes.",
+      "A homologação recusou uma conexão fora do banco de testes.",
     );
   const origin = new URL(env.APP_ORIGIN || "");
+  const allowedOrigins = (env.APP_ORIGINS || "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
   if (
-    origin.hostname !== "hpdesenvolvimento-horse-power2.vercel.app" ||
-    env.PUBLIC_ORIGIN !== origin.origin ||
-    env.APP_ORIGINS !== origin.origin
+    !origin.hostname.endsWith(".vercel.app") ||
+    allowedOrigins.length !== 1 ||
+    allowedOrigins[0] !== origin.origin ||
+    env.PUBLIC_ORIGIN !== origin.origin
   )
-    throw new Error("HPDesenvolvimento exige seu próprio endereço de acesso.");
+    throw new Error("A homologação exige um endereço Vercel próprio e consistente.");
   if (
     env.ENABLE_PAID_VEHICLE_LOOKUP !== "true" &&
     Object.keys(env).some(

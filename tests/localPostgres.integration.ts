@@ -187,7 +187,8 @@ test("PostgreSQL local: autenticação, oficinas, transações e RLS do catálog
   const base="http://127.0.0.1:"+address.port;
   const request=(path:string,cookie="",body?:unknown)=>fetch(base+path,{method:body===undefined?"GET":"POST",headers:{"Content-Type":"application/json",Origin:"http://127.0.0.1:5173",...(cookie?{Cookie:cookie}:{})},...(body===undefined?{}:{body:JSON.stringify(body)})});
   await t.test("login, sessão e dados operacionais não cruzam oficinas",async()=>{
-    assert.equal((await request("/api/workspace")).status,401);
+    const anonymousWorkspace = await request("/api/workspace");
+    assert.equal(anonymousWorkspace.status,401,await anonymousWorkspace.text());
     assert.equal((await request("/api/login","",{email:credentials[0].email,password:"wrong-password"})).status,401);
     const sessions:string[]=[];
     for(const credential of credentials){

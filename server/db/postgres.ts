@@ -94,11 +94,58 @@ export function createPostgresDatabase(url = process.env.DATABASE_URL, options: 
     query_timeout: 15000,
   });
   const context = new AsyncLocalStorage<pg.PoolClient>();
+  async function setRequestIdentity(tenantId: string | null, userId?: string | null) {
+    const client = context.getStore();
+    if (!client) throw new Error("O contexto seguro da requisição não está ativo.");
+    await client.query(
+      "SELECT set_config('app.tenant_id',$1,true),set_config('app.user_id',$2,true)",
+      [tenantId || "", userId || ""],
+    );
+  }
   async function query(sql: string, values: any[] = []) {
     const client = context.getStore();
     return (client || pool).query(postgresSql(sql), values);
   }
   const db = {
+    async withRequestContext<T>(
+      settings: Record<string, string>,
+      callback: () => Promise<T>,
+      shouldCommit: () => boolean = () => true,
+    ): Promise<T> {
+      const active = context.getStore();
+      if (active) {
+        for (const [key, value] of Object.entries(settings)) {
+          if (!/^app\.[a-z_]+$/.test(key)) throw new Error("Configuração de requisição inválida.");
+          await active.query("SELECT set_config($1,$2,true)", [key, value]);
+        }
+        const result = await callback();
+        if (!shouldCommit()) throw new Error("A requisição foi revertida.");
+        return result;
+      }
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        const names = [
+          "app.tenant_id", "app.user_id", "app.session_hash", "app.login_email", "app.login_key",
+          "app.setup_hash", "app.public_share_hash", "app.extension_hash",
+        ];
+        for (const name of names) await client.query("SELECT set_config($1,$2,true)", [name, settings[name] || ""]);
+        for (const [key, value] of Object.entries(settings)) {
+          if (!names.includes(key)) throw new Error("Configuração de requisição inválida.");
+          await client.query("SELECT set_config($1,$2,true)", [key, value]);
+        }
+        const result = await context.run(client, callback);
+        if (!shouldCommit()) await client.query("ROLLBACK");
+        else await client.query("COMMIT");
+        return result;
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
+    },
+    setRequestIdentity,
     async getTenantAccessState(tenant: string) {
       const result = await query("SELECT horse_power.local_tenant_access_state($1) AS state", [tenant]);
       return String(result.rows[0]?.state || "legacy");

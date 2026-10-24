@@ -21,6 +21,12 @@ export function createDatabase(
 export type Row = Record<string, any>;
 export type MaybePromise<T> = T | Promise<T>;
 export interface DB {
+  setRequestIdentity?(tenantId: string | null, userId?: string | null): Promise<void>;
+  withRequestContext?<T>(
+    settings: Record<string, string>,
+    callback: () => Promise<T>,
+    shouldCommit?: () => boolean,
+  ): Promise<T>;
   withTenantRead?<T>(tenant: string, callback: () => Promise<T>): Promise<T>;
   getTenantAccessState?(tenant: string): Promise<string>;
   prepare(sql: string): {

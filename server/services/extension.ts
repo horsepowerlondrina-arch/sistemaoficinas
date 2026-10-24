@@ -61,6 +61,7 @@ async function activeCaptureSession(db: DB, token: string) {
       new Error("Conexão expirada. Abra o orçamento e conecte novamente."),
       { status: 401 },
     );
+  await db.setRequestIdentity?.(String(s.tenant_id), String(s.user_id));
   const accessState = await db.getTenantAccessState?.(String(s.tenant_id)) || "legacy";
   if (["pending_verification", "read_only", "blocked", "archived"].includes(accessState))
     throw Object.assign(new Error("A oficina não permite operações pela extensão no estado atual."), { status: 403 });

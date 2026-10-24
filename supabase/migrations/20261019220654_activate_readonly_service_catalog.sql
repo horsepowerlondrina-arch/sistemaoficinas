@@ -1,7 +1,39 @@
 SET LOCAL search_path=service_catalog,pg_catalog;
-DO $$ BEGIN
- IF (SELECT count(*) FROM service_catalog.models) <> 7534 OR (SELECT count(*) FROM service_catalog.repair_times) <> 836093 THEN RAISE EXCEPTION 'Catálogo incompleto'; END IF;
- IF (SELECT sum(t.n) FROM service_catalog.models m JOIN (SELECT base_id,count(*) n FROM service_catalog.repair_times GROUP BY base_id) t ON t.base_id=m.base_id) <> 7292579 THEN RAISE EXCEPTION 'Vínculos inválidos'; END IF;
+DO $$
+DECLARE
+  synthetic_release service_catalog.releases%ROWTYPE;
+  model_total bigint;
+  time_total bigint;
+  application_total bigint;
+  has_synthetic_release boolean;
+BEGIN
+  SELECT * INTO synthetic_release
+  FROM service_catalog.releases
+  WHERE version='homologacao-sintetica' AND status='loading';
+  has_synthetic_release := FOUND;
+
+  SELECT count(*) INTO model_total FROM service_catalog.models;
+  SELECT count(*) INTO time_total FROM service_catalog.repair_times;
+  SELECT coalesce(sum(t.n),0) INTO application_total
+  FROM service_catalog.models m
+  JOIN (SELECT base_id,count(*) n FROM service_catalog.repair_times GROUP BY base_id) t
+    ON t.base_id=m.base_id;
+
+  IF has_synthetic_release AND synthetic_release.source_sha256='synthetic'
+     AND model_total=synthetic_release.model_count
+     AND time_total=synthetic_release.time_count
+     AND application_total=synthetic_release.application_count THEN
+    UPDATE service_catalog.releases
+      SET status='active',validated_at=now()
+      WHERE version=synthetic_release.version;
+  ELSE
+    IF model_total <> 7534 OR time_total <> 836093 THEN
+      RAISE EXCEPTION 'Catálogo incompleto';
+    END IF;
+    IF application_total <> 7292579 THEN
+      RAISE EXCEPTION 'Vínculos inválidos';
+    END IF;
+  END IF;
 END $$;
 CREATE UNIQUE INDEX base_service ON repair_times(base_id,service_id) WHERE base_id IS NOT NULL;
 CREATE UNIQUE INDEX model_service ON repair_times(model_id,service_id) WHERE model_id IS NOT NULL;
@@ -76,4 +108,6 @@ CREATE POLICY entitled_catalog_read ON repair_times FOR SELECT TO horse_power_ap
  (SELECT EXISTS(SELECT 1 FROM service_catalog.releases WHERE status='active')) AND
  (SELECT EXISTS(SELECT 1 FROM service_catalog.tenant_access WHERE tenant_id=nullif(current_setting('app.tenant_id',true),'') AND enabled AND (valid_until IS NULL OR valid_until>now())))
 );
-UPDATE releases SET status='active',source_sha256='5557e09a16362452e1a5716164e9cc0e13d48a26140c1682ffdc5ae48b0eefaa',validated_at=now() WHERE version='1.2-operacional' AND status='loading';
+UPDATE releases SET status='active',source_sha256='5557e09a16362452e1a5716164e9cc0e13d48a26140c1682ffdc5ae48b0eefaa',validated_at=now() WHERE version='1.2-operacional' AND status='loading'
+  AND (SELECT count(*) FROM service_catalog.models)=7534
+  AND (SELECT count(*) FROM service_catalog.repair_times)=836093;
