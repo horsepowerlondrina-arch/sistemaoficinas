@@ -10,17 +10,17 @@
 
 Branches remotas listadas antes da criação desta branch de auditoria:
 
-| Branch | Head consultado | PR | Comparação GitHub com `main` | Situação |
-|---|---|---:|---|---|
-| `main` | `939afd173f0362d5694d8d6c192e283588c778e6` | — | referência | Ativa |
-| `adm-002-ativacao-oficinas` | `e8e44bfe150fae105f9db751f00b41a9de297f9d` | #2 merged | 0 commits exclusivos por ancestry; 7 atrás | Integrada; candidata à limpeza |
-| `mig-002-transfer` | `e7f2f09ca6e121294e97e0a29ca1516e63872d3d` | #1 merged | 0 exclusivos; 9 atrás | Integrada; candidata à limpeza |
-| `mig-004-merge-replace` | `94dc8138907a2a45dfc11b972383e304525adce8` | #3 merged | 10 commits não ancestrais; 6 atrás | Integrada pelo PR; comparação ancestry não indica código pendente |
-| `mig-004-fix-replace-permissions` | `b18f0f79f77726d1d5261e6a0490b28c1fd525a7` | #4 merged | 1 não ancestral; 5 atrás | Integrada pelo PR; candidata à limpeza |
-| `fix/transfer-external-catalog-identity` | `b9a824eecce972e4cb506622a20fddc944a5600f` | #5 merged | 3 não ancestrais; 4 atrás | Integrada pelo PR; candidata à limpeza |
-| `fix/mig-005-transfer-schema` | `2c2e6a8ef32e1723867e86048fa9f3706c2980f8` | #6 merged | 7 não ancestrais; 3 atrás | Integrada pelo PR; candidata à limpeza |
-| `fix/transfer-preserve-destination-user` | `325e0e991b714b4bf28c781b8278033b2a50b3ea` | #7 merged | 1 não ancestral; 2 atrás | Integrada pelo PR; candidata à limpeza |
-| `docs/gov-001-gestao-projeto` | `d0b6025bb709b8206994b54bdb81d0ecf4b218b5` | #8 merged | 1 não ancestral; 1 atrás | Integrada; conteúdo de governança está em `main` |
+| Branch | Base original do PR | Head consultado | PR | Comparação GitHub com `main` | Situação |
+|---|---|---|---:|---|---|
+| `main` | — | `939afd173f0362d5694d8d6c192e283588c778e6` | — | referência | Ativa |
+| `adm-002-ativacao-oficinas` | `438371c11eca3f3567d772c08b0977ccbc4aa007` | `e8e44bfe150fae105f9db751f00b41a9de297f9d` | #2 merged | 0 commits exclusivos por ancestry; 7 atrás | Integrada; candidata à limpeza |
+| `mig-002-transfer` | `5905a25bc8cb2269e3350e0acef108934a1cc822` | `e7f2f09ca6e121294e97e0a29ca1516e63872d3d` | #1 merged | 0 exclusivos; 9 atrás | Integrada; candidata à limpeza |
+| `mig-004-merge-replace` | `04e5bf7071dded4ef4b4139df7c4a1e3048095fe` | `94dc8138907a2a45dfc11b972383e304525adce8` | #3 merged | 10 commits não ancestrais; 6 atrás | Integrada pelo PR; comparação ancestry não indica código pendente |
+| `mig-004-fix-replace-permissions` | `16fddb35c381d4cc6a54eaa4aeff89a8e1d329c7` | `b18f0f79f77726d1d5261e6a0490b28c1fd525a7` | #4 merged | 1 não ancestral; 5 atrás | Integrada pelo PR; candidata à limpeza |
+| `fix/transfer-external-catalog-identity` | `b14aeace5695360610194602dc6265abf1c0a124` | `b9a824eecce972e4cb506622a20fddc944a5600f` | #5 merged | 3 não ancestrais; 4 atrás | Integrada pelo PR; candidata à limpeza |
+| `fix/mig-005-transfer-schema` | `dd7de824f110c0dbc62fb20b1a689ffb477cb962` | `2c2e6a8ef32e1723867e86048fa9f3706c2980f8` | #6 merged | 7 não ancestrais; 3 atrás | Integrada pelo PR; candidata à limpeza |
+| `fix/transfer-preserve-destination-user` | `0855a3eae639890a116b22f86bacddfee74416c6` | `325e0e991b714b4bf28c781b8278033b2a50b3ea` | #7 merged | 1 não ancestral; 2 atrás | Integrada pelo PR; candidata à limpeza |
+| `docs/gov-001-gestao-projeto` | `6496c8a8795178babcaba525cb707f7fd88b823a` | `d0b6025bb709b8206994b54bdb81d0ecf4b218b5` | #8 merged | 1 não ancestral; 1 atrás | Integrada; conteúdo de governança está em `main` |
 
 Todos os PRs #1–#8 foram encontrados como integrados à `main`. Nas branches cujo PR foi squash/merge sem preservar a identidade de cada commit ancestral, a comparação GitHub reporta commits “ahead” pela topologia do grafo, embora o PR esteja fechado como merged. Não foram identificados commits adicionados às branches depois do head do PR correspondente. O conteúdo dos PRs está incorporado na linha principal; as diferenças atuais das branches são versões antigas e/ou topologia, não motivo para reabrir o trabalho.
 
