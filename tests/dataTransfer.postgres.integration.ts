@@ -12,6 +12,27 @@ import { createWorkshopTransfer } from "../server/services/dataTransferExport.js
 if (existsSync(".env.local")) process.loadEnvFile(".env.local");
 if (existsSync(".env.platform-admin.local")) process.loadEnvFile(".env.platform-admin.local");
 
+test("PostgreSQL local: runtime replace privileges are narrow and preserve immutable history", async () => {
+  const admin = adminClient();
+  await admin.connect();
+  try {
+    const result = await admin.query<{ table_name: string; can_delete: boolean }>(`
+      SELECT table_name, has_table_privilege('hp_local_app', format('horse_power.%I', table_name), 'DELETE') AS can_delete
+      FROM (VALUES ('stock_movements'), ('cash_entries'), ('service_merge_history'), ('audit_events'), ('document_revisions')) AS tables(table_name)
+    `);
+    const privileges = Object.fromEntries(result.rows.map(({ table_name, can_delete }) => [table_name, can_delete]));
+    assert.deepEqual(privileges, {
+      stock_movements: true,
+      cash_entries: true,
+      service_merge_history: true,
+      audit_events: false,
+      document_revisions: false,
+    });
+  } finally {
+    await admin.end();
+  }
+});
+
 test("PostgreSQL local: transferência fictícia completa preserva IDs, relações e snapshot e reverte a transação", async (t) => {
   const admin = adminClient();
   await admin.connect();
