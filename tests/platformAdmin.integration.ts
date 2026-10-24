@@ -30,7 +30,7 @@ test("PostgreSQL platform admin: login, MFA, separated sessions, roles, audit an
     end: () => rawPool.end(),
   } as unknown as Pool;
   let server: ReturnType<ReturnType<typeof createPlatformAdminApp>["listen"]> | undefined;
-  const mfaEnvironmentKeys = ["VERCEL", "VERCEL_ENV", "PLATFORM_ADMIN_TEST_MFA_BYPASS_EMAIL", "PLATFORM_ADMIN_TEST_MFA_BYPASS_HOST"] as const;
+  const mfaEnvironmentKeys = ["VERCEL", "VERCEL_ENV", "VERCEL_PROJECT_ID", "PLATFORM_ADMIN_TEST_MFA_BYPASS_EMAIL", "PLATFORM_ADMIN_TEST_MFA_BYPASS_HOST"] as const;
   const originalMfaEnvironment = Object.fromEntries(mfaEnvironmentKeys.map(key => [key, process.env[key]]));
   try {
     const liveRole = await assertPlatformAdminDatabase(rawPool);
@@ -74,6 +74,7 @@ test("PostgreSQL platform admin: login, MFA, separated sessions, roles, audit an
 
     process.env.VERCEL = "1";
     process.env.VERCEL_ENV = "production";
+    process.env.VERCEL_PROJECT_ID = "prj_rLVsFKBpMXQFtfm1kgYHFQObr4Jc";
     process.env.PLATFORM_ADMIN_TEST_MFA_BYPASS_EMAIL = seedCredentials.email;
     process.env.PLATFORM_ADMIN_TEST_MFA_BYPASS_HOST = "127.0.0.1";
     server = createPlatformAdminApp(testPool, encryptionKey).listen(0,"127.0.0.1"); await once(server,"listening");

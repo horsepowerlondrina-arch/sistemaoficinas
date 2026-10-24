@@ -90,8 +90,8 @@ Na configuração Vercel de homologação foram vistas as variáveis de teste pa
 ## 6. Testes, correções e conclusão
 
 - CI existente: run #26, head GOV-001, build + testes gerais + PostgreSQL aprovados.
-- Testes deste incremento: pendentes do GitHub Actions para o PR INF-004; não executados localmente.
-- Mudanças planejadas nesta branch: somente código de guarda MFA, teste unitário, este relatório e atualização do estado/registro de gestão. Nenhuma migração, variável, banco ou deployment será alterado.
+- O primeiro CI do PR (run #27) aprovou build e testes gerais, mas falhou na integração PostgreSQL porque o fixture de login admin não definia o novo `VERCEL_PROJECT_ID`. O fixture agora simula o ID do projeto de homologação e o executa novamente. Nenhum teste foi removido ou relaxado.
+- Mudanças planejadas nesta branch: código de guarda MFA, testes unitários e PostgreSQL (incluindo o ambiente Vercel simulado), este relatório e atualização do estado/registro de gestão. Nenhuma migração, variável, banco ou deployment será alterado.
 - Branches antigas candidatas à exclusão não foram removidas.
 - Vercel e Supabase não foram modificados; nenhum deployment manual foi criado.
 
