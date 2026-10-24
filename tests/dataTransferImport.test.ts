@@ -31,6 +31,8 @@ class MemoryDb {
     customers: ["id", "tenant_id", "name", "phone", "email", "document", "birthday", "address", "notes", "active", "created_at"],
     vehicles: ["id", "tenant_id", "customer_id", "plate", "brand", "model", "year", "color", "km", "chassis", "active"],
     external_catalog_links: ["tenant_id", "source", "external_key", "catalog_id"],
+    cash_entries: ["id", "tenant_id", "receivable_id", "installment_id", "amount", "gross_amount", "fee_amount", "method", "created_at"],
+    payment_installments: ["id", "tenant_id", "receivable_id", "sequence", "due_on", "principal", "interest", "gross", "fee", "net", "status", "paid_at", "method"],
     service_aliases: ["tenant_id", "alias_key", "alias", "catalog_id"],
     orders: ["id", "tenant_id", "number", "kind", "status", "customer_id", "vehicle_id", "entered_on", "due_on", "completed_on", "km", "problem", "notes", "discount", "total", "created_at"],
     audit_events: ["id", "tenant_id", "user_id", "action", "entity_id", "created_at"],
@@ -113,6 +115,30 @@ class MemoryDb {
     catch (error) { Object.assign(this, before); throw error; }
   }
 }
+
+test("cash_entries identifica recebimentos por parcela, não pela receita inteira", async () => {
+  const validDb = new MemoryDb();
+  const validFile = makePackage({ records: {
+    cash_entries: [
+      { id: "entry-1", tenant_id: sourceTenant, receivable_id: "receivable-fake", installment_id: "installment-1", amount: 4000, gross_amount: 4000, fee_amount: 0, method: "Pix", created_at: "2026-10-24T10:00:00.000Z" },
+      { id: "entry-2", tenant_id: sourceTenant, receivable_id: "receivable-fake", installment_id: "installment-2", amount: 4000, gross_amount: 4000, fee_amount: 0, method: "Pix", created_at: "2026-10-25T10:00:00.000Z" },
+    ],
+  } });
+  const preview = await previewWorkshopImport(validDb as unknown as DB, targetTenant, validFile, phrase, "merge");
+  assert.equal(preview.canImport, true, preview.issues.join("; "));
+  assert.equal(preview.entities.cash_entries.new, 2);
+
+  const duplicateDb = new MemoryDb();
+  const duplicateFile = makePackage({ records: {
+    cash_entries: [
+      { id: "entry-1", tenant_id: sourceTenant, receivable_id: "receivable-fake", installment_id: "installment-1", amount: 4000, gross_amount: 4000, fee_amount: 0, method: "Pix", created_at: "2026-10-24T10:00:00.000Z" },
+      { id: "entry-2", tenant_id: sourceTenant, receivable_id: "receivable-fake", installment_id: "installment-1", amount: 4000, gross_amount: 4000, fee_amount: 0, method: "Pix", created_at: "2026-10-25T10:00:00.000Z" },
+    ],
+  } });
+  const duplicatePreview = await previewWorkshopImport(duplicateDb as unknown as DB, targetTenant, duplicateFile, phrase, "merge");
+  assert.equal(duplicatePreview.canImport, false);
+  assert.ok(duplicatePreview.issues.some((issue) => issue.includes("cash_entries") && issue.includes("duplicados")));
+});
 
 test("vínculos técnicos sem ID usam identidade composta estável sem conflito duplicado interno", async () => {
   const db = new MemoryDb();

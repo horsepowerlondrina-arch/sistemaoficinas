@@ -34,7 +34,7 @@ const safelyUpdatable = new Set<TransferTable>([
 ]);
 const uniqueKeys: Partial<Record<TransferTable, string[][]>> = {
   vehicles: [["plate"]], catalog: [["sku"]], orders: [["number"]], receivables: [["order_id"]],
-  cash_entries: [["installment_id"], ["receivable_id"]], payment_installments: [["receivable_id", "sequence"]],
+  cash_entries: [["installment_id"]], payment_installments: [["receivable_id", "sequence"]],
   product_categories: [["name_key"]], suppliers: [["document"]],
   cash_movements: [["origin", "source_id"]], service_times: [["capture_id"]],
   service_aliases: [["alias_key"]], external_catalog_links: [["source", "external_key"]],
