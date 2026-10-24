@@ -95,11 +95,15 @@ test("PostgreSQL local: transferência fictícia completa preserva IDs, relaçõ
       assert.equal((await db.prepare("SELECT count(*) AS count FROM stock_movements WHERE tenant_id=?").get(tenantId))?.count, 1);
       assert.equal((await db.prepare("SELECT count(*) AS count FROM cash_entries WHERE tenant_id=?").get(tenantId))?.count, 1);
 
-      const replacement = await previewWorkshopImport(db, tenantId, file, phrase, "replace");
+      const replacementFile = sealTransferPackage(createTransferPayload("fixture", payload.source.tenant, {
+        ...payload.records,
+        document_revisions: [],
+      }, payload.generatedAt), phrase);
+      const replacement = await previewWorkshopImport(db, tenantId, replacementFile, phrase, "replace");
       assert.equal(replacement.canImport, true, replacement.issues.join("; "));
       assert.equal(replacement.historicalDocumentsToArchive, 1);
       assert.equal(replacement.entities.customers.removed, 2);
-      const replaced = await importWorkshopPackage(db, tenantId, file, phrase, replacement.confirmationId, userId, "replace", replacement.targetWorkshop);
+      const replaced = await importWorkshopPackage(db, tenantId, replacementFile, phrase, replacement.confirmationId, userId, "replace", replacement.targetWorkshop);
       assert.ok(replaced.backupId);
       assert.equal((await db.prepare("SELECT count(*) AS count FROM customers WHERE tenant_id=?").get(tenantId))?.count, 1);
       const backup = await getWorkshopTransferBackup(db, tenantId, replaced.backupId!);
