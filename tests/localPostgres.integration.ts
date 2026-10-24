@@ -8,7 +8,8 @@ if (existsSync(".env.local")) process.loadEnvFile(".env.local");
 test("PostgreSQL local: autenticação, oficinas, transações e RLS do catálogo", async t => {
   const db = await createLocalDatabase();
   t.after(()=>db.close());
-  const credentials=JSON.parse(readFileSync("data/local-credentials.json","utf8"));
+  const credentialsPath=process.env.LOCAL_TEST_CREDENTIALS_FILE || "data/local-credentials.json";
+  const credentials=JSON.parse(readFileSync(credentialsPath,"utf8"));
   await t.test("importação posterior classifica automaticamente e aplica a exceção CAT-007 persistente",async()=>{
     const {adminClient}=await import("../scripts/local-admin");const admin=adminClient();await admin.connect();
     try{
