@@ -373,7 +373,14 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
       ),
     );
   });
-  app.use("/api", auth(db));
+  const workshopAuth = auth(db);
+  app.use("/api", (req, res, next) => {
+    if (req.path === "/admin-api" || req.path.startsWith("/admin-api/")) {
+      next();
+      return;
+    }
+    workshopAuth(req, res, next);
+  });
   app.get("/api/session", async (_req, res) => {
     const ctx: Context = res.locals.context;
     res.json({
@@ -415,6 +422,10 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
     res.json({ ok: true });
   });
   app.use("/api", (req, res, next) => {
+    if (req.path === "/admin-api" || req.path.startsWith("/admin-api/")) {
+      next();
+      return;
+    }
     if (
       res.locals.context.role === "owner" ||
       (/^\/documents\/order\/[^/]+$/.test(req.path) && ["GET","POST"].includes(req.method)) ||

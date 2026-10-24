@@ -18,13 +18,25 @@
     "api/index.ts": {
       "maxDuration": 60,
       "includeFiles": "server/db/certs/**"
-    },
-    "api/[...path].ts": {
-      "maxDuration": 60,
-      "includeFiles": "server/db/certs/**"
     }
   },
   "rewrites": [
+    {
+      "source": "/admin-api",
+      "destination": "/api/index?__hp_vercel_path=/api/admin-api"
+    },
+    {
+      "source": "/admin-api/:path*",
+      "destination": "/api/index?__hp_vercel_path=/api/admin-api/:path*"
+    },
+    {
+      "source": "/api",
+      "destination": "/api/index?__hp_vercel_path=/api"
+    },
+    {
+      "source": "/api/:path*",
+      "destination": "/api/index?__hp_vercel_path=/api/:path*"
+    },
     {
       "source": "/",
       "has": [
@@ -44,14 +56,6 @@
         }
       ],
       "destination": "/site/contato.html"
-    },
-    {
-      "source": "/admin-api",
-      "destination": "/api/admin-api"
-    },
-    {
-      "source": "/admin-api/:path*",
-      "destination": "/api/admin-api/:path*"
     },
     {
       "source": "/privacidade",
