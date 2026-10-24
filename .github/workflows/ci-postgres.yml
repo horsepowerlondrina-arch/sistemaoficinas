@@ -40,6 +40,8 @@ jobs:
           CI_PG_ADMIN_URL: postgres://postgres:ci-temporary-only@127.0.0.1:5432/postgres
       - name: Apply local PostgreSQL migrations
         run: npm run db:local:migrate
+      - name: Seed fictitious local workshops
+        run: npm run db:local:seed
       - run: npm run build
       - run: npm test
       - name: PostgreSQL integration suite

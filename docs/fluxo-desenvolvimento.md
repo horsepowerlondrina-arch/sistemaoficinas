@@ -10,4 +10,4 @@
 8. Publique na homologação somente depois da integração e da autorização de migração/publicação aplicável. Valide com oficinas e dados fictícios.
 9. Registre commits, verificações, migrações e validação de homologação.
 
-O serviço PostgreSQL do workflow é isolado por execução e descartado pelo GitHub Actions. Não armazena credenciais em arquivos versionados nem exige arquivos `.env` do computador. O preparo recusa execução fora do GitHub Actions, fora de loopback ou sobre banco/roles preexistentes. O job não configura produção, homologação, Vercel ou Supabase.
+O serviço PostgreSQL do workflow é isolado por execução e descartado pelo GitHub Actions. O workflow aplica as migrações e cria as duas oficinas fictícias exigidas pelas integrações; as credenciais randômicas do seed ficam somente no workspace efêmero do runner e nunca são impressas. Não armazena credenciais em arquivos versionados nem exige arquivos `.env` do computador. O preparo recusa execução fora do GitHub Actions, fora de loopback ou sobre banco/roles preexistentes. O job não configura produção, homologação, Vercel ou Supabase.

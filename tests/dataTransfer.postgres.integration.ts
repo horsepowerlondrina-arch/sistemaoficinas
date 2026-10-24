@@ -73,15 +73,17 @@ test("PostgreSQL local: transferência fictícia completa preserva IDs, relaçõ
       assert.equal(rows?.issued_by, userId);
       assert.match(String(rows?.payload), /Oficina Fictícia Origem/);
       assert.equal((await db.prepare("SELECT action FROM audit_events WHERE tenant_id=? AND user_id=?").get(tenantId,userId))?.action, "data_transfer.imported");
-      const idCollisionPayload = structuredClone(payload);
-      idCollisionPayload.source.application = "fixture-id-conflict";
-      idCollisionPayload.records.customers![0].name = "Nome Fictício em Conflito";
+      const idCollisionPayload = createTransferPayload("fixture-id-conflict", payload.source.tenant, {
+        ...payload.records,
+        customers: payload.records.customers!.map((row, index) => index === 0 ? { ...row, name: "Nome Fictício em Conflito" } : row),
+      }, payload.generatedAt);
       const idCollision = await previewWorkshopImport(db, tenantId, sealTransferPackage(idCollisionPayload, phrase), phrase, "merge");
       assert.equal(idCollision.canImport, false);
       assert.ok(idCollision.entities.customers.conflicts > 0);
-      const numberCollisionPayload = structuredClone(payload);
-      numberCollisionPayload.source.application = "fixture-os-number-conflict";
-      numberCollisionPayload.records.orders![0].id = randomUUID();
+      const numberCollisionPayload = createTransferPayload("fixture-os-number-conflict", payload.source.tenant, {
+        ...payload.records,
+        orders: payload.records.orders!.map((row, index) => index === 0 ? { ...row, id: randomUUID() } : row),
+      }, payload.generatedAt);
       const numberCollision = await previewWorkshopImport(db, tenantId, sealTransferPackage(numberCollisionPayload, phrase), phrase, "merge");
       assert.equal(numberCollision.canImport, false);
       assert.ok(numberCollision.entities.orders.conflicts > 0);
