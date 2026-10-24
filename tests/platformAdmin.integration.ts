@@ -30,6 +30,8 @@ test("PostgreSQL platform admin: login, MFA, separated sessions, roles, audit an
     end: () => rawPool.end(),
   } as unknown as Pool;
   let server: ReturnType<ReturnType<typeof createPlatformAdminApp>["listen"]> | undefined;
+  const mfaEnvironmentKeys = ["VERCEL", "VERCEL_ENV", "PLATFORM_ADMIN_TEST_MFA_BYPASS_EMAIL", "PLATFORM_ADMIN_TEST_MFA_BYPASS_HOST"] as const;
+  const originalMfaEnvironment = Object.fromEntries(mfaEnvironmentKeys.map(key => [key, process.env[key]]));
   try {
     const liveRole = await assertPlatformAdminDatabase(rawPool);
     assert.equal(liveRole.workshop_schema,false);
@@ -70,6 +72,10 @@ test("PostgreSQL platform admin: login, MFA, separated sessions, roles, audit an
     assert.deepEqual(reconciled.rows[0].permissions,["audit:read","platform:settings","workshops:read","workshops:manage"]);
     assert.equal((await testPool.query("SELECT count(*)::int AS count FROM platform_admin.audit_events WHERE action='admin.local_seed.permissions_reconciled' AND actor_email=$1",[seedCredentials.email])).rows[0].count,1);
 
+    process.env.VERCEL = "1";
+    process.env.VERCEL_ENV = "production";
+    process.env.PLATFORM_ADMIN_TEST_MFA_BYPASS_EMAIL = seedCredentials.email;
+    process.env.PLATFORM_ADMIN_TEST_MFA_BYPASS_HOST = "127.0.0.1";
     server = createPlatformAdminApp(testPool, encryptionKey).listen(0,"127.0.0.1"); await once(server,"listening");
     const address = server.address(); assert.ok(address && typeof address !== "string");
     const base = `http://127.0.0.1:${address.port}`;
@@ -81,6 +87,10 @@ test("PostgreSQL platform admin: login, MFA, separated sessions, roles, audit an
 
     assert.equal((await login(seedCredentials.email,randomBytes(32).toString("base64url"),seedCredentials.totpSecret)).status,401);
     assert.equal((await login(seedCredentials.email,seedCredentials.password,seedCredentials.totpSecret,"111111")).status,401);
+    const passwordOnlySeedLogin = await request("/admin-api/login",{method:"POST",body:{email:seedCredentials.email,password:seedCredentials.password}});
+    assert.equal(passwordOnlySeedLogin.status,200);
+    const passwordOnlySeedCookie = passwordOnlySeedLogin.headers.get("set-cookie")?.split(";")[0] || "";
+    assert.equal((await request("/admin-api/session",{cookie:passwordOnlySeedCookie})).status,200);
     const seedLogin = await login(seedCredentials.email,seedCredentials.password,seedCredentials.totpSecret);
     assert.equal(seedLogin.status,200);
     const seedCookie = seedLogin.headers.get("set-cookie")?.split(";")[0] || "";
@@ -148,9 +158,10 @@ test("PostgreSQL platform admin: login, MFA, separated sessions, roles, audit an
 
     const events = await request("/admin-api/audit?limit=200",{cookie:principalCookie});
     assert.equal(events.status,200);
-    const audit = await events.json() as Array<{action:string;result:string;technical_context:Record<string,unknown>}>;
+    const audit = await events.json() as Array<{action:string;actor_email:string|null;result:string;technical_context:Record<string,unknown>}>;
     assert.ok(audit.some(event=>event.action==="admin.login.password_failed"));
     assert.ok(audit.some(event=>event.action==="admin.login.mfa_failed"));
+    assert.ok(audit.some(event=>event.action==="admin.login.mfa_test_bypass" && event.actor_email===seedCredentials.email));
     assert.ok(audit.some(event=>event.result==="blocked"));
     assert.ok(audit.some(event=>event.action==="admin.account.created"));
     assert.ok(audit.some(event=>event.action==="admin.local_seed.created"));
@@ -164,6 +175,10 @@ test("PostgreSQL platform admin: login, MFA, separated sessions, roles, audit an
     await assert.rejects(rawPool.query("SELECT id FROM service_catalog.models"),{code:"42501"});
   } finally {
     if (server) await new Promise<void>(resolve=>server!.close(()=>resolve()));
+    for (const key of mfaEnvironmentKeys) {
+      const previous = originalMfaEnvironment[key];
+      if (previous === undefined) delete process.env[key]; else process.env[key] = previous;
+    }
     await rawPool.end();
     await owner.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);
     await owner.end();
