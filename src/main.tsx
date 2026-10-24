@@ -4,9 +4,18 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { PublicOrder } from "./pages/PublicOrder";
 import { Activate } from "./pages/Activate";
 import { PlatformAdmin } from "./pages/PlatformAdmin";
+import { isPlatformAdminAvailable } from "./platformAdminAvailability";
 import { App } from "./App";
 import "./styles.css";
 import "./document.css";
+
+const platformAdminAvailable = isPlatformAdminAvailable({
+  development: import.meta.env.DEV,
+  enabled: import.meta.env.VITE_PLATFORM_ADMIN_ENABLED,
+  allowedHosts: import.meta.env.VITE_PLATFORM_ADMIN_ALLOWED_HOSTS,
+  hostname: window.location.hostname,
+});
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <div className="development-notice" role="status">
@@ -16,7 +25,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
       <Routes>
         <Route path="/ativar" element={<Activate />} />
         <Route path="/p/:token" element={<PublicOrder />} />
-        {import.meta.env.DEV && <Route path="/admin/*" element={<PlatformAdmin />} />}
+        {platformAdminAvailable && <Route path="/admin/*" element={<PlatformAdmin />} />}
         <Route path="*" element={<App />} />
       </Routes>
     </BrowserRouter>
