@@ -105,7 +105,7 @@ test("PostgreSQL local: transferência fictícia completa preserva IDs, relaçõ
       const backup = await getWorkshopTransferBackup(db, tenantId, replaced.backupId!);
       assert.ok(backup);
       assert.equal(transferFileSha256(backup!), String((await db.prepare("SELECT package_sha256 FROM data_transfer_backups WHERE tenant_id=? AND id=?").get(tenantId,replaced.backupId))?.package_sha256));
-      assert.equal(openTransferPackage(backup!, phrase).records.customers?.length, 1);
+      assert.equal(openTransferPackage(backup!, phrase).records.customers?.length, replacement.entities.customers.existing);
       assert.equal(openTransferPackage(backup!, phrase).records.stock_movements?.length, 1);
       assert.equal(openTransferPackage(backup!, phrase).records.cash_entries?.length, 1);
       assert.equal((await db.prepare("SELECT token_hash FROM sessions WHERE tenant_id=? AND token_hash=?").get(tenantId,preservedSessionHash))?.token_hash, preservedSessionHash);
