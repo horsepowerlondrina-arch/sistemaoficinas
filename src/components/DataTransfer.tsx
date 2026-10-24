@@ -109,7 +109,7 @@ export function DataTransfer() {
   return <div className="work-order-section">
     <section className="panel">
       <h2>Transferência completa da oficina</h2>
-      <p>Pacotes protegidos e versionados com os dados operacionais, relacionamentos e histórico disponível. Credenciais, sessões, links públicos e dados comerciais da plataforma não são transferidos.</p>
+      <p>Pacotes protegidos e versionados com dados operacionais e histórico disponível. A conta, senha, vínculos, permissões e sessões da oficina de destino permanecem intactos; usuários e acessos do pacote não são importados. Referências de autoria dos registros transferidos serão associadas ao proprietário que confirma a operação, e a auditoria histórica da origem não será importada.</p>
       <label className="field"><span>Frase secreta do pacote (mínimo 12 caracteres)</span><input type="password" autoComplete="new-password" minLength={12} maxLength={1024} value={phrase} onChange={(event) => setPhrase(event.target.value)} /></label>
       <div className="button-row">
         <button type="button" className="button primary" disabled={busy || phrase.length < 12} onClick={runExport}>{busy ? <LockKeyhole size={16}/> : <Download size={16}/>} Exportar pacote protegido</button>

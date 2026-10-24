@@ -23,8 +23,8 @@ export async function createWorkshopTransfer(db: DB, tenantId: string, passphras
   tenantRow.id = tenantId;
   const records: TransferPayload["records"] = {
     tenant: tenantRow,
-    users: (await db.prepare("SELECT u.id,u.name,u.email FROM users u JOIN memberships m ON m.user_id=u.id WHERE m.tenant_id=? ORDER BY u.id").all(tenantId)).map(safeRecord),
-    memberships: (await db.prepare("SELECT user_id,tenant_id,role FROM memberships WHERE tenant_id=? ORDER BY user_id").all(tenantId)).map(safeRecord),
+    users: [],
+    memberships: [],
   };
   for (const table of TRANSFER_TABLES) {
     const columns = await db.prepare("SELECT column_name FROM information_schema.columns WHERE table_schema='horse_power' AND table_name=?").all(table);

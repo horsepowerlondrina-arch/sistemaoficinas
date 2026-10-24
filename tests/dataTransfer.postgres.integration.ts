@@ -54,7 +54,7 @@ test("PostgreSQL local: transferência fictícia completa preserva IDs, relaçõ
     fixtureCreated = true;
     const payload = createTransferPayload("fixture", { id: sourceTenantId, name: "Oficina Fictícia Origem" }, {
       tenant: { id: sourceTenantId, name: "Oficina Fictícia Origem", document: "", phone: "", address: "" },
-      users: [{ id: sourceUserId, name: "Proprietário Fictício", email: `mig002-${userId}@example.invalid` }],
+      users: [{ id: sourceUserId, name: "Proprietário Fictício", email: `source-${sourceUserId}@example.invalid` }],
       memberships: [{ user_id: sourceUserId, tenant_id: sourceTenantId, role: "owner" }],
       customers: [{ id: customerId, tenant_id: sourceTenantId, name: "Cliente Fictício", phone: "", email: "", document: "", birthday: "", address: "", notes: "", active: 1, created_at: "2026-10-24T00:00:00.000Z" }],
       vehicles: [{ id: vehicleId, tenant_id: sourceTenantId, customer_id: customerId, plate: "ABC1D23", brand: "Marca Fictícia", model: "Modelo Fictício", year: 2024, color: "", km: 1000, chassis: "", active: 1, service_model_id: "", service_porte_id: "" }],
@@ -80,7 +80,7 @@ test("PostgreSQL local: transferência fictícia completa preserva IDs, relaçõ
     const settings = { "app.tenant_id": tenantId, "app.user_id": userId, "app.session_hash": "", "app.login_email": "", "app.login_key": "", "app.setup_hash": "", "app.public_share_hash": "", "app.extension_hash": "" };
     await db.withRequestContext(settings, async () => {
       await db.setRequestIdentity(tenantId, userId);
-      const preview = await previewWorkshopImport(db, tenantId, file, phrase);
+      const preview = await previewWorkshopImport(db, tenantId, file, phrase, userId);
       assert.equal(preview.canImport, true, preview.issues.join("; "));
       const result = await importWorkshopPackage(db, tenantId, file, phrase, preview.confirmationId, userId);
       assert.equal(result.counts.external_catalog_links, 1);
@@ -106,23 +106,27 @@ test("PostgreSQL local: transferência fictícia completa preserva IDs, relaçõ
       assert.equal(rows?.vehicle_id, vehicleId);
       assert.equal(rows?.price, 8000);
       assert.equal(rows?.issued_by, userId);
+      assert.equal((await db.prepare("SELECT user_id FROM stock_movements WHERE tenant_id=? AND id=?").get(tenantId,movementId))?.user_id, userId);
+      assert.equal((await admin.query("SELECT count(*)::int AS count FROM horse_power.users WHERE id=$1", [userId])).rows[0].count, 1);
+      assert.equal((await admin.query("SELECT count(*)::int AS count FROM horse_power.memberships WHERE tenant_id=$1 AND user_id=$2", [tenantId,userId])).rows[0].count, 1);
+      assert.equal((await admin.query("SELECT password_hash FROM horse_power.users WHERE id=$1", [userId])).rows[0].password_hash, "fixture-hash");
       assert.match(String(rows?.payload), /Oficina Fictícia Origem/);
       assert.equal((await db.prepare("SELECT action FROM audit_events WHERE tenant_id=? AND user_id=?").get(tenantId,userId))?.action, "data_transfer.imported");
       const idCollisionPayload = createTransferPayload("fixture-id-conflict", payload.source.tenant, {
         ...payload.records,
         customers: payload.records.customers!.map((row, index) => index === 0 ? { ...row, name: "Nome Fictício em Conflito" } : row),
       }, payload.generatedAt);
-      const idCollision = await previewWorkshopImport(db, tenantId, sealTransferPackage(idCollisionPayload, phrase), phrase, "merge");
+      const idCollision = await previewWorkshopImport(db, tenantId, sealTransferPackage(idCollisionPayload, phrase), phrase, userId, "merge");
       assert.equal(idCollision.canImport, false);
       assert.ok(idCollision.entities.customers.conflicts > 0);
       const numberCollisionPayload = createTransferPayload("fixture-os-number-conflict", payload.source.tenant, {
         ...payload.records,
         orders: payload.records.orders!.map((row, index) => index === 0 ? { ...row, id: randomUUID() } : row),
       }, payload.generatedAt);
-      const numberCollision = await previewWorkshopImport(db, tenantId, sealTransferPackage(numberCollisionPayload, phrase), phrase, "merge");
+      const numberCollision = await previewWorkshopImport(db, tenantId, sealTransferPackage(numberCollisionPayload, phrase), phrase, userId, "merge");
       assert.equal(numberCollision.canImport, false);
       assert.ok(numberCollision.entities.orders.conflicts > 0);
-      const repeated = await previewWorkshopImport(db, tenantId, file, phrase, "merge");
+      const repeated = await previewWorkshopImport(db, tenantId, file, phrase, userId, "merge");
       assert.equal(repeated.canImport, true, repeated.issues.join("; "));
       assert.equal(repeated.entities.customers.equal, 1);
       await importWorkshopPackage(db, tenantId, file, phrase, repeated.confirmationId, userId, "merge");
@@ -135,7 +139,7 @@ test("PostgreSQL local: transferência fictícia completa preserva IDs, relaçõ
         ...payload.records,
         document_revisions: [],
       }, payload.generatedAt), phrase);
-      const replacement = await previewWorkshopImport(db, tenantId, replacementFile, phrase, "replace");
+      const replacement = await previewWorkshopImport(db, tenantId, replacementFile, phrase, userId, "replace");
       assert.equal(replacement.canImport, true, replacement.issues.join("; "));
       assert.equal(replacement.historicalDocumentsToArchive, 1);
       assert.equal(replacement.entities.customers.removed, 2);
@@ -149,6 +153,8 @@ test("PostgreSQL local: transferência fictícia completa preserva IDs, relaçõ
       assert.equal(openTransferPackage(backup!, phrase).records.stock_movements?.length, 1);
       assert.equal(openTransferPackage(backup!, phrase).records.cash_entries?.length, 2);
       assert.equal(openTransferPackage(backup!, phrase).records.external_captures?.length, 1);
+      assert.deepEqual(openTransferPackage(backup!, phrase).records.users, []);
+      assert.deepEqual(openTransferPackage(backup!, phrase).records.memberships, []);
       assert.equal((await db.prepare("SELECT token_hash FROM sessions WHERE tenant_id=? AND token_hash=?").get(tenantId,preservedSessionHash))?.token_hash, preservedSessionHash);
       assert.equal((await db.prepare("SELECT payload FROM document_revisions WHERE tenant_id=? AND id=?").get(tenantId,revisionId))?.payload, documentPayload);
       const context = { tenantId, userId, role: "owner" } as const;
@@ -169,7 +175,7 @@ test("PostgreSQL local: transferência fictícia completa preserva IDs, relaçõ
     const invalidFile = sealTransferPackage(invalidPayload, phrase);
     await assert.rejects(db.withRequestContext(settings, async () => {
       await db.setRequestIdentity(tenantId, userId);
-      const invalidPreview = await previewWorkshopImport(db, tenantId, invalidFile, phrase, "replace");
+      const invalidPreview = await previewWorkshopImport(db, tenantId, invalidFile, phrase, userId, "replace");
       assert.equal(invalidPreview.canImport, true, invalidPreview.issues.join("; "));
       return importWorkshopPackage(db, tenantId, invalidFile, phrase, invalidPreview.confirmationId, userId, "replace", "Oficina Fictícia MIG002");
     }));
@@ -205,13 +211,13 @@ test("PostgreSQL local: importações concorrentes revalidam sob bloqueio e não
     fixtureCreated = true;
     const file = sealTransferPackage(createTransferPayload("fixture-concurrency", { id: sourceTenantId, name: "Oficina Fictícia Origem Concorrência" }, {
       tenant: { id: sourceTenantId, name: "Oficina Fictícia Origem Concorrência" },
-      users: [{ id: sourceUserId, name: "Proprietário Fictício", email: `mig004-${userId}@example.invalid` }],
+      users: [{ id: sourceUserId, name: "Proprietário Fictício", email: `mig004-source-${sourceUserId}@example.invalid` }],
       memberships: [{ user_id: sourceUserId, tenant_id: sourceTenantId, role: "owner" }],
       customers: [{ id: customerId, tenant_id: sourceTenantId, name: "Cliente Fictício Concorrente", phone: "", email: "", document: "", birthday: "", address: "", notes: "", active: 1, created_at: "2026-10-24T00:00:00.000Z" }],
     }, "2026-10-24T12:00:00.000Z"), phrase);
     const settings = { "app.tenant_id": tenantId, "app.user_id": userId, "app.session_hash": "", "app.login_email": "", "app.login_key": "", "app.setup_hash": "", "app.public_share_hash": "", "app.extension_hash": "" };
     const inContext = <T>(db: Awaited<ReturnType<typeof createLocalDatabase>>, fn: () => Promise<T>) => db.withRequestContext(settings, async () => { await db.setRequestIdentity(tenantId, userId); return fn(); });
-    const previews = await Promise.all([inContext(firstDb, () => previewWorkshopImport(firstDb, tenantId, file, phrase, "merge")), inContext(secondDb, () => previewWorkshopImport(secondDb, tenantId, file, phrase, "merge"))]);
+    const previews = await Promise.all([inContext(firstDb, () => previewWorkshopImport(firstDb, tenantId, file, phrase, userId, "merge")), inContext(secondDb, () => previewWorkshopImport(secondDb, tenantId, file, phrase, userId, "merge"))]);
     assert.equal(previews[0].confirmationId, previews[1].confirmationId);
     const results = await Promise.allSettled([
       inContext(firstDb, () => importWorkshopPackage(firstDb, tenantId, file, phrase, previews[0].confirmationId, userId, "merge")),

@@ -473,7 +473,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
     if (res.locals.context.role !== "owner") { res.status(403).json({ error: "Somente o proprietário pode importar dados." }); return; }
     try {
       const { previewWorkshopImport } = await import("./services/dataTransferImport.js");
-      res.json(await previewWorkshopImport(db, res.locals.context.tenantId, Buffer.from(input.data.packageText, "utf8"), input.data.passphrase, input.data.mode));
+      res.json(await previewWorkshopImport(db, res.locals.context.tenantId, Buffer.from(input.data.packageText, "utf8"), input.data.passphrase, res.locals.context.userId, input.data.mode));
     } catch (error) {
       res.status(400).json({ error: error instanceof Error ? error.message : "Não foi possível validar o pacote." });
     }
