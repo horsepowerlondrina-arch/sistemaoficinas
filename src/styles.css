@@ -3117,6 +3117,17 @@ body {
 .activation-card [role="alert"] {
   color: #b62b32;
 }
+.activation-workshop-summary {
+  display: grid;
+  gap: 5px;
+  padding: 12px 14px;
+  border: 1px solid #e4e5e8;
+  border-radius: 10px;
+  background: #fafbfc;
+  overflow-wrap: anywhere;
+}
+.activation-workshop-summary span { color: #62656e; font-size: 12px; }
+.activation-card form > .button { width: 100%; justify-content: center; min-height: 46px; }
 @media (max-width: 480px) {
   .activation-page {
     padding: 16px;

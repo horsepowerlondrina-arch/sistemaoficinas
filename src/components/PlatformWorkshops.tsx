@@ -7,6 +7,8 @@ type Workshop = {
   responsible_name: string; responsible_email: string; created_at: string | null; updated_at: string | null;
   email_verified_at: string | null; trial_started_at: string | null; trial_ends_at: string | null;
   trial_days_remaining: number | null; status_reason: string; total_count?: number;
+  invitation_status: "none" | "pending" | "sent" | "failed" | "expired" | "revoked" | "used";
+  invitation_expires_at: string | null; invitation_sent_at: string | null;
 };
 type HistoryEvent = { id: string; actor_email: string; action: string; result: string; technical_context: Record<string, unknown>; created_at: string };
 type FormFields = Pick<Workshop, "name" | "responsible_name" | "responsible_email" | "phone" | "document">;
@@ -14,6 +16,10 @@ type FormFields = Pick<Workshop, "name" | "responsible_name" | "responsible_emai
 const labels: Record<Status, string> = {
   pending_verification: "Aguardando confirmação", trial: "Teste grátis", active: "Ativa", grace_period: "Tolerância",
   read_only: "Somente leitura", blocked: "Bloqueada", archived: "Arquivada", legacy: "Legada",
+};
+const invitationLabels: Record<Workshop["invitation_status"], string> = {
+  none:"Não enviado", pending:"Preparando envio", sent:"Enviado", failed:"Falha no envio",
+  expired:"Expirado", revoked:"Substituído", used:"Ativação concluída",
 };
 const blank: FormFields = { name: "", responsible_name: "", responsible_email: "", phone: "", document: "" };
 
@@ -72,9 +78,11 @@ export function PlatformWorkshops({ canManage }: { canManage: boolean }) {
     event.preventDefault(); setBusy(true); setError(""); setMessage("");
     try {
       if (creating) {
-        const result = await request<{ tenant_id: string }>("/workshops", "POST", fields);
-        setMessage("Oficina cadastrada como pendente. O acesso operacional só será liberado após a confirmação do e-mail.");
+        const result = await request<{ tenant_id: string; invitation_status: Workshop["invitation_status"] }>("/workshops", "POST", fields);
         setCreating(false); setFields(blank); await load(1); await openWorkshop(result.tenant_id);
+        setMessage(result.invitation_status === "sent"
+          ? "Oficina cadastrada. O convite de ativação foi enviado ao responsável."
+          : "Oficina cadastrada, mas o convite não foi enviado. Confira a configuração do serviço de e-mail e tente novamente.");
       } else if (selected) {
         await request(`/workshops/${encodeURIComponent(selected.tenant_id)}`, "PUT", fields);
         setMessage("Dados administrativos atualizados e auditados."); await openWorkshop(selected.tenant_id); await load();
@@ -88,6 +96,19 @@ export function PlatformWorkshops({ canManage }: { canManage: boolean }) {
     try {
       await request(`/workshops/${encodeURIComponent(selected.tenant_id)}/status`, "PATCH", { status: nextStatus, reason });
       setMessage("Situação alterada e registrada na auditoria."); await openWorkshop(selected.tenant_id); await load();
+    } catch (cause) { setError((cause as Error).message); }
+    finally { setBusy(false); }
+  };
+  const sendInvitation = async () => {
+    if (!selected) return;
+    setBusy(true); setError(""); setMessage("");
+    try {
+      const result = await request<{ invitation_status: Workshop["invitation_status"] }>(`/workshops/${encodeURIComponent(selected.tenant_id)}/invitation`, "POST", {});
+      await openWorkshop(selected.tenant_id);
+      setMessage(result.invitation_status === "sent"
+        ? "Convite enviado. Os convites anteriores foram invalidados."
+        : "O convite não foi enviado. Verifique a configuração do serviço de e-mail e tente novamente.");
+      await load();
     } catch (cause) { setError((cause as Error).message); }
     finally { setBusy(false); }
   };
@@ -109,7 +130,8 @@ export function PlatformWorkshops({ canManage }: { canManage: boolean }) {
   if (selected) return <div className="pa-workshop-detail">
     <section className="pa-card"><div className="pa-section-title"><div><button className="pa-back-button" onClick={() => setSelected(null)}><ArrowLeft size={15}/> Voltar à lista</button><h2>{selected.name}</h2><p>{selected.tenant_id}</p></div><span className={`pa-status ${selected.status === "trial" || selected.status === "active" ? "is-active" : ""}`}>{labels[selected.status]}</span></div>
       {canManage && selected.source !== "legacy" && <button className="pa-quiet" disabled={busy} onClick={() => { setFields(toFields(selected)); setEditing(true); }}><ShieldCheck size={15}/> Editar dados</button>}
-      <dl className="pa-workshop-data"><div><dt>Responsável</dt><dd>{selected.responsible_name || "Não informado"}</dd></div><div><dt>E-mail</dt><dd>{selected.responsible_email || "Não informado"}</dd></div><div><dt>Telefone</dt><dd>{selected.phone || "Não informado"}</dd></div><div><dt>CPF/CNPJ</dt><dd>{selected.document || "Não informado"}</dd></div><div><dt>Origem</dt><dd>{selected.source === "legacy" ? "Cadastro anterior" : "Painel administrativo"}</dd></div><div><dt>Cadastro</dt><dd>{localDate(selected.created_at)}</dd></div><div><dt>E-mail confirmado</dt><dd>{localDate(selected.email_verified_at)}</dd></div><div><dt>Início do teste</dt><dd>{localDate(selected.trial_started_at)}</dd></div><div><dt>Fim do teste</dt><dd>{localDate(selected.trial_ends_at)}{selected.trial_days_remaining !== null && selected.trial_days_remaining !== undefined ? ` · ${selected.trial_days_remaining} dia(s) restantes` : ""}</dd></div><div><dt>Identificador</dt><dd>{selected.tenant_id}</dd></div></dl>
+      <dl className="pa-workshop-data"><div><dt>Responsável</dt><dd>{selected.responsible_name || "Não informado"}</dd></div><div><dt>E-mail</dt><dd>{selected.responsible_email || "Não informado"}</dd></div><div><dt>Telefone</dt><dd>{selected.phone || "Não informado"}</dd></div><div><dt>CPF/CNPJ</dt><dd>{selected.document || "Não informado"}</dd></div><div><dt>Origem</dt><dd>{selected.source === "legacy" ? "Cadastro anterior" : "Painel administrativo"}</dd></div><div><dt>Cadastro</dt><dd>{localDate(selected.created_at)}</dd></div><div><dt>Convite</dt><dd>{invitationLabels[selected.invitation_status]}{selected.invitation_sent_at ? ` · ${localDate(selected.invitation_sent_at)}` : ""}{selected.invitation_expires_at && selected.invitation_status !== "used" ? ` · expira ${localDate(selected.invitation_expires_at)}` : ""}</dd></div><div><dt>E-mail confirmado</dt><dd>{localDate(selected.email_verified_at)}</dd></div><div><dt>Início do teste</dt><dd>{localDate(selected.trial_started_at)}</dd></div><div><dt>Fim do teste</dt><dd>{localDate(selected.trial_ends_at)}{selected.trial_days_remaining !== null && selected.trial_days_remaining !== undefined ? ` · ${selected.trial_days_remaining} dia(s) restantes` : ""}</dd></div><div><dt>Identificador</dt><dd>{selected.tenant_id}</dd></div></dl>
+      {canManage && selected.source === "admin" && selected.status === "pending_verification" && <button className="pa-primary pa-invitation-action" disabled={busy} onClick={() => void sendInvitation()}><RefreshCw size={15}/>{selected.invitation_status === "none" ? "Enviar convite" : "Reenviar convite"}</button>}
       {selected.status_reason && <p className="pa-workshop-reason">Situação: {selected.status_reason}</p>}
       {canManage && selected.source !== "legacy" && <form className="pa-workshop-state-form" onSubmit={changeStatus}><h3>Alteração manual da situação</h3><p>Teste e estados de cobrança só podem ser definidos por confirmação ou integração futura.</p><label>Nova situação<select required value={nextStatus} onChange={e => setNextStatus(e.target.value)}><option value="">Selecione…</option><option value="read_only">Somente leitura</option><option value="blocked">Bloqueada</option><option value="archived">Arquivada</option></select></label><label>Justificativa<textarea required minLength={10} maxLength={500} value={reason} onChange={e => setReason(e.target.value)} /></label><button className="pa-quiet" disabled={busy || !nextStatus}>Registrar mudança</button></form>}
     </section>
@@ -120,7 +142,7 @@ export function PlatformWorkshops({ canManage }: { canManage: boolean }) {
   return <div className="pa-workshops">
     <section className="pa-card"><div className="pa-section-title"><div><h2>Oficinas cadastradas</h2><p>Os cadastros anteriores permanecem com o acesso atual; nenhuma cobrança ou dado operacional aparece aqui.</p></div><div className="pa-workshop-actions"><button className="pa-quiet" onClick={() => void load(1)}><RefreshCw size={15}/> Atualizar</button>{canManage && <button className="pa-primary" onClick={() => { setFields(blank); setCreating(true); setMessage(""); setError(""); }}><Plus size={16}/> Cadastrar oficina</button>}</div></div>
       <form className="pa-workshop-filters" onSubmit={event => { event.preventDefault(); void load(1); }}><label><span>Pesquisar</span><div><Search size={15}/><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Nome, identificador, documento ou e-mail" /></div></label><label>Situação<select value={status} onChange={e => setStatus(e.target.value)}><option value="all">Todas</option>{Object.entries(labels).map(([key,label]) => <option key={key} value={key}>{label}</option>)}</select></label><button className="pa-quiet">Buscar</button></form>
-      <div className="pa-workshop-list">{items.map(item => <button type="button" className="pa-workshop-row" key={item.tenant_id} onClick={() => void openWorkshop(item.tenant_id)}><span><strong>{item.name}</strong><small>{item.responsible_email || item.document || item.tenant_id}</small></span><span className={`pa-status ${item.status === "trial" || item.status === "active" ? "is-active" : ""}`}>{labels[item.status]}</span><small>{item.trial_days_remaining !== null && item.trial_days_remaining !== undefined ? `${item.trial_days_remaining} dia(s)` : item.source === "legacy" ? "Acesso legado" : "Sem teste iniciado"}</small></button>)}{items.length === 0 && <p className="pa-empty">Nenhuma oficina encontrada.</p>}</div>
+      <div className="pa-workshop-list">{items.map(item => <button type="button" className="pa-workshop-row" key={item.tenant_id} onClick={() => void openWorkshop(item.tenant_id)}><span><strong>{item.name}</strong><small>{item.responsible_email || item.document || item.tenant_id}</small></span><span className={`pa-status ${item.status === "trial" || item.status === "active" ? "is-active" : ""}`}>{labels[item.status]}</span><small>{item.source === "admin" ? `${invitationLabels[item.invitation_status]}${item.invitation_expires_at && item.invitation_status !== "used" ? ` · até ${localDate(item.invitation_expires_at)}` : ""}` : item.trial_days_remaining !== null && item.trial_days_remaining !== undefined ? `${item.trial_days_remaining} dia(s)` : "Acesso legado"}</small></button>)}{items.length === 0 && <p className="pa-empty">Nenhuma oficina encontrada.</p>}</div>
       <div className="pa-pagination"><span>{total} oficina(s) · Página {page} de {Math.max(1,Math.ceil(total/20))}</span><div><button className="pa-quiet" disabled={page<=1 || busy} onClick={() => void load(page-1)}><ChevronLeft size={16}/> Anterior</button><button className="pa-quiet" disabled={page*20>=total || busy} onClick={() => void load(page+1)}>Próxima <ChevronRight size={16}/></button></div></div>
     </section>
     {message && <p className="pa-note" role="status">{message}</p>}{error && <p className="pa-note pa-note--error" role="alert">{error}</p>}
