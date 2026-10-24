@@ -1,0 +1,43 @@
+# Decisões de arquitetura e operação
+
+Este documento consolida as decisões vigentes acordadas para desenvolvimento. Uma mudança requer decisão explícita e registro de atualização.
+
+## Código e colaboração
+
+1. `horsepowerlondrina-arch/sistemaoficinas` é a fonte oficial de código; `main` é a branch de integração.
+2. `horse-power` é repositório histórico. Mudanças novas não são feitas nele sem decisão explícita.
+3. Cada tarefa trabalha em branch própria derivada da versão atualizada de `main`; a integração ocorre por PR.
+4. Somente um Codex implementa no repositório por vez. O planejamento funcional fica nas conversas específicas do ChatGPT; Codex executa o escopo aprovado.
+5. Nenhum commit/PR concede, por si só, autorização para merge, migração remota ou publicação.
+
+## Ambientes
+
+- Desenvolvimento local utiliza PostgreSQL e exclusivamente dados fictícios. O computador local é uma opção de desenvolvimento; não é requisito para versionar ou executar CI.
+- CI usa banco PostgreSQL 17 temporário e isolado por execução. CI não deve conectar a Supabase, Vercel ou dados de produção/homologação.
+- O projeto Vercel `sistema-oficinas-homologacao` e o Supabase identificado pelo projeto `vnclahdnirqlcbamodqy` são tratados como homologação conforme o registro atual. Confirmar referências antes de ações; não inferir que outros projetos sejam produção.
+- Produção, se/onde configurada, é ambiente separado. Identidade, domínio ou target “production” exibido pela Vercel não basta para classificar o uso do sistema.
+
+## Segurança e oficinas
+
+- Toda operação de dados de oficina deriva o tenant da identidade/sessão validada no servidor. Um `tenant_id` enviado pelo navegador não é autoridade.
+- Isolamento entre oficinas é obrigatório em consultas, escrita, chaves e documentos. Testes devem cobrir tentativas cruzadas.
+- A administração central usa autenticação, sessão e permissões próprias; não deve ganhar acesso operacional irrestrito às oficinas.
+- Testes, demonstrações e validações utilizam apenas dados fictícios. Credenciais, sessões, tokens e segredos não entram no Git nem em logs.
+
+## Dados e banco
+
+- Preservar dados existentes e históricos. Não apagar/recriar bancos para simplificar testes ou implantação.
+- Preferir migrações aditivas, compatíveis e revisáveis. Operações destrutivas ou que possam remover/reatribuir dados exigem análise explícita e plano de recuperação.
+- Não alterar banco de produção. Migrações em qualquer Supabase remoto exigem revisão do SQL, identificação inequívoca do ambiente, impacto/recuperação documentados e autorização específica antes da execução.
+- Dados financeiros e documentos emitidos devem manter precisão, vínculos e snapshots históricos; não reconstruir história com configuração atual.
+
+## Qualidade e liberação
+
+- Antes da integração: revisar diff e segredos, executar `npm run build`, `npm test` e `npm run test:postgres` quando definidos/aplicáveis; resolver falhas ou registrar bloqueio externo.
+- Aprovação do CI é necessária, mas não substitui revisão funcional nem autorização para efeitos remotos.
+- Homologar com dados fictícios. Publicar somente no ambiente explicitamente autorizado e depois das migrações necessárias aprovadas.
+- Produção não pode ser modificada, migrada ou publicada sem autorização explícita para a operação concreta.
+
+## Planejamento
+
+Decisões funcionais, escopo e prioridade são definidos nas conversas de planejamento correspondentes do ChatGPT. Registrar decisões técnicas neste arquivo e tarefas/estado em `docs/GESTAO-PROJETO.md` e `docs/ESTADO-ATUAL.md`. Não tratar a existência de uma sugestão como aprovação de implementação.
