@@ -40,7 +40,7 @@ test("PostgreSQL local: transferência fictícia completa preserva IDs, relaçõ
   const tenantId = randomUUID(), userId = randomUUID();
   const sourceTenantId = randomUUID(), sourceUserId = randomUUID();
   const customerId = randomUUID(), vehicleId = randomUUID(), professionalId = randomUUID();
-  const catalogId = randomUUID(), orderId = randomUUID(), itemId = randomUUID(), movementId = randomUUID(), receivableId = randomUUID(), installmentId = randomUUID(), cashEntryId = randomUUID(), revisionId = randomUUID();
+  const catalogId = randomUUID(), orderId = randomUUID(), itemId = randomUUID(), movementId = randomUUID(), receivableId = randomUUID(), installmentId = randomUUID(), installmentId2 = randomUUID(), cashEntryId = randomUUID(), cashEntryId2 = randomUUID(), externalCaptureId = randomUUID(), revisionId = randomUUID();
   const documentPayload = JSON.stringify({ workshop: "Oficina Fictícia Origem", order_id: orderId, total: 8000 });
   const documentDigest = createHash("sha256").update(documentPayload).digest("hex");
   const phrase = "frase-ficticia-postgres-mig002";
@@ -60,13 +60,20 @@ test("PostgreSQL local: transferência fictícia completa preserva IDs, relaçõ
       vehicles: [{ id: vehicleId, tenant_id: sourceTenantId, customer_id: customerId, plate: "ABC1D23", brand: "Marca Fictícia", model: "Modelo Fictício", year: 2024, color: "", km: 1000, chassis: "", active: 1, service_model_id: "", service_porte_id: "" }],
       professionals: [{ id: professionalId, tenant_id: sourceTenantId, name: "Mecânico Fictício", role: "Mecânico", phone: "", email: "", active: 1 }],
       catalog: [{ id: catalogId, tenant_id: sourceTenantId, kind: "product", name: "Peça Fictícia", sku: "FAKE-MIG004", category: "Teste", cost: 5000, price: 8000, stock: 3, minimum_stock: 0, active: 1 }],
+      external_captures: [{ id: externalCaptureId, tenant_id: sourceTenantId, capture_id: "capture-fake-001", order_id: orderId, item_id: itemId, catalog_id: catalogId, source: "fixture", external_key: "external-capture-fake", payload_hash: createHash("sha256").update("fixture-only").digest("hex"), duration_seconds: 3600, source_cost: 5000, source_price: 8000, vehicle_label: "Veículo Fictício", created_at: "2026-10-21T10:00:00.000Z", batch_id: "batch-fake-001", source_quantity: 2, freight_total: 350 }],
       external_catalog_links: [{ tenant_id: sourceTenantId, source: "fixture", external_key: "external-key-fake", catalog_id: catalogId }],
       orders: [{ id: orderId, tenant_id: sourceTenantId, number: 1, customer_id: customerId, vehicle_id: vehicleId, status: "completed", entered_on: "2026-10-20", due_on: "2026-10-21", completed_on: "2026-10-21", km: 1000, problem: "Dado fictício", notes: "", discount: 0, total: 8000, created_at: "2026-10-20T10:00:00.000Z" }],
       order_items: [{ id: itemId, tenant_id: sourceTenantId, order_id: orderId, catalog_id: catalogId, professional_id: professionalId, kind: "product", name: "Peça Fictícia", quantity: 1, price: 8000, cost: 5000 }],
       stock_movements: [{ id: movementId, tenant_id: sourceTenantId, catalog_id: catalogId, order_id: orderId, quantity: -1, reason: "OS fictícia", user_id: sourceUserId, created_at: "2026-10-21T10:00:00.000Z" }],
-      receivables: [{ id: receivableId, tenant_id: sourceTenantId, order_id: orderId, customer_id: customerId, description: "OS fictícia", amount: 8000, due_on: "2026-10-21", status: "paid", method: "Pix", paid_at: "2026-10-21T10:00:00.000Z", plan_configured: 1, installment_count: 1, card_fee_bps: 0, interest_bps: 0, gross_total: 8000, fee_total: 0, net_total: 8000 }],
-      payment_installments: [{ id: installmentId, tenant_id: sourceTenantId, receivable_id: receivableId, sequence: 1, due_on: "2026-10-21", principal: 8000, interest: 0, gross: 8000, fee: 0, net: 8000, status: "paid", paid_at: "2026-10-21T10:00:00.000Z", method: "Pix" }],
-      cash_entries: [{ id: cashEntryId, tenant_id: sourceTenantId, receivable_id: receivableId, installment_id: installmentId, amount: 8000, gross_amount: 8000, fee_amount: 0, method: "Pix", created_at: "2026-10-21T10:00:00.000Z" }],
+      receivables: [{ id: receivableId, tenant_id: sourceTenantId, order_id: orderId, customer_id: customerId, description: "OS fictícia", amount: 8000, due_on: "2026-10-21", status: "paid", method: "Pix", paid_at: "2026-10-21T10:00:00.000Z", plan_configured: 1, installment_count: 2, card_fee_bps: 0, interest_bps: 0, gross_total: 8000, fee_total: 0, net_total: 8000 }],
+      payment_installments: [
+        { id: installmentId, tenant_id: sourceTenantId, receivable_id: receivableId, sequence: 1, due_on: "2026-10-21", principal: 4000, interest: 0, gross: 4000, fee: 0, net: 4000, status: "paid", paid_at: "2026-10-21T10:00:00.000Z", method: "Pix" },
+        { id: installmentId2, tenant_id: sourceTenantId, receivable_id: receivableId, sequence: 2, due_on: "2026-11-21", principal: 4000, interest: 0, gross: 4000, fee: 0, net: 4000, status: "paid", paid_at: "2026-11-21T10:00:00.000Z", method: "Pix" },
+      ],
+      cash_entries: [
+        { id: cashEntryId, tenant_id: sourceTenantId, receivable_id: receivableId, installment_id: installmentId, amount: 4000, gross_amount: 4000, fee_amount: 0, method: "Pix", created_at: "2026-10-21T10:00:00.000Z" },
+        { id: cashEntryId2, tenant_id: sourceTenantId, receivable_id: receivableId, installment_id: installmentId2, amount: 4000, gross_amount: 4000, fee_amount: 0, method: "Pix", created_at: "2026-11-21T10:00:00.000Z" },
+      ],
       document_revisions: [{ id: revisionId, tenant_id: sourceTenantId, kind: "order", entity_id: orderId, revision: 1, issued_at: "2026-10-21T10:00:00.000Z", issued_by: sourceUserId, payload: documentPayload, digest: documentDigest }],
     }, "2026-10-24T12:00:00.000Z");
     const file = sealTransferPackage(payload, phrase);
@@ -79,12 +86,15 @@ test("PostgreSQL local: transferência fictícia completa preserva IDs, relaçõ
       assert.equal(result.counts.external_catalog_links, 1);
       const externalLink = await db.prepare("SELECT source,external_key,catalog_id FROM external_catalog_links WHERE tenant_id=?").get(tenantId);
       assert.deepEqual(externalLink, { source: "fixture", external_key: "external-key-fake", catalog_id: catalogId });
+      assert.equal(result.counts.external_captures, 1);
+      const capture = await db.prepare("SELECT batch_id,source_quantity,freight_total FROM external_captures WHERE tenant_id=? AND id=?").get(tenantId, externalCaptureId);
+      assert.deepEqual(capture, { batch_id: "batch-fake-001", source_quantity: 2, freight_total: 350 });
       assert.equal(result.counts.customers, 1);
       assert.equal(result.counts.vehicles, 1);
       assert.equal(result.counts.orders, 1);
       assert.equal(result.counts.stock_movements, 1);
       assert.equal(result.counts.payment_installments, 1);
-      assert.equal(result.counts.cash_entries, 1);
+      assert.equal(result.counts.cash_entries, 2);
       await admin.query("INSERT INTO horse_power.customers(id,tenant_id,name,email) VALUES($1,$2,$3,$4)", ["unrelated-customer-" + tenantId, tenantId, "Cliente Fictício Não Importado", "unrelated@example.invalid"]);
       const rows = await db.prepare(`SELECT c.id AS customer_id,v.customer_id AS vehicle_customer,o.vehicle_id,i.price,r.issued_by,r.payload
         FROM customers c JOIN vehicles v ON v.tenant_id=c.tenant_id AND v.customer_id=c.id
@@ -118,7 +128,7 @@ test("PostgreSQL local: transferência fictícia completa preserva IDs, relaçõ
       await importWorkshopPackage(db, tenantId, file, phrase, repeated.confirmationId, userId, "merge");
       assert.equal((await db.prepare("SELECT count(*) AS count FROM customers WHERE tenant_id=?").get(tenantId))?.count, 2);
       assert.equal((await db.prepare("SELECT count(*) AS count FROM stock_movements WHERE tenant_id=?").get(tenantId))?.count, 1);
-      assert.equal((await db.prepare("SELECT count(*) AS count FROM cash_entries WHERE tenant_id=?").get(tenantId))?.count, 1);
+      assert.equal((await db.prepare("SELECT count(*) AS count FROM cash_entries WHERE tenant_id=?").get(tenantId))?.count, 2);
 
       const replacementFile = sealTransferPackage(createTransferPayload("fixture", payload.source.tenant, {
         ...payload.records,
@@ -136,7 +146,7 @@ test("PostgreSQL local: transferência fictícia completa preserva IDs, relaçõ
       assert.equal(transferFileSha256(backup!), String((await db.prepare("SELECT package_sha256 FROM data_transfer_backups WHERE tenant_id=? AND id=?").get(tenantId,replaced.backupId))?.package_sha256));
       assert.equal(openTransferPackage(backup!, phrase).records.customers?.length, replacement.entities.customers.existing);
       assert.equal(openTransferPackage(backup!, phrase).records.stock_movements?.length, 1);
-      assert.equal(openTransferPackage(backup!, phrase).records.cash_entries?.length, 1);
+      assert.equal(openTransferPackage(backup!, phrase).records.cash_entries?.length, 2);
       assert.equal((await db.prepare("SELECT token_hash FROM sessions WHERE tenant_id=? AND token_hash=?").get(tenantId,preservedSessionHash))?.token_hash, preservedSessionHash);
       assert.equal((await db.prepare("SELECT payload FROM document_revisions WHERE tenant_id=? AND id=?").get(tenantId,revisionId))?.payload, documentPayload);
       const context = { tenantId, userId, role: "owner" } as const;
