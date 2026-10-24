@@ -99,7 +99,7 @@ test("PostgreSQL local: transferência fictícia completa preserva IDs, relaçõ
       assert.equal(replacement.canImport, true, replacement.issues.join("; "));
       assert.equal(replacement.historicalDocumentsToArchive, 1);
       assert.equal(replacement.entities.customers.removed, 2);
-      const replaced = await importWorkshopPackage(db, tenantId, file, phrase, replacement.confirmationId, userId, "replace", "Oficina Fictícia MIG002");
+      const replaced = await importWorkshopPackage(db, tenantId, file, phrase, replacement.confirmationId, userId, "replace", replacement.targetWorkshop);
       assert.ok(replaced.backupId);
       assert.equal((await db.prepare("SELECT count(*) AS count FROM customers WHERE tenant_id=?").get(tenantId))?.count, 1);
       const backup = await getWorkshopTransferBackup(db, tenantId, replaced.backupId!);
