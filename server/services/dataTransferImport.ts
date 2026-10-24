@@ -450,7 +450,7 @@ export async function importWorkshopPackage(
           await db.prepare("DELETE FROM data_transfer_archived_documents WHERE tenant_id=? AND revision_id=?").run(tenantId, document.id);
       }
       await db.prepare("UPDATE public_shares SET revoked=1 WHERE tenant_id=? AND revoked=0").run(tenantId);
-      for (const table of [...TRANSFER_TABLES].reverse()) {
+      for (const table of [...insertOrder].reverse()) {
         if (retainedHistory.has(table)) continue;
         await db.prepare(`DELETE FROM ${table} WHERE tenant_id=?`).run(tenantId);
       }
