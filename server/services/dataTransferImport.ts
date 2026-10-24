@@ -1,6 +1,5 @@
-import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import type { DB } from "../db/database.js";
-import { hashPassword } from "../auth/session.js";
 import { createWorkshopTransfer } from "./dataTransferExport.js";
 import {
   openTransferPackage,
@@ -86,13 +85,11 @@ async function columnsFor(db: DB, table: string): Promise<Set<string>> {
   const rows = await db.prepare("SELECT column_name FROM information_schema.columns WHERE table_schema='horse_power' AND table_name=?").all(table);
   return new Set(rows.map((row) => String(row.column_name)));
 }
-function remapRow(row: TransferRow, sourceTenantId: string, targetTenantId: string, userIds: Map<string, string>): TransferRow {
+function remapRow(row: TransferRow, sourceTenantId: string, targetTenantId: string, targetUserId: string): TransferRow {
   const mapped: TransferRow = {};
   for (const [key, value] of Object.entries(row)) {
     if (key === "tenant_id" && value === sourceTenantId) mapped[key] = targetTenantId;
     else if ((key === "user_id" || key === "issued_by" || key === "created_by") && typeof value === "string") {
-      const targetUserId = userIds.get(value);
-      if (!targetUserId) throw new Error("O pacote referencia uma identidade histórica sem correspondência; a importação foi cancelada.");
       mapped[key] = targetUserId;
     } else mapped[key] = value;
   }
@@ -112,17 +109,6 @@ async function existingTenantRows(db: DB, table: TransferTable, tenantId: string
   if (!(await columnsFor(db, table)).has("tenant_id")) return [];
   return db.prepare(`SELECT * FROM ${table} WHERE tenant_id=?`).all(tenantId);
 }
-async function userMapping(db: DB, payload: TransferPayload): Promise<Map<string, string>> {
-  const map = new Map<string, string>();
-  for (const source of payload.records.users) {
-    if (!source.id || !source.email || !source.name) continue;
-    const byId = await db.prepare("SELECT id,email FROM users WHERE id=?").get(source.id);
-    if (byId && String(byId.email).toLowerCase() !== String(source.email).toLowerCase()) continue;
-    const byEmail = await db.prepare("SELECT id FROM users WHERE lower(email)=lower(?)").get(source.email);
-    map.set(String(source.id), String(byId?.id || byEmail?.id || source.id));
-  }
-  return map;
-}
 function sumTotals(rows: Record<string, TransferRow[]>): Totals {
   const sum = (table: string, field: string, filter?: (row: TransferRow) => boolean) => (rows[table] || []).reduce((total, row) => {
     if (filter && !filter(row)) return total;
@@ -139,7 +125,7 @@ function sumTotals(rows: Record<string, TransferRow[]>): Totals {
   };
 }
 
-async function buildPlan(db: DB, tenantId: string, payload: TransferPayload, mode: WorkshopImportMode) {
+async function buildPlan(db: DB, tenantId: string, payload: TransferPayload, mode: WorkshopImportMode, actorUserId: string) {
   const issues: string[] = [], warnings: string[] = [];
   const existingByTable: Record<string, TransferRow[]> = {};
   const plans: PlannedRow[] = [];
@@ -149,26 +135,16 @@ async function buildPlan(db: DB, tenantId: string, payload: TransferPayload, mod
   if (!target) issues.push("A oficina de destino não foi encontrada na sessão autenticada.");
   if (payload.records.tenant.id !== payload.source.tenant.id) issues.push("O identificador da oficina no manifesto não confere.");
 
-  const userColumns = await columnsFor(db, "users"), membershipColumns = await columnsFor(db, "memberships");
-  if (!userColumns.size || !membershipColumns.size) issues.push("O destino não possui as tabelas de identidade esperadas.");
-  const userIds = await userMapping(db, payload);
-  for (const row of payload.records.users) {
-    if (!row.id || !row.email || !row.name) { issues.push("Uma identidade histórica está incompleta."); continue; }
-    const byId = await db.prepare("SELECT email FROM users WHERE id=?").get(row.id);
-    if (byId && String(byId.email).toLowerCase() !== String(row.email).toLowerCase()) issues.push(`Conflito de identidade para ${String(row.email || row.id)}.`);
-  }
-  const importedUsers = new Set(payload.records.users.map((row) => String(row.id)));
-  for (const membership of payload.records.memberships) {
-    if (membership.tenant_id !== payload.source.tenant.id || !importedUsers.has(String(membership.user_id)))
-      issues.push("Há um vínculo de identidade fora da oficina de origem ou sem usuário correspondente.");
-    const mappedUser = userIds.get(String(membership.user_id));
-    if (!mappedUser) { issues.push("Um vínculo não possui identidade de destino segura."); continue; }
-    const found = await db.prepare("SELECT role FROM memberships WHERE user_id=? AND tenant_id=?").get(mappedUser, tenantId);
-    if (found && found.role !== membership.role) issues.push("Conflito de permissão de uma conta existente; o importador não altera papéis.");
-  }
+  const actorMembership = actorUserId
+    ? await db.prepare("SELECT role FROM memberships WHERE user_id=? AND tenant_id=?").get(actorUserId, tenantId)
+    : undefined;
+  if (!actorMembership || actorMembership.role !== "owner")
+    issues.push("A transferência exige a conta de proprietário autenticada da oficina de destino.");
+  warnings.push("As contas, senhas, vínculos e sessões do destino são preservados. Referências de autoria nos dados importados serão associadas ao proprietário que executa a transferência.");
+  warnings.push("Usuários e vínculos de acesso do pacote não são importados. Eventos de auditoria da origem são ignorados; a operação atual será auditada no destino.");
 
   for (const table of TRANSFER_TABLES) {
-    const sourceRows = payload.records[table] || [];
+    const sourceRows = table === "audit_events" ? [] : (payload.records[table] || []);
     counts[table] = sourceRows.length;
     const columns = await columnsFor(db, table);
     if (!columns.size) { if (sourceRows.length) issues.push(`A entidade ${table} não existe no schema de destino.`); continue; }
@@ -192,7 +168,7 @@ async function buildPlan(db: DB, tenantId: string, payload: TransferPayload, mod
       if (row.tenant_id !== payload.source.tenant.id) { issues.push(`A entidade ${table} contém registro de outra oficina.`); summary.conflicts++; continue; }
       for (const key of Object.keys(row)) if (!columns.has(key)) { issues.push(`O destino não possui o campo ${table}.${key}; nenhuma importação será feita para evitar perda de dados.`); summary.conflicts++; }
       const sourceId = recordKey(table, row), sourceHash = hash(row);
-      const mapped = remapRow(row, payload.source.tenant.id, tenantId, userIds);
+      const mapped = remapRow(row, payload.source.tenant.id, tenantId, actorUserId);
       if (mode === "replace" && !retainedHistory.has(table)) {
         summary.new++;
         plans.push({ table, row, sourceId, sourceHash, action: "new" });
@@ -284,19 +260,19 @@ async function buildPlan(db: DB, tenantId: string, payload: TransferPayload, mod
   const afterRows: Record<string, TransferRow[]> = {};
   for (const table of TRANSFER_TABLES) {
     const current = [...(existingByTable[table] || [])];
-    if (mode === "replace" && !retainedHistory.has(table)) { afterRows[table] = [...(payload.records[table] || [])].map((row) => remapRow(row, payload.source.tenant.id, tenantId, userIds)); continue; }
+    if (mode === "replace" && !retainedHistory.has(table)) { afterRows[table] = [...(table === "audit_events" ? [] : payload.records[table] || [])].map((row) => remapRow(row, payload.source.tenant.id, tenantId, actorUserId)); continue; }
     if (mode === "replace" && retainedHistory.has(table)) {
       const merged = [...current];
-      for (const decision of plans.filter((item) => item.table === table && item.action === "new")) merged.push(remapRow(decision.row, payload.source.tenant.id, tenantId, userIds));
+      for (const decision of plans.filter((item) => item.table === table && item.action === "new")) merged.push(remapRow(decision.row, payload.source.tenant.id, tenantId, actorUserId));
       afterRows[table] = merged;
       continue;
     }
-    if (mode === "empty") { afterRows[table] = [...(payload.records[table] || [])].map((row) => remapRow(row, payload.source.tenant.id, tenantId, userIds)); continue; }
+    if (mode === "empty") { afterRows[table] = [...(table === "audit_events" ? [] : payload.records[table] || [])].map((row) => remapRow(row, payload.source.tenant.id, tenantId, actorUserId)); continue; }
     for (const plan of plans.filter((item) => item.table === table)) {
-      if (plan.action === "new") current.push(remapRow(plan.row, payload.source.tenant.id, tenantId, userIds));
+      if (plan.action === "new") current.push(remapRow(plan.row, payload.source.tenant.id, tenantId, actorUserId));
       else if (plan.action === "update" && plan.target) {
         const index = current.findIndex((row) => recordKey(table, row) === recordKey(table, plan.target!));
-        if (index >= 0) current[index] = remapRow(plan.row, payload.source.tenant.id, tenantId, userIds);
+        if (index >= 0) current[index] = remapRow(plan.row, payload.source.tenant.id, tenantId, actorUserId);
       }
     }
     afterRows[table] = current;
@@ -305,21 +281,21 @@ async function buildPlan(db: DB, tenantId: string, payload: TransferPayload, mod
   let links: TransferRow | undefined;
   try { links = await db.prepare("SELECT count(*) AS count FROM public_shares WHERE tenant_id=? AND revoked=0").get(tenantId); }
   catch { links = { count: 0 }; }
-  return { target, userIds, plans, issues: [...new Set(issues)].slice(0, 150), warnings, counts, entities: entitySummaries, before, after, publicLinksToRevoke: Number(links?.count || 0), existingByTable, afterRows };
+  return { target, plans, issues: [...new Set(issues)].slice(0, 150), warnings, counts, entities: entitySummaries, before, after, publicLinksToRevoke: Number(links?.count || 0), existingByTable, afterRows };
 }
 
-function stateFingerprint(target: TransferRow | undefined, existing: Record<string, TransferRow[]>, tracking: TransferRow[]) {
-  const state: Record<string, unknown> = { workshop: target || null, tracking };
+function stateFingerprint(target: TransferRow | undefined, existing: Record<string, TransferRow[]>, tracking: TransferRow[], actorUserId: string) {
+  const state: Record<string, unknown> = { workshop: target || null, tracking, actorUserId };
   for (const table of TRANSFER_TABLES) state[table] = [...(existing[table] || [])].map(hash).sort();
   return hash(state);
 }
 
-async function inspectPayload(db: DB, tenantId: string, payload: TransferPayload, digest: string, mode: WorkshopImportMode): Promise<{ preview: TransferInspection; plan: Awaited<ReturnType<typeof buildPlan>> }> {
-  const plan = await buildPlan(db, tenantId, payload, mode);
+async function inspectPayload(db: DB, tenantId: string, payload: TransferPayload, digest: string, mode: WorkshopImportMode, actorUserId: string): Promise<{ preview: TransferInspection; plan: Awaited<ReturnType<typeof buildPlan>> }> {
+  const plan = await buildPlan(db, tenantId, payload, mode, actorUserId);
   let tracking: TransferRow[] = [];
   try { tracking = await db.prepare("SELECT source_application,source_tenant_id,table_name,source_record_id,source_hash,target_hash,target_record_id FROM data_transfer_records WHERE tenant_id=? ORDER BY source_application,source_tenant_id,table_name,source_record_id").all(tenantId); }
   catch { tracking = []; }
-  const fingerprint = stateFingerprint(plan.target, plan.existingByTable, tracking);
+  const fingerprint = stateFingerprint(plan.target, plan.existingByTable, tracking, actorUserId);
   let historicalDocumentsToArchive = 0;
   let historicalDocumentsToRestore = 0;
   if (mode === "replace") {
@@ -338,9 +314,9 @@ async function inspectPayload(db: DB, tenantId: string, payload: TransferPayload
   } };
 }
 
-export async function previewWorkshopImport(db: DB, tenantId: string, file: Buffer, passphrase: string, requestedMode?: WorkshopImportMode) {
+export async function previewWorkshopImport(db: DB, tenantId: string, file: Buffer, passphrase: string, actorUserId: string, requestedMode: WorkshopImportMode = "empty") {
   const payload = openTransferPackage(file, passphrase);
-  return (await inspectPayload(db, tenantId, payload, transferFileSha256(file), normalizeMode(requestedMode))).preview;
+  return (await inspectPayload(db, tenantId, payload, transferFileSha256(file), normalizeMode(requestedMode), actorUserId)).preview;
 }
 
 async function writeTracking(db: DB, tenantId: string, payload: TransferPayload, table: TransferTable, sourceId: string, sourceHash: string, target: TransferRow) {
@@ -377,34 +353,6 @@ async function updateMappedRow(db: DB, table: TransferTable, mapped: TransferRow
   return updated;
 }
 
-async function importUsersAndMemberships(db: DB, tenantId: string, payload: TransferPayload) {
-  const userColumns = await columnsFor(db, "users"), membershipColumns = await columnsFor(db, "memberships");
-  const userIds = new Map<string, string>();
-  for (const row of payload.records.users) {
-    const byId = await db.prepare("SELECT id,email FROM users WHERE id=?").get(row.id);
-    if (byId && String(byId.email).toLowerCase() !== String(row.email).toLowerCase()) throw new Error("Conflito de identidade entre contas; nenhuma alteração foi aplicada.");
-    const existing = byId || await db.prepare("SELECT id FROM users WHERE lower(email)=lower(?)").get(row.email);
-    if (existing) { userIds.set(String(row.id), String(existing.id)); continue; }
-    const data = { id: row.id, name: row.name, email: row.email, password_hash: hashPassword(randomBytes(32).toString("base64url")) };
-    const entries = Object.entries(data).filter(([key]) => userColumns.has(key));
-    await db.prepare(`INSERT INTO users (${entries.map(([key]) => key).join(",")}) VALUES (${entries.map(() => "?").join(",")})`).run(...entries.map(([, value]) => value));
-    userIds.set(String(row.id), String(row.id));
-  }
-  for (const row of payload.records.memberships) {
-    const mappedUser = userIds.get(String(row.user_id));
-    if (!mappedUser) throw new Error("Um vínculo de usuário não pôde ser associado com segurança.");
-    const alreadyMember = await db.prepare("SELECT role FROM memberships WHERE user_id=? AND tenant_id=?").get(mappedUser, tenantId);
-    if (alreadyMember) {
-      if (alreadyMember.role !== row.role) throw new Error("Conflito de permissão em conta existente; papéis não são substituídos.");
-      continue;
-    }
-    const data = { ...row, user_id: mappedUser, tenant_id: tenantId };
-    const entries = Object.entries(data).filter(([key]) => membershipColumns.has(key));
-    await db.prepare(`INSERT INTO memberships (${entries.map(([key]) => key).join(",")}) VALUES (${entries.map(() => "?").join(",")})`).run(...entries.map(([, value]) => value));
-  }
-  return userIds;
-}
-
 export async function importWorkshopPackage(
   db: DB, tenantId: string, file: Buffer, passphrase: string, confirmationId: string, actorUserId: string,
   requestedMode?: WorkshopImportMode, workshopConfirmation?: string,
@@ -412,7 +360,7 @@ export async function importWorkshopPackage(
   const payload = openTransferPackage(file, passphrase), digest = transferFileSha256(file), mode = normalizeMode(requestedMode);
   const run = async () => {
     await db.lockTenantMutations?.(tenantId);
-    const { preview, plan } = await inspectPayload(db, tenantId, payload, digest, mode);
+    const { preview, plan } = await inspectPayload(db, tenantId, payload, digest, mode, actorUserId);
     if (!confirmationId || confirmationId !== preview.confirmationId) throw new Error("Os dados ou a prévia mudaram. Gere uma nova prévia antes de confirmar.");
     if (!preview.canImport) throw new Error(preview.issues[0] || "A prévia encontrou impedimentos.");
     if (mode === "replace" && workshopConfirmation !== preview.targetWorkshop)
@@ -464,13 +412,11 @@ export async function importWorkshopPackage(
       if (values.length) await db.prepare(`UPDATE tenants SET ${values.map(([key]) => `${key}=?`).join(",")} WHERE id=?`).run(...values.map(([, value]) => value), tenantId);
     }
 
-    const userIds = await importUsersAndMemberships(db, tenantId, payload);
     const verified: Record<string, number> = {};
     for (const table of insertOrder) {
-      const rows = payload.records[table] || [];
       for (const decision of plan.plans.filter((item) => item.table === table)) {
         if (decision.action === "conflict") throw new Error(`Conflito em ${table}/${decision.sourceId}; nenhuma alteração foi mantida.`);
-        const mapped = remapRow(decision.row, payload.source.tenant.id, tenantId, userIds);
+        const mapped = remapRow(decision.row, payload.source.tenant.id, tenantId, actorUserId);
         if (decision.action === "new") {
           const inserted = await insertMappedRow(db, table, mapped);
           await writeTracking(db, tenantId, payload, table, decision.sourceId, decision.sourceHash, inserted);
