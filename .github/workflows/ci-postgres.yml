@@ -1,0 +1,46 @@
+name: CI PostgreSQL
+
+on:
+  push:
+    branches: [mig-004-merge-replace]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-temporary-only
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Create isolated fictional PostgreSQL environment
+        run: node scripts/ci-postgres-setup.mjs
+        env:
+          CI_PG_ADMIN_URL: postgres://postgres:ci-temporary-only@127.0.0.1:5432/postgres
+      - name: Apply local PostgreSQL migrations
+        run: npm run db:local:migrate
+      - run: npm run build
+      - run: npm test
+      - name: PostgreSQL integration suite
+        run: npm run test:postgres

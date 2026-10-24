@@ -1,4 +1,4 @@
-import { documentHistory, readDocument, issueDocument } from "./services/documents.js";
+import { documentHistory, readDocument, issueDocument, listArchivedDocuments, readArchivedDocument } from "./services/documents.js";
 import {
   partsPricingSchema,
   workshopPrice,
@@ -382,6 +382,17 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
     }
     workshopAuth(req, res, next);
   });
+  app.use("/api", (req, res, next) => {
+    if (["GET", "HEAD", "OPTIONS"].includes(req.method) || req.path.startsWith("/admin-api") || !res.locals.context?.tenantId) {
+      next();
+      return;
+    }
+    if (!db.lockTenantMutations) {
+      next();
+      return;
+    }
+    void db.lockTenantMutations(String(res.locals.context.tenantId)).then(() => next()).catch(next);
+  });
   app.get("/api/session", async (_req, res) => {
     const ctx: Context = res.locals.context;
     res.json({
@@ -457,24 +468,44 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
     }
   });
   app.post("/api/data-transfer/preview", async (req, res) => {
-    const input = z.object({ packageText: z.string().min(1).max(96 * 1024 * 1024), passphrase: z.string().min(12).max(1024) }).safeParse(req.body);
+    const input = z.object({ packageText: z.string().min(1).max(96 * 1024 * 1024), passphrase: z.string().min(12).max(1024), mode: z.enum(["empty", "merge", "replace"]).default("empty") }).safeParse(req.body);
     if (!input.success) { res.status(400).json({ error: "Arquivo ou frase secreta inválidos." }); return; }
+    if (res.locals.context.role !== "owner") { res.status(403).json({ error: "Somente o proprietário pode importar dados." }); return; }
     try {
       const { previewWorkshopImport } = await import("./services/dataTransferImport.js");
-      res.json(await previewWorkshopImport(db, res.locals.context.tenantId, Buffer.from(input.data.packageText, "utf8"), input.data.passphrase));
+      res.json(await previewWorkshopImport(db, res.locals.context.tenantId, Buffer.from(input.data.packageText, "utf8"), input.data.passphrase, input.data.mode));
     } catch (error) {
       res.status(400).json({ error: error instanceof Error ? error.message : "Não foi possível validar o pacote." });
     }
   });
   app.post("/api/data-transfer/import", async (req, res) => {
-    const input = z.object({ packageText: z.string().min(1).max(96 * 1024 * 1024), passphrase: z.string().min(12).max(1024), confirmationId: z.string().length(64), confirm: z.literal(true) }).safeParse(req.body);
+    const input = z.object({ packageText: z.string().min(1).max(96 * 1024 * 1024), passphrase: z.string().min(12).max(1024), confirmationId: z.string().length(64), mode: z.enum(["empty", "merge", "replace"]).default("empty"), workshopConfirmation: z.string().max(200).optional(), confirm: z.literal(true) }).safeParse(req.body);
     if (!input.success) { res.status(400).json({ error: "Confirmação de importação inválida." }); return; }
+    if (res.locals.context.role !== "owner") { res.status(403).json({ error: "Somente o proprietário pode importar dados." }); return; }
     try {
       const { importWorkshopPackage } = await import("./services/dataTransferImport.js");
-      res.json(await importWorkshopPackage(db, res.locals.context.tenantId, Buffer.from(input.data.packageText, "utf8"), input.data.passphrase, input.data.confirmationId, res.locals.context.userId));
+      res.json(await importWorkshopPackage(db, res.locals.context.tenantId, Buffer.from(input.data.packageText, "utf8"), input.data.passphrase, input.data.confirmationId, res.locals.context.userId, input.data.mode, input.data.workshopConfirmation));
     } catch (error) {
       res.status(400).json({ error: error instanceof Error ? error.message : "Não foi possível importar o pacote." });
     }
+  });
+  app.get("/api/data-transfer/backups", async (_req, res) => {
+    if (res.locals.context.role !== "owner") { res.status(403).json({ error: "Somente o proprietário pode consultar as cópias de segurança." }); return; }
+    try {
+      const { listWorkshopTransferBackups } = await import("./services/dataTransferImport.js");
+      res.set("Cache-Control", "no-store").json(await listWorkshopTransferBackups(db, res.locals.context.tenantId));
+    } catch (error) { res.status(400).json({ error: error instanceof Error ? error.message : "Não foi possível listar as cópias de segurança." }); }
+  });
+  app.get("/api/data-transfer/backups/:id", async (req, res) => {
+    if (res.locals.context.role !== "owner") { res.status(403).json({ error: "Somente o proprietário pode baixar as cópias de segurança." }); return; }
+    try {
+      const { getWorkshopTransferBackup } = await import("./services/dataTransferImport.js");
+      const backup = await getWorkshopTransferBackup(db, res.locals.context.tenantId, req.params.id);
+      if (!backup) { res.status(404).json({ error: "Cópia de segurança não encontrada." }); return; }
+      const { TRANSFER_MEDIA_TYPE } = await import("../shared/transferPackage.js");
+      res.set("Cache-Control", "no-store").set("Content-Type", TRANSFER_MEDIA_TYPE)
+        .set("Content-Disposition", `attachment; filename="backup-oficina-${new Date().toISOString().slice(0, 10)}.hptx"`).send(backup);
+    } catch (error) { res.status(400).json({ error: error instanceof Error ? error.message : "Não foi possível baixar a cópia de segurança." }); }
   });
   app.get("/api/workspace", async (_req, res) => {
     const tenant = res.locals.context.tenantId;
@@ -1274,6 +1305,12 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
     const kind=z.enum(["order","checklist"]).parse(req.params.kind),id=String(req.params.id),ctx=res.locals.context;
     const revision=req.query.revision===undefined?undefined:z.coerce.number().int().positive().parse(req.query.revision);
     res.json(revision?await readDocument(db,ctx,kind,id,revision):await documentHistory(db,ctx,kind,id));
+  });
+  app.get("/api/documents/archives",async(_req,res)=>{
+    res.set("Cache-Control","no-store").json(await listArchivedDocuments(db,res.locals.context));
+  });
+  app.get("/api/documents/archives/:id",async(req,res)=>{
+    res.set("Cache-Control","no-store").json(await readArchivedDocument(db,res.locals.context,String(req.params.id)));
   });
   app.post("/api/documents/:kind/:id",async(req,res)=>{
     const kind=z.enum(["order","checklist"]).parse(req.params.kind),body=z.object({new_revision:z.boolean().default(false)}).parse(req.body);
