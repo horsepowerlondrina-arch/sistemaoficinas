@@ -34,7 +34,7 @@ try {
   if (existing.rows[0].role_exists || existing.rows[0].database_exists) reject();
   for (const [role, password] of [["hp_local_app", appPassword], ["hp_platform_admin_app", platformPassword]]) {
     const statement = (await client.query(
-      "SELECT format('CREATE ROLE %I LOGIN PASSWORD %L NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS', $1, $2) AS sql",
+      "SELECT format('CREATE ROLE %I LOGIN PASSWORD %L NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS', $1::text, $2::text) AS sql",
       [role, password],
     )).rows[0].sql;
     await client.query(statement);
