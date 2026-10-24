@@ -24,7 +24,7 @@ export const captureSchema = z
     duration_seconds: z.number().int().min(1).max(3600000).optional(),
     vehicle: z
       .object({ plate: txt, make: txt, model: txt, year: txt, engine: txt })
-      .default({}),
+      .default({ plate: "", make: "", model: "", year: "", engine: "" }),
   })
   .superRefine((v, ctx) => {
     if (v.source === "sky" && (!v.code || !v.cost))
