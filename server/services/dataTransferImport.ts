@@ -44,7 +44,8 @@ const uniqueKeys: Partial<Record<TransferTable, string[][]>> = {
 };
 const primaryFields: Partial<Record<TransferTable, string[]>> = {
   card_rates: ["method", "installments"], labor_rates: ["porte_id"],
-  labor_commercial_rates: ["category_id"], payment_settings: [], service_aliases: ["alias_key"], data_transfer_archived_documents: ["revision_id"],
+  labor_commercial_rates: ["category_id"], payment_settings: [], service_aliases: ["alias_key"],
+  external_catalog_links: ["source", "external_key"], data_transfer_archived_documents: ["revision_id"],
 };
 const forbiddenUpdate = immutableOrFinancial;
 
@@ -180,7 +181,7 @@ async function buildPlan(db: DB, tenantId: string, payload: TransferPayload, mod
 
     const packageKeys = new Set<string>();
     for (const sourceRow of sourceRows) {
-      const keys = [recordKey(table, sourceRow), ...(uniqueKeys[table] || []).map((fields) => stable(fields.map((field) => sourceRow[field])))];
+      const keys = [...new Set([recordKey(table, sourceRow), ...(uniqueKeys[table] || []).map((fields) => stable(fields.map((field) => sourceRow[field])))])];
       for (const key of keys) {
         if (packageKeys.has(key)) { issues.push(`O pacote contém registros duplicados ou ambíguos em ${table}.`); summary.conflicts++; }
         packageKeys.add(key);

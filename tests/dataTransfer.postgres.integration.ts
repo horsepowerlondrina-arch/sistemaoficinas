@@ -60,6 +60,7 @@ test("PostgreSQL local: transferência fictícia completa preserva IDs, relaçõ
       vehicles: [{ id: vehicleId, tenant_id: sourceTenantId, customer_id: customerId, plate: "ABC1D23", brand: "Marca Fictícia", model: "Modelo Fictício", year: 2024, color: "", km: 1000, chassis: "", active: 1, service_model_id: "", service_porte_id: "" }],
       professionals: [{ id: professionalId, tenant_id: sourceTenantId, name: "Mecânico Fictício", role: "Mecânico", phone: "", email: "", active: 1 }],
       catalog: [{ id: catalogId, tenant_id: sourceTenantId, kind: "product", name: "Peça Fictícia", sku: "FAKE-MIG004", category: "Teste", cost: 5000, price: 8000, stock: 3, minimum_stock: 0, active: 1 }],
+      external_catalog_links: [{ tenant_id: sourceTenantId, source: "fixture", external_key: "external-key-fake", catalog_id: catalogId }],
       orders: [{ id: orderId, tenant_id: sourceTenantId, number: 1, customer_id: customerId, vehicle_id: vehicleId, status: "completed", entered_on: "2026-10-20", due_on: "2026-10-21", completed_on: "2026-10-21", km: 1000, problem: "Dado fictício", notes: "", discount: 0, total: 8000, created_at: "2026-10-20T10:00:00.000Z" }],
       order_items: [{ id: itemId, tenant_id: sourceTenantId, order_id: orderId, catalog_id: catalogId, professional_id: professionalId, kind: "product", name: "Peça Fictícia", quantity: 1, price: 8000, cost: 5000 }],
       stock_movements: [{ id: movementId, tenant_id: sourceTenantId, catalog_id: catalogId, order_id: orderId, quantity: -1, reason: "OS fictícia", user_id: sourceUserId, created_at: "2026-10-21T10:00:00.000Z" }],
@@ -75,6 +76,9 @@ test("PostgreSQL local: transferência fictícia completa preserva IDs, relaçõ
       const preview = await previewWorkshopImport(db, tenantId, file, phrase);
       assert.equal(preview.canImport, true, preview.issues.join("; "));
       const result = await importWorkshopPackage(db, tenantId, file, phrase, preview.confirmationId, userId);
+      assert.equal(result.counts.external_catalog_links, 1);
+      const externalLink = await db.prepare("SELECT source,external_key,catalog_id FROM external_catalog_links WHERE tenant_id=?").get(tenantId);
+      assert.deepEqual(externalLink, { source: "fixture", external_key: "external-key-fake", catalog_id: catalogId });
       assert.equal(result.counts.customers, 1);
       assert.equal(result.counts.vehicles, 1);
       assert.equal(result.counts.orders, 1);
