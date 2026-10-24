@@ -90,7 +90,7 @@ Na configuração Vercel de homologação foram vistas as variáveis de teste pa
 ## 6. Testes, correções e conclusão
 
 - CI existente: run #26, head GOV-001, build + testes gerais + PostgreSQL aprovados.
-- O primeiro CI do PR (run #27) aprovou build e testes gerais, mas falhou na integração PostgreSQL porque o fixture de login admin não definia o novo `VERCEL_PROJECT_ID`. O fixture agora simula o ID do projeto de homologação e o executa novamente. Nenhum teste foi removido ou relaxado.
+- O primeiro CI do PR (run #27) aprovou build e testes gerais, mas falhou na integração PostgreSQL porque o fixture de login admin não definia o novo `VERCEL_PROJECT_ID`. O fixture foi corrigido para simular o ID do projeto de homologação. O run #28 (`40140238929`), no head `ef52e84b8b48c103de06746b5fdbac3683ec5ded`, passou build, testes gerais e integração PostgreSQL. Nenhum teste foi removido ou relaxado.
 - Mudanças planejadas nesta branch: código de guarda MFA, testes unitários e PostgreSQL (incluindo o ambiente Vercel simulado), este relatório e atualização do estado/registro de gestão. Nenhuma migração, variável, banco ou deployment será alterado.
 - Branches antigas candidatas à exclusão não foram removidas.
 - Vercel e Supabase não foram modificados; nenhum deployment manual foi criado.
@@ -104,4 +104,4 @@ Na configuração Vercel de homologação foram vistas as variáveis de teste pa
 5. É necessário CI verde no PR. O PR pode acionar Preview automático protegido na Vercel de homologação; isso não é deployment manual nem altera o alias Production.
 6. Limpeza das oito branches candidatas depende de aprovação posterior.
 
-**Conclusão:** **INF-004 parcialmente concluída.** A auditoria remota de branches e metadados das plataformas foi feita e a guarda adicional do MFA foi preparada. O destino dos segredos de conexão e o risco de RLS no banco histórico permanecem sem resolução; nenhuma alteração remota foi aplicada.
+**Conclusão:** **INF-004 parcialmente concluída, com CI aprovado.** A auditoria remota de branches e metadados das plataformas foi feita e a guarda adicional do MFA foi preparada na branch `infra/inf-004-auditoria-ambientes`, PR #9, ainda em rascunho. O destino dos segredos de conexão e o risco de RLS no banco histórico permanecem sem resolução; nenhuma configuração de Vercel/Supabase, migração ou deployment manual foi alterado.
