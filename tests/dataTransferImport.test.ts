@@ -30,6 +30,8 @@ class MemoryDb {
     users: ["id", "name", "email", "password_hash"], memberships: ["user_id", "tenant_id", "role"],
     customers: ["id", "tenant_id", "name", "phone", "email", "document", "birthday", "address", "notes", "active", "created_at"],
     vehicles: ["id", "tenant_id", "customer_id", "plate", "brand", "model", "year", "color", "km", "chassis", "active"],
+    external_catalog_links: ["tenant_id", "source", "external_key", "catalog_id"],
+    service_aliases: ["tenant_id", "alias_key", "alias", "catalog_id"],
     orders: ["id", "tenant_id", "number", "kind", "status", "customer_id", "vehicle_id", "entered_on", "due_on", "completed_on", "km", "problem", "notes", "discount", "total", "created_at"],
     audit_events: ["id", "tenant_id", "user_id", "action", "entity_id", "created_at"],
     document_revisions: ["id", "tenant_id", "kind", "entity_id", "revision", "issued_at", "issued_by", "payload", "digest"],
@@ -111,6 +113,28 @@ class MemoryDb {
     catch (error) { Object.assign(this, before); throw error; }
   }
 }
+
+test("vínculos técnicos sem ID usam identidade composta estável sem conflito duplicado interno", async () => {
+  const db = new MemoryDb();
+  const file = makePackage({ records: {
+    external_catalog_links: [{ tenant_id: sourceTenant, source: "fixture", external_key: "external-key-1", catalog_id: "catalog-fake" }],
+    service_aliases: [{ tenant_id: sourceTenant, alias_key: "legacy-service-name", alias: "Serviço legado fictício", catalog_id: "catalog-fake" }],
+  } });
+  const preview = await previewWorkshopImport(db as unknown as DB, targetTenant, file, phrase, "merge");
+  assert.equal(preview.canImport, true, preview.issues.join("; "));
+  assert.equal(preview.entities.external_catalog_links.new, 1);
+  assert.equal(preview.entities.service_aliases.new, 1);
+
+  await importWorkshopPackage(db as unknown as DB, targetTenant, file, phrase, preview.confirmationId, "target-owner", "merge");
+  assert.deepEqual(db.tables.external_catalog_links[0], {
+    tenant_id: targetTenant, source: "fixture", external_key: "external-key-1", catalog_id: "catalog-fake",
+  });
+  assert.deepEqual(db.tables.service_aliases[0], {
+    tenant_id: targetTenant, alias_key: "legacy-service-name", alias: "Serviço legado fictício", catalog_id: "catalog-fake",
+  });
+  assert.ok(db.tracking.some((row) => row.table_name === "external_catalog_links" && row.source_record_id === '["fixture","external-key-1"]'));
+  assert.ok(db.tracking.some((row) => row.table_name === "service_aliases" && row.source_record_id === '["legacy-service-name"]'));
+});
 
 test("prévia não grava, importação inicial remapeia oficina e repetição em modo vazio é bloqueada", async () => {
   const db = new MemoryDb(), file = makePackage();
