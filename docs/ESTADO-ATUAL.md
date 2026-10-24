@@ -1,49 +1,53 @@
 # Estado atual do Sistema Oficinas
 
-**Auditoria documental:** 24/10/2026 (UTC)  
+**Auditoria atualizada:** 24/10/2026 (UTC)  
 **Repositório:** `horsepowerlondrina-arch/sistemaoficinas`  
 **Branch de referência:** `main`  
-**Commit de referência:** `6496c8a8795178babcaba525cb707f7fd88b823a`
+**Commit de referência:** `939afd173f0362d5694d8d6c192e283588c778e6`
 
-Este é um inventário pontual do código e das evidências consultadas nessa referência. Não equivale a uma auditoria completa nem atualiza automaticamente quando `main` avança.
+Este inventário descreve evidências consultadas nessa referência e não se atualiza automaticamente quando `main` avança.
 
 ## Confirmado no código
 
-- Aplicação web React/TypeScript com backend Express e API própria.
-- Há interface e integração de administração central, incluindo gestão de oficinas e ativação; há documentação específica em `docs/ADM-001.1-painel-central.md`, `docs/ADM-001.2-gestao-oficinas.md` e `docs/ADM-002-ativacao-oficinas.md`.
-- O repositório contém fluxos operacionais de ordens/orçamentos, cadastros, checklists, financeiro, estoque, documentos e transferência. A presença de código não assegura que todos os fluxos tenham sido validados recentemente.
-- Existem migrações Supabase versionadas e um workflow `.github/workflows/ci-postgres.yml`; o fluxo documentado usa PostgreSQL 17 efêmero no CI.
-- O fluxo de transferência documenta exportação/importação `.hptx`, prévia, mesclagem, substituição e backups; cada caminho ainda requer validação funcional específica antes de ser considerado aceito.
+- Aplicação React/TypeScript com backend Express, API própria e persistência PostgreSQL na configuração de nuvem.
+- A administração central tem rotas, autenticação e sessão próprias, permissões, auditoria e gestão/ativação de oficinas. A identidade de sessão administrativa usa cookie separado do cookie operacional.
+- Há fluxos operacionais para clientes/veículos, ordens/orçamentos, checklists, cadastros, estoque, financeiro, documentos e transferência de dados. A presença de código não comprova validação manual recente de cada fluxo.
+- O repositório contém migrações Supabase, migrações PostgreSQL locais e CI com PostgreSQL 17 temporário.
+- O importador/exportador `.hptx` contém prévia, mesclagem, substituição, arquivos de backup criptografados e trilhas históricas; o uso completo autenticado online ainda não foi validado nesta auditoria.
 
 ## Testado
 
-- O workflow GitHub Actions #25 (run ID `40136445104`), associado ao PR #7 e ao head `325e0e991b714b4bf28c781b8278033b2a50b3ea`, aprovou build, testes gerais e integração PostgreSQL.
-- O head testado foi então integrado por squash em `main` como `6496c8a8795178babcaba525cb707f7fd88b823a`. Não foi localizada evidência de execução daquele workflow diretamente sobre o SHA squash.
-- Esta evidência não certifica visualmente todos os módulos nem substitui testes futuros para mudanças posteriores.
+- GitHub Actions run #26 (`40138356222`) passou build, testes gerais e integração PostgreSQL no head `d0b6025bb709b8206994b54bdb81d0ecf4b218b5`, PR #8 (GOV-001).
+- Esse head foi integrado à `main`, que agora aponta para `939afd173f0362d5694d8d6c192e283588c778e6`. O resultado é evidência para o head testado; não foi localizado um run no próprio SHA de integração.
+- Os testes do código novo da branch INF-004 ainda estão pendentes e serão executados pelo CI associado ao PR.
+- Isso não equivale a uma revisão visual de todos os módulos ou a uma auditoria completa de segurança.
 
 ## Disponível em homologação
 
-- Foi localizada uma deployment Vercel READY do projeto `sistema-oficinas-homologacao`, associada ao commit de referência, com alias `https://sistema-oficinas-homologacao.vercel.app`.
-- “READY” confirma o estado do deployment na plataforma, não um teste completo autenticado. Esta auditoria não validou todos os fluxos no navegador.
-- A palavra “production” que a Vercel usa como target interno de deployment do projeto não significa que o sistema esteja publicado como produto em produção.
+- Vercel `sistema-oficinas-homologacao`: deployment mais recente consultado estava READY, com target Production do projeto, vindo de `main` no commit `939afd173f0362d5694d8d6c192e283588c778e6`.
+- Alias: [sistema-oficinas-homologacao.vercel.app](https://sistema-oficinas-homologacao.vercel.app).
+- O projeto é identificado como homologação pelo nome, domínio, vínculo do repositório e Supabase associado no registro de ambiente. O target interno “Production” da Vercel é uma configuração daquele projeto e não prova publicação comercial em produção.
+- O status READY confirma deployment, não teste funcional autenticado.
 
 ## Publicado em produção
 
-**Não verificado.** Não há nesta auditoria evidência suficiente para afirmar que exista deployment de produção separado do projeto de homologação, nem para declarar que o sistema esteja sendo usado em produção. Não inferir isso a partir de alias, domínio ou target da Vercel.
+**Não verificado para o produto Sistema Oficinas.** A auditoria não encontrou evidência suficiente de uma implantação comercial de produção separada da homologação. Não inferir isso pelo target da Vercel.
+
+O projeto Vercel independente `horse-power` continua com deployment Production de `horsepowerlondrina-arch/horse-power` na branch `main` e domínios Horse Power verificados. Trata-se da instalação Horse Power separada, não do projeto `sistema-oficinas-homologacao`; não foi modificada.
 
 ## Planejado
 
-- A fonte de priorização é a conversa de planejamento funcional do ChatGPT. Não foi consultado um backlog canônico completo; por isso este documento não declara novas tarefas futuras como aprovadas.
-- Melhorias comerciais, expansão de módulos e outras necessidades só devem ser tratadas como planejadas após decisão explícita do responsável funcional.
+- O planejamento e a priorização continuam nas conversas funcionais específicas do ChatGPT. Não foi consultado backlog canônico completo; nenhuma tarefa futura é declarada aprovada por este inventário.
+- INF-004 está **Em revisão** na branch `infra/inf-004-auditoria-ambientes`; veja [relatório da auditoria](INF-004-AUDITORIA-AMBIENTES.md).
 
-## Não verificado
+## Não verificado / riscos pendentes
 
-- Fluxo completo de importação `.hptx` autenticado após as correções mais recentes, incluindo substituição, recuperação e revisão histórica em uma sessão de navegador.
-- Produção separada, seu domínio, tráfego, política de backup e prontidão operacional.
-- Auditoria completa de segurança, carga, recuperação de desastre, monitoramento e conformidade.
-- Cobertura atual e recente de todos os módulos operacionais, contas e permissões.
-- Se as descrições históricas de dados reais em documentos antigos ainda refletem o estado presente de qualquer ambiente.
+- Destino exato dos valores sensíveis `DATABASE_URL` e `PLATFORM_ADMIN_DATABASE_URL` da Vercel: a API de consulta manteve os valores ocultos mesmo com pedido de descriptografia. Nenhuma URL ou credencial foi emitida no relatório.
+- Funcionamento de API/database em deployments Preview: foram listadas variáveis de banco e admin apenas no target Production da Vercel; Preview e Development não têm configuração de banco visível. Um Preview automático pode não executar rotas de servidor. Não foi realizado teste online desse caminho.
+- Sessão completa de importação `.hptx` em navegador após as correções recentes, inclusive substituição e reimpressão de documentos históricos.
+- Produção comercial separada do Sistema Oficinas, domínios, tráfego e plano operacional de backup/recuperação.
+- Cobertura manual, carga, monitoramento, recuperação de desastre e auditoria de segurança completa.
 
 ## Documentação histórica a revisar
 
-Os documentos `README.md`, `docs/02-arquitetura.md`, `docs/03-validacao.md` e `docs/07-supabase-vercel.md` incluem descrições históricas que podem divergir da arquitetura e dos ambientes atuais (por exemplo, SQLite como arquitetura principal ou o antigo repositório). Foram preservados sem alteração nesta tarefa; devem ser revisados em tarefa própria para manter a rastreabilidade histórica e atualizar instruções que ainda sejam utilizadas. Trate detalhes de ambiente neles como não verificados até nova conferência.
+`README.md`, `docs/02-arquitetura.md`, `docs/03-validacao.md` e `docs/07-supabase-vercel.md` contêm material histórico que pode divergir da arquitetura atual (incluindo descrições SQLite e o repositório anterior). Foram preservados nesta tarefa; revisar em tarefa própria, sem apagar evidência histórica nem tratar configurações antigas como atuais.
