@@ -19,7 +19,7 @@ Este inventário descreve evidências consultadas nessa referência e não se at
 
 - GitHub Actions run #26 (`40138356222`) passou build, testes gerais e integração PostgreSQL no head `d0b6025bb709b8206994b54bdb81d0ecf4b218b5`, PR #8 (GOV-001).
 - Esse head foi integrado à `main`, que agora aponta para `939afd173f0362d5694d8d6c192e283588c778e6`. O resultado é evidência para o head testado; não foi localizado um run no próprio SHA de integração.
-- Os testes do código novo da branch INF-004 ainda estão pendentes e serão executados pelo CI associado ao PR.
+- O CI do PR #9 passou no run #28 (Actions run `40140238929`), no head `ef52e84b8b48c103de06746b5fdbac3683ec5ded`: build, testes gerais e integração PostgreSQL aprovados. A branch ainda não foi integrada.
 - Isso não equivale a uma revisão visual de todos os módulos ou a uma auditoria completa de segurança.
 
 ## Disponível em homologação
