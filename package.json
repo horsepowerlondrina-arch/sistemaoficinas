@@ -17,7 +17,7 @@
     "db:local:migrate": "tsx scripts/local-migrate.ts",
     "db:local:seed": "tsx scripts/local-seed.ts",
     "catalog:inspect": "tsx scripts/catalog-inspect.ts",
-    "test:postgres": "tsx --test tests/localPostgres.integration.ts tests/platformAdmin.integration.ts tests/platformWorkshops.integration.ts"
+    "test:postgres": "tsx --test --test-concurrency=1 tests/localPostgres.integration.ts tests/platformAdmin.integration.ts tests/platformWorkshops.integration.ts tests/dataTransfer.postgres.integration.ts"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.6",
@@ -28,7 +28,7 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.6.0",
-    "zod": "^3.24.0"
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",

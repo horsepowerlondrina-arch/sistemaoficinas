@@ -206,6 +206,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
   app.disable("x-powered-by");
   app.use("/api/stock-invoices", express.json({ limit: "3mb" }));
   app.use("/api/workshop-profile", express.json({ limit: "512kb" }));
+  app.use("/api/data-transfer", express.json({ limit: "100mb" }));
   app.use(express.json({ limit: "256kb" }));
   app.use("/api", (req, res, next) => {
     res.set("Cache-Control", "no-store");
@@ -437,6 +438,43 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
       return;
     }
     res.status(403).json({ error: "Esta área é exclusiva do administrador." });
+  });
+  app.post("/api/data-transfer/export", async (req, res) => {
+    const passphrase = z.string().min(12).max(1024).safeParse(req.body?.passphrase);
+    if (!passphrase.success) {
+      res.status(400).json({ error: "Informe uma frase secreta com pelo menos 12 caracteres." });
+      return;
+    }
+    try {
+      const { createWorkshopTransfer } = await import("./services/dataTransferExport.js");
+      const { TRANSFER_MEDIA_TYPE } = await import("../shared/transferPackage.js");
+      const archive = await createWorkshopTransfer(db, res.locals.context.tenantId, passphrase.data);
+      res.set("Cache-Control", "no-store").set("Content-Type", TRANSFER_MEDIA_TYPE)
+        .set("Content-Disposition", `attachment; filename="oficina-${new Date().toISOString().slice(0, 10)}.hptx"`)
+        .send(archive);
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Não foi possível gerar o pacote." });
+    }
+  });
+  app.post("/api/data-transfer/preview", async (req, res) => {
+    const input = z.object({ packageText: z.string().min(1).max(96 * 1024 * 1024), passphrase: z.string().min(12).max(1024) }).safeParse(req.body);
+    if (!input.success) { res.status(400).json({ error: "Arquivo ou frase secreta inválidos." }); return; }
+    try {
+      const { previewWorkshopImport } = await import("./services/dataTransferImport.js");
+      res.json(await previewWorkshopImport(db, res.locals.context.tenantId, Buffer.from(input.data.packageText, "utf8"), input.data.passphrase));
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Não foi possível validar o pacote." });
+    }
+  });
+  app.post("/api/data-transfer/import", async (req, res) => {
+    const input = z.object({ packageText: z.string().min(1).max(96 * 1024 * 1024), passphrase: z.string().min(12).max(1024), confirmationId: z.string().length(64), confirm: z.literal(true) }).safeParse(req.body);
+    if (!input.success) { res.status(400).json({ error: "Confirmação de importação inválida." }); return; }
+    try {
+      const { importWorkshopPackage } = await import("./services/dataTransferImport.js");
+      res.json(await importWorkshopPackage(db, res.locals.context.tenantId, Buffer.from(input.data.packageText, "utf8"), input.data.passphrase, input.data.confirmationId, res.locals.context.userId));
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Não foi possível importar o pacote." });
+    }
   });
   app.get("/api/workspace", async (_req, res) => {
     const tenant = res.locals.context.tenantId;

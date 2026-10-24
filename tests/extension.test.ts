@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { createDatabase } from "../server/db/database";
 import {
+  captureSchema,
   beginCapture,
   captureState,
   discardCapture,
@@ -18,6 +19,22 @@ import { saveOrder } from "../server/services/workshop";
 import { createShare, readShare } from "../server/services/sharing";
 import { createApp } from "../server/app";
 const ctx = { tenantId: "a", userId: "u", role: "owner" };
+test("Zod v4 preserves blank vehicle defaults for captures without vehicle metadata", () => {
+  const parsed = captureSchema.parse({
+    capture_id: randomUUID(),
+    source: "tempario",
+    name: "Serviço fictício",
+    price: 1000,
+    duration_seconds: 600,
+  });
+  assert.deepEqual(parsed.vehicle, {
+    plate: "",
+    make: "",
+    model: "",
+    year: "",
+    engine: "",
+  });
+});
 function fixture() {
   const db = createDatabase(":memory:");
   db.exec(`INSERT INTO tenants(id,name) VALUES('a','A'),('b','B'); INSERT INTO users VALUES('u','Test','test@example.com','unused'); INSERT INTO memberships VALUES('u','a','owner');
