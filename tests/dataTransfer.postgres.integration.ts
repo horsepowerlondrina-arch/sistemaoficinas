@@ -147,6 +147,7 @@ test("PostgreSQL local: transferência fictícia completa preserva IDs, relaçõ
       assert.equal(openTransferPackage(backup!, phrase).records.customers?.length, replacement.entities.customers.existing);
       assert.equal(openTransferPackage(backup!, phrase).records.stock_movements?.length, 1);
       assert.equal(openTransferPackage(backup!, phrase).records.cash_entries?.length, 2);
+      assert.equal(openTransferPackage(backup!, phrase).records.external_captures?.length, 1);
       assert.equal((await db.prepare("SELECT token_hash FROM sessions WHERE tenant_id=? AND token_hash=?").get(tenantId,preservedSessionHash))?.token_hash, preservedSessionHash);
       assert.equal((await db.prepare("SELECT payload FROM document_revisions WHERE tenant_id=? AND id=?").get(tenantId,revisionId))?.payload, documentPayload);
       const context = { tenantId, userId, role: "owner" } as const;
