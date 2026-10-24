@@ -64,3 +64,10 @@ Toda tarefa técnica deve registrar:
 - **Vercel/Supabase:** serviços de hospedagem e banco nos ambientes identificados; a configuração ativa deve ser verificada antes de qualquer operação.
 
 Esses papéis descrevem o processo acordado; não afirmam identidades ou permissões específicas além das disponíveis na plataforma.
+
+
+## Registro de auditoria
+
+- **INF-004 — Auditoria de branches e ambientes:** Em revisão na branch `infra/inf-004-auditoria-ambientes`, baseada na `main` `939afd173f0362d5694d8d6c192e283588c778e6`.
+- Resultado provisório, evidências e bloqueios: [docs/INF-004-AUDITORIA-AMBIENTES.md](INF-004-AUDITORIA-AMBIENTES.md).
+- Não declarar a auditoria concluída nem remover branches até resolver os itens bloqueantes e obter aprovação para a limpeza.
