@@ -24,9 +24,21 @@ test("PostgreSQL: convites de ativação, teste grátis, idempotência e isolame
   const query = (sql: string, values?: unknown[]) => pool.query(rewrite(sql), values as never[]);
   const ownerQuery = (sql: string, values?: unknown[]) => owner.query(rewrite(sql), values as never[]);
   let lastQueryError: {code?:string;message?:string}|undefined;
-  const appPool = { query: async (sql: string, values?: unknown[]) => {
-    try { return await query(sql,values); } catch (error) { lastQueryError=error as {code?:string;message?:string}; throw error; }
-  } } as unknown as Pool;
+  const appPool = {
+    query: async (sql: string, values?: unknown[]) => {
+      try { return await query(sql,values); } catch (error) { lastQueryError=error as {code?:string;message?:string}; throw error; }
+    },
+    connect: async () => {
+      const client=await pool.connect();
+      return {
+        query: async (sql: string, values?: unknown[]) => {
+          try { return await client.query(rewrite(sql),values as never[]); }
+          catch (error) { lastQueryError=error as {code?:string;message?:string}; throw error; }
+        },
+        release: () => client.release(),
+      };
+    },
+  } as unknown as Pool;
   let schemasCreated = false;
   let server: ReturnType<ReturnType<typeof createPlatformAdminApp>["listen"]> | undefined;
   const previousOrigins = process.env.APP_ORIGINS;
