@@ -275,7 +275,7 @@ export async function verifyWorkshopImport(
     sourceRowsByTable[table] = sourceRows;
     const columns = await columnsFor(db, table);
     destinationColumns[table] = columns;
-    if (columns.size && columns.has("tenant_id")) destinationRowsByTable[table] = await rowsFor(db, table, tenantId, columns);
+    if (table !== "audit_events" && columns.size && columns.has("tenant_id")) destinationRowsByTable[table] = await rowsFor(db, table, tenantId, columns);
     else destinationRowsByTable[table] = [];
     const summary = getSummary();
     summary.sourceCount = sourceRows.length;
