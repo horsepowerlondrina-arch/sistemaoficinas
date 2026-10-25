@@ -8,7 +8,8 @@ import { createTransferPayload, openTransferPackage, sealTransferPackage, transf
 import { getWorkshopTransferBackup, importWorkshopPackage, previewWorkshopImport } from "../server/services/dataTransferImport.js";
 import { documentHistory, readArchivedDocument, readDocument } from "../server/services/documents.js";
 import { createWorkshopTransfer } from "../server/services/dataTransferExport.js";
-import { verifyWorkshopImport } from "../server/services/dataTransferVerification.js";
+import { TransferVerificationError, verifyWorkshopImport } from "../server/services/dataTransferVerification.js";
+import { createPlatformAdminDataTransfer } from "../server/services/platformAdminDataTransfer.js";
 
 if (existsSync(".env.local")) process.loadEnvFile(".env.local");
 if (existsSync(".env.platform-admin.local")) process.loadEnvFile(".env.platform-admin.local");
@@ -91,6 +92,19 @@ test("PostgreSQL local: transferência fictícia completa preserva IDs, relaçõ
       assert.equal(beforeImportVerification.mode, "empty");
       assert.equal(beforeImportVerification.entities.customers.missing, 1);
       assert.equal(beforeImportVerification.overall, "divergent");
+      const adminTargetPool={query:async (_sql:string,values:unknown[] = []) => {
+        assert.deepEqual(values,[tenantId]);
+        return {rowCount:1,rows:[{tenant_id:tenantId,name:"Oficina Fictícia MIG002"}]};
+      }} as never;
+      const adminTransfer=createPlatformAdminDataTransfer(db,adminTargetPool);
+      const beforeReadOnlyCounts=await db.prepare("SELECT (SELECT count(*) FROM customers WHERE tenant_id=?) AS customers,(SELECT count(*) FROM audit_events WHERE tenant_id=?) AS audit_events").get(tenantId,tenantId);
+      const adminVerification=await adminTransfer.verify(tenantId,file.toString("utf8"),phrase,"empty");
+      assert.equal((adminVerification as {overall:string}).overall,"divergent");
+      assert.equal((adminVerification as {entities:Record<string,{missing:number}>}).entities.customers.missing,1);
+      const afterReadOnlyCounts=await db.prepare("SELECT (SELECT count(*) FROM customers WHERE tenant_id=?) AS customers,(SELECT count(*) FROM audit_events WHERE tenant_id=?) AS audit_events").get(tenantId,tenantId);
+      assert.deepEqual(afterReadOnlyCounts,beforeReadOnlyCounts,"a conferência administrativa não deve alterar dados nem auditoria operacional");
+      await assert.rejects(adminTransfer.verify(tenantId,file.toString("utf8"),"frase-incorreta-ficticia","empty"),
+        error=>error instanceof TransferVerificationError && error.code==="invalid_package");
       await assert.rejects(verifyWorkshopImport(db, tenantId, file, "frase-incorreta-ficticia", userId, "empty"), /Não foi possível abrir/);
       const result = await importWorkshopPackage(db, tenantId, file, phrase, preview.confirmationId, userId);
       assert.equal(result.counts.external_catalog_links, 1);

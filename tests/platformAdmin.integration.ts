@@ -9,6 +9,7 @@ import { platformAdminDatabaseUrl } from "../server/localConfig.js";
 import { assertPlatformAdminDatabase, createPlatformAdminApp } from "../server/platformAdminApp.js";
 import { encryptTotpSecret, hashAdminPassword, newTotpSecret, platformPermissions, totpCode, verifyTotp } from "../server/auth/platformAdmin.js";
 import { createLocalAdminSeedCredentials, ensureLocalAdminSeed, ensureLocalAdminWorkshopPermissions, validateLocalAdminSeedCredentials } from "../server/localAdminSeed.js";
+import { TransferVerificationError } from "../server/services/dataTransferVerification.js";
 
 if (existsSync(".env.local")) process.loadEnvFile(".env.local");
 if (existsSync(".env.platform-admin.local")) process.loadEnvFile(".env.platform-admin.local");
@@ -78,10 +79,11 @@ test("PostgreSQL platform admin: login, MFA, separated sessions, roles, audit an
     process.env.PLATFORM_ADMIN_TEST_MFA_BYPASS_EMAIL = seedCredentials.email;
     process.env.PLATFORM_ADMIN_TEST_MFA_BYPASS_HOST = "127.0.0.1";
     const fakeTenant = "00000000-0000-4000-8000-000000000001";
+    let verificationFailure: unknown;
     const transferStub = {
       target: async (tenantId: string) => { if (tenantId !== fakeTenant) throw new Error("tenant-not-registered"); return { tenantId, workshopName: "Oficina Fictícia ADM" }; },
       exportPackage: async (tenantId: string) => ({ workshopName: "Oficina Fictícia ADM", archive: Buffer.from(tenantId) }),
-      preview: async () => ({ canImport: true }), verify: async () => ({ overall: "not-verifiable" }),
+      preview: async () => ({ canImport: true }), verify: async () => { if (verificationFailure) throw verificationFailure; return { overall: "not-verifiable" }; },
       import: async () => ({ mode: "empty" }), backups: async () => [], backup: async () => undefined,
       approvalConsumed: async () => false,
     };
@@ -122,6 +124,24 @@ test("PostgreSQL platform admin: login, MFA, separated sessions, roles, audit an
     const transferExport = await request("/admin-api/workshops/00000000-0000-4000-8000-000000000001/data-transfer/export",{method:"POST",cookie:principalCookie,body:{passphrase:randomBytes(24).toString("base64url")}});
     assert.equal(transferExport.status,200);
     assert.equal(await transferExport.text(),"00000000-0000-4000-8000-000000000001");
+    const verifyPath="/admin-api/workshops/00000000-0000-4000-8000-000000000001/data-transfer/verify";
+    const verifyBody={packageText:"synthetic-package-fake",passphrase:"frase-secreta-ficticia",mode:"empty"};
+    const verifySuccess=await request(verifyPath,{method:"POST",cookie:principalCookie,body:verifyBody});
+    assert.equal(verifySuccess.status,200);
+    assert.equal((await verifySuccess.json() as {overall:string}).overall,"not-verifiable");
+    verificationFailure=new TransferVerificationError("invalid_package");
+    const invalidVerify=await request(verifyPath,{method:"POST",cookie:principalCookie,body:verifyBody});
+    assert.equal(invalidVerify.status,422);
+    assert.deepEqual(await invalidVerify.json(),{error:"Pacote inválido ou frase secreta incorreta. Confira o arquivo .hptx e tente novamente.",code:"invalid_package"});
+    verificationFailure=new Error("private passphrase and package contents must not be returned");
+    const processingVerify=await request(verifyPath,{method:"POST",cookie:principalCookie,body:verifyBody});
+    assert.equal(processingVerify.status,500);
+    assert.deepEqual(await processingVerify.json(),{error:"Falha ao processar a conferência. Nenhum dado foi alterado; tente novamente mais tarde.",code:"processing_failed"});
+    verificationFailure=Object.assign(new Error("database permission details"),{code:"42501"});
+    const databaseVerify=await request(verifyPath,{method:"POST",cookie:principalCookie,body:verifyBody});
+    assert.equal(databaseVerify.status,503);
+    assert.deepEqual(await databaseVerify.json(),{error:"O serviço de dados está indisponível para conferir o pacote agora. Nenhum dado foi alterado.",code:"database_unavailable"});
+    verificationFailure=undefined;
     assert.equal((await request("/admin-api/workshops/00000000-0000-4000-8000-000000000099/data-transfer/backups",{cookie:principalCookie})).status,400);
     const principalSession = await request("/admin-api/session",{cookie:principalCookie});
     assert.equal(principalSession.status,200);
@@ -134,6 +154,7 @@ test("PostgreSQL platform admin: login, MFA, separated sessions, roles, audit an
     assert.equal((await request("/admin-api/administrators",{cookie:financeCookie})).status,200);
     assert.equal((await request("/admin-api/workshops",{cookie:financeCookie})).status,403);
     assert.equal((await request(`/admin-api/workshops/00000000-0000-4000-8000-000000000001/data-transfer/backups`,{cookie:financeCookie})).status,403);
+    assert.equal((await request(verifyPath,{method:"POST",cookie:financeCookie,body:verifyBody})).status,403);
     assert.equal((await request("/admin-api/workshops",{method:"POST",cookie:financeCookie,body:{name:"Oficina Fictícia",responsible_name:"Pessoa Fictícia",responsible_email:"oficina@example.test"}})).status,403);
     assert.equal((await request("/admin-api/workshops/00000000-0000-4000-8000-000000000000/status",{method:"PATCH",cookie:financeCookie,body:{status:"blocked",reason:"Justificativa fictícia suficiente"}})).status,403);
     const financeCreate = await request("/admin-api/administrators",{method:"POST",cookie:financeCookie,body:{email:"escalation@example.test",name:"Escalation Fictício",role:"principal",permissions:platformPermissions}});
