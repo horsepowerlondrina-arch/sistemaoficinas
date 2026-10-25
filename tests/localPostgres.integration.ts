@@ -5,6 +5,7 @@ import { once } from "node:events";
 import { createLocalDatabase } from "../server/db/local";
 import { createApp } from "../server/app";
 if (existsSync(".env.local")) process.loadEnvFile(".env.local");
+const expectedCatalogModels = process.env.CATALOG_EXPECT_FULL === "1" ? 7534 : 1;
 test("PostgreSQL local: autenticação, oficinas, transações e RLS do catálogo", async t => {
   const db = await createLocalDatabase();
   t.after(()=>db.close());
@@ -15,27 +16,41 @@ test("PostgreSQL local: autenticação, oficinas, transações e RLS do catálog
     try{
       await admin.query("BEGIN");
       const brand="00000000-0000-4000-8000-000000000009",family="00000000-0000-4000-8000-000000000010",base="00000000-0000-4000-8000-000000000011",classification="00000000-0000-4000-8000-000000000012",model="ab7b2905-17d3-4664-8743-62ef07085599";
-      await admin.query("INSERT INTO service_catalog.brands(id,name) VALUES($1,'Marca Fictícia Importada')",[brand]);
-      await admin.query("INSERT INTO service_catalog.families(id,brand_id) VALUES($1,$2)",[family,brand]);
-      await admin.query("INSERT INTO service_catalog.bases(id,family_id,service_count) VALUES($1,$2,0)",[base,family]);
-      await admin.query("INSERT INTO service_catalog.classifications(id,name) VALUES($1,'Veículo Médio')",[classification]);
-      await admin.query("INSERT INTO service_catalog.models(id,brand_id,family_id,classification_id,name,fipe_code,complete,service_count,base_id,excluded_service_ids) VALUES($1,$2,$3,$4,'Modelo Fictício Importado','999999-9',1,0,$5,'[]')",[model,brand,family,classification,base]);
-      const category=(await admin.query("SELECT category_id,assignment_source,review_status FROM service_catalog.model_labor_categories WHERE model_id=$1",[model])).rows[0];
-      assert.deepEqual(category,{category_id:"premium",assignment_source:"reviewed",review_status:"confirmed"});
-       const compactClass=(await admin.query("SELECT id FROM service_catalog.classifications WHERE name='Básico Elétrico'")).rows[0].id,compactModel="00000000-0000-4000-8000-000000000014";
-      await admin.query("INSERT INTO service_catalog.models(id,brand_id,family_id,classification_id,name,fipe_code,complete,service_count,base_id,excluded_service_ids) VALUES($1,$2,$3,$4,'Modelo Fictício Novo','999998-9',1,0,$5,'[]')",[compactModel,brand,family,compactClass,base]);
-      const compact=(await admin.query("SELECT category_id,assignment_source FROM service_catalog.model_labor_categories WHERE model_id=$1",[compactModel])).rows[0];
-      assert.deepEqual(compact,{category_id:"compacto",assignment_source:"automatic"});
+      if(process.env.CATALOG_EXPECT_FULL === "1"){
+        const approved=await admin.query(`SELECT count(*)::int n FROM service_catalog.model_labor_category_overrides o
+          JOIN service_catalog.model_labor_categories c ON c.model_id=o.model_id AND c.category_id='premium'`);
+        assert.equal(approved.rows[0].n,51);
+        await admin.query("INSERT INTO service_catalog.brands(id,name) VALUES($1,'Marca Fictícia Importada')",[brand]);
+        await admin.query("INSERT INTO service_catalog.families(id,brand_id) VALUES($1,$2)",[family,brand]);
+        await admin.query("INSERT INTO service_catalog.bases(id,family_id,service_count) VALUES($1,$2,0)",[base,family]);
+        const compactClass=(await admin.query("SELECT id FROM service_catalog.classifications WHERE name='Básico Elétrico'")).rows[0].id;
+        const compactModel="00000000-0000-4000-8000-000000000014";
+        await admin.query("INSERT INTO service_catalog.models(id,brand_id,family_id,classification_id,name,fipe_code,complete,service_count,base_id,excluded_service_ids) VALUES($1,$2,$3,$4,'Modelo Fictício Novo','999998-9',1,0,$5,'[]')",[compactModel,brand,family,compactClass,base]);
+        const compact=(await admin.query("SELECT category_id,assignment_source FROM service_catalog.model_labor_categories WHERE model_id=$1",[compactModel])).rows[0];
+        assert.deepEqual(compact,{category_id:"compacto",assignment_source:"automatic"});
+      } else {
+        await admin.query("INSERT INTO service_catalog.brands(id,name) VALUES($1,'Marca Fictícia Importada')",[brand]);
+        await admin.query("INSERT INTO service_catalog.families(id,brand_id) VALUES($1,$2)",[family,brand]);
+        await admin.query("INSERT INTO service_catalog.bases(id,family_id,service_count) VALUES($1,$2,0)",[base,family]);
+        await admin.query("INSERT INTO service_catalog.classifications(id,name) VALUES($1,'Veículo Médio')",[classification]);
+        await admin.query("INSERT INTO service_catalog.models(id,brand_id,family_id,classification_id,name,fipe_code,complete,service_count,base_id,excluded_service_ids) VALUES($1,$2,$3,$4,'Modelo Fictício Importado','999999-9',1,0,$5,'[]')",[model,brand,family,classification,base]);
+        const category=(await admin.query("SELECT category_id,assignment_source,review_status FROM service_catalog.model_labor_categories WHERE model_id=$1",[model])).rows[0];
+        assert.deepEqual(category,{category_id:"premium",assignment_source:"reviewed",review_status:"confirmed"});
+        const compactClass=(await admin.query("SELECT id FROM service_catalog.classifications WHERE name='Básico Elétrico'")).rows[0].id,compactModel="00000000-0000-4000-8000-000000000014";
+        await admin.query("INSERT INTO service_catalog.models(id,brand_id,family_id,classification_id,name,fipe_code,complete,service_count,base_id,excluded_service_ids) VALUES($1,$2,$3,$4,'Modelo Fictício Novo','999998-9',1,0,$5,'[]')",[compactModel,brand,family,compactClass,base]);
+        const compact=(await admin.query("SELECT category_id,assignment_source FROM service_catalog.model_labor_categories WHERE model_id=$1",[compactModel])).rows[0];
+        assert.deepEqual(compact,{category_id:"compacto",assignment_source:"automatic"});
+      }
     }finally{await admin.query("ROLLBACK");await admin.end();}
   });  await t.test("catálogo sem contexto não é visível; autorização da oficina é obrigatória",async()=>{
     assert.equal((await db.prepare("SELECT * FROM service_catalog.models").all()).length,0);
-    assert.equal(await db.withTenantRead("local-a",async()=>(await db.prepare("SELECT * FROM service_catalog.models").all()).length),1);
+    assert.equal(await db.withTenantRead("local-a",async()=>(await db.prepare("SELECT count(*) n FROM service_catalog.models").get() as any).n),expectedCatalogModels);
     assert.equal(await db.withTenantRead("local-b",async()=>(await db.prepare("SELECT * FROM service_catalog.models").all()).length),0);
     assert.equal((await db.prepare("SELECT * FROM service_catalog.models").all()).length,0);
     await assert.rejects(db.withTenantRead("local-a",async()=>{throw new Error("rollback contexto");}));
     assert.equal((await db.prepare("SELECT * FROM service_catalog.models").all()).length,0);
-    const parallel=await Promise.all(["local-a","local-b","local-a","local-b"].map(tenant=>db.withTenantRead(tenant,async()=>(await db.prepare("SELECT * FROM service_catalog.model_services").all()).length)));
-    assert.deepEqual(parallel,[1,0,1,0]);
+    const parallel=await Promise.all(["local-a","local-b","local-a","local-b"].map(tenant=>db.withTenantRead(tenant,async()=>(await db.prepare("SELECT count(*) n FROM service_catalog.models").get() as any).n)));
+    assert.deepEqual(parallel,[expectedCatalogModels,0,expectedCatalogModels,0]);
   });
   await t.test("runtime não pode alterar catálogo nem se autoliberar",async()=>{
     for (const sql of [
@@ -57,16 +72,16 @@ test("PostgreSQL local: autenticação, oficinas, transações e RLS do catálog
     const { adminClient } = await import("../scripts/local-admin");
     const admin=adminClient();await admin.connect();
     try {
-      for(const mutation of [
+    for(const mutation of [
         "UPDATE service_catalog.tenant_access SET valid_until=now()-interval '1 day' WHERE tenant_id='local-a'",
-        "UPDATE service_catalog.releases SET status='retired' WHERE version='local-ficticio'"
+      "UPDATE service_catalog.releases SET status='retired' WHERE status='active'"
       ]){
         await admin.query("BEGIN");
         try {
           await admin.query(mutation);
           await admin.query("SET LOCAL ROLE hp_local_app");
           await admin.query("SELECT set_config('app.tenant_id','local-a',true)");
-          assert.equal((await admin.query("SELECT * FROM service_catalog.model_services")).rows.length,0);
+          assert.equal((await admin.query("SELECT * FROM service_catalog.models LIMIT 1")).rows.length,0);
         } finally {await admin.query("ROLLBACK");}
       }
     } finally {await admin.end();}
@@ -75,20 +90,32 @@ test("PostgreSQL local: autenticação, oficinas, transações e RLS do catálog
     const { saveOrder, listOrders }=await import("../server/services/workshop");
     const { searchModels, searchRepairServices }=await import("../server/services/repairCatalog");
     const ctx={tenantId:"local-a",userId:"local-owner-a",role:"owner"};
-    const models=await searchModels(db,ctx,{q:"ficticio"});
-    assert.equal(models.items.length,1);
-    assert.equal(models.items[0].commercial_category_id,"compacto");
-    const model=models.items[0].id;
-    const services=await searchRepairServices(db,ctx,model,{q:"inspecao"});
-    assert.equal(services.items.length,1);
+    let model: string, serviceId: string, serviceQuery: string;
+    if(process.env.CATALOG_EXPECT_FULL === "1"){
+      const example=await db.withTenantRead("local-a",async()=>db.prepare(`SELECT m.id,m.name,b.name brand,s.service_id,s.service_name FROM service_catalog.models m
+        JOIN service_catalog.brands b ON b.id=m.brand_id JOIN service_catalog.model_services s ON s.model_id=m.id
+        WHERE s.minutes>0 ORDER BY m.id,s.service_id LIMIT 1`).get() as any);
+      const models=await searchModels(db,ctx,{q:`${example.brand} ${example.name}`});
+      const selected=models.items.find(item=>item.id===example.id);
+      assert.ok(selected);
+      model=selected.id;serviceId=example.service_id;serviceQuery=example.service_name;
+    } else {
+      const models=await searchModels(db,ctx,{q:"ficticio"});
+      assert.equal(models.items.length,1);
+      assert.equal(models.items[0].commercial_category_id,"compacto");
+      model=models.items[0].id;serviceId="";serviceQuery="inspecao";
+    }
+    const services=await searchRepairServices(db,ctx,model,{q:serviceQuery});
+    const service=serviceId ? services.items.find(item=>item.service_id===serviceId) : services.items[0];
+    assert.ok(service);
     const stop=new Error("rollback fixture OS");
     await assert.rejects(db.transaction(async()=>{
        await db.withTenantRead("local-a",async()=>db.prepare("INSERT INTO labor_commercial_rates(tenant_id,category_id,hourly_rate) VALUES('local-a','compacto',12000) ON CONFLICT(tenant_id,category_id) DO UPDATE SET hourly_rate=excluded.hourly_rate").run());
       const id=await saveOrder(db,ctx,{status:"quote",customer_id:"local-a-customer",vehicle_id:"local-a-vehicle",service_model_id:model,entered_on:"2026-10-20",due_on:"2026-10-20",km:0,discount:0,notes:"",problem:"",
-        items:[{repair_service_id:services.items[0].service_id,repair_model_id:model,price:6000,quantity:1}]});
+        items:[{repair_service_id:service.service_id,repair_model_id:model,price:6000,quantity:1}]});
       const saved=(await listOrders(db,"local-a")).find(row=>row.id===id)!;
       assert.ok(saved);assert.equal(saved.total,6000);
-      assert.equal(saved.items[0].service_details.minutes,30);
+      assert.ok(saved.items[0].service_details.minutes>0);
       assert.equal(saved.items[0].service_details.hourly_rate,12000);
       assert.equal((await listOrders(db,"local-b")).length,0);
       throw stop;

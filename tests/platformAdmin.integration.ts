@@ -41,7 +41,7 @@ test("PostgreSQL platform admin: login, MFA, separated sessions, roles, audit an
       .map(file=>readFileSync(`local-postgres/${file}`,"utf8").replace(/\bplatform_admin\b/g,schema)).join("\n");
     await owner.query(migration);
     await owner.query(`ALTER TABLE ${schema}.administrators DROP CONSTRAINT platform_admin_permissions_allowlist;
-      ALTER TABLE ${schema}.administrators ADD CONSTRAINT platform_admin_permissions_allowlist CHECK (permissions <@ '["audit:read","administrators:manage","platform:settings","critical:request","critical:approve","workshops:read","workshops:manage","data-transfer:manage"]'::jsonb);
+      ALTER TABLE ${schema}.administrators ADD CONSTRAINT platform_admin_permissions_allowlist CHECK (permissions <@ '["audit:read","administrators:manage","platform:settings","critical:request","critical:approve","workshops:read","workshops:manage","data-transfer:manage","modules:manage"]'::jsonb);
       ALTER TABLE ${schema}.audit_events ADD COLUMN subject_tenant_id text`);
     const role = await assertPlatformAdminDatabase(testPool);
     assert.equal(role.role, "hp_platform_admin_app");

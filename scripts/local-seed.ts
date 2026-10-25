@@ -4,6 +4,7 @@ import { hashPassword } from "../server/auth/session.js";
 import { adminClient } from "./local-admin.js";
 const client = adminClient();
 const credentialsPath = "data/local-credentials.json";
+const includeSyntheticCatalog = !process.argv.includes("--without-catalog");
 try {
   await client.connect();
   await client.query("BEGIN");
@@ -22,18 +23,20 @@ try {
     await client.query("INSERT INTO horse_power.customers(id,tenant_id,name,email) VALUES($1,$2,$3,$4)", [tenant+"-customer",tenant,"Cliente Fictício "+suffix.toUpperCase(),"cliente-"+suffix+"@example.test"]);
     await client.query("INSERT INTO horse_power.vehicles(id,tenant_id,customer_id,plate,brand,model,year) VALUES($1,$2,$3,$4,'Marca Fictícia','Modelo Fictício',2024)",[tenant+"-vehicle",tenant,tenant+"-customer", suffix==="a" ? "ABC1D23" : "DEF4G56"]);
   }
-  // Tiny synthetic catalog, distinct from the external technical source.
-  const id = (n: number) => "00000000-0000-4000-8000-" + String(n).padStart(12,"0");
-  await client.query("INSERT INTO service_catalog.brands VALUES($1,'Marca Fictícia')",[id(1)]);
-  await client.query("INSERT INTO service_catalog.families VALUES($1,$2)",[id(2),id(1)]);
-  await client.query("INSERT INTO service_catalog.bases VALUES($1,$2,1)",[id(3),id(2)]);
   const technicalClass = (await client.query("SELECT id,name FROM horse_power.labor_portes ORDER BY name LIMIT 1")).rows[0];
   const porte = technicalClass.id;
-  await client.query("INSERT INTO service_catalog.classifications VALUES($1,$2)",[porte,technicalClass.name]);
-  await client.query("INSERT INTO service_catalog.services VALUES($1,'Inspeção Fictícia')",[id(4)]);
-  await client.query("INSERT INTO service_catalog.models VALUES($1,$2,$3,$4,'Modelo Fictício','000000-0',1,1,$5,'[]')",[id(5),id(1),id(2),porte,id(3)]);
-  await client.query("INSERT INTO service_catalog.repair_times VALUES($1,$2,NULL,$3,'Inspeção Fictícia',30,'local-demo')",[id(6),id(3),id(4)]);
-  await client.query("INSERT INTO service_catalog.releases(version,status,source_sha256,model_count,time_count,application_count,validated_at) VALUES('local-ficticio','active','synthetic',1,1,1,now())");
+  if (includeSyntheticCatalog) {
+    // Tiny fixture remains the default for the ordinary local test database.
+    const id = (n: number) => "00000000-0000-4000-8000-" + String(n).padStart(12,"0");
+    await client.query("INSERT INTO service_catalog.brands VALUES($1,'Marca Fictícia')",[id(1)]);
+    await client.query("INSERT INTO service_catalog.families VALUES($1,$2)",[id(2),id(1)]);
+    await client.query("INSERT INTO service_catalog.bases VALUES($1,$2,1)",[id(3),id(2)]);
+    await client.query("INSERT INTO service_catalog.classifications VALUES($1,$2)",[porte,technicalClass.name]);
+    await client.query("INSERT INTO service_catalog.services VALUES($1,'Inspeção Fictícia')",[id(4)]);
+    await client.query("INSERT INTO service_catalog.models VALUES($1,$2,$3,$4,'Modelo Fictício','000000-0',1,1,$5,'[]')",[id(5),id(1),id(2),porte,id(3)]);
+    await client.query("INSERT INTO service_catalog.repair_times VALUES($1,$2,NULL,$3,'Inspeção Fictícia',30,'local-demo')",[id(6),id(3),id(4)]);
+    await client.query("INSERT INTO service_catalog.releases(version,status,source_sha256,model_count,time_count,application_count,validated_at) VALUES('local-ficticio','active','synthetic',1,1,1,now())");
+  }
   await client.query("INSERT INTO service_catalog.tenant_access(tenant_id,enabled,grant_reason) VALUES('local-a',true,'Fixture local fictícia'),('local-b',false,'Fixture sem liberação')");
   await client.query("INSERT INTO horse_power.labor_rates VALUES('local-a',$1,12000)",[porte]);
   await client.query("INSERT INTO horse_power.labor_commercial_rates(tenant_id,category_id,hourly_rate) VALUES('local-a','compacto',12000)");

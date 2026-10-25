@@ -1,0 +1,78 @@
+name: CAT-008 catalog preflight and homologation import
+
+on:
+  workflow_dispatch:
+    inputs:
+      catalog_rights_confirmed:
+        description: Confirm that the catalog may be processed in this private runner
+        type: choice
+        required: true
+        default: not-confirmed
+        options: [not-confirmed, confirmed]
+      operation:
+        description: Run only the PostgreSQL 17 preflight or also import into homologation
+        type: choice
+        required: true
+        default: preflight-only
+        options: [preflight-only, load-homologation]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cat-008-catalog-import
+  cancel-in-progress: false
+
+jobs:
+  catalog-import:
+    if: inputs.catalog_rights_confirmed == 'confirmed'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    environment: catalog-homologation
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-temporary-only
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Prepare disposable PostgreSQL 17 and synthetic homologation fixture
+        run: node scripts/ci-catalog-import-setup.mjs
+        env:
+          CI_PG_ADMIN_URL: postgres://postgres:ci-temporary-only@127.0.0.1:5432/postgres
+      - name: Download and verify the private source into the ephemeral runner
+        run: node scripts/catalog-source-download.mjs "$RUNNER_TEMP/catalogo.sqlite"
+        env:
+          CATALOG_SOURCE_URL: ${{ secrets.CATALOG_SOURCE_URL }}
+          CATALOG_SOURCE_ALLOWED_HOSTS: ${{ secrets.CATALOG_SOURCE_ALLOWED_HOSTS }}
+      - name: Run complete transactional preflight import on PostgreSQL 17
+        run: npm run catalog:import -- "$RUNNER_TEMP/catalogo.sqlite"
+        env:
+          CATALOG_IMPORT_DATABASE_URL: postgres://postgres:ci-temporary-only@127.0.0.1:5432/horse_power_cat008_test
+          CATALOG_IMPORT_TARGET: local
+          CATALOG_IMPORT_CONFIRM: CAT-008-ISOLATED-LOCAL
+      - name: Import into the explicitly confirmed Supabase homologation project
+        if: inputs.operation == 'load-homologation'
+        run: npm run catalog:import -- "$RUNNER_TEMP/catalogo.sqlite"
+        env:
+          CATALOG_IMPORT_DATABASE_URL: ${{ secrets.CATALOG_IMPORT_DATABASE_URL }}
+          CATALOG_IMPORT_TARGET: homologation
+          CATALOG_IMPORT_CONFIRM: CAT-008-HOMOLOGATION-IMPORT
+          CATALOG_RIGHTS_CONFIRMED: "true"
+      - name: Remove the private source from the ephemeral runner
+        if: always()
+        run: rm -f "$RUNNER_TEMP/catalogo.sqlite"

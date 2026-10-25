@@ -39,47 +39,58 @@ async function tenantRead<T>(db: DB, ctx: Context, fn: () => Promise<T>) {
 export function withTenantScope<T>(db: DB, ctx: Context, fn: () => Promise<T>) {
   return tenantRead(db, ctx, fn);
 }
-async function access(db: DB, ctx: Context) {
+export type CatalogAccessState="active"|"not_contracted"|"expired"|"revoked"|"not_installed";
+export async function catalogAccessState(db:DB,ctx:Context):Promise<CatalogAccessState>{
   try {
     const row = await db
       .prepare(
-        "SELECT a.tenant_id FROM service_catalog.tenant_access a WHERE a.tenant_id=? AND a.enabled AND (a.valid_until IS NULL OR a.valid_until>CURRENT_TIMESTAMP) AND EXISTS(SELECT 1 FROM service_catalog.releases WHERE status='active')",
+        `SELECT a.enabled,a.valid_until,EXISTS(SELECT 1 FROM service_catalog.releases WHERE status='active') catalog_installed
+         FROM service_catalog.tenant_access a WHERE a.tenant_id=?`,
       )
       .get(ctx.tenantId);
-    return !!row;
+    if(!row)return "not_contracted";
+    if(!(row as any).catalog_installed)return "not_installed";
+    if(!(row as any).enabled)return "revoked";
+    if((row as any).valid_until&&new Date((row as any).valid_until).getTime()<=Date.now())return "expired";
+    return "active";
   } catch (error) {
-    if (!db.withTenantRead && /no such table/.test(String(error))) return false;
+    if (/no such table/.test(String(error)) || (error as {code?:string}).code==="42P01") return "not_installed";
     throw error;
   }
 }
+const catalogStatusMessage:Record<Exclude<CatalogAccessState,"active">,string>={
+  not_contracted:"O Catálogo Técnico é um módulo adicional e não está habilitado para esta oficina.",
+  expired:"O acesso ao Catálogo Técnico venceu. Solicite a renovação à administração da plataforma.",
+  revoked:"O acesso ao Catálogo Técnico foi revogado. Seus serviços particulares continuam disponíveis.",
+  not_installed:"O Catálogo Técnico ainda não foi instalado neste ambiente.",
+};
+async function access(db:DB,ctx:Context){return await catalogAccessState(db,ctx)==="active";}
 export async function withCatalog<T>(
   db: DB,
   ctx: Context,
   fn: () => Promise<T>,
 ) {
   return tenantRead(db, ctx, async () => {
-    if (!(await access(db, ctx)))
-      throw Object.assign(
-        new Error("O catálogo de tempos não está liberado para esta oficina."),
-        { status: 403 },
-      );
+    const state=await catalogAccessState(db,ctx);
+    if(state!=="active")throw Object.assign(new Error(`${catalogStatusMessage[state]} O catálogo não está liberado para esta oficina.`),{status:state==="not_installed"?503:403});
     return fn();
   });
 }
 export async function serviceInfo(db: DB, ctx: Context) {
   requireAdmin(ctx);
-  const [categories, pricing, enabled] = await Promise.all([
+  const [categories, pricing, catalog_status] = await Promise.all([
     tenantRead(db, ctx, async () =>
       await db.prepare(
         "SELECT c.id,c.name,c.sort_order,COALESCE(r.hourly_rate,0) hourly_rate FROM labor_categories c LEFT JOIN labor_commercial_rates r ON r.category_id=c.id AND r.tenant_id=? ORDER BY c.sort_order",
       ).all(ctx.tenantId),
     ),
     getPartsPricing(db, ctx.tenantId),
-    tenantRead(db, ctx, () => access(db, ctx)),
+    tenantRead(db, ctx, () => catalogAccessState(db, ctx)),
   ]);
   return {
     categories,
-    enabled,
+    enabled:catalog_status==="active",
+    catalog_status,
     service_markup_bps: pricing.service_markup_bps ?? 3000,
   };
 }
