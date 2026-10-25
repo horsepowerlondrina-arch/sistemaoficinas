@@ -72,3 +72,68 @@ test("CAT-008 HMG guard requires the exact ref, restricted login, TLS, and manua
     /homologação exige workflow_dispatch/,
   );
 });
+
+const directEnv = {
+  CATALOG_IMPORT_TARGET: "homologation-direct",
+  CATALOG_IMPORT_CONFIRM: "CAT-008-HOMOLOGATION-DIRECT-IMPORT",
+  CATALOG_RIGHTS_CONFIRMED: "true",
+  CATALOG_HOMOLOGATION_DIRECT_AUTHORIZED: "true",
+};
+
+test("CAT-008 direct mode accepts restricted logins on the authorized HMG endpoints", () => {
+  const direct = assertTarget({
+    ...directEnv,
+    CATALOG_IMPORT_DATABASE_URL: `postgres://hp_catalog_import_login:test@db.${projectRef}.supabase.co:5432/postgres?sslmode=require`,
+  });
+  assert.equal(direct.target, "homologation");
+  assert.equal(new URL(direct.connectionString).search, "");
+
+  const pooler = assertTarget({
+    ...directEnv,
+    CATALOG_IMPORT_DATABASE_URL: `postgres://hp_catalog_import_login.${projectRef}:test@aws-0-ca-central-1.pooler.supabase.com:5432/postgres?sslmode=require`,
+  });
+  assert.equal(pooler.target, "homologation");
+});
+
+test("CAT-008 direct mode rejects missing authorization or processing rights", () => {
+  const connection = `postgres://hp_catalog_import_login:test@db.${projectRef}.supabase.co:5432/postgres?sslmode=require`;
+  assert.throws(
+    () =>
+      assertTarget({
+        ...directEnv,
+        CATALOG_HOMOLOGATION_DIRECT_AUTHORIZED: "false",
+        CATALOG_IMPORT_DATABASE_URL: connection,
+      }),
+    /execução direta exige autorização explícita/,
+  );
+  assert.throws(
+    () =>
+      assertTarget({
+        ...directEnv,
+        CATALOG_RIGHTS_CONFIRMED: "false",
+        CATALOG_IMPORT_DATABASE_URL: connection,
+      }),
+    /execução direta exige autorização explícita/,
+  );
+});
+
+test("CAT-008 direct mode rejects production hosts and elevated logins", () => {
+  assert.throws(
+    () =>
+      assertTarget({
+        ...directEnv,
+        CATALOG_IMPORT_DATABASE_URL:
+          "postgres://hp_catalog_import_login:test@db.production.supabase.co:5432/postgres?sslmode=require",
+      }),
+    /execução direta exige autorização explícita/,
+  );
+  assert.throws(
+    () =>
+      assertTarget({
+        ...directEnv,
+        CATALOG_IMPORT_DATABASE_URL: `postgres://postgres:test@db.${projectRef}.supabase.co:5432/postgres?sslmode=require`,
+      }),
+    /execução direta exige autorização explícita/,
+  );
+});
+

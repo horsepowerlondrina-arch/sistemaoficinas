@@ -36,6 +36,12 @@ Na homologação, uma função restrita só remove o fixture sintético conhecid
 
 Durante o preflight, o importador estima o pico conservador como tamanho atual do banco mais duas vezes o estágio. Se exceder 450 MiB, ele reverte antes da gravação final, mantendo margem abaixo do limite de 500 MB do plano Free. O tamanho final efetivo do banco temporário e de homologação fica registrado no log do job, sem credenciais.
 
+## Execução direta autorizada em homologação
+
+O importador também aceita execução direta, sem GitHub Actions e sem banco PostgreSQL local. Essa modalidade exige `CATALOG_IMPORT_TARGET=homologation-direct`, `CATALOG_HOMOLOGATION_DIRECT_AUTHORIZED=true`, `CATALOG_IMPORT_CONFIRM=CAT-008-HOMOLOGATION-DIRECT-IMPORT` e `CATALOG_RIGHTS_CONFIRMED=true`. A conexão deve usar exclusivamente `hp_catalog_import_login`, na porta TLS 5432, pelo host direto do projeto `vnclahdnirqlcbamodqy` ou pelo pooler `ca-central-1` com usuário de sessão vinculado a esse mesmo projeto; não aceita usuário administrativo nem outro destino. O importador ainda verifica a associação somente à role `hp_catalog_importer`, o destino `postgres`, a release, o hash, as contagens e o estado do fixture em uma transação com rollback.
+
+Informe a URL somente por variável de ambiente temporária ou gerenciador de segredos; não a coloque em argumentos de linha de comando, arquivos versionados, logs ou mensagens. Remova a role de login temporária após a execução, mantendo intacta a role sem login `hp_catalog_importer`.
+
 ## Operação
 
 1. Aplicar separadamente as migrações aprovadas no Supabase de homologação e preparar a role de login restrita.
@@ -44,3 +50,4 @@ Durante o preflight, o importador estima o pico conservador como tamanho atual d
 4. Revisar hash, contagens e tamanho medido no PostgreSQL 17.
 5. Só depois de autorização específica para gravar em homologação, executar novamente com `load-homologation`.
 6. Verificar a release ativa, 7.534 modelos, 6.491 serviços, 836.093 tempos, 7.292.579 aplicações lógicas e distribuição comercial 2.161/2.794/2.579/0. A liberação de oficinas é uma operação separada e não é feita pelo importador.
+
