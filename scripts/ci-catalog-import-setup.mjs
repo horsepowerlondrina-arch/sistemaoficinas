@@ -125,9 +125,12 @@ try {
     await target.query("ROLLBACK");
   }
 
+  await target.query("CREATE ROLE cat008_rls_negative NOLOGIN");
+  await target.query("GRANT USAGE ON SCHEMA service_catalog TO cat008_rls_negative");
+  await target.query("GRANT INSERT ON service_catalog.brands TO cat008_rls_negative");
   await target.query("BEGIN");
   try {
-    await target.query("SET LOCAL ROLE horse_power_app");
+    await target.query("SET LOCAL ROLE cat008_rls_negative");
     await assert.rejects(
       target.query(
         "INSERT INTO service_catalog.brands(id,name) VALUES('00000000-0000-4000-8000-000000000009','Marca Negada')",
