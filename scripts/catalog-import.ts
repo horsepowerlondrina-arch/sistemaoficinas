@@ -475,58 +475,26 @@ async function importTable(
   await flush();
 }
 
-async function importCommercialCategories(
+async function validateGeneratedCommercialCategories(
   client: pg.PoolClient,
   source: DatabaseSync,
 ) {
-  const overrideIds = approvedOverrideIds();
-  const rows = source
-    .prepare(
-      `SELECT m.id model_id,m.classification_id,c.name technical_name FROM models m JOIN classifications c ON c.id=m.classification_id ORDER BY m.id`,
-    )
-    .iterate() as IterableIterator<Record<string, unknown>>;
-  let chunk: Record<string, unknown>[] = [];
-  const flush = async () => {
-    if (!chunk.length) return;
-    const params: unknown[] = [];
-    const values = chunk
-      .map((row) => {
-        const mapped = mappedCommercialRow(row, overrideIds);
-        return `(${mapped
-          .map((value) => {
-            params.push(value ?? null);
-            return `$${params.length}`;
-          })
-          .join(",")})`;
-      })
-      .join(",");
-    await client.query(
-      `INSERT INTO service_catalog.model_labor_categories(model_id,category_id,technical_classification_id,assignment_source,review_status,change_reason) VALUES ${values}`,
-      params,
-    );
-    chunk = [];
-  };
-  for (const row of rows) {
-    chunk.push(row);
-    if (chunk.length === 1000) await flush();
-  }
-  await flush();
+  // The model INSERT trigger creates commercial categories and applies approved overrides.
   const actual = await client.query(
     "SELECT category_id,count(*)::int n FROM service_catalog.model_labor_categories GROUP BY category_id",
   );
   const counts = Object.fromEntries(
     actual.rows.map((row) => [row.category_id, row.n]),
   );
-  if (
-    Number(
-      (await client.query("SELECT count(*) n FROM service_catalog.model_labor_categories"))
-        .rows[0].n,
-    ) !== expected.models ||
-    !matchesCategoryCounts(counts, expectedCategories)
-  )
-    throw new Error(
-      "Categorias comerciais incompletas ou divergentes.",
-    );
+  const total = Number(
+    (
+      await client.query(
+        "SELECT count(*)::int n FROM service_catalog.model_labor_categories",
+      )
+    ).rows[0].n,
+  );
+  if (total !== expected.models || !matchesCategoryCounts(counts, expectedCategories))
+    throw new Error("Categorias comerciais geradas incompletas ou divergentes.");
   return sourceCommercialDigest(source);
 }
 
@@ -719,7 +687,7 @@ async function main() {
     for (const table of Object.keys(tables) as Table[])
       await importTable(client, source, table);
     await validateImportedCatalog(client, source);
-    const expectedCategoryDigest = await importCommercialCategories(
+    const expectedCategoryDigest = await validateGeneratedCommercialCategories(
       client,
       source,
     );
