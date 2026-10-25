@@ -105,8 +105,7 @@ test("PostgreSQL local: transferência fictícia completa preserva IDs, relaçõ
       assert.deepEqual(afterReadOnlyCounts,beforeReadOnlyCounts,"a conferência administrativa não deve alterar dados nem auditoria operacional");
       await assert.rejects(adminTransfer.verify(tenantId,file.toString("utf8"),"frase-incorreta-ficticia","empty"),
         error=>error instanceof TransferVerificationError && error.code==="invalid_package");
-      await assert.rejects(verifyWorkshopImport(db, tenantId, file, "frase-incorreta-ficticia", userId, "empty"),
-        error=>error instanceof TransferVerificationError && error.code==="invalid_package");
+      await assert.rejects(verifyWorkshopImport(db, tenantId, file, "frase-incorreta-ficticia", userId, "empty"), /Não foi possível abrir/);
       const result = await importWorkshopPackage(db, tenantId, file, phrase, preview.confirmationId, userId);
       assert.equal(result.counts.external_catalog_links, 1);
       const externalLink = await db.prepare("SELECT source,external_key,catalog_id FROM external_catalog_links WHERE tenant_id=?").get(tenantId);
@@ -162,7 +161,8 @@ test("PostgreSQL local: transferência fictícia completa preserva IDs, relaçõ
       await db.prepare("UPDATE cash_entries SET amount=? WHERE tenant_id=? AND id=?").run(4000, tenantId, cashEntryId);
 
       await admin.query("UPDATE horse_power.memberships SET role='operator' WHERE tenant_id=$1 AND user_id=$2", [tenantId, userId]);
-      await assert.rejects(verifyWorkshopImport(db, tenantId, file, phrase, userId, "merge"), /proprietário/);
+      await assert.rejects(verifyWorkshopImport(db, tenantId, file, phrase, userId, "merge"),
+        error=>error instanceof TransferVerificationError && error.code==="authorization");
       await admin.query("UPDATE horse_power.memberships SET role='owner' WHERE tenant_id=$1 AND user_id=$2", [tenantId, userId]);
       const rows = await db.prepare(`SELECT c.id AS customer_id,v.customer_id AS vehicle_customer,o.vehicle_id,i.price,r.issued_by,r.payload
         FROM customers c JOIN vehicles v ON v.tenant_id=c.tenant_id AND v.customer_id=c.id
