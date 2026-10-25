@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { matchesCategoryCounts } from "../scripts/catalog-import";
+import { estimateCatalogImportPeak, matchesCategoryCounts } from "../scripts/catalog-import";
 
 test("CAT-008 treats an absent zero-count category as zero", () => {
   const expected = {
@@ -22,5 +22,16 @@ test("CAT-008 treats an absent zero-count category as zero", () => {
       expected,
     ),
     false,
+  );
+});
+
+test("CAT-008 estimates a single catalog copy within the storage budget", () => {
+  const sourceBytes = 294_141_952;
+  const projected = estimateCatalogImportPeak(20_000_000, sourceBytes);
+  assert.equal(projected, 431_798_733);
+  assert.ok(projected < 450 * 1024 * 1024);
+  assert.ok(
+    estimateCatalogImportPeak(100_000_000, sourceBytes) >
+      450 * 1024 * 1024,
   );
 });
