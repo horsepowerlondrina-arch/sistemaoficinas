@@ -631,7 +631,15 @@ async function main() {
   const pool = new pg.Pool({
     connectionString: target.connectionString,
     ssl:
-      target.target === "homologation" ? { rejectUnauthorized: true } : false,
+      target.target === "homologation"
+        ? {
+            ca: readFileSync(
+              resolve("server/db/certs/supabase-ca.crt"),
+              "utf8",
+            ),
+            rejectUnauthorized: true,
+          }
+        : false,
     max: 1,
     connectionTimeoutMillis: 15000,
     application_name: `cat008-${target.target}-import`,
