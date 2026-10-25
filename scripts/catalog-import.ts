@@ -103,7 +103,8 @@ export function assertTarget(env: NodeJS.ProcessEnv = process.env) {
     throw new Error("Importação recusada: URL PostgreSQL inválida.");
 
   const target = env.CATALOG_IMPORT_TARGET || "local";
-  if (target === "homologation") {
+  if (target === "homologation" || target === "homologation-direct") {
+    const directExecution = target === "homologation-direct";
     const projectRef = "vnclahdnirqlcbamodqy";
     const directHost = `db.${projectRef}.supabase.co`;
     const sessionUser = `hp_catalog_import_login.${projectRef}`;
@@ -116,20 +117,27 @@ export function assertTarget(env: NodeJS.ProcessEnv = process.env) {
       url.port === "5432" &&
       decodeURIComponent(url.username) === sessionUser;
     const params = [...url.searchParams.keys()];
+    const executionConfirmed = directExecution
+      ? env.CATALOG_HOMOLOGATION_DIRECT_AUTHORIZED === "true" &&
+        env.CATALOG_IMPORT_CONFIRM === "CAT-008-HOMOLOGATION-DIRECT-IMPORT"
+      : env.GITHUB_ACTIONS === "true" &&
+        env.GITHUB_EVENT_NAME === "workflow_dispatch" &&
+        env.CATALOG_IMPORT_CONFIRM === "CAT-008-HOMOLOGATION-IMPORT";
+    const connectionAllowed = directAllowed || poolerAllowed;
     if (
-      env.GITHUB_ACTIONS !== "true" ||
-      env.GITHUB_EVENT_NAME !== "workflow_dispatch" ||
-      env.CATALOG_IMPORT_CONFIRM !== "CAT-008-HOMOLOGATION-IMPORT" ||
+      !executionConfirmed ||
       env.CATALOG_RIGHTS_CONFIRMED !== "true" ||
       !url.password ||
       url.pathname !== "/postgres" ||
-      (!directAllowed && !poolerAllowed) ||
+      !connectionAllowed ||
       params.some((key) => key !== "sslmode") ||
       (url.searchParams.has("sslmode") &&
         url.searchParams.get("sslmode") !== "require")
     )
       throw new Error(
-        "Importação recusada: homologação exige workflow_dispatch confirmado, direitos declarados e conexão do projeto vnclahdnirqlcbamodqy.",
+        directExecution
+          ? "Importação recusada: execução direta exige autorização explícita, direitos declarados e conexão restrita ao projeto vnclahdnirqlcbamodqy."
+          : "Importação recusada: homologação exige workflow_dispatch confirmado, direitos declarados e conexão do projeto vnclahdnirqlcbamodqy.",
       );
     url.search = "";
     return {
@@ -833,3 +841,4 @@ if (
     );
     process.exitCode = 1;
   });
+
