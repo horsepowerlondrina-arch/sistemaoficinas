@@ -478,6 +478,18 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
       res.status(400).json({ error: error instanceof Error ? error.message : "Não foi possível validar o pacote." });
     }
   });
+  app.post("/api/data-transfer/verify", async (req, res) => {
+    const input = z.object({ packageText: z.string().min(1).max(4 * 1024 * 1024), passphrase: z.string().min(12).max(1024), mode: z.enum(["empty", "merge", "replace"]).default("empty") }).safeParse(req.body);
+    if (!input.success) { res.status(400).set("Cache-Control", "no-store").json({ error: "Arquivo ou frase secreta inválidos. A conferência online aceita pacotes de até 4 MiB." }); return; }
+    if (res.locals.context.role !== "owner") { res.status(403).set("Cache-Control", "no-store").json({ error: "Somente o proprietário pode conferir os dados importados." }); return; }
+    try {
+      const { verifyWorkshopImport } = await import("./services/dataTransferVerification.js");
+      const report = await verifyWorkshopImport(db, res.locals.context.tenantId, Buffer.from(input.data.packageText, "utf8"), input.data.passphrase, res.locals.context.userId, input.data.mode);
+      res.set("Cache-Control", "no-store").json(report);
+    } catch (error) {
+      res.status(400).set("Cache-Control", "no-store").json({ error: error instanceof Error ? error.message : "Não foi possível conferir o pacote." });
+    }
+  });
   app.post("/api/data-transfer/import", async (req, res) => {
     const input = z.object({ packageText: z.string().min(1).max(96 * 1024 * 1024), passphrase: z.string().min(12).max(1024), confirmationId: z.string().length(64), mode: z.enum(["empty", "merge", "replace"]).default("empty"), workshopConfirmation: z.string().max(200).optional(), confirm: z.literal(true) }).safeParse(req.body);
     if (!input.success) { res.status(400).json({ error: "Confirmação de importação inválida." }); return; }

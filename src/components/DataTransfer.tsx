@@ -21,6 +21,27 @@ type Preview = {
   historicalDocumentsToRestore: number;
 };
 type Backup = { id: string; package_sha256: string; created_at: string; expires_at: string };
+type VerificationStatus = "corresponding" | "transformed" | "divergent" | "not-verifiable";
+const MAX_VERIFY_PACKAGE_TEXT = 4 * 1024 * 1024;
+type Verification = {
+  mode: Preview["mode"]; sourceWorkshop: string; targetWorkshop: string; packageSha256: string; generatedAt: string; overall: VerificationStatus;
+  entities: Record<string, { sourceCount: number; destinationRows: number | null; destinationMatched: number; corresponding: number; transformed: number; divergent: number; missing: number; additionalDestination: number; notVerifiable: number; unrelatedExistingIgnored: number; changedSinceImport: number; records: Array<{ recordId?: string; status: VerificationStatus; differingFields?: string[]; transformedFields?: string[]; reason?: string; changedSinceImport?: boolean }>; omittedDetails: number; financialCents: Record<string, { source: string; destination: string; difference: string }> }>;
+  workshopConfiguration: { status: VerificationStatus; differingFields: string[]; transformedFields: string[]; notVerifiableFields: string[] };
+  stock: { sourceProductUnits: string; destinationProductUnits: string; differenceUnits: string; sourceMovementUnits: string; destinationMovementUnits: string; differenceMovementUnits: string; sourceInventoryValueCents: string; destinationInventoryValueCents: string; differenceInventoryValueCents: string };
+  financial: Record<string, { sourceCents: string; destinationCents: string; differenceCents: string }>;
+  referentialIntegrity: { checked: number; divergent: number; notVerifiable: number };
+  historicalDocuments: { sourceActive: number; sourceArchived: number; destinationActive: number; destinationArchived: number; missing: number; preservedDestinationArchives: number };
+  backups: { existing: number; integrityValid: number; integrityInvalid: number };
+  policy: { usersExcluded: number; membershipsExcluded: number; auditEventsExcluded: number; authorsRemapped: number; tenantIdRemapped: true };
+  notes: string[];
+};
+function statusLabel(status: VerificationStatus) {
+  return status === "corresponding" ? "Correspondente" : status === "transformed" ? "Transformado" : status === "divergent" ? "Divergente" : "Não verificável";
+}
+function formatCents(value: string) {
+  const cents = BigInt(value), negative = cents < 0n, absolute = negative ? -cents : cents;
+  return `R$ ${negative ? "-" : ""}${(absolute / 100n).toLocaleString("pt-BR")},${String(absolute % 100n).padStart(2, "0")}`;
+}
 
 export function DataTransfer() {
   const { notify } = useApp();
@@ -32,12 +53,14 @@ export function DataTransfer() {
   const [file, setFile] = useState("");
   const [fileName, setFileName] = useState("");
   const [preview, setPreview] = useState<Preview | null>(null);
+  const [verification, setVerification] = useState<Verification | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
   async function chooseFile(event: ChangeEvent<HTMLInputElement>) {
     const selected = event.target.files?.[0];
     setPreview(null);
+    setVerification(null);
     setFile("");
     setError("");
     if (!selected) { setFileName(""); return; }
@@ -50,9 +73,9 @@ export function DataTransfer() {
     setFile(await selected.text());
   }
 
-  async function post(path: string, body: unknown) {
+  async function post<T = Preview>(path: string, body: unknown): Promise<T> {
     const response = await fetch(path, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-    const result = await response.json().catch(() => ({})) as Preview & { error?: string };
+    const result = await response.json().catch(() => ({})) as T & { error?: string };
     if (!response.ok) throw new Error(result.error || "Não foi possível concluir a transferência.");
     return result;
   }
@@ -76,8 +99,17 @@ export function DataTransfer() {
   async function runPreview() {
     setBusy(true); setError(""); setPreview(null);
     try {
-      setPreview(await post("/api/data-transfer/preview", { packageText: file, passphrase: phrase, mode }));
+      setPreview(await post<Preview>("/api/data-transfer/preview", { packageText: file, passphrase: phrase, mode }));
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Falha ao validar o pacote."); }
+    finally { setBusy(false); }
+  }
+
+  async function runVerification() {
+    setBusy(true); setError(""); setVerification(null);
+    try {
+      setVerification(await post<Verification>("/api/data-transfer/verify", { packageText: file, passphrase: phrase, mode }));
+      setPhrase("");
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Falha ao conferir o pacote."); }
     finally { setBusy(false); }
   }
 
@@ -110,12 +142,12 @@ export function DataTransfer() {
     <section className="panel">
       <h2>Transferência completa da oficina</h2>
       <p>Pacotes protegidos e versionados com dados operacionais e histórico disponível. A conta, senha, vínculos, permissões e sessões da oficina de destino permanecem intactos; usuários e acessos do pacote não são importados. Referências de autoria dos registros transferidos serão associadas ao proprietário que confirma a operação, e a auditoria histórica da origem não será importada.</p>
-      <label className="field"><span>Frase secreta do pacote (mínimo 12 caracteres)</span><input type="password" autoComplete="new-password" minLength={12} maxLength={1024} value={phrase} onChange={(event) => setPhrase(event.target.value)} /></label>
+      <label className="field"><span>Frase secreta do pacote (mínimo 12 caracteres)</span><input type="password" autoComplete="new-password" minLength={12} maxLength={1024} value={phrase} onChange={(event) => { setPhrase(event.target.value); setVerification(null); }} /></label>
       <div className="button-row">
         <button type="button" className="button primary" disabled={busy || phrase.length < 12} onClick={runExport}>{busy ? <LockKeyhole size={16}/> : <Download size={16}/>} Exportar pacote protegido</button>
       </div>
       <hr />
-      <label className="field"><span>Como importar</span><select value={mode} onChange={(event) => { setMode(event.target.value as Preview["mode"]); setPreview(null); setConfirmation(""); setWorkshopConfirmation(""); }}>
+      <label className="field"><span>Como importar</span><select value={mode} onChange={(event) => { setMode(event.target.value as Preview["mode"]); setPreview(null); setVerification(null); setConfirmation(""); setWorkshopConfirmation(""); }}>
         <option value="empty">Oficina vazia — só aceita destino sem dados operacionais</option>
         <option value="merge">Mesclar dados — mantém o que já existe e adiciona ou atualiza itens reconhecidos</option>
         <option value="replace">Substituir dados — remove os dados operacionais atuais após criar uma cópia criptografada</option>
@@ -125,7 +157,42 @@ export function DataTransfer() {
       {mode === "replace" && <div className="error-box">A substituição remove dados operacionais somente desta oficina. Uma cópia `.hptx` criptografada será validada e guardada antes da troca. Contas, senhas, vínculos atuais e sessões são mantidos; links públicos ativos serão revogados. Guarde a frase secreta para conseguir abrir a cópia.</div>}
       <label className="field"><span>Pacote .hptx</span><input type="file" accept=".hptx,application/vnd.sistema-oficinas.transfer+json" onChange={chooseFile}/></label>
       {fileName && <p className="muted">Arquivo selecionado: {fileName}</p>}
-      <button type="button" className="button" disabled={busy || !file || phrase.length < 12} onClick={runPreview}>{busy ? "Validando…" : <><Upload size={16}/> Validar e gerar prévia</>}</button>
+      <div className="button-row">
+        <button type="button" className="button" disabled={busy || !file || phrase.length < 12} onClick={runPreview}>{busy ? "Validando…" : <><Upload size={16}/> Validar e gerar prévia</>}</button>
+        <button type="button" className="button" disabled={busy || !file || file.length > MAX_VERIFY_PACKAGE_TEXT || phrase.length < 12} onClick={runVerification}>{busy ? "Conferindo…" : "Conferir dados importados"}</button>
+      </div>
+      {file.length > MAX_VERIFY_PACKAGE_TEXT && <p className="muted" role="status">A conferência online aceita pacotes de até 4 MiB por causa do limite de requisição da hospedagem. Arquivos maiores exigem uma futura estratégia de envio em partes; o limite de seleção para importação continua inalterado.</p>}
+      {verification && <div className="info-box" aria-live="polite">
+        <h3>Relatório de conferência</h3>
+        <p className="muted">A comparação só consulta dados desta oficina, não altera o banco e não guarda a frase secreta. A frase foi removida deste formulário após a conferência.</p>
+        <p><strong>Resultado geral: {statusLabel(verification.overall)}</strong> · Modo: {verification.mode === "empty" ? "Oficina vazia" : verification.mode === "merge" ? "Mesclar" : "Substituir"}</p>
+        <p>Pacote SHA-256: <code>{verification.packageSha256}</code></p>
+        <p>Origem: <strong>{verification.sourceWorkshop}</strong> · Oficina autenticada: <strong>{verification.targetWorkshop}</strong></p>
+        <div className="table-wrap"><table><thead><tr><th>Entidade</th><th>No arquivo</th><th>No destino</th><th>Correspondentes</th><th>Transformados</th><th>Divergentes</th><th>Ausentes</th><th>Adicionais</th><th>Não verificáveis</th></tr></thead><tbody>
+          {Object.entries(verification.entities).filter(([, item]) => item.sourceCount > 0 || (item.destinationRows || 0) > 0).map(([entity, item]) => <tr key={entity}><th>{entity}</th><td>{item.sourceCount}</td><td>{item.destinationRows ?? "Política"}</td><td>{item.corresponding}</td><td>{item.transformed}</td><td>{item.divergent}</td><td>{item.missing}</td><td>{item.additionalDestination}</td><td>{item.notVerifiable}</td></tr>)}
+        </tbody></table></div>
+        <h4>Estoque e financeiro</h4>
+        <ul>
+          <li>Produtos: {verification.stock.sourceProductUnits} unidades no pacote · {verification.stock.destinationProductUnits} unidades correspondentes no destino · diferença {verification.stock.differenceUnits}</li>
+          <li>Valor de estoque: {formatCents(verification.stock.sourceInventoryValueCents)} no pacote · {formatCents(verification.stock.destinationInventoryValueCents)} no destino · diferença {formatCents(verification.stock.differenceInventoryValueCents)}</li>
+          <li>Movimentações: {verification.stock.sourceMovementUnits} unidades no pacote · {verification.stock.destinationMovementUnits} correspondentes no destino · diferença {verification.stock.differenceMovementUnits}</li>
+          {Object.entries(verification.financial).map(([field, totals]) => <li key={field}>{field}: {formatCents(totals.sourceCents)} no pacote · {formatCents(totals.destinationCents)} no destino · diferença {formatCents(totals.differenceCents)}</li>)}
+        </ul>
+        <p>Configuração da oficina: <strong>{statusLabel(verification.workshopConfiguration.status)}</strong>
+          {verification.workshopConfiguration.differingFields.length > 0 && <> · campos divergentes: {verification.workshopConfiguration.differingFields.join(", ")}</>}
+          {verification.workshopConfiguration.transformedFields.length > 0 && <> · preservados pela política de mesclagem: {verification.workshopConfiguration.transformedFields.join(", ")}</>}
+          {verification.workshopConfiguration.notVerifiableFields.length > 0 && <> · não verificáveis: {verification.workshopConfiguration.notVerifiableFields.join(", ")}</>}</p>
+        <p>Integridade referencial: {verification.referentialIntegrity.checked} relações verificadas · {verification.referentialIntegrity.divergent} divergentes · {verification.referentialIntegrity.notVerifiable} não verificáveis.</p>
+        <p>Documentos: {verification.historicalDocuments.sourceActive} revisões ativas e {verification.historicalDocuments.sourceArchived} arquivadas no pacote · {verification.historicalDocuments.missing} ausentes ou com estado de arquivo divergente · {verification.historicalDocuments.preservedDestinationArchives} arquivos anteriores preservados no modo Substituir.</p>
+        <p>Backups da oficina: {verification.backups.existing} existentes · {verification.backups.integrityValid} íntegros · {verification.backups.integrityInvalid} com falha de integridade.</p>
+        <p>Política aplicada: {verification.policy.usersExcluded} usuários, {verification.policy.membershipsExcluded} vínculos e {verification.policy.auditEventsExcluded} eventos de auditoria da origem não são importados; {verification.policy.authorsRemapped} campos de autoria foram remapeados. Identidades históricas não são declaradas como preservadas.</p>
+        {Object.entries(verification.entities).flatMap(([entity, item]) => item.records.map((record, index) => ({ entity, record, index }))).filter(({ record }) => record.status !== "corresponding" || record.changedSinceImport).length > 0 && <div>
+          <h4>Registros para revisão</h4>
+          <ul>{Object.entries(verification.entities).flatMap(([entity, item]) => item.records.map((record, index) => ({ entity, record, index }))).filter(({ record }) => record.status !== "corresponding" || record.changedSinceImport).slice(0, 200).map(({ entity, record, index }) => <li key={`${entity}-${record.recordId || index}`}><strong>{entity}</strong>{record.recordId ? ` · ID ${record.recordId}` : ""} · {statusLabel(record.status)}{record.differingFields?.length ? ` · campos: ${record.differingFields.join(", ")}` : ""}{record.transformedFields?.length ? ` · transformação: ${record.transformedFields.join(", ")}` : ""}{record.changedSinceImport ? " · hash diferente do estado rastreado" : ""}{record.reason ? ` · ${record.reason}` : ""}</li>)}</ul>
+          {Object.entries(verification.entities).some(([, item]) => item.omittedDetails > 0) && <p className="muted">O relatório detalhado é limitado a 100 registros por entidade; os totais incluem todos os registros.</p>}
+        </div>}
+        {verification.notes.map((note) => <p className="muted" key={note}>{note}</p>)}
+      </div>}
       {preview && <div className="info-box" aria-live="polite">
         <h3>Prévia da importação</h3>
         <p>Origem: <strong>{preview.sourceWorkshop}</strong> · Destino autenticado: <strong>{preview.targetWorkshop}</strong></p>

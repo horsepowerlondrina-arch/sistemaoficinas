@@ -1,282 +1,301 @@
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
-import { test } from "node:test";
-import type { DB, Row, TransactionalDB } from "../server/db/database.js";
+import { createHash, randomUUID } from "node:crypto";
+import { existsSync } from "node:fs";
+import test from "node:test";
+import { adminClient } from "../scripts/local-admin.js";
+import { createLocalDatabase } from "../server/db/local.js";
+import { createTransferPayload, openTransferPackage, sealTransferPackage, transferFileSha256 } from "../shared/transferPackage.js";
 import { getWorkshopTransferBackup, importWorkshopPackage, previewWorkshopImport } from "../server/services/dataTransferImport.js";
-import { createTransferPayload, sealTransferPackage, TRANSFER_TABLES, transferFileSha256 } from "../shared/transferPackage.js";
+import { documentHistory, readArchivedDocument, readDocument } from "../server/services/documents.js";
+import { createWorkshopTransfer } from "../server/services/dataTransferExport.js";
+import { verifyWorkshopImport } from "../server/services/dataTransferVerification.js";
 
-const phrase = "frase-ficticia-importacao-2026";
-const sourceTenant = "source-fake", targetTenant = "target-fake";
-const customer = (name = "Cliente Fictício") => ({ id: "customer-fake", tenant_id: sourceTenant, name, phone: "", email: "", document: "", birthday: "", address: "", notes: "", active: 1, created_at: "2026-10-24T00:00:00.000Z" });
-function makePackage(options: { customerTenant?: string; customerName?: string; application?: string; records?: Record<string, Row[]> } = {}) {
-  return sealTransferPackage(createTransferPayload(options.application || "fixture", { id: sourceTenant, name: "Oficina Fictícia Origem" }, {
-    tenant: { id: sourceTenant, name: "Oficina Fictícia Origem" },
-    users: [{ id: "source-owner", name: "Proprietário Fictício", email: "source-owner@example.invalid" }],
-    memberships: [{ user_id: "source-owner", tenant_id: sourceTenant, role: "owner" }],
-    customers: [{ ...customer(options.customerName), tenant_id: options.customerTenant || sourceTenant }],
-    ...(options.records || {}),
-  }, "2026-10-24T12:00:00.000Z"), phrase);
-}
+if (existsSync(".env.local")) process.loadEnvFile(".env.local");
+if (existsSync(".env.platform-admin.local")) process.loadEnvFile(".env.platform-admin.local");
 
-class MemoryDb {
-  tenant: Row = { id: targetTenant, name: "Oficina Fictícia Destino", document: "", phone: "", address: "" };
-  users: Row[] = [{ id: "target-owner", name: "Proprietário Destino", email: "destination-owner@example.invalid", password_hash: "preserved-hash" }];
-  memberships: Row[] = [{ user_id: "target-owner", tenant_id: targetTenant, role: "owner" }];
-  tables: Record<string, Row[]> = Object.fromEntries([...TRANSFER_TABLES, "public_shares", "data_transfer_archived_documents"].map((table) => [table, []]));
-  tracking: Row[] = [];
-  backups: Row[] = [];
-  columns: Record<string, string[]> = {
-    tenants: ["id", "name", "document", "phone", "address"],
-    users: ["id", "name", "email", "password_hash"], memberships: ["user_id", "tenant_id", "role"],
-    customers: ["id", "tenant_id", "name", "phone", "email", "document", "birthday", "address", "notes", "active", "created_at"],
-    stock_movements: ["id", "tenant_id", "catalog_id", "quantity", "reason", "user_id", "created_at"],
-    vehicles: ["id", "tenant_id", "customer_id", "plate", "brand", "model", "year", "color", "km", "chassis", "active"],
-    external_catalog_links: ["tenant_id", "source", "external_key", "catalog_id"],
-    cash_entries: ["id", "tenant_id", "receivable_id", "installment_id", "amount", "gross_amount", "fee_amount", "method", "created_at"],
-    payment_installments: ["id", "tenant_id", "receivable_id", "sequence", "due_on", "principal", "interest", "gross", "fee", "net", "status", "paid_at", "method"],
-    service_aliases: ["tenant_id", "alias_key", "alias", "catalog_id"],
-    orders: ["id", "tenant_id", "number", "kind", "status", "customer_id", "vehicle_id", "entered_on", "due_on", "completed_on", "km", "problem", "notes", "discount", "total", "created_at"],
-    audit_events: ["id", "tenant_id", "user_id", "action", "entity_id", "created_at"],
-    document_revisions: ["id", "tenant_id", "kind", "entity_id", "revision", "issued_at", "issued_by", "payload", "digest"],
-    data_transfer_records: ["tenant_id", "source_application", "source_tenant_id", "table_name", "source_record_id", "source_hash", "target_record_id", "target_hash", "updated_at"],
-    data_transfer_backups: ["id", "tenant_id", "created_by", "package_sha256", "package", "created_at", "expires_at"],
-    data_transfer_archived_documents: ["tenant_id", "revision_id", "backup_id", "kind", "entity_id", "revision", "archived_at"],
-  };
-  prepare(sql: string) {
-    return {
-      all: async (...values: unknown[]) => {
-        if (sql.includes("information_schema.columns")) return (this.columns[String(values[0])] || []).map((column_name) => ({ column_name }));
-        if (sql.includes("FROM data_transfer_records")) return this.tracking.filter((row) => row.tenant_id === values[0]);
-        if (sql.includes("FROM users u JOIN memberships")) return this.users.filter((u) => this.memberships.some((m) => m.user_id === u.id && m.tenant_id === values[0])).map(({ id, name, email }) => ({ id, name, email }));
-        if (sql.includes("FROM memberships WHERE tenant_id=?")) return this.memberships.filter((row) => row.tenant_id === values[0]).map(({ user_id, tenant_id, role }) => ({ user_id, tenant_id, role }));
-        const table = sql.match(/FROM ([a-z_]+)/i)?.[1];
-        if (table && this.tables[table] && sql.includes("WHERE tenant_id=?")) return this.tables[table].filter((row) => row.tenant_id === values[0]);
-        throw new Error(`Consulta all inesperada: ${sql}`);
-      },
-      get: async (...values: unknown[]) => {
-        if (sql.startsWith("SELECT id,name FROM tenants")) return this.tenant.id === values[0] ? { id: this.tenant.id, name: this.tenant.name } : undefined;
-        if (sql.startsWith("SELECT * FROM tenants WHERE id=")) return this.tenant.id === values[0] ? this.tenant : undefined;
-        if (/SELECT (?:email|id,email) FROM users WHERE id=/.test(sql)) return this.users.find((row) => row.id === values[0]);
-        if (sql.startsWith("SELECT id FROM users WHERE lower(email)")) return this.users.find((row) => String(row.email).toLowerCase() === String(values[0]).toLowerCase());
-        if (sql.startsWith("SELECT role FROM memberships")) return this.memberships.find((row) => row.user_id === values[0] && row.tenant_id === values[1]);
-        if (sql.startsWith("SELECT 1 FROM memberships")) return this.memberships.some((row) => row.user_id === values[0] && row.tenant_id === values[1]) ? { ok: 1 } : undefined;
-        if (sql.includes("FROM data_transfer_records")) return this.tracking.find((row) => ["tenant_id", "source_application", "source_tenant_id", "table_name", "source_record_id"].every((key, index) => row[key] === values[index]));
-        if (sql.startsWith("SELECT 1 FROM data_transfer_archived_documents")) return this.tables.data_transfer_archived_documents.find((row) => row.tenant_id === values[0] && row.revision_id === values[1]) ? { ok: 1 } : undefined;
-        if (sql.includes("FROM data_transfer_backups") && sql.includes("package_sha256,package")) {
-          const tenantFirst = sql.indexOf("tenant_id=?") < sql.indexOf("id=?");
-          return this.backups.find((row) => tenantFirst ? row.tenant_id === values[0] && row.id === values[1] : row.id === values[0] && row.tenant_id === values[1]);
-        }
-        if (sql.includes("FROM public_shares")) return { count: this.tables.public_shares.filter((row) => row.tenant_id === values[0] && row.revoked === 0).length };
-        const table = sql.match(/FROM ([a-z_]+)/i)?.[1];
-        if (table && /SELECT count\(\*\) AS count/i.test(sql)) return { count: (this.tables[table] || []).filter((row) => row.tenant_id === values[0]).length };
-        if (table && this.tables[table] && sql.includes("SELECT * FROM")) {
-          const fields = [...sql.matchAll(/([a-z_]+) IS NOT DISTINCT FROM \?/g)].map((match) => match[1]);
-          const tenant = values[0];
-          return this.tables[table].find((row) => row.tenant_id === tenant && fields.every((field, index) => row[field] === values[index + 1]));
-        }
-        throw new Error(`Consulta get inesperada: ${sql}`);
-      },
-      run: async (...values: unknown[]) => {
-        if (sql.startsWith("UPDATE tenants SET")) {
-          const keys = [...sql.slice(sql.indexOf("SET") + 3, sql.indexOf("WHERE")).matchAll(/([a-z_]+)=\?/g)].map((match) => match[1]);
-          keys.forEach((key, index) => { this.tenant[key] = values[index]; }); return { changes: 1 };
-        }
-        if (sql.startsWith("UPDATE public_shares")) { this.tables.public_shares.forEach((row) => { if (row.tenant_id === values[0]) row.revoked = 1; }); return { changes: 1 }; }
-        if (sql.startsWith("DELETE FROM data_transfer_records")) { this.tracking = this.tracking.filter((row) => row.tenant_id !== values[0]); return { changes: 1 }; }
-        if (sql.startsWith("DELETE FROM data_transfer_archived_documents")) { const before = this.tables.data_transfer_archived_documents.length; this.tables.data_transfer_archived_documents = this.tables.data_transfer_archived_documents.filter((row) => row.tenant_id !== values[0] || row.revision_id !== values[1]); return { changes: before - this.tables.data_transfer_archived_documents.length }; }
-        if (sql.startsWith("DELETE FROM data_transfer_backups")) return { changes: 0 };
-        if (sql.startsWith("DELETE FROM")) { const table = sql.match(/DELETE FROM ([a-z_]+)/i)![1]; const before = this.tables[table].length; this.tables[table] = this.tables[table].filter((row) => row.tenant_id !== values[0]); return { changes: before - this.tables[table].length }; }
-        if (sql.startsWith("UPDATE customers SET")) {
-          const keys = [...sql.slice(sql.indexOf("SET") + 3, sql.indexOf("WHERE")).matchAll(/([a-z_]+)=\?/g)].map((match) => match[1]);
-          const tenantIndex = keys.length, tenant = values[tenantIndex], id = values[tenantIndex + 1];
-          const row = this.tables.customers.find((item) => item.tenant_id === tenant && item.id === id);
-          if (!row) return { changes: 0 }; keys.forEach((key, index) => { row[key] = values[index]; }); return { changes: 1 };
-        }
-        const match = sql.match(/^INSERT(?: OR IGNORE)? INTO ([a-z_]+)\s*\(([^)]+)\)/i);
-        if (!match) throw new Error(`Comando run inesperado: ${sql}`);
-        const table = match[1], keys = match[2].split(","), row = Object.fromEntries(keys.map((key, index) => [key, values[index]]));
-        if (table === "users" || table === "memberships") throw new Error("A transferência não pode criar contas nem vínculos.");
-        else if (table === "data_transfer_records") {
-          const existing = this.tracking.find((item) => item.tenant_id === row.tenant_id && item.source_application === row.source_application && item.source_tenant_id === row.source_tenant_id && item.table_name === row.table_name && item.source_record_id === row.source_record_id);
-          if (existing) Object.assign(existing, row); else this.tracking.push(row);
-        } else if (table === "data_transfer_backups") this.backups.push(row);
-        else if (table === "data_transfer_archived_documents") {
-          const existing = this.tables.data_transfer_archived_documents.find((item) => item.tenant_id === row.tenant_id && item.revision_id === row.revision_id);
-          if (!existing) this.tables.data_transfer_archived_documents.push(row);
-        }
-        else this.tables[table].push(row);
-        return { changes: 1 };
-      },
-    };
+test("PostgreSQL local: runtime replace privileges are narrow and preserve immutable history", async () => {
+  const admin = adminClient();
+  await admin.connect();
+  try {
+    const result = await admin.query<{ table_name: string; can_delete: boolean }>(`
+      SELECT table_name, has_table_privilege('hp_local_app', format('horse_power.%I', table_name), 'DELETE') AS can_delete
+      FROM (VALUES ('stock_movements'), ('cash_entries'), ('service_merge_history'), ('audit_events'), ('document_revisions')) AS tables(table_name)
+    `);
+    const privileges = Object.fromEntries(result.rows.map(({ table_name, can_delete }) => [table_name, can_delete]));
+    assert.deepEqual(privileges, {
+      stock_movements: true,
+      cash_entries: true,
+      service_merge_history: true,
+      audit_events: false,
+      document_revisions: false,
+    });
+  } finally {
+    await admin.end();
   }
-  async transaction<T>(callback: () => Promise<T>) {
-    const before = structuredClone({ tenant: this.tenant, users: this.users, memberships: this.memberships, tables: this.tables, tracking: this.tracking, backups: this.backups });
-    try { return await callback(); }
-    catch (error) { Object.assign(this, before); throw error; }
+});
+
+test("PostgreSQL local: transferência fictícia completa preserva IDs, relações e snapshot e reverte a transação", async (t) => {
+  const admin = adminClient();
+  await admin.connect();
+  const db = await createLocalDatabase();
+  const tenantId = randomUUID(), userId = randomUUID();
+  const sourceTenantId = randomUUID(), sourceUserId = randomUUID();
+  const otherTenantId = randomUUID(), otherCustomerId = randomUUID();
+  const customerId = randomUUID(), vehicleId = randomUUID(), professionalId = randomUUID();
+  const catalogId = randomUUID(), orderId = randomUUID(), itemId = randomUUID(), movementId = randomUUID(), receivableId = randomUUID(), installmentId = randomUUID(), installmentId2 = randomUUID(), cashEntryId = randomUUID(), cashEntryId2 = randomUUID(), externalCaptureId = randomUUID(), revisionId = randomUUID();
+  const documentPayload = JSON.stringify({ workshop: "Oficina Fictícia Origem", order_id: orderId, total: 8000 });
+  const documentDigest = createHash("sha256").update(documentPayload).digest("hex");
+  const phrase = "frase-ficticia-postgres-mig002";
+  let fixtureCreated = false;
+  try {
+    await admin.query("INSERT INTO horse_power.tenants(id,name,document,phone,address) VALUES($1,$2,'','','')", [tenantId, "Oficina Fictícia MIG002"]);
+    await admin.query("INSERT INTO horse_power.users(id,name,email,password_hash) VALUES($1,$2,$3,'fixture-hash')", [userId, "Proprietário Fictício", `mig002-${userId}@example.invalid`]);
+    await admin.query("INSERT INTO horse_power.memberships(user_id,tenant_id,role) VALUES($1,$2,'owner')", [userId, tenantId]);
+    const preservedSessionHash = randomUUID().replaceAll("-", "");
+    await admin.query("INSERT INTO horse_power.sessions(token_hash,user_id,tenant_id,expires_at) VALUES($1,$2,$3,$4)", [preservedSessionHash, userId, tenantId, Date.now() + 3600000]);
+    fixtureCreated = true;
+    await admin.query("INSERT INTO horse_power.tenants(id,name,document,phone,address) VALUES($1,$2,'','','')", [otherTenantId, "Oficina Fictícia Isolamento"]);
+    await admin.query("INSERT INTO horse_power.customers(id,tenant_id,name,email) VALUES($1,$2,$3,$4)", [otherCustomerId, otherTenantId, "Cliente Fictício Isolamento", "isolamento@example.invalid"]);
+    const payload = createTransferPayload("fixture", { id: sourceTenantId, name: "Oficina Fictícia Origem" }, {
+      tenant: { id: sourceTenantId, name: "Oficina Fictícia Origem", document: "", phone: "", address: "" },
+      users: [{ id: sourceUserId, name: "Proprietário Fictício", email: `source-${sourceUserId}@example.invalid` }],
+      memberships: [{ user_id: sourceUserId, tenant_id: sourceTenantId, role: "owner" }],
+      customers: [{ id: customerId, tenant_id: sourceTenantId, name: "Cliente Fictício", phone: "", email: "", document: "", birthday: "", address: "", notes: "", active: 1, created_at: "2026-10-24T00:00:00.000Z" }],
+      vehicles: [{ id: vehicleId, tenant_id: sourceTenantId, customer_id: customerId, plate: "ABC1D23", brand: "Marca Fictícia", model: "Modelo Fictício", year: 2024, color: "", km: 1000, chassis: "", active: 1, service_model_id: "", service_porte_id: "" }],
+      professionals: [{ id: professionalId, tenant_id: sourceTenantId, name: "Mecânico Fictício", role: "Mecânico", phone: "", email: "", active: 1 }],
+      catalog: [{ id: catalogId, tenant_id: sourceTenantId, kind: "product", name: "Peça Fictícia", sku: "FAKE-MIG004", category: "Teste", cost: 5000, price: 8000, stock: 3, minimum_stock: 0, active: 1 }],
+      external_captures: [{ id: externalCaptureId, tenant_id: sourceTenantId, capture_id: "capture-fake-001", order_id: orderId, item_id: itemId, catalog_id: catalogId, source: "fixture", external_key: "external-capture-fake", payload_hash: createHash("sha256").update("fixture-only").digest("hex"), duration_seconds: 3600, source_cost: 5000, source_price: 8000, vehicle_label: "Veículo Fictício", created_at: "2026-10-21T10:00:00.000Z", batch_id: "batch-fake-001", source_quantity: 2, freight_total: 350 }],
+      external_catalog_links: [{ tenant_id: sourceTenantId, source: "fixture", external_key: "external-key-fake", catalog_id: catalogId }],
+      orders: [{ id: orderId, tenant_id: sourceTenantId, number: 1, customer_id: customerId, vehicle_id: vehicleId, status: "completed", entered_on: "2026-10-20", due_on: "2026-10-21", completed_on: "2026-10-21", km: 1000, problem: "Dado fictício", notes: "", discount: 0, total: 8000, created_at: "2026-10-20T10:00:00.000Z" }],
+      order_items: [{ id: itemId, tenant_id: sourceTenantId, order_id: orderId, catalog_id: catalogId, professional_id: professionalId, kind: "product", name: "Peça Fictícia", quantity: 1, price: 8000, cost: 5000 }],
+      stock_movements: [{ id: movementId, tenant_id: sourceTenantId, catalog_id: catalogId, order_id: orderId, quantity: -1, reason: "OS fictícia", user_id: sourceUserId, created_at: "2026-10-21T10:00:00.000Z" }],
+      receivables: [{ id: receivableId, tenant_id: sourceTenantId, order_id: orderId, customer_id: customerId, description: "OS fictícia", amount: 8000, due_on: "2026-10-21", status: "paid", method: "Pix", paid_at: "2026-10-21T10:00:00.000Z", plan_configured: 1, installment_count: 2, card_fee_bps: 0, interest_bps: 0, gross_total: 8000, fee_total: 0, net_total: 8000 }],
+      payment_installments: [
+        { id: installmentId, tenant_id: sourceTenantId, receivable_id: receivableId, sequence: 1, due_on: "2026-10-21", principal: 4000, interest: 0, gross: 4000, fee: 0, net: 4000, status: "paid", paid_at: "2026-10-21T10:00:00.000Z", method: "Pix" },
+        { id: installmentId2, tenant_id: sourceTenantId, receivable_id: receivableId, sequence: 2, due_on: "2026-11-21", principal: 4000, interest: 0, gross: 4000, fee: 0, net: 4000, status: "paid", paid_at: "2026-11-21T10:00:00.000Z", method: "Pix" },
+      ],
+      cash_entries: [
+        { id: cashEntryId, tenant_id: sourceTenantId, receivable_id: receivableId, installment_id: installmentId, amount: 4000, gross_amount: 4000, fee_amount: 0, method: "Pix", created_at: "2026-10-21T10:00:00.000Z" },
+        { id: cashEntryId2, tenant_id: sourceTenantId, receivable_id: receivableId, installment_id: installmentId2, amount: 4000, gross_amount: 4000, fee_amount: 0, method: "Pix", created_at: "2026-11-21T10:00:00.000Z" },
+      ],
+      document_revisions: [{ id: revisionId, tenant_id: sourceTenantId, kind: "order", entity_id: orderId, revision: 1, issued_at: "2026-10-21T10:00:00.000Z", issued_by: sourceUserId, payload: documentPayload, digest: documentDigest }],
+      audit_events: [{ id: randomUUID(), tenant_id: sourceTenantId, user_id: sourceUserId, action: "fixture.history", entity_id: orderId, created_at: "2026-10-21T10:00:00.000Z" }],
+    }, "2026-10-24T12:00:00.000Z");
+    const file = sealTransferPackage(payload, phrase);
+    const settings = { "app.tenant_id": tenantId, "app.user_id": userId, "app.session_hash": "", "app.login_email": "", "app.login_key": "", "app.setup_hash": "", "app.public_share_hash": "", "app.extension_hash": "" };
+    await db.withRequestContext(settings, async () => {
+      await db.setRequestIdentity(tenantId, userId);
+      const preview = await previewWorkshopImport(db, tenantId, file, phrase, userId);
+      assert.equal(preview.canImport, true, preview.issues.join("; "));
+      const beforeImportVerification = await verifyWorkshopImport(db, tenantId, file, phrase, userId, "empty");
+      assert.equal(beforeImportVerification.mode, "empty");
+      assert.equal(beforeImportVerification.entities.customers.missing, 1);
+      assert.equal(beforeImportVerification.overall, "divergent");
+      await assert.rejects(verifyWorkshopImport(db, tenantId, file, "frase-incorreta-ficticia", userId, "empty"), /Não foi possível abrir/);
+      const result = await importWorkshopPackage(db, tenantId, file, phrase, preview.confirmationId, userId);
+      assert.equal(result.counts.external_catalog_links, 1);
+      const externalLink = await db.prepare("SELECT source,external_key,catalog_id FROM external_catalog_links WHERE tenant_id=?").get(tenantId);
+      assert.deepEqual(externalLink, { source: "fixture", external_key: "external-key-fake", catalog_id: catalogId });
+      assert.equal(result.counts.external_captures, 1);
+      const capture = await db.prepare("SELECT batch_id,source_quantity,freight_total FROM external_captures WHERE tenant_id=? AND id=?").get(tenantId, externalCaptureId);
+      assert.deepEqual(capture, { batch_id: "batch-fake-001", source_quantity: 2, freight_total: 350 });
+      assert.equal(result.counts.customers, 1);
+      assert.equal(result.counts.vehicles, 1);
+      assert.equal(result.counts.orders, 1);
+      assert.equal(result.counts.stock_movements, 1);
+      assert.equal(result.counts.payment_installments, 2);
+      assert.equal(result.counts.cash_entries, 2);
+      const emptyVerification = await verifyWorkshopImport(db, tenantId, file, phrase, userId, "empty");
+      assert.equal(emptyVerification.mode, "empty");
+      assert.equal(emptyVerification.entities.customers.corresponding, 1);
+      const auditCountBefore = (await db.prepare("SELECT count(*) AS count FROM audit_events WHERE tenant_id=?").get(tenantId))?.count;
+      await admin.query("INSERT INTO horse_power.customers(id,tenant_id,name,email) VALUES($1,$2,$3,$4)", ["unrelated-customer-" + tenantId, tenantId, "Cliente Fictício Não Importado", "unrelated@example.invalid"]);
+      const initialVerification = await verifyWorkshopImport(db, tenantId, file, phrase, userId, "merge");
+      assert.equal(initialVerification.entities.customers.missing, 0);
+      assert.equal(initialVerification.entities.customers.corresponding, 1);
+      assert.equal(initialVerification.entities.customers.unrelatedExistingIgnored, 1);
+      assert.equal(initialVerification.entities.customers.destinationRows, 2, "a contagem deve excluir os dados da outra oficina");
+      assert.equal(initialVerification.entities.cash_entries.corresponding, 2);
+      assert.equal(initialVerification.entities.orders.corresponding, 1);
+      assert.equal(initialVerification.entities.document_revisions.transformed, 1);
+      assert.equal(initialVerification.policy.auditEventsExcluded, 1);
+      assert.ok(initialVerification.policy.authorsRemapped > 0);
+      assert.equal(initialVerification.entities.audit_events.destinationRows, null);
+      assert.equal(initialVerification.financial["cash_entries.amount"]?.differenceCents, "0");
+      assert.equal(initialVerification.stock.differenceUnits, "0");
+      assert.equal(initialVerification.historicalDocuments.missing, 0);
+      assert.equal((await db.prepare("SELECT count(*) AS count FROM audit_events WHERE tenant_id=?").get(tenantId))?.count, auditCountBefore, "a conferência não deve gerar eventos de auditoria");
+
+      await admin.query("UPDATE horse_power.customers SET name='Cliente Fictício Alterado' WHERE tenant_id=$1 AND id=$2", [tenantId, customerId]);
+      const changedCustomer = await verifyWorkshopImport(db, tenantId, file, phrase, userId, "merge");
+      assert.equal(changedCustomer.entities.customers.divergent, 1);
+      assert.ok(changedCustomer.entities.customers.records.some((record) => record.recordId === customerId && record.differingFields?.includes("name")));
+      await admin.query("UPDATE horse_power.customers SET name='Cliente Fictício' WHERE tenant_id=$1 AND id=$2", [tenantId, customerId]);
+
+      await admin.query("UPDATE horse_power.catalog SET stock=6 WHERE tenant_id=$1 AND id=$2", [tenantId, catalogId]);
+      const changedStock = await verifyWorkshopImport(db, tenantId, file, phrase, userId, "merge");
+      assert.equal(changedStock.stock.differenceUnits, "3");
+      assert.equal(changedStock.entities.catalog.divergent, 1);
+      await admin.query("UPDATE horse_power.catalog SET stock=3 WHERE tenant_id=$1 AND id=$2", [tenantId, catalogId]);
+
+      await admin.query("UPDATE horse_power.cash_entries SET amount=4025 WHERE tenant_id=$1 AND id=$2", [tenantId, cashEntryId]);
+      const changedPayment = await verifyWorkshopImport(db, tenantId, file, phrase, userId, "merge");
+      assert.equal(changedPayment.financial["cash_entries.amount"]?.differenceCents, "25");
+      assert.equal(changedPayment.entities.cash_entries.divergent, 1);
+      await admin.query("UPDATE horse_power.cash_entries SET amount=4000 WHERE tenant_id=$1 AND id=$2", [tenantId, cashEntryId]);
+
+      await admin.query("UPDATE horse_power.memberships SET role='operator' WHERE tenant_id=$1 AND user_id=$2", [tenantId, userId]);
+      await assert.rejects(verifyWorkshopImport(db, tenantId, file, phrase, userId, "merge"), /proprietário/);
+      await admin.query("UPDATE horse_power.memberships SET role='owner' WHERE tenant_id=$1 AND user_id=$2", [tenantId, userId]);
+      const rows = await db.prepare(`SELECT c.id AS customer_id,v.customer_id AS vehicle_customer,o.vehicle_id,i.price,r.issued_by,r.payload
+        FROM customers c JOIN vehicles v ON v.tenant_id=c.tenant_id AND v.customer_id=c.id
+        JOIN orders o ON o.tenant_id=v.tenant_id AND o.vehicle_id=v.id
+        JOIN order_items i ON i.tenant_id=o.tenant_id AND i.order_id=o.id
+        JOIN document_revisions r ON r.tenant_id=o.tenant_id AND r.entity_id=o.id WHERE c.tenant_id=?`).get(tenantId);
+      assert.equal(rows?.customer_id, customerId);
+      assert.equal(rows?.vehicle_customer, customerId);
+      assert.equal(rows?.vehicle_id, vehicleId);
+      assert.equal(rows?.price, 8000);
+      assert.equal(rows?.issued_by, userId);
+      assert.equal((await db.prepare("SELECT user_id FROM stock_movements WHERE tenant_id=? AND id=?").get(tenantId,movementId))?.user_id, userId);
+      assert.equal((await admin.query("SELECT count(*)::int AS count FROM horse_power.users WHERE id=$1", [userId])).rows[0].count, 1);
+      assert.equal((await admin.query("SELECT count(*)::int AS count FROM horse_power.memberships WHERE tenant_id=$1 AND user_id=$2", [tenantId,userId])).rows[0].count, 1);
+      assert.equal((await admin.query("SELECT password_hash FROM horse_power.users WHERE id=$1", [userId])).rows[0].password_hash, "fixture-hash");
+      assert.match(String(rows?.payload), /Oficina Fictícia Origem/);
+      assert.equal((await db.prepare("SELECT action FROM audit_events WHERE tenant_id=? AND user_id=?").get(tenantId,userId))?.action, "data_transfer.imported");
+      const idCollisionPayload = createTransferPayload("fixture-id-conflict", payload.source.tenant, {
+        ...payload.records,
+        customers: payload.records.customers!.map((row, index) => index === 0 ? { ...row, name: "Nome Fictício em Conflito" } : row),
+      }, payload.generatedAt);
+      const idCollision = await previewWorkshopImport(db, tenantId, sealTransferPackage(idCollisionPayload, phrase), phrase, userId, "merge");
+      assert.equal(idCollision.canImport, false);
+      assert.ok(idCollision.entities.customers.conflicts > 0);
+      const numberCollisionPayload = createTransferPayload("fixture-os-number-conflict", payload.source.tenant, {
+        ...payload.records,
+        orders: payload.records.orders!.map((row, index) => index === 0 ? { ...row, id: randomUUID() } : row),
+      }, payload.generatedAt);
+      const numberCollision = await previewWorkshopImport(db, tenantId, sealTransferPackage(numberCollisionPayload, phrase), phrase, userId, "merge");
+      assert.equal(numberCollision.canImport, false);
+      assert.ok(numberCollision.entities.orders.conflicts > 0);
+      const repeated = await previewWorkshopImport(db, tenantId, file, phrase, userId, "merge");
+      assert.equal(repeated.canImport, true, repeated.issues.join("; "));
+      assert.equal(repeated.entities.customers.equal, 1);
+      await importWorkshopPackage(db, tenantId, file, phrase, repeated.confirmationId, userId, "merge");
+      assert.equal((await db.prepare("SELECT count(*) AS count FROM customers WHERE tenant_id=?").get(tenantId))?.count, 2);
+      assert.equal((await db.prepare("SELECT count(*) AS count FROM stock_movements WHERE tenant_id=?").get(tenantId))?.count, 1);
+      assert.equal((await db.prepare("SELECT count(*) AS count FROM cash_entries WHERE tenant_id=?").get(tenantId))?.count, 2);
+      assert.equal((await db.prepare("SELECT sum(amount) AS total FROM cash_entries WHERE tenant_id=?").get(tenantId))?.total, 8000);
+
+      const replacementFile = sealTransferPackage(createTransferPayload("fixture", payload.source.tenant, {
+        ...payload.records,
+        document_revisions: [],
+      }, payload.generatedAt), phrase);
+      const replacement = await previewWorkshopImport(db, tenantId, replacementFile, phrase, userId, "replace");
+      assert.equal(replacement.canImport, true, replacement.issues.join("; "));
+      assert.equal(replacement.historicalDocumentsToArchive, 1);
+      assert.equal(replacement.entities.customers.removed, 2);
+      const replaced = await importWorkshopPackage(db, tenantId, replacementFile, phrase, replacement.confirmationId, userId, "replace", replacement.targetWorkshop);
+      assert.ok(replaced.backupId);
+      assert.equal((await db.prepare("SELECT count(*) AS count FROM customers WHERE tenant_id=?").get(tenantId))?.count, 1);
+      const backup = await getWorkshopTransferBackup(db, tenantId, replaced.backupId!);
+      assert.ok(backup);
+      assert.equal(transferFileSha256(backup!), String((await db.prepare("SELECT package_sha256 FROM data_transfer_backups WHERE tenant_id=? AND id=?").get(tenantId,replaced.backupId))?.package_sha256));
+      assert.equal(openTransferPackage(backup!, phrase).records.customers?.length, replacement.entities.customers.existing);
+      assert.equal(openTransferPackage(backup!, phrase).records.stock_movements?.length, 1);
+      assert.equal(openTransferPackage(backup!, phrase).records.cash_entries?.length, 2);
+      assert.equal(openTransferPackage(backup!, phrase).records.external_captures?.length, 1);
+      assert.deepEqual(openTransferPackage(backup!, phrase).records.users, []);
+      assert.deepEqual(openTransferPackage(backup!, phrase).records.memberships, []);
+      assert.equal((await db.prepare("SELECT token_hash FROM sessions WHERE tenant_id=? AND token_hash=?").get(tenantId,preservedSessionHash))?.token_hash, preservedSessionHash);
+      assert.equal((await db.prepare("SELECT payload FROM document_revisions WHERE tenant_id=? AND id=?").get(tenantId,revisionId))?.payload, documentPayload);
+      const context = { tenantId, userId, role: "owner" } as const;
+      assert.deepEqual((await documentHistory(db, context, "order", orderId)).revisions, []);
+      await assert.rejects(readDocument(db, context, "order", orderId, 1), /Revisão não encontrada/);
+      const archived = await readArchivedDocument(db, context, revisionId);
+      assert.equal(archived.document.workshop, "Oficina Fictícia Origem");
+      assert.equal((await db.prepare("SELECT count(*) AS count FROM data_transfer_archived_documents WHERE tenant_id=?").get(tenantId))?.count, 1);
+      const replacementVerification = await verifyWorkshopImport(db, tenantId, replacementFile, phrase, userId, "replace");
+      assert.equal(replacementVerification.historicalDocuments.missing, 0);
+      assert.equal(replacementVerification.historicalDocuments.preservedDestinationArchives, 1);
+      assert.equal(replacementVerification.backups.existing, 1);
+      assert.equal(replacementVerification.backups.integrityValid, 1);
+      assert.equal(replacementVerification.backups.integrityInvalid, 0);
+      const reexported = openTransferPackage(await createWorkshopTransfer(db, tenantId, phrase), phrase);
+      assert.equal(reexported.records.data_transfer_archived_documents?.length, 1);
+    }, () => false);
+
+    await admin.query("INSERT INTO horse_power.customers(id,tenant_id,name,email) VALUES($1,$2,$3,$4)", ["rollback-customer-" + tenantId, tenantId, "Cliente Fictício Preservado", "rollback@example.invalid"]);
+    const invalidPayload = createTransferPayload(payload.source.application, payload.source.tenant, {
+      ...payload.records,
+      catalog: payload.records.catalog!.map((row, index) => index === 0 ? { ...row, cost: -1 } : row),
+    }, payload.generatedAt);
+    const invalidFile = sealTransferPackage(invalidPayload, phrase);
+    await assert.rejects(db.withRequestContext(settings, async () => {
+      await db.setRequestIdentity(tenantId, userId);
+      const invalidPreview = await previewWorkshopImport(db, tenantId, invalidFile, phrase, userId, "replace");
+      assert.equal(invalidPreview.canImport, true, invalidPreview.issues.join("; "));
+      return importWorkshopPackage(db, tenantId, invalidFile, phrase, invalidPreview.confirmationId, userId, "replace", "Oficina Fictícia MIG002");
+    }));
+    assert.equal((await admin.query("SELECT id FROM horse_power.customers WHERE id=$1 AND tenant_id=$2", ["rollback-customer-" + tenantId, tenantId])).rowCount, 1);
+    assert.equal((await admin.query("SELECT id FROM horse_power.data_transfer_backups WHERE tenant_id=$1", [tenantId])).rowCount, 0);
+  } finally {
+    await db.close();
+    if (fixtureCreated) {
+      await admin.query("DELETE FROM horse_power.sessions WHERE tenant_id=$1", [tenantId]);
+      await admin.query("DELETE FROM horse_power.data_transfer_backups WHERE tenant_id=$1", [tenantId]).catch(() => {});
+      await admin.query("DELETE FROM horse_power.data_transfer_records WHERE tenant_id=$1", [tenantId]).catch(() => {});
+      await admin.query("DELETE FROM horse_power.customers WHERE tenant_id=$1", [tenantId]);
+      await admin.query("DELETE FROM horse_power.memberships WHERE tenant_id=$1", [tenantId]);
+      await admin.query("DELETE FROM horse_power.users WHERE id=$1", [userId]);
+      await admin.query("DELETE FROM horse_power.tenants WHERE id=$1", [tenantId]);
+      await admin.query("DELETE FROM horse_power.customers WHERE tenant_id=$1", [otherTenantId]);
+      await admin.query("DELETE FROM horse_power.tenants WHERE id=$1", [otherTenantId]);
+    }
+    await admin.end();
   }
-}
-
-test("cash_entries identifica recebimentos por parcela, não pela receita inteira", async () => {
-  const validDb = new MemoryDb();
-  const validFile = makePackage({ records: {
-    cash_entries: [
-      { id: "entry-1", tenant_id: sourceTenant, receivable_id: "receivable-fake", installment_id: "installment-1", amount: 4000, gross_amount: 4000, fee_amount: 0, method: "Pix", created_at: "2026-10-24T10:00:00.000Z" },
-      { id: "entry-2", tenant_id: sourceTenant, receivable_id: "receivable-fake", installment_id: "installment-2", amount: 4000, gross_amount: 4000, fee_amount: 0, method: "Pix", created_at: "2026-10-25T10:00:00.000Z" },
-    ],
-  } });
-  const preview = await previewWorkshopImport(validDb as unknown as DB, targetTenant, validFile, phrase, "target-owner", "merge");
-  assert.equal(preview.canImport, true, preview.issues.join("; "));
-  assert.equal(preview.entities.cash_entries.new, 2);
-
-  const duplicateDb = new MemoryDb();
-  const duplicateFile = makePackage({ records: {
-    cash_entries: [
-      { id: "entry-1", tenant_id: sourceTenant, receivable_id: "receivable-fake", installment_id: "installment-1", amount: 4000, gross_amount: 4000, fee_amount: 0, method: "Pix", created_at: "2026-10-24T10:00:00.000Z" },
-      { id: "entry-2", tenant_id: sourceTenant, receivable_id: "receivable-fake", installment_id: "installment-1", amount: 4000, gross_amount: 4000, fee_amount: 0, method: "Pix", created_at: "2026-10-25T10:00:00.000Z" },
-    ],
-  } });
-  const duplicatePreview = await previewWorkshopImport(duplicateDb as unknown as DB, targetTenant, duplicateFile, phrase, "target-owner", "merge");
-  assert.equal(duplicatePreview.canImport, false);
-  assert.ok(duplicatePreview.issues.some((issue) => issue.includes("cash_entries") && issue.includes("duplicados")));
+  t.diagnostic("Fixture names, IDs and document values are fictitious; transaction was rolled back.");
 });
 
-test("vínculos técnicos sem ID usam identidade composta estável sem conflito duplicado interno", async () => {
-  const db = new MemoryDb();
-  const file = makePackage({ records: {
-    external_catalog_links: [{ tenant_id: sourceTenant, source: "fixture", external_key: "external-key-1", catalog_id: "catalog-fake" }],
-    service_aliases: [{ tenant_id: sourceTenant, alias_key: "legacy-service-name", alias: "Serviço legado fictício", catalog_id: "catalog-fake" }],
-  } });
-  const preview = await previewWorkshopImport(db as unknown as DB, targetTenant, file, phrase, "target-owner", "merge");
-  assert.equal(preview.canImport, true, preview.issues.join("; "));
-  assert.equal(preview.entities.external_catalog_links.new, 1);
-  assert.equal(preview.entities.service_aliases.new, 1);
-
-  await importWorkshopPackage(db as unknown as DB, targetTenant, file, phrase, preview.confirmationId, "target-owner", "merge");
-  assert.deepEqual(db.tables.external_catalog_links[0], {
-    tenant_id: targetTenant, source: "fixture", external_key: "external-key-1", catalog_id: "catalog-fake",
-  });
-  assert.deepEqual(db.tables.service_aliases[0], {
-    tenant_id: targetTenant, alias_key: "legacy-service-name", alias: "Serviço legado fictício", catalog_id: "catalog-fake",
-  });
-  assert.ok(db.tracking.some((row) => row.table_name === "external_catalog_links" && row.source_record_id === '["fixture","external-key-1"]'));
-  assert.ok(db.tracking.some((row) => row.table_name === "service_aliases" && row.source_record_id === '["legacy-service-name"]'));
-});
-
-test("importação preserva contas e vínculos e associa a autoria ao proprietário de destino", async () => {
-  const db = new MemoryDb();
-  const file = makePackage({ records: {
-    stock_movements: [{ id: "movement-fake", tenant_id: sourceTenant, catalog_id: "catalog-fake", quantity: -1, reason: "OS fictícia", user_id: "source-owner", created_at: "2026-10-24T12:00:00.000Z" }],
-    document_revisions: [{ id: "revision-fake", tenant_id: sourceTenant, kind: "order", entity_id: "order-fake", revision: 1, issued_at: "2026-10-24T12:00:00.000Z", issued_by: "source-owner", payload: "{\"oficina\":\"Origem fictícia\"}", digest: "fixture-digest" }],
-    audit_events: [{ id: "source-audit-fake", tenant_id: sourceTenant, user_id: "source-owner", action: "old.action", entity_id: "old-fake", created_at: "2026-10-24T12:00:00.000Z" }],
-  } });
-  const usersBefore = structuredClone(db.users), membershipsBefore = structuredClone(db.memberships);
-  const preview = await previewWorkshopImport(db as unknown as DB, targetTenant, file, phrase, "target-owner");
-  assert.equal(preview.canImport, true, preview.issues.join("; "));
-  assert.ok(preview.warnings.some((warning) => warning.includes("proprietário que executa")));
-  await importWorkshopPackage(db as unknown as DB, targetTenant, file, phrase, preview.confirmationId, "target-owner");
-  assert.equal(db.tables.stock_movements[0].user_id, "target-owner");
-  assert.equal(db.tables.document_revisions[0].issued_by, "target-owner");
-  assert.equal(db.tables.audit_events.some((row) => row.id === "source-audit-fake"), false);
-  assert.ok(db.tables.audit_events.some((row) => row.action === "data_transfer.imported" && row.user_id === "target-owner"));
-  assert.deepEqual(db.users, usersBefore);
-  assert.deepEqual(db.memberships, membershipsBefore);
-});
-
-test("prévia não grava, importação inicial remapeia oficina e repetição em modo vazio é bloqueada", async () => {
-  const db = new MemoryDb(), file = makePackage();
-  const preview = await previewWorkshopImport(db as unknown as DB, targetTenant, file, phrase, "target-owner");
-  assert.equal(preview.canImport, true); assert.equal(db.tables.customers.length, 0);
-  const result = await importWorkshopPackage(db as unknown as DB & TransactionalDB, targetTenant, file, phrase, preview.confirmationId, "target-owner");
-  assert.equal(db.tables.customers[0].id, "customer-fake"); assert.equal(db.tables.customers[0].tenant_id, targetTenant);
-  assert.equal(result.counts.customers, 1); assert.equal(db.users[0].password_hash, "preserved-hash");
-  assert.equal(db.tables.audit_events[0].action, "data_transfer.imported");
-  const repeated = await previewWorkshopImport(db as unknown as DB, targetTenant, file, phrase, "target-owner");
-  assert.equal(repeated.canImport, false); assert.match(repeated.issues.join(" "), /já possui registros/);
-});
-
-test("mesclagem repetida é idempotente e atualiza somente cadastros ainda iguais à versão importada", async () => {
-  const db = new MemoryDb(), first = makePackage();
-  const p1 = await previewWorkshopImport(db as unknown as DB, targetTenant, first, phrase, "target-owner");
-  await importWorkshopPackage(db as unknown as DB, targetTenant, first, phrase, p1.confirmationId, "target-owner");
-  const same = await previewWorkshopImport(db as unknown as DB, targetTenant, first, phrase, "target-owner", "merge");
-  assert.equal(same.canImport, true); assert.equal(same.entities.customers.equal, 1); assert.equal(same.entities.customers.new, 0);
-  await importWorkshopPackage(db as unknown as DB, targetTenant, first, phrase, same.confirmationId, "target-owner", "merge");
-  assert.equal(db.tables.customers.length, 1);
-  const updatedFile = makePackage({ customerName: "Cliente Fictício Atualizado" });
-  const update = await previewWorkshopImport(db as unknown as DB, targetTenant, updatedFile, phrase, "target-owner", "merge");
-  assert.equal(update.entities.customers.updates, 1); assert.equal(update.canImport, true);
-  await importWorkshopPackage(db as unknown as DB, targetTenant, updatedFile, phrase, update.confirmationId, "target-owner", "merge");
-  assert.equal(db.tables.customers[0].name, "Cliente Fictício Atualizado");
-});
-
-test("mesclagem bloqueia conflito local e não vaza para outra oficina", async () => {
-  const db = new MemoryDb(), original = makePackage();
-  const first = await previewWorkshopImport(db as unknown as DB, targetTenant, original, phrase, "target-owner");
-  await importWorkshopPackage(db as unknown as DB, targetTenant, original, phrase, first.confirmationId, "target-owner");
-  db.tables.customers[0].name = "Alteração local fictícia";
-  const changed = makePackage({ customerName: "Versão de origem alterada" });
-  const conflict = await previewWorkshopImport(db as unknown as DB, targetTenant, changed, phrase, "target-owner", "merge");
-  assert.equal(conflict.canImport, false); assert.equal(conflict.entities.customers.conflicts, 1);
-  const foreign = makePackage({ customerTenant: "other-fake" });
-  const foreignPreview = await previewWorkshopImport(new MemoryDb() as unknown as DB, targetTenant, foreign, phrase, "target-owner", "merge");
-  assert.equal(foreignPreview.canImport, false); assert.match(foreignPreview.issues.join(" "), /outra oficina/);
-});
-
-test("mesclagem identifica conflitos de placa e número de OS sem duplicar registros", async () => {
-  const db = new MemoryDb();
-  db.tables.vehicles.push({ id: "vehicle-existing", tenant_id: targetTenant, customer_id: "customer-existing", plate: "ABC1D23", brand: "Marca", model: "Modelo", year: 2020, color: "", km: 10, chassis: "", active: 1 });
-  db.tables.orders.push({ id: "order-existing", tenant_id: targetTenant, number: 204, kind: "order", status: "completed", customer_id: "customer-existing", vehicle_id: "vehicle-existing", entered_on: "2026-10-20", due_on: "2026-10-21", completed_on: "2026-10-21", km: 10, problem: "Histórico fictício", notes: "", discount: 0, total: 5000, created_at: "2026-10-20T00:00:00.000Z" });
-  const file = makePackage({ records: {
-    vehicles: [{ id: "vehicle-imported", tenant_id: sourceTenant, customer_id: "customer-fake", plate: "ABC1D23", brand: "Marca", model: "Modelo", year: 2020, color: "", km: 10, chassis: "", active: 1 }],
-    orders: [{ id: "order-imported", tenant_id: sourceTenant, number: 204, kind: "order", status: "completed", customer_id: "customer-fake", vehicle_id: "vehicle-imported", entered_on: "2026-10-20", due_on: "2026-10-21", completed_on: "2026-10-21", km: 10, problem: "Histórico fictício", notes: "", discount: 0, total: 5000, created_at: "2026-10-20T00:00:00.000Z" }],
-  } });
-  const preview = await previewWorkshopImport(db as unknown as DB, targetTenant, file, phrase, "target-owner", "merge");
-  assert.equal(preview.canImport, false);
-  assert.ok(preview.issues.some((issue) => issue.includes("vehicles") && issue.includes("chave única")));
-  assert.ok(preview.issues.some((issue) => issue.includes("orders") && issue.includes("chave única")));
-  assert.equal(db.tables.vehicles.length, 1); assert.equal(db.tables.orders.length, 1);
-});
-
-test("substituição exige confirmação do nome, mantém documentos/auditoria e guarda backup recuperável", async () => {
-  const db = new MemoryDb();
-  db.tables.customers.push({ id: "old-customer", tenant_id: targetTenant, name: "Cliente antigo fictício", phone: "", email: "", document: "", birthday: "", address: "", notes: "", active: 1, created_at: "2026-10-20T00:00:00.000Z" });
-  db.tables.customers.push({ id: "other-customer", tenant_id: "other-fake", name: "Cliente de outra oficina", phone: "", email: "", document: "", birthday: "", address: "", notes: "", active: 1, created_at: "2026-10-20T00:00:00.000Z" });
-  db.tables.document_revisions.push({ id: "revision-old", tenant_id: targetTenant, kind: "order", entity_id: "old-order", revision: 1, issued_at: "2026-10-20T00:00:00.000Z", issued_by: "target-owner", payload: "{\"workshop\":\"Oficina Fictícia Destino\"}", digest: "digest-old" });
-  db.tables.audit_events.push({ id: "audit-old", tenant_id: targetTenant, user_id: "target-owner", action: "historical.fake", entity_id: "old-order", created_at: "2026-10-20T00:00:00.000Z" });
-  const file = makePackage(), preview = await previewWorkshopImport(db as unknown as DB, targetTenant, file, phrase, "target-owner", "replace");
-  assert.equal(preview.canImport, true); assert.equal(preview.entities.customers.removed, 1); assert.equal(preview.entities.document_revisions.removed, 0);
-  await assert.rejects(importWorkshopPackage(db as unknown as DB, targetTenant, file, phrase, preview.confirmationId, "target-owner", "replace", "Nome errado"), /nome exato/);
-  assert.equal(db.tables.customers[0].id, "old-customer"); assert.equal(db.backups.length, 0);
-  const result = await importWorkshopPackage(db as unknown as DB, targetTenant, file, phrase, preview.confirmationId, "target-owner", "replace", "Oficina Fictícia Destino");
-  assert.ok(result.backupId); assert.equal(db.tables.customers.filter((row) => row.tenant_id === targetTenant).length, 1);
-  assert.equal(db.tables.customers.find((row) => row.tenant_id === targetTenant)?.id, "customer-fake");
-  assert.equal(db.tables.document_revisions[0].id, "revision-old"); assert.equal(db.tables.audit_events[0].id, "audit-old");
-  assert.ok(db.tables.customers.some((row) => row.id === "other-customer" && row.tenant_id === "other-fake"));
-  assert.equal(db.users[0].password_hash, "preserved-hash"); assert.equal(db.memberships[0].user_id, "target-owner");
-  const backup = await getWorkshopTransferBackup(db as unknown as DB, targetTenant, String(result.backupId));
-  assert.ok(backup); assert.equal(transferFileSha256(backup!), db.backups[0].package_sha256);
-  assert.equal(createHash("sha256").update(backup!).digest("hex"), db.backups[0].package_sha256);
-});
-
-test("substituição bloqueia colisão com revisão imutável diferente", async () => {
-  const db = new MemoryDb();
-  db.tables.document_revisions.push({ id: "revision-conflict", tenant_id: targetTenant, kind: "order", entity_id: "same-order", revision: 1, issued_at: "2026-10-20T00:00:00.000Z", issued_by: "target-owner", payload: "old", digest: "old" });
-  const records = { document_revisions: [{ id: "revision-other", tenant_id: sourceTenant, kind: "order", entity_id: "same-order", revision: 1, issued_at: "2026-10-21T00:00:00.000Z", issued_by: "source-owner", payload: "new", digest: "new" }] };
-  const file = makePackage({ records }), preview = await previewWorkshopImport(db as unknown as DB, targetTenant, file, phrase, "target-owner", "replace");
-  assert.equal(preview.canImport, false); assert.ok(preview.issues.some((issue) => issue.includes("histórico imutável")));
-  assert.equal(db.tables.document_revisions.length, 1);
-});
-
-test("pacote novo transporta o vínculo de arquivamento e pacotes antigos sem essa entidade continuam compatíveis", async () => {
-  const db = new MemoryDb();
-  const revision = { id: "archived-transfer-revision", tenant_id: sourceTenant, kind: "order", entity_id: "old-order", revision: 1, issued_at: "2026-10-20T00:00:00.000Z", issued_by: "source-owner", payload: '{"shop":"Oficina Fictícia Origem"}', digest: "fictitious-digest" };
-  const archive = { tenant_id: sourceTenant, revision_id: revision.id, backup_id: "origin-backup-reference", kind: "order", entity_id: "old-order", revision: 1, archived_at: "2026-10-21T00:00:00.000Z" };
-  const file = makePackage({ records: { document_revisions: [revision], data_transfer_archived_documents: [archive] } });
-  const preview = await previewWorkshopImport(db as unknown as DB, targetTenant, file, phrase, "target-owner");
-  assert.equal(preview.canImport, true, preview.issues.join("; "));
-  await importWorkshopPackage(db as unknown as DB, targetTenant, file, phrase, preview.confirmationId, "target-owner");
-  assert.equal(db.tables.document_revisions.length, 1);
-  assert.equal(db.tables.data_transfer_archived_documents.length, 1);
-  assert.equal(db.tables.data_transfer_archived_documents[0].tenant_id, targetTenant);
-  assert.equal(db.tables.data_transfer_archived_documents[0].revision_id, revision.id);
+test("PostgreSQL local: importações concorrentes revalidam sob bloqueio e não duplicam registros", async () => {
+  const admin = adminClient();
+  await admin.connect();
+  const firstDb = await createLocalDatabase(), secondDb = await createLocalDatabase();
+  const tenantId = randomUUID(), userId = randomUUID(), sourceTenantId = randomUUID(), sourceUserId = randomUUID(), customerId = randomUUID();
+  const phrase = "frase-ficticia-concorrencia-mig004";
+  let fixtureCreated = false;
+  try {
+    await admin.query("INSERT INTO horse_power.tenants(id,name) VALUES($1,$2)", [tenantId, "Oficina Fictícia Concorrência"]);
+    await admin.query("INSERT INTO horse_power.users(id,name,email,password_hash) VALUES($1,$2,$3,'fixture-hash')", [userId, "Proprietário Fictício Concorrência", `mig004-${userId}@example.invalid`]);
+    await admin.query("INSERT INTO horse_power.memberships(user_id,tenant_id,role) VALUES($1,$2,'owner')", [userId, tenantId]);
+    fixtureCreated = true;
+    const file = sealTransferPackage(createTransferPayload("fixture-concurrency", { id: sourceTenantId, name: "Oficina Fictícia Origem Concorrência" }, {
+      tenant: { id: sourceTenantId, name: "Oficina Fictícia Origem Concorrência" },
+      users: [{ id: sourceUserId, name: "Proprietário Fictício", email: `mig004-source-${sourceUserId}@example.invalid` }],
+      memberships: [{ user_id: sourceUserId, tenant_id: sourceTenantId, role: "owner" }],
+      customers: [{ id: customerId, tenant_id: sourceTenantId, name: "Cliente Fictício Concorrente", phone: "", email: "", document: "", birthday: "", address: "", notes: "", active: 1, created_at: "2026-10-24T00:00:00.000Z" }],
+    }, "2026-10-24T12:00:00.000Z"), phrase);
+    const settings = { "app.tenant_id": tenantId, "app.user_id": userId, "app.session_hash": "", "app.login_email": "", "app.login_key": "", "app.setup_hash": "", "app.public_share_hash": "", "app.extension_hash": "" };
+    const inContext = <T>(db: Awaited<ReturnType<typeof createLocalDatabase>>, fn: () => Promise<T>) => db.withRequestContext(settings, async () => { await db.setRequestIdentity(tenantId, userId); return fn(); });
+    const previews = await Promise.all([inContext(firstDb, () => previewWorkshopImport(firstDb, tenantId, file, phrase, userId, "merge")), inContext(secondDb, () => previewWorkshopImport(secondDb, tenantId, file, phrase, userId, "merge"))]);
+    assert.equal(previews[0].confirmationId, previews[1].confirmationId);
+    const results = await Promise.allSettled([
+      inContext(firstDb, () => importWorkshopPackage(firstDb, tenantId, file, phrase, previews[0].confirmationId, userId, "merge")),
+      inContext(secondDb, () => importWorkshopPackage(secondDb, tenantId, file, phrase, previews[1].confirmationId, userId, "merge")),
+    ]);
+    assert.equal(results.filter((result) => result.status === "fulfilled").length, 1);
+    assert.equal(results.filter((result) => result.status === "rejected").length, 1);
+    assert.equal((await admin.query("SELECT count(*)::int AS count FROM horse_power.customers WHERE tenant_id=$1", [tenantId])).rows[0].count, 1);
+    assert.equal((await admin.query("SELECT count(*)::int AS count FROM horse_power.audit_events WHERE tenant_id=$1 AND action='data_transfer.merged'", [tenantId])).rows[0].count, 1);
+  } finally {
+    await firstDb.close(); await secondDb.close();
+    if (fixtureCreated) {
+      await admin.query("DELETE FROM horse_power.audit_events WHERE tenant_id=$1", [tenantId]);
+      await admin.query("DELETE FROM horse_power.data_transfer_records WHERE tenant_id=$1", [tenantId]).catch(() => {});
+      await admin.query("DELETE FROM horse_power.customers WHERE tenant_id=$1", [tenantId]);
+      await admin.query("DELETE FROM horse_power.memberships WHERE tenant_id=$1", [tenantId]);
+      await admin.query("DELETE FROM horse_power.users WHERE id=$1", [userId]);
+      await admin.query("DELETE FROM horse_power.tenants WHERE id=$1", [tenantId]);
+    }
+    await admin.end();
+  }
 });
