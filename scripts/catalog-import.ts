@@ -22,6 +22,15 @@ const expectedCategories = {
   premium: 2579,
   pesado: 0,
 };
+
+export function matchesCategoryCounts(
+  actual: Readonly<Record<string, number>>,
+  expected: Readonly<Record<string, number>>,
+) {
+  return Object.entries(expected).every(
+    ([category, count]) => (actual[category] ?? 0) === count,
+  );
+}
 const technicalCategoryMap: Record<string, string> = {
   "Básico Elétrico": "compacto",
   "SUV Compacto": "compacto",
@@ -346,9 +355,7 @@ async function readSource(path: string) {
     counts.premium++;
   }
   if (
-    Object.entries(expectedCategories).some(
-      ([key, count]) => counts[key] !== count,
-    )
+    !matchesCategoryCounts(counts, expectedCategories)
   )
     throw new Error(
       "Distribuição comercial derivada da fonte e exceções CAT-007 diverge da aprovada.",
@@ -389,9 +396,7 @@ async function existingReleaseIsValid(
     categories.rows.map((row) => [row.category_id, row.n]),
   );
   if (
-    Object.entries(expectedCategories).some(
-      ([key, count]) => actual[key] !== count,
-    )
+    !matchesCategoryCounts(actual, expectedCategories)
   )
     throw new Error(
       "A release existente tem distribuição comercial divergente.",
@@ -512,9 +517,7 @@ async function stageCommercialCategories(
       (await client.query("SELECT count(*) n FROM cat_stage_model_categories"))
         .rows[0].n,
     ) !== expected.models ||
-    Object.entries(expectedCategories).some(
-      ([key, count]) => counts[key] !== count,
-    )
+    !matchesCategoryCounts(counts, expectedCategories)
   )
     throw new Error(
       "Estágio de categorias comerciais incompleto ou divergente.",
@@ -777,9 +780,7 @@ async function main() {
       categoryRows.rows.map((row) => [row.category_id, row.n]),
     );
     if (
-      Object.entries(expectedCategories).some(
-        ([key, count]) => categories[key] !== count,
-      )
+      !matchesCategoryCounts(categories, expectedCategories)
     )
       throw new Error(
         "Distribuição comercial divergente; a transação será revertida.",
