@@ -75,7 +75,9 @@ try {
     INSERT INTO service_catalog.repair_times(id,base_id,model_id,service_id,service_name,minutes,time_identifier)
       VALUES('00000000-0000-4000-8000-000000000007','00000000-0000-4000-8000-000000000003',NULL,'00000000-0000-4000-8000-000000000005','Inspeção Fictícia',30,'synthetic-demo');
     INSERT INTO service_catalog.releases(version,status,source_sha256,model_count,time_count,application_count)
-      VALUES('homologacao-sintetica','active','synthetic',1,1,1)`);
+      VALUES
+        ('homologacao-sintetica','active','synthetic',1,1,1),
+        ('1.2-operacional','loading','pending',7534,836093,7292579)`);
   await target.query("COMMIT");
   await target.query("BEGIN");
   await target.query(
