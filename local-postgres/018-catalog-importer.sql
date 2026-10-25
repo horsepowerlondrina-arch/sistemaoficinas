@@ -93,7 +93,7 @@ BEGIN
 END
 $function$;
 
-REVOKE ALL ON FUNCTION service_catalog.prepare_catalog_import_for_cat008() FROM PUBLIC,horse_power_app,hp_platform_admin_app;
+REVOKE ALL ON FUNCTION service_catalog.prepare_catalog_import_for_cat008() FROM PUBLIC,hp_platform_admin_app;
 GRANT EXECUTE ON FUNCTION service_catalog.prepare_catalog_import_for_cat008() TO hp_catalog_importer;
 COMMENT ON ROLE hp_catalog_importer IS 'No-login role for the explicitly confirmed, source-hash-validated CAT-008 loader; no access to workshop records.';
 COMMENT ON FUNCTION service_catalog.prepare_catalog_import_for_cat008() IS 'Removes only the exact, unreferenced synthetic catalog fixture; refuses any other destination state.';
