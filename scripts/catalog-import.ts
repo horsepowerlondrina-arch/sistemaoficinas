@@ -376,6 +376,11 @@ async function existingReleaseIsValid(
   );
   if (!release.rowCount) return false;
   if (
+    release.rows[0].status === "loading" &&
+    ["pending", expectedSha256].includes(release.rows[0].source_sha256)
+  )
+    return false;
+  if (
     release.rows[0].source_sha256 !== expectedSha256 ||
     release.rows[0].status !== "active"
   )
