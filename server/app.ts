@@ -206,7 +206,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
   app.disable("x-powered-by");
   app.use("/api/stock-invoices", express.json({ limit: "3mb" }));
   app.use("/api/workshop-profile", express.json({ limit: "512kb" }));
-  app.use("/api/data-transfer", express.json({ limit: "100mb" }));
+  app.use("/api/admin-api/workshops/:id/data-transfer", express.json({ limit: "4.25mb" }));
   app.use(express.json({ limit: "256kb" }));
   app.use("/api", (req, res, next) => {
     res.set("Cache-Control", "no-store");
@@ -450,75 +450,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
     }
     res.status(403).json({ error: "Esta área é exclusiva do administrador." });
   });
-  app.post("/api/data-transfer/export", async (req, res) => {
-    const passphrase = z.string().min(12).max(1024).safeParse(req.body?.passphrase);
-    if (!passphrase.success) {
-      res.status(400).json({ error: "Informe uma frase secreta com pelo menos 12 caracteres." });
-      return;
-    }
-    try {
-      const { createWorkshopTransfer } = await import("./services/dataTransferExport.js");
-      const { TRANSFER_MEDIA_TYPE } = await import("../shared/transferPackage.js");
-      const archive = await createWorkshopTransfer(db, res.locals.context.tenantId, passphrase.data);
-      res.set("Cache-Control", "no-store").set("Content-Type", TRANSFER_MEDIA_TYPE)
-        .set("Content-Disposition", `attachment; filename="oficina-${new Date().toISOString().slice(0, 10)}.hptx"`)
-        .send(archive);
-    } catch (error) {
-      res.status(400).json({ error: error instanceof Error ? error.message : "Não foi possível gerar o pacote." });
-    }
-  });
-  app.post("/api/data-transfer/preview", async (req, res) => {
-    const input = z.object({ packageText: z.string().min(1).max(96 * 1024 * 1024), passphrase: z.string().min(12).max(1024), mode: z.enum(["empty", "merge", "replace"]).default("empty") }).safeParse(req.body);
-    if (!input.success) { res.status(400).json({ error: "Arquivo ou frase secreta inválidos." }); return; }
-    if (res.locals.context.role !== "owner") { res.status(403).json({ error: "Somente o proprietário pode importar dados." }); return; }
-    try {
-      const { previewWorkshopImport } = await import("./services/dataTransferImport.js");
-      res.json(await previewWorkshopImport(db, res.locals.context.tenantId, Buffer.from(input.data.packageText, "utf8"), input.data.passphrase, res.locals.context.userId, input.data.mode));
-    } catch (error) {
-      res.status(400).json({ error: error instanceof Error ? error.message : "Não foi possível validar o pacote." });
-    }
-  });
-  app.post("/api/data-transfer/verify", async (req, res) => {
-    const input = z.object({ packageText: z.string().min(1).max(4 * 1024 * 1024), passphrase: z.string().min(12).max(1024), mode: z.enum(["empty", "merge", "replace"]).default("empty") }).safeParse(req.body);
-    if (!input.success) { res.status(400).set("Cache-Control", "no-store").json({ error: "Arquivo ou frase secreta inválidos. A conferência online aceita pacotes de até 4 MiB." }); return; }
-    if (res.locals.context.role !== "owner") { res.status(403).set("Cache-Control", "no-store").json({ error: "Somente o proprietário pode conferir os dados importados." }); return; }
-    try {
-      const { verifyWorkshopImport } = await import("./services/dataTransferVerification.js");
-      const report = await verifyWorkshopImport(db, res.locals.context.tenantId, Buffer.from(input.data.packageText, "utf8"), input.data.passphrase, res.locals.context.userId, input.data.mode);
-      res.set("Cache-Control", "no-store").json(report);
-    } catch (error) {
-      res.status(400).set("Cache-Control", "no-store").json({ error: error instanceof Error ? error.message : "Não foi possível conferir o pacote." });
-    }
-  });
-  app.post("/api/data-transfer/import", async (req, res) => {
-    const input = z.object({ packageText: z.string().min(1).max(96 * 1024 * 1024), passphrase: z.string().min(12).max(1024), confirmationId: z.string().length(64), mode: z.enum(["empty", "merge", "replace"]).default("empty"), workshopConfirmation: z.string().max(200).optional(), confirm: z.literal(true) }).safeParse(req.body);
-    if (!input.success) { res.status(400).json({ error: "Confirmação de importação inválida." }); return; }
-    if (res.locals.context.role !== "owner") { res.status(403).json({ error: "Somente o proprietário pode importar dados." }); return; }
-    try {
-      const { importWorkshopPackage } = await import("./services/dataTransferImport.js");
-      res.json(await importWorkshopPackage(db, res.locals.context.tenantId, Buffer.from(input.data.packageText, "utf8"), input.data.passphrase, input.data.confirmationId, res.locals.context.userId, input.data.mode, input.data.workshopConfirmation));
-    } catch (error) {
-      res.status(400).json({ error: error instanceof Error ? error.message : "Não foi possível importar o pacote." });
-    }
-  });
-  app.get("/api/data-transfer/backups", async (_req, res) => {
-    if (res.locals.context.role !== "owner") { res.status(403).json({ error: "Somente o proprietário pode consultar as cópias de segurança." }); return; }
-    try {
-      const { listWorkshopTransferBackups } = await import("./services/dataTransferImport.js");
-      res.set("Cache-Control", "no-store").json(await listWorkshopTransferBackups(db, res.locals.context.tenantId));
-    } catch (error) { res.status(400).json({ error: error instanceof Error ? error.message : "Não foi possível listar as cópias de segurança." }); }
-  });
-  app.get("/api/data-transfer/backups/:id", async (req, res) => {
-    if (res.locals.context.role !== "owner") { res.status(403).json({ error: "Somente o proprietário pode baixar as cópias de segurança." }); return; }
-    try {
-      const { getWorkshopTransferBackup } = await import("./services/dataTransferImport.js");
-      const backup = await getWorkshopTransferBackup(db, res.locals.context.tenantId, req.params.id);
-      if (!backup) { res.status(404).json({ error: "Cópia de segurança não encontrada." }); return; }
-      const { TRANSFER_MEDIA_TYPE } = await import("../shared/transferPackage.js");
-      res.set("Cache-Control", "no-store").set("Content-Type", TRANSFER_MEDIA_TYPE)
-        .set("Content-Disposition", `attachment; filename="backup-oficina-${new Date().toISOString().slice(0, 10)}.hptx"`).send(backup);
-    } catch (error) { res.status(400).json({ error: error instanceof Error ? error.message : "Não foi possível baixar a cópia de segurança." }); }
-  });
+  // Complete workshop transfers are available only through the separately authenticated central-admin API.
   app.get("/api/workspace", async (_req, res) => {
     const tenant = res.locals.context.tenantId;
     if (res.locals.context.role !== "owner") {

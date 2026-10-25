@@ -356,10 +356,16 @@ async function updateMappedRow(db: DB, table: TransferTable, mapped: TransferRow
 export async function importWorkshopPackage(
   db: DB, tenantId: string, file: Buffer, passphrase: string, confirmationId: string, actorUserId: string,
   requestedMode?: WorkshopImportMode, workshopConfirmation?: string,
+  options: { adminApprovalId?: string } = {},
 ) {
   const payload = openTransferPackage(file, passphrase), digest = transferFileSha256(file), mode = normalizeMode(requestedMode);
   const run = async () => {
     await db.lockTenantMutations?.(tenantId);
+    if (options.adminApprovalId) {
+      if (mode !== "replace" || !/^[a-f0-9-]{32,36}$/i.test(options.adminApprovalId)) throw new Error("A aprovação administrativa não corresponde à substituição.");
+      const consumed = await db.prepare("SELECT 1 FROM data_transfer_records WHERE tenant_id=? AND source_application='platform_admin' AND source_tenant_id=? AND table_name='replace_approval' AND source_record_id=?").get(tenantId, tenantId, options.adminApprovalId);
+      if (consumed) throw new Error("Esta aprovação de substituição já foi utilizada.");
+    }
     const { preview, plan } = await inspectPayload(db, tenantId, payload, digest, mode, actorUserId);
     if (!confirmationId || confirmationId !== preview.confirmationId) throw new Error("Os dados ou a prévia mudaram. Gere uma nova prévia antes de confirmar.");
     if (!preview.canImport) throw new Error(preview.issues[0] || "A prévia encontrou impedimentos.");
@@ -433,13 +439,18 @@ export async function importWorkshopPackage(
       verified[table] = Number(actual?.count || 0);
       if (verified[table] < expectedRows) throw new Error(`A conferência de ${table} falhou; a transação será revertida.`);
     }
-    const auditColumns = await columnsFor(db, "audit_events");
-    const action = mode === "replace" ? "data_transfer.replaced" : mode === "merge" ? "data_transfer.merged" : "data_transfer.imported";
-    if (!["id", "tenant_id", "user_id", "action", "entity_id"].every((column) => auditColumns.has(column))) throw new Error("O destino não pode registrar a auditoria; nenhuma alteração será mantida.");
-    const audit: TransferRow = { id: randomUUID(), tenant_id: tenantId, user_id: actorUserId, action, entity_id: digest };
-    if (auditColumns.has("created_at")) audit.created_at = new Date().toISOString();
-    const entries = Object.entries(audit);
-    await db.prepare(`INSERT INTO audit_events (${entries.map(([key]) => key).join(",")}) VALUES (${entries.map(() => "?").join(",")})`).run(...entries.map(([, value]) => value));
+    if (options.adminApprovalId) {
+      await db.prepare("INSERT INTO data_transfer_records(tenant_id,source_application,source_tenant_id,table_name,source_record_id,source_hash,target_record_id,target_hash) VALUES(?,?,?,?,?,?,?,?)")
+        .run(tenantId,"platform_admin",tenantId,"replace_approval",options.adminApprovalId,digest,options.adminApprovalId,digest);
+    } else {
+      const auditColumns = await columnsFor(db, "audit_events");
+      const action = mode === "replace" ? "data_transfer.replaced" : mode === "merge" ? "data_transfer.merged" : "data_transfer.imported";
+      if (!["id", "tenant_id", "user_id", "action", "entity_id"].every((column) => auditColumns.has(column))) throw new Error("O destino não pode registrar a auditoria; nenhuma alteração será mantida.");
+      const audit: TransferRow = { id: randomUUID(), tenant_id: tenantId, user_id: actorUserId, action, entity_id: digest };
+      if (auditColumns.has("created_at")) audit.created_at = new Date().toISOString();
+      const entries = Object.entries(audit);
+      await db.prepare(`INSERT INTO audit_events (${entries.map(([key]) => key).join(",")}) VALUES (${entries.map(() => "?").join(",")})`).run(...entries.map(([, value]) => value));
+    }
     return { sourceWorkshop: payload.source.tenant.name, targetWorkshop: preview.targetWorkshop, mode, counts: verified, backupId };
   };
   return "transaction" in db && typeof db.transaction === "function" ? db.transaction(run) : run();

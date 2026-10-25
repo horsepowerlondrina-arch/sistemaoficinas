@@ -17,7 +17,7 @@ Administração de contas e permissões da plataforma, cadastro/gestão/ativaç�
 
 ### Sistema operacional da oficina
 
-Cada oficina autenticada opera seus próprios clientes e veículos, ordens/orçamentos, checklists, cadastros, serviços/produtos, estoque, financeiro, configurações, documentos e transferência de dados. A disponibilidade concreta de cada módulo deve ser confirmada no código e nos testes da revisão, não inferida por este catálogo.
+Cada oficina autenticada opera seus próprios clientes e veículos, ordens/orçamentos, checklists, cadastros, serviços/produtos, estoque, financeiro, configurações e documentos. A transferência completa .hptx é exclusiva do Painel de Administração Central. Exportações individuais por módulo (PDF, Excel ou CSV), sujeitas a filtros e permissões, são futuras e não estão implementadas nesta decisão. A disponibilidade concreta de cada módulo deve ser confirmada no código e nos testes da revisão, não inferida por este catálogo.
 
 ## Identificadores e prioridade
 

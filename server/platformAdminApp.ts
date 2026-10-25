@@ -11,9 +11,12 @@ import { hashPassword } from "./auth/session.js";
 import { isTestAdminPasswordOnlyLoginAllowed } from "./platformAdminMfa.js";
 import { workshopRegistrationSchema, workshopStatusChangeSchema, canManuallyTransitionWorkshop, effectiveWorkshopStatus, workshopStatuses } from "./services/platformWorkshops.js";
 import { newWorkshopActivationId, newWorkshopActivationToken, sendWorkshopActivationEmail, workshopActivationTtlHours } from "./services/workshopActivation.js";
+import { createPlatformAdminDataTransferRoutes } from "./platformAdminDataTransferRoutes.js";
+import type { PlatformAdminDataTransfer } from "./services/platformAdminDataTransfer.js";
 
 const sessionCookie = "hp_platform_session";
 const sessionMs = 8 * 60 * 60 * 1000;
+const baselinePrincipalPermissions = platformPermissions.filter(permission => permission !== "data-transfer:manage");
 const noCache = (_req: Request, res: Response, next: NextFunction) => {
   res.set({ "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer", "X-Frame-Options": "DENY" }); next();
 };
@@ -132,7 +135,7 @@ async function sendWorkshopInvitation(pool: Pool, tenantId: string, actor: Admin
   return { status:200 as const, invitation_status:deliveryStatus, invitation_expires_at:expiresAt, invitation_sent_at:sentAt };
 }
 
-export function createPlatformAdminApp(pool: Pool, encryptionKey: string) {
+export function createPlatformAdminApp(pool: Pool, encryptionKey: string, transfer?: PlatformAdminDataTransfer) {
   const app = express(); app.disable("x-powered-by"); app.use(noCache); app.use(express.json({ limit: "32kb" }));
   app.use("/admin-api", (req, res, next) => { if (!["GET", "HEAD", "OPTIONS"].includes(req.method) && !validOrigin(req, res)) return; next(); });
   const requireSession = async (req: Request, res: Response, next: NextFunction) => {
@@ -153,6 +156,8 @@ export function createPlatformAdminApp(pool: Pool, encryptionKey: string) {
     if (!permissionsOf(admin.permissions).includes(permission)) { res.status(403).json({ error: "Permissão insuficiente." }); return; }
     next();
   };
+
+  app.use(createPlatformAdminDataTransferRoutes(pool, transfer, requireSession, requirePermission));
 
   app.post("/admin-api/workshop-activation/validate", async (req, res) => {
     const input = z.object({ token:z.string().regex(/^[a-f0-9]{64}$/) }).strict().safeParse(req.body);
@@ -306,7 +311,7 @@ export function createPlatformAdminApp(pool: Pool, encryptionKey: string) {
     const input = z.object({ email: z.string().email().max(254), name: z.string().trim().min(2).max(120), role: z.enum(platformRoles), permissions: z.array(z.enum(platformPermissions)).max(platformPermissions.length), setup_token: z.string().regex(/^[a-f0-9]{64}$/) }).safeParse(req.body);
     if (!input.success) { res.status(400).json({ error: "Dados da conta inválidos." }); return; }
     const email = input.data.email.toLowerCase(), id = randomBytes(16).toString("hex"), rawToken = input.data.setup_token;
-    const permissions = input.data.role === "principal" ? [...platformPermissions] : [...new Set(input.data.permissions)];
+    const permissions = input.data.role === "principal" ? [...baselinePrincipalPermissions, ...(input.data.permissions.includes("data-transfer:manage") ? ["data-transfer:manage" as PlatformPermission] : [])] : [...new Set(input.data.permissions)];
     const client = await pool.connect();
     try {
       await client.query("BEGIN");
@@ -351,7 +356,9 @@ export function createPlatformAdminApp(pool: Pool, encryptionKey: string) {
         const principals = await client.query("SELECT count(*)::int AS count FROM platform_admin.administrators WHERE role='principal' AND active=true AND enrolled=true");
         if (principals.rows[0].count <= 1) { await client.query("ROLLBACK"); res.status(409).json({ error: "Mantenha ao menos um administrador principal ativo." }); return; }
       }
-      const nextPermissions = nextRole === "principal" ? [...platformPermissions] : (input.data.permissions ?? permissionsOf(previous.permissions));
+      const requestedPermissions = input.data.permissions ?? permissionsOf(previous.permissions);
+      const keepTransferPermission = input.data.permissions === undefined ? permissionsOf(previous.permissions).includes("data-transfer:manage") : requestedPermissions.includes("data-transfer:manage");
+      const nextPermissions = nextRole === "principal" ? [...baselinePrincipalPermissions, ...(keepTransferPermission ? ["data-transfer:manage" as PlatformPermission] : [])] : [...new Set(requestedPermissions)];
       await client.query(`UPDATE platform_admin.administrators SET active=COALESCE($1,active),role=$2,permissions=$3::jsonb WHERE id=$4`, [input.data.active ?? null,nextRole,JSON.stringify(nextPermissions),id]);
       if (input.data.active === false) await client.query("DELETE FROM platform_admin.sessions WHERE administrator_id=$1", [id]);
       const action = input.data.active !== undefined ? "admin.account.status_changed" : "admin.permissions.changed";

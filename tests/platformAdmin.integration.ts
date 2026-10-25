@@ -40,7 +40,7 @@ test("PostgreSQL platform admin: login, MFA, separated sessions, roles, audit an
       .map(file=>readFileSync(`local-postgres/${file}`,"utf8").replace(/\bplatform_admin\b/g,schema)).join("\n");
     await owner.query(migration);
     await owner.query(`ALTER TABLE ${schema}.administrators DROP CONSTRAINT platform_admin_permissions_allowlist;
-      ALTER TABLE ${schema}.administrators ADD CONSTRAINT platform_admin_permissions_allowlist CHECK (permissions <@ '["audit:read","administrators:manage","platform:settings","critical:request","critical:approve","workshops:read","workshops:manage"]'::jsonb);
+      ALTER TABLE ${schema}.administrators ADD CONSTRAINT platform_admin_permissions_allowlist CHECK (permissions <@ '["audit:read","administrators:manage","platform:settings","critical:request","critical:approve","workshops:read","workshops:manage","data-transfer:manage"]'::jsonb);
       ALTER TABLE ${schema}.audit_events ADD COLUMN subject_tenant_id text`);
     const role = await assertPlatformAdminDatabase(testPool);
     assert.equal(role.role, "hp_platform_admin_app");
@@ -77,7 +77,15 @@ test("PostgreSQL platform admin: login, MFA, separated sessions, roles, audit an
     process.env.VERCEL_PROJECT_ID = "prj_rLVsFKBpMXQFtfm1kgYHFQObr4Jc";
     process.env.PLATFORM_ADMIN_TEST_MFA_BYPASS_EMAIL = seedCredentials.email;
     process.env.PLATFORM_ADMIN_TEST_MFA_BYPASS_HOST = "127.0.0.1";
-    server = createPlatformAdminApp(testPool, encryptionKey).listen(0,"127.0.0.1"); await once(server,"listening");
+    const fakeTenant = "00000000-0000-4000-8000-000000000001";
+    const transferStub = {
+      target: async (tenantId: string) => { if (tenantId !== fakeTenant) throw new Error("tenant-not-registered"); return { tenantId, workshopName: "Oficina Fictícia ADM" }; },
+      exportPackage: async (tenantId: string) => ({ workshopName: "Oficina Fictícia ADM", archive: Buffer.from(tenantId) }),
+      preview: async () => ({ canImport: true }), verify: async () => ({ overall: "not-verifiable" }),
+      import: async () => ({ mode: "empty" }), backups: async () => [], backup: async () => undefined,
+      approvalConsumed: async () => false,
+    };
+    server = createPlatformAdminApp(testPool, encryptionKey, transferStub).listen(0,"127.0.0.1"); await once(server,"listening");
     const address = server.address(); assert.ok(address && typeof address !== "string");
     const base = `http://127.0.0.1:${address.port}`;
     const request = (path: string, options: { method?: string; cookie?: string; body?: unknown } = {}) => fetch(base+path, {
@@ -111,6 +119,10 @@ test("PostgreSQL platform admin: login, MFA, separated sessions, roles, audit an
     const principalCookie = principalLogin.headers.get("set-cookie")?.split(";")[0] || "";
     assert.match(principalCookie,/^hp_platform_session=/);
     assert.match(principalLogin.headers.get("set-cookie") || "",/HttpOnly; SameSite=Strict/);
+    const transferExport = await request("/admin-api/workshops/00000000-0000-4000-8000-000000000001/data-transfer/export",{method:"POST",cookie:principalCookie,body:{passphrase:randomBytes(24).toString("base64url")}});
+    assert.equal(transferExport.status,200);
+    assert.equal(await transferExport.text(),"00000000-0000-4000-8000-000000000001");
+    assert.equal((await request("/admin-api/workshops/00000000-0000-4000-8000-000000000099/data-transfer/backups",{cookie:principalCookie})).status,400);
     const principalSession = await request("/admin-api/session",{cookie:principalCookie});
     assert.equal(principalSession.status,200);
     assert.ok(!(await principalSession.text()).includes("password_hash"));
@@ -121,12 +133,24 @@ test("PostgreSQL platform admin: login, MFA, separated sessions, roles, audit an
     const financeCookie = financeLogin.headers.get("set-cookie")?.split(";")[0] || "";
     assert.equal((await request("/admin-api/administrators",{cookie:financeCookie})).status,200);
     assert.equal((await request("/admin-api/workshops",{cookie:financeCookie})).status,403);
+    assert.equal((await request(`/admin-api/workshops/00000000-0000-4000-8000-000000000001/data-transfer/backups`,{cookie:financeCookie})).status,403);
     assert.equal((await request("/admin-api/workshops",{method:"POST",cookie:financeCookie,body:{name:"Oficina Fictícia",responsible_name:"Pessoa Fictícia",responsible_email:"oficina@example.test"}})).status,403);
     assert.equal((await request("/admin-api/workshops/00000000-0000-4000-8000-000000000000/status",{method:"PATCH",cookie:financeCookie,body:{status:"blocked",reason:"Justificativa fictícia suficiente"}})).status,403);
     const financeCreate = await request("/admin-api/administrators",{method:"POST",cookie:financeCookie,body:{email:"escalation@example.test",name:"Escalation Fictício",role:"principal",permissions:platformPermissions}});
     assert.equal(financeCreate.status,403);
     const financeElevate = await request("/admin-api/administrators/admin-root-test",{method:"PATCH",cookie:financeCookie,body:{role:"principal",permissions:platformPermissions}});
     assert.equal(financeElevate.status,403);
+
+    const principalDefaultToken = randomBytes(32).toString("hex");
+    const defaultPrincipal = await request("/admin-api/administrators",{method:"POST",cookie:principalCookie,body:{email:"principal-default@example.test",name:"Principal sem transferência",role:"principal",permissions:["audit:read"],setup_token:principalDefaultToken}});
+    assert.equal(defaultPrincipal.status,201);
+    const defaultPrincipalBody = await defaultPrincipal.json() as { administrator:{permissions:string[]} };
+    assert.ok(!defaultPrincipalBody.administrator.permissions.includes("data-transfer:manage"));
+    const principalTransferToken = randomBytes(32).toString("hex");
+    const explicitPrincipal = await request("/admin-api/administrators",{method:"POST",cookie:principalCookie,body:{email:"principal-transfer@example.test",name:"Principal com transferência",role:"principal",permissions:["audit:read","data-transfer:manage"],setup_token:principalTransferToken}});
+    assert.equal(explicitPrincipal.status,201);
+    const explicitPrincipalBody = await explicitPrincipal.json() as { administrator:{permissions:string[]} };
+    assert.ok(explicitPrincipalBody.administrator.permissions.includes("data-transfer:manage"));
 
     const setupToken = randomBytes(32).toString("hex");
     const createdResponse = await request("/admin-api/administrators",{method:"POST",cookie:principalCookie,body:{email:"support@example.test",name:"Suporte Fictício",role:"technical_support",permissions:["audit:read"],setup_token:setupToken}});
@@ -166,6 +190,7 @@ test("PostgreSQL platform admin: login, MFA, separated sessions, roles, audit an
     assert.ok(audit.some(event=>event.result==="blocked"));
     assert.ok(audit.some(event=>event.action==="admin.account.created"));
     assert.ok(audit.some(event=>event.action==="admin.local_seed.created"));
+    assert.ok(audit.some(event=>event.action==="admin.data_transfer.exported" && event.result==="success"));
     assert.ok(audit.every(event=>!JSON.stringify(event).includes(principalPassword) && !JSON.stringify(event).includes(principalSecret) && !JSON.stringify(event).includes(setupSecret) && !JSON.stringify(event).includes(setupToken) && !JSON.stringify(event).includes(seedCredentials.password) && !JSON.stringify(event).includes(seedCredentials.totpSecret)));
     await assert.rejects(testPool.query(`UPDATE ${schema}.audit_events SET result='failure'`),{code:"42501"});
 
