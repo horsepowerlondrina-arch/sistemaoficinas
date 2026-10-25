@@ -105,7 +105,8 @@ test("PostgreSQL local: transferência fictícia completa preserva IDs, relaçõ
       assert.deepEqual(afterReadOnlyCounts,beforeReadOnlyCounts,"a conferência administrativa não deve alterar dados nem auditoria operacional");
       await assert.rejects(adminTransfer.verify(tenantId,file.toString("utf8"),"frase-incorreta-ficticia","empty"),
         error=>error instanceof TransferVerificationError && error.code==="invalid_package");
-      await assert.rejects(verifyWorkshopImport(db, tenantId, file, "frase-incorreta-ficticia", userId, "empty"), /Não foi possível abrir/);
+      await assert.rejects(verifyWorkshopImport(db, tenantId, file, "frase-incorreta-ficticia", userId, "empty"),
+        error=>error instanceof TransferVerificationError && error.code==="invalid_package");
       const result = await importWorkshopPackage(db, tenantId, file, phrase, preview.confirmationId, userId);
       assert.equal(result.counts.external_catalog_links, 1);
       const externalLink = await db.prepare("SELECT source,external_key,catalog_id FROM external_catalog_links WHERE tenant_id=?").get(tenantId);
