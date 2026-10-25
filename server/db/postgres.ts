@@ -133,6 +133,7 @@ export function createPostgresDatabase(url = process.env.DATABASE_URL, options: 
           "app.setup_hash", "app.public_share_hash", "app.extension_hash",
         ];
         for (const name of names) await client.query("SELECT set_config($1,$2,true)", [name, settings[name] || ""]);
+        await client.query("SELECT set_config('app.platform_admin_transfer','',true)");
         for (const [key, value] of Object.entries(settings)) {
           if (!names.includes(key)) throw new Error("Configuração de requisição inválida.");
           await client.query("SELECT set_config($1,$2,true)", [key, value]);
@@ -168,7 +169,21 @@ export function createPostgresDatabase(url = process.env.DATABASE_URL, options: 
       const client = await pool.connect();
       try {
         await client.query("BEGIN READ ONLY");
-        await client.query("SELECT set_config('app.tenant_id',$1,true)", [tenant]);
+        await client.query("SELECT set_config('app.tenant_id',$1,true),set_config('app.user_id','',true),set_config('app.platform_admin_transfer','',true)", [tenant]);
+        const result = await context.run(client, callback);
+        await client.query("COMMIT");
+        return result;
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally { client.release(); }
+    },
+    async withTenantServiceRead<T>(tenant: string, callback: () => Promise<T>): Promise<T> {
+      if (context.getStore()) throw new Error("A leitura administrativa exige uma transação isolada.");
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN READ ONLY");
+        await client.query("SELECT set_config('app.tenant_id',$1,true),set_config('app.user_id','',true),set_config('app.platform_admin_transfer','on',true)", [tenant]);
         const result = await context.run(client, callback);
         await client.query("COMMIT");
         return result;

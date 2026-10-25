@@ -28,6 +28,7 @@ export interface DB {
     shouldCommit?: () => boolean,
   ): Promise<T>;
   withTenantRead?<T>(tenant: string, callback: () => Promise<T>): Promise<T>;
+  withTenantServiceRead?<T>(tenant: string, callback: () => Promise<T>): Promise<T>;
   getTenantAccessState?(tenant: string): Promise<string>;
   lockTenantMutations?(tenant: string): Promise<void>;
   prepare(sql: string): {

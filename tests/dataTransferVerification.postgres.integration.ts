@@ -317,3 +317,92 @@ test("PostgreSQL local: importações concorrentes revalidam sob bloqueio e não
     await admin.end();
   }
 });
+test("PostgreSQL local: admin transfer uses scoped RLS context and verifies a workshop without an owner", async (t) => {
+  const admin = adminClient();
+  await admin.connect();
+  const db = await createLocalDatabase();
+  const ownerlessTenantId = randomUUID(), ownerTenantId = randomUUID(), otherTenantId = randomUUID();
+  const ownerUserId = randomUUID(), otherUserId = randomUUID();
+  const phrase = "frase-ficticia-contexto-administrativo";
+  const tenantIds = [ownerlessTenantId, ownerTenantId, otherTenantId];
+  let fixtureCreated = false;
+  try {
+    await admin.query("INSERT INTO horse_power.tenants(id,name,document,phone,address) VALUES($1,$2,'','','')", [ownerlessTenantId, "Oficina Fictícia sem Proprietário"]);
+    await admin.query("INSERT INTO horse_power.tenants(id,name,document,phone,address) VALUES($1,$2,'','','')", [ownerTenantId, "Oficina Fictícia Administrativa"]);
+    await admin.query("INSERT INTO horse_power.tenants(id,name,document,phone,address) VALUES($1,$2,'','','')", [otherTenantId, "Oficina Fictícia Isolada"]);
+    fixtureCreated = true;
+    await admin.query("INSERT INTO horse_power.users(id,name,email,password_hash) VALUES($1,$2,$3,'fixture-hash'),($4,$5,$6,'fixture-hash')", [
+      ownerUserId, "Proprietário Fictício", `owner-${ownerUserId}@example.invalid`,
+      otherUserId, "Proprietário Fictício Isolado", `owner-${otherUserId}@example.invalid`,
+    ]);
+    await admin.query("INSERT INTO horse_power.memberships(user_id,tenant_id,role) VALUES($1,$2,'owner'),($3,$4,'owner')", [
+      ownerUserId, ownerTenantId, otherUserId, otherTenantId,
+    ]);
+    await admin.query("INSERT INTO horse_power.customers(id,tenant_id,name,email) VALUES($1,$2,$3,$4)", [
+      randomUUID(), otherTenantId, "Cliente Fictício Isolado", "isolado@example.invalid",
+    ]);
+
+    const hiddenOwner = await db.withTenantRead!(ownerTenantId, async () =>
+      db.prepare("SELECT user_id FROM memberships WHERE tenant_id=? AND role='owner' ORDER BY user_id LIMIT 1").get(ownerTenantId));
+    assert.equal(hiddenOwner, undefined, "a leitura comum não deve atravessar a política de vínculo próprio");
+    const scopedOwner = await db.withTenantServiceRead!(ownerTenantId, async () =>
+      db.prepare("SELECT user_id FROM memberships WHERE tenant_id=? AND role='owner' ORDER BY user_id LIMIT 1").get(ownerTenantId));
+    assert.equal(scopedOwner?.user_id, ownerUserId, "o contexto de serviço só deve revelar o proprietário da oficina selecionada");
+    const foreignOwner = await db.withTenantServiceRead!(ownerTenantId, async () =>
+      db.prepare("SELECT user_id FROM memberships WHERE tenant_id=? AND role='owner' ORDER BY user_id LIMIT 1").get(otherTenantId));
+    assert.equal(foreignOwner, undefined, "o contexto de serviço não deve revelar vínculos de outra oficina");
+
+    const names = new Map<string, string>([[ownerlessTenantId, "Oficina Fictícia sem Proprietário"], [ownerTenantId, "Oficina Fictícia Administrativa"]]);
+    const adminTargetPool = {
+      query: async (_sql: string, values: unknown[] = []) => {
+        const tenantId = String(values[0] || "");
+        const name = names.get(tenantId);
+        return name ? { rowCount: 1, rows: [{ tenant_id: tenantId, name }] } : { rowCount: 0, rows: [] };
+      },
+    } as never;
+    const transfer = createPlatformAdminDataTransfer(db, adminTargetPool);
+
+    const exported = await transfer.exportPackage(ownerlessTenantId, phrase);
+    const payload = openTransferPackage(exported.archive, phrase);
+    assert.equal(payload.records.customers?.length || 0, 0, "a exportação não deve incluir dados da oficina vizinha");
+    assert.equal(payload.records.memberships?.length || 0, 0, "a exportação não deve inventar vínculos de acesso");
+    const beforeRead = await admin.query("SELECT (SELECT count(*) FROM horse_power.audit_events WHERE tenant_id=$1) AS audit_count,(SELECT count(*) FROM horse_power.customers WHERE tenant_id=$1) AS customer_count", [ownerlessTenantId]);
+    const report = await transfer.verify(ownerlessTenantId, exported.archive.toString("utf8"), phrase, "empty") as { mode: string };
+    assert.equal(report.mode, "empty", "a conferência deve funcionar sem membership owner");
+    const afterRead = await admin.query("SELECT (SELECT count(*) FROM horse_power.audit_events WHERE tenant_id=$1) AS audit_count,(SELECT count(*) FROM horse_power.customers WHERE tenant_id=$1) AS customer_count", [ownerlessTenantId]);
+    assert.deepEqual(afterRead.rows, beforeRead.rows, "exportação e conferência não devem gravar dados nem auditoria operacional");
+    await assert.rejects(transfer.verify(otherTenantId, exported.archive.toString("utf8"), phrase, "empty"),
+      error => error instanceof TransferVerificationError && error.code === "workshop_unavailable");
+
+    const preview = await transfer.preview(ownerTenantId, exported.archive.toString("utf8"), phrase, "merge") as { canImport: boolean; confirmationId: string };
+    assert.equal(preview.canImport, true);
+    const merged = await transfer.import(ownerTenantId, exported.archive.toString("utf8"), phrase, preview.confirmationId, "merge", undefined) as { mode: string };
+    assert.equal(merged.mode, "merge");
+
+    const replacePreview = await transfer.preview(ownerTenantId, exported.archive.toString("utf8"), phrase, "replace") as { canImport: boolean; confirmationId: string; targetWorkshop: string };
+    assert.equal(replacePreview.canImport, true);
+    const replaced = await transfer.import(ownerTenantId, exported.archive.toString("utf8"), phrase, replacePreview.confirmationId, "replace", replacePreview.targetWorkshop, randomUUID()) as { mode: string; backupId?: string };
+    assert.equal(replaced.mode, "replace");
+    assert.ok(replaced.backupId, "a substituição deve gerar backup validado");
+
+    const protectedRows = await admin.query("SELECT (SELECT count(*) FROM horse_power.users WHERE id=$1) AS user_count,(SELECT count(*) FROM horse_power.memberships WHERE tenant_id=$2) AS membership_count,(SELECT count(*) FROM horse_power.data_transfer_backups WHERE tenant_id=$2) AS backup_count,(SELECT count(*) FROM horse_power.customers WHERE tenant_id=$3) AS other_customer_count", [
+      ownerUserId, ownerTenantId, otherTenantId,
+    ]);
+    assert.deepEqual(protectedRows.rows[0], { user_count: 1, membership_count: 1, backup_count: 1, other_customer_count: 1 },
+      "importações devem preservar usuários e vínculos e manter isolada a oficina vizinha");
+  } finally {
+    await db.close();
+    if (fixtureCreated) {
+      await admin.query("DELETE FROM horse_power.audit_events WHERE tenant_id=ANY($1::text[])", [tenantIds]);
+      await admin.query("DELETE FROM horse_power.data_transfer_backups WHERE tenant_id=ANY($1::text[])", [tenantIds]).catch(() => {});
+      await admin.query("DELETE FROM horse_power.data_transfer_records WHERE tenant_id=ANY($1::text[])", [tenantIds]).catch(() => {});
+      await admin.query("DELETE FROM horse_power.data_transfer_archived_documents WHERE tenant_id=ANY($1::text[])", [tenantIds]).catch(() => {});
+      await admin.query("DELETE FROM horse_power.customers WHERE tenant_id=ANY($1::text[])", [tenantIds]);
+      await admin.query("DELETE FROM horse_power.memberships WHERE tenant_id=ANY($1::text[])", [tenantIds]);
+      await admin.query("DELETE FROM horse_power.users WHERE id=ANY($1::text[])", [[ownerUserId, otherUserId]]);
+      await admin.query("DELETE FROM horse_power.tenants WHERE id=ANY($1::text[])", [tenantIds]);
+    }
+    await admin.end();
+  }
+  t.diagnostic("Testa somente dados fictícios; a oficina sem proprietário foi apenas exportada e conferida.");
+});
