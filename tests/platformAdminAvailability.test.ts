@@ -11,7 +11,8 @@ test("production entry registers the gated admin route and its workshops section
   );
   assert.match(entry, /isPlatformAdminAvailable/);
   assert.match(entry, /platformAdminAvailable && <Route path="\/admin\/\*"/);
-  assert.match(adminPage, /<PlatformWorkshops canManage=\{canManageWorkshops\} \/>/);
+  assert.match(adminPage, /<PlatformWorkshops canManage=\{canManageWorkshops\} canTransfer=\{canTransferWorkshops\} canRequestCritical=\{canRequestCritical\} canApproveCritical=\{canApproveCritical\} environmentLabel=\{environmentLabel\} \/>/);
+  assert.match(adminPage, /"data-transfer:manage"/);
 });
 
 test("platform admin stays available during local development", () => {

@@ -3,7 +3,6 @@ import { NumericInput } from "../components/NumericInput";
 import { PartsPricing } from "./PartsPricing";
 import { LaborRates } from '../components/RepairServicePicker';
 import { WorkshopProfile } from "../components/WorkshopProfile";
-import { DataTransfer } from "../components/DataTransfer";
 import { RegisterModal } from "./Registers";
 import { CapturePanel } from "../components/CapturePanel";
 import { StockEntry } from "../components/StockEntry";
@@ -549,7 +548,8 @@ export function Finance() {
 }
 export function Settings() {
   const [params, setParams] = useSearchParams();
-  const activeTab = params.get("aba") || "oficina";
+  const requestedTab = params.get("aba");
+  const activeTab = requestedTab === "transferencia" ? "oficina" : requestedTab || "oficina";
   const { session, data, refresh, notify } = useApp();
   const [rates, setRates] = useState({
     debit_fee_bps: data.payment_settings?.debit_fee_bps || 0,
@@ -567,7 +567,6 @@ export function Settings() {
       />
       <div className="tabs">
         <button className={activeTab === "oficina" ? "active" : ""} onClick={() => setParams({aba:"oficina"})}>Dados da oficina</button>
-        <button className={activeTab === "transferencia" ? "active" : ""} onClick={() => setParams({aba:"transferencia"})}>Transferência de dados</button>
         <button
           className={activeTab === "geral" ? "active" : ""}
           onClick={() => setParams({aba:"geral"})}
@@ -583,7 +582,7 @@ export function Settings() {
           Lucro de peças e terceiros
         </button>
       </div>
-      {activeTab === "transferencia" ? <DataTransfer /> : params.get('aba')==='servicos'?<LaborRates/>:activeTab === "oficina" ? <WorkshopProfile key={session.tenant.id} /> : params.get("aba") === "pecas" ? (
+      {params.get('aba')==='servicos'?<LaborRates/>:activeTab === "oficina" ? <WorkshopProfile key={session.tenant.id} /> : params.get("aba") === "pecas" ? (
         <PartsPricing />
       ) : (
         <>

@@ -3,6 +3,7 @@ import { createPostgresDatabase } from "./db/postgres.js";
 import pg from "pg";
 import { assertDevelopmentIsolation } from "./developmentIsolation.js";
 import { assertPlatformAdminDatabase, createPlatformAdminApp } from "./platformAdminApp.js";
+import { createPlatformAdminDataTransfer } from "./services/platformAdminDataTransfer.js";
 import { readFileSync } from "node:fs";
 assertDevelopmentIsolation(process.env);
 const productionHost = process.env.VERCEL_PROJECT_PRODUCTION_URL;
@@ -26,5 +27,6 @@ const adminPool = new pg.Pool({
   ssl: { rejectUnauthorized: true, ca: readFileSync(new URL("./db/certs/supabase-ca.crt", import.meta.url), "utf8") },
 });
 await assertPlatformAdminDatabase(adminPool);
-const app = createApp(db, createPlatformAdminApp(adminPool, adminKey));
+const transfer = createPlatformAdminDataTransfer(db, adminPool);
+const app = createApp(db, createPlatformAdminApp(adminPool, adminKey, transfer));
 export default app;
