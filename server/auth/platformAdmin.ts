@@ -3,7 +3,7 @@ import type { Pool, PoolClient } from "pg";
 
 export const platformRoles = ["principal", "finance", "technical_support", "commercial"] as const;
 export type PlatformRole = typeof platformRoles[number];
-export const platformPermissions = ["audit:read", "administrators:manage", "platform:settings", "critical:request", "critical:approve", "workshops:read", "workshops:manage", "data-transfer:manage"] as const;
+export const platformPermissions = ["audit:read", "administrators:manage", "platform:settings", "critical:request", "critical:approve", "workshops:read", "workshops:manage", "data-transfer:manage", "modules:manage"] as const;
 export type PlatformPermission = typeof platformPermissions[number];
 const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 

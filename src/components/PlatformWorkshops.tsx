@@ -10,8 +10,11 @@ type Workshop = {
   trial_days_remaining: number | null; status_reason: string; total_count?: number;
   invitation_status: "none" | "pending" | "sent" | "failed" | "expired" | "revoked" | "used";
   invitation_expires_at: string | null; invitation_sent_at: string | null;
+  catalog_access?: CatalogAccess;
 };
 type HistoryEvent = { id: string; actor_email: string; action: string; result: string; technical_context: Record<string, unknown>; created_at: string };
+type CatalogAccess = { status:"active"|"not_contracted"|"expired"|"revoked"|"not_installed"; enabled:boolean; valid_until:string|null; activated_at:string|null; grant_source:string; updated_by_admin_id:string|null; updated_by_admin_email:string; updated_at:string|null; reason:string; catalog_installed:boolean };
+type CatalogTestAccess = { available:boolean; enabled:boolean; valid_until:string|null; updated_by_admin_email:string; updated_at:string|null; reason:string };
 type FormFields = Pick<Workshop, "name" | "responsible_name" | "responsible_email" | "phone" | "document">;
 
 const labels: Record<Status, string> = {
@@ -38,8 +41,10 @@ function toFields(value?: Workshop): FormFields {
   return value ? { name: value.name, responsible_name: value.responsible_name, responsible_email: value.responsible_email, phone: value.phone, document: value.document } : blank;
 }
 function localDate(value: string | null) { return value ? new Date(value).toLocaleString("pt-BR") : "—"; }
+function localDateTimeInput(value: string | null) { if(!value)return ""; const date=new Date(value);return new Date(date.getTime()-date.getTimezoneOffset()*60000).toISOString().slice(0,16); }
+const catalogAccessLabels:Record<CatalogAccess["status"],string>={active:"Habilitado",not_contracted:"Não contratado",expired:"Acesso vencido",revoked:"Acesso revogado",not_installed:"Catálogo ainda não instalado"};
 
-export function PlatformWorkshops({ canManage, canTransfer, canRequestCritical, canApproveCritical, environmentLabel }: { canManage: boolean; canTransfer: boolean; canRequestCritical: boolean; canApproveCritical: boolean; environmentLabel: string }) {
+export function PlatformWorkshops({ canManage, canManageModules, canTransfer, canRequestCritical, canApproveCritical, environmentLabel }: { canManage: boolean; canManageModules:boolean; canTransfer: boolean; canRequestCritical: boolean; canApproveCritical: boolean; environmentLabel: string }) {
   const [items, setItems] = useState<Workshop[]>([]);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -55,6 +60,12 @@ export function PlatformWorkshops({ canManage, canTransfer, canRequestCritical, 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [catalogUntil,setCatalogUntil]=useState("");
+  const [catalogReason,setCatalogReason]=useState("Autorização administrativa do módulo Catálogo Técnico.");
+  const [testAccess,setTestAccess]=useState<CatalogTestAccess|null>(null);
+  const [testUntil,setTestUntil]=useState("");
+  const [testReason,setTestReason]=useState("Acesso temporário para testes de homologação.");
+  const [testAccessUnavailable,setTestAccessUnavailable]=useState(false);
 
   const load = async (nextPage = page) => {
     setError("");
@@ -65,6 +76,7 @@ export function PlatformWorkshops({ canManage, canTransfer, canRequestCritical, 
     } catch (cause) { setError((cause as Error).message); }
   };
   useEffect(() => { void load(1); }, [status]);
+  useEffect(()=>{if(!canManageModules||environmentLabel==="Ambiente local")return;void request<CatalogTestAccess>("/catalog-test-access").then(value=>{setTestAccess(value);setTestUntil(localDateTimeInput(value.valid_until));}).catch(()=>setTestAccessUnavailable(true));},[canManageModules,environmentLabel]);
 
   const openWorkshop = async (tenantId: string) => {
     setError(""); setMessage(""); setBusy(true);
@@ -72,6 +84,8 @@ export function PlatformWorkshops({ canManage, canTransfer, canRequestCritical, 
       const detail = await request<Workshop>(`/workshops/${encodeURIComponent(tenantId)}`);
       const events = await request<HistoryEvent[]>(`/workshops/${encodeURIComponent(tenantId)}/history`);
       setSelected(detail); setHistory(events); setFields(toFields(detail)); setEditing(false); setCreating(false); setReason(""); setNextStatus("");
+      setCatalogUntil(localDateTimeInput(detail.catalog_access?.valid_until||null));
+      setCatalogReason("Autorização administrativa do módulo Catálogo Técnico.");
     } catch (cause) { setError((cause as Error).message); }
     finally { setBusy(false); }
   };
@@ -114,6 +128,24 @@ export function PlatformWorkshops({ canManage, canTransfer, canRequestCritical, 
     finally { setBusy(false); }
   };
   const setField = (key: keyof FormFields, value: string) => setFields(current => ({ ...current, [key]: value }));
+  const changeCatalogAccess=async(enabled:boolean)=>{
+    if(!selected)return;setBusy(true);setError("");setMessage("");
+    try{
+      await request(`/workshops/${encodeURIComponent(selected.tenant_id)}/catalog-access`,"PATCH",{
+        enabled,valid_until:enabled&&catalogUntil?new Date(catalogUntil).toISOString():null,reason:catalogReason,
+      });
+      setMessage(enabled?"Acesso ao Catálogo Técnico habilitado e registrado no histórico.":"Acesso ao Catálogo Técnico revogado. Os registros históricos foram preservados.");
+      await openWorkshop(selected.tenant_id);await load();
+    }catch(cause){setError((cause as Error).message);}finally{setBusy(false);}
+  };
+  const changeTestAccess=async(enabled:boolean)=>{
+    setBusy(true);setError("");setMessage("");
+    try{
+      await request("/catalog-test-access","PUT",{enabled,valid_until:enabled&&testUntil?new Date(testUntil).toISOString():null,reason:testReason});
+      const current=await request<CatalogTestAccess>("/catalog-test-access");setTestAccess(current);setTestUntil(localDateTimeInput(current.valid_until));
+      setMessage(enabled?"Acesso temporário aplicado somente às autorizações de teste; novas ativações receberão a mesma liberação.":"Acesso temporário revogado em lote. Autorizações comerciais foram preservadas.");
+    }catch(cause){setTestAccessUnavailable(true);setError((cause as Error).message);}finally{setBusy(false);}
+  };
 
   if (creating || editing) return <section className="pa-card pa-workshop-form-card">
     <div className="pa-section-title"><div><h2>{creating ? "Cadastrar oficina" : "Editar dados cadastrais"}</h2><p>O cadastro não libera o sistema enquanto o e-mail estiver pendente.</p></div><button type="button" className="pa-quiet" onClick={() => { setCreating(false); setEditing(false); setFields(toFields(selected || undefined)); }}><ArrowLeft size={16}/> Voltar</button></div>
@@ -132,6 +164,17 @@ export function PlatformWorkshops({ canManage, canTransfer, canRequestCritical, 
     <section className="pa-card"><div className="pa-section-title"><div><button className="pa-back-button" onClick={() => setSelected(null)}><ArrowLeft size={15}/> Voltar à lista</button><h2>{selected.name}</h2><p>{selected.tenant_id}</p></div><span className={`pa-status ${selected.status === "trial" || selected.status === "active" ? "is-active" : ""}`}>{labels[selected.status]}</span></div>
       {canManage && selected.source !== "legacy" && <button className="pa-quiet" disabled={busy} onClick={() => { setFields(toFields(selected)); setEditing(true); }}><ShieldCheck size={15}/> Editar dados</button>}
       <dl className="pa-workshop-data"><div><dt>Responsável</dt><dd>{selected.responsible_name || "Não informado"}</dd></div><div><dt>E-mail</dt><dd>{selected.responsible_email || "Não informado"}</dd></div><div><dt>Telefone</dt><dd>{selected.phone || "Não informado"}</dd></div><div><dt>CPF/CNPJ</dt><dd>{selected.document || "Não informado"}</dd></div><div><dt>Origem</dt><dd>{selected.source === "legacy" ? "Cadastro anterior" : "Painel administrativo"}</dd></div><div><dt>Cadastro</dt><dd>{localDate(selected.created_at)}</dd></div><div><dt>Convite</dt><dd>{invitationLabels[selected.invitation_status]}{selected.invitation_sent_at ? ` · ${localDate(selected.invitation_sent_at)}` : ""}{selected.invitation_expires_at && selected.invitation_status !== "used" ? ` · expira ${localDate(selected.invitation_expires_at)}` : ""}</dd></div><div><dt>E-mail confirmado</dt><dd>{localDate(selected.email_verified_at)}</dd></div><div><dt>Início do teste</dt><dd>{localDate(selected.trial_started_at)}</dd></div><div><dt>Fim do teste</dt><dd>{localDate(selected.trial_ends_at)}{selected.trial_days_remaining !== null && selected.trial_days_remaining !== undefined ? ` · ${selected.trial_days_remaining} dia(s) restantes` : ""}</dd></div><div><dt>Identificador</dt><dd>{selected.tenant_id}</dd></div></dl>
+      {canManageModules && selected.catalog_access && <section className="pa-workshop-state-form" aria-labelledby="catalog-access-title">
+        <h3 id="catalog-access-title">Módulos adicionais → Catálogo Técnico</h3>
+        <p>Situação: <strong>{catalogAccessLabels[selected.catalog_access.status]}</strong></p>
+        <dl className="pa-workshop-data"><div><dt>Ativação</dt><dd>{localDate(selected.catalog_access.activated_at)}</dd></div><div><dt>Validade</dt><dd>{localDate(selected.catalog_access.valid_until)}</dd></div><div><dt>Responsável pela última alteração</dt><dd>{selected.catalog_access.updated_by_admin_email || selected.catalog_access.updated_by_admin_id || "Sistema"}</dd></div><div><dt>Última alteração</dt><dd>{localDate(selected.catalog_access.updated_at)}</dd></div><div><dt>Origem</dt><dd>{selected.catalog_access.grant_source === "homologation-test" ? "Teste de homologação" : selected.catalog_access.grant_source === "commercial" ? "Autorização comercial" : "—"}</dd></div></dl>
+        {selected.catalog_access.reason && <p>Justificativa: {selected.catalog_access.reason}</p>}
+        <label>Validade (deixe vazio para acesso permanente)<input type="datetime-local" value={catalogUntil} onChange={event=>setCatalogUntil(event.target.value)} /></label>
+        <label>Justificativa<textarea required minLength={10} maxLength={500} value={catalogReason} onChange={event=>setCatalogReason(event.target.value)} /></label>
+        <div className="pa-workshop-actions"><button className="pa-primary" disabled={busy} onClick={()=>void changeCatalogAccess(true)}>{selected.catalog_access.enabled?"Renovar acesso":"Habilitar catálogo"}</button>{selected.catalog_access.enabled&&<button className="pa-quiet" disabled={busy} onClick={()=>void changeCatalogAccess(false)}>Desabilitar catálogo</button>}</div>
+        <h4>Histórico de concessões, renovações e revogações</h4>
+        <div className="pa-audit-list">{history.filter(event=>event.action.startsWith("admin.catalog_access.")).map(event=><article className="pa-audit-event" key={event.id}><span className={`pa-status ${event.result==="success"?"is-active":""}`}>{event.result}</span><div><strong>{event.action}</strong><small>{event.actor_email||"Sistema"} · {localDate(event.created_at)}</small>{typeof event.technical_context?.reason==="string"&&<small>Justificativa: {event.technical_context.reason}</small>}</div></article>)}{history.every(event=>!event.action.startsWith("admin.catalog_access."))&&<p>Nenhuma alteração de acesso registrada.</p>}</div>
+      </section>}
       {canManage && selected.source === "admin" && selected.status === "pending_verification" && <button className="pa-primary pa-invitation-action" disabled={busy} onClick={() => void sendInvitation()}><RefreshCw size={15}/>{selected.invitation_status === "none" ? "Enviar convite" : "Reenviar convite"}</button>}
       {selected.status_reason && <p className="pa-workshop-reason">Situação: {selected.status_reason}</p>}
       {canManage && selected.source !== "legacy" && <form className="pa-workshop-state-form" onSubmit={changeStatus}><h3>Alteração manual da situação</h3><p>Teste e estados de cobrança só podem ser definidos por confirmação ou integração futura.</p><label>Nova situação<select required value={nextStatus} onChange={e => setNextStatus(e.target.value)}><option value="">Selecione…</option><option value="read_only">Somente leitura</option><option value="blocked">Bloqueada</option><option value="archived">Arquivada</option></select></label><label>Justificativa<textarea required minLength={10} maxLength={500} value={reason} onChange={e => setReason(e.target.value)} /></label><button className="pa-quiet" disabled={busy || !nextStatus}>Registrar mudança</button></form>}
@@ -142,6 +185,7 @@ export function PlatformWorkshops({ canManage, canTransfer, canRequestCritical, 
   </div>;
 
   return <div className="pa-workshops">
+    {canManageModules&&environmentLabel!=="Ambiente local"&&<section className="pa-card"><div className="pa-section-title"><div><h2>Acesso temporário para testes de homologação</h2><p>Concessão controlada no projeto autorizado; a revogação em lote afeta somente registros de teste e novas ativações herdam a validade definida.</p></div><ShieldCheck size={20}/></div>{testAccessUnavailable?<p role="status">Controle coletivo indisponível neste ambiente.</p>:testAccess&&<><p>Situação: <strong>{testAccess.enabled?"Habilitado":"Desabilitado"}</strong>{testAccess.valid_until?` · válido até ${localDate(testAccess.valid_until)}`:""}{testAccess.updated_by_admin_email?` · alterado por ${testAccess.updated_by_admin_email}`:""}</p><label>Válido até<input type="datetime-local" value={testUntil} onChange={event=>setTestUntil(event.target.value)} /></label><label>Justificativa<textarea required minLength={10} maxLength={500} value={testReason} onChange={event=>setTestReason(event.target.value)} /></label><div className="pa-workshop-actions"><button className="pa-primary" disabled={busy} onClick={()=>void changeTestAccess(true)}>Habilitar oficinas para testes</button>{testAccess.enabled&&<button className="pa-quiet" disabled={busy} onClick={()=>void changeTestAccess(false)}>Desabilitar e revogar acessos temporários</button>}</div></>}</section>}
     <section className="pa-card"><div className="pa-section-title"><div><h2>Oficinas cadastradas</h2><p>Os cadastros anteriores permanecem com o acesso atual; nenhuma cobrança ou dado operacional aparece aqui.</p></div><div className="pa-workshop-actions"><button className="pa-quiet" onClick={() => void load(1)}><RefreshCw size={15}/> Atualizar</button>{canManage && <button className="pa-primary" onClick={() => { setFields(blank); setCreating(true); setMessage(""); setError(""); }}><Plus size={16}/> Cadastrar oficina</button>}</div></div>
       <form className="pa-workshop-filters" onSubmit={event => { event.preventDefault(); void load(1); }}><label><span>Pesquisar</span><div><Search size={15}/><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Nome, identificador, documento ou e-mail" /></div></label><label>Situação<select value={status} onChange={e => setStatus(e.target.value)}><option value="all">Todas</option>{Object.entries(labels).map(([key,label]) => <option key={key} value={key}>{label}</option>)}</select></label><button className="pa-quiet">Buscar</button></form>
       <div className="pa-workshop-list">{items.map(item => <button type="button" className="pa-workshop-row" key={item.tenant_id} onClick={() => void openWorkshop(item.tenant_id)}><span><strong>{item.name}</strong><small>{item.responsible_email || item.document || item.tenant_id}</small></span><span className={`pa-status ${item.status === "trial" || item.status === "active" ? "is-active" : ""}`}>{labels[item.status]}</span><small>{item.source === "admin" ? `${invitationLabels[item.invitation_status]}${item.invitation_expires_at && item.invitation_status !== "used" ? ` · até ${localDate(item.invitation_expires_at)}` : ""}` : item.trial_days_remaining !== null && item.trial_days_remaining !== undefined ? `${item.trial_days_remaining} dia(s)` : "Acesso legado"}</small></button>)}{items.length === 0 && <p className="pa-empty">Nenhuma oficina encontrada.</p>}</div>

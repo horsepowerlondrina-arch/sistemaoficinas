@@ -9,6 +9,7 @@ import {
 } from "./auth/platformAdmin.js";
 import { hashPassword } from "./auth/session.js";
 import { isTestAdminPasswordOnlyLoginAllowed } from "./platformAdminMfa.js";
+import { catalogHomologationProjectId } from "./catalogHomologation.js";
 import { workshopRegistrationSchema, workshopStatusChangeSchema, canManuallyTransitionWorkshop, effectiveWorkshopStatus, workshopStatuses } from "./services/platformWorkshops.js";
 import { newWorkshopActivationId, newWorkshopActivationToken, sendWorkshopActivationEmail, workshopActivationTtlHours } from "./services/workshopActivation.js";
 import { createPlatformAdminDataTransferRoutes } from "./platformAdminDataTransferRoutes.js";
@@ -179,11 +180,22 @@ export function createPlatformAdminApp(pool: Pool, encryptionKey: string, transf
     }
     const sessionToken = randomBytes(32).toString("hex");
     try {
-      const result = await pool.query(`SELECT * FROM platform_admin.complete_workshop_activation($1,$2,$3,$4,$5,$6)`, [
-        tokenHash,randomUUID(),!preview.rows[0].account_exists ? hashPassword(input.data.password!) : "",
-        digestAdminToken(sessionToken),Date.now()+86400000,randomUUID(),
-      ]);
-      const row = result.rows[0];
+      const client = await pool.connect();
+      let row: Record<string,unknown> | undefined;
+      try {
+        await client.query("BEGIN");
+        const homologationProjectId = catalogHomologationProjectId(req.hostname);
+        await client.query("SELECT set_config('app.vercel_project_id',$1,true),set_config('app.vercel_env',$2,true)",
+          [homologationProjectId || "", homologationProjectId ? process.env.VERCEL_ENV || "" : ""]);
+        row = (await client.query(`SELECT * FROM platform_admin.complete_workshop_activation($1,$2,$3,$4,$5,$6)`, [
+          tokenHash,randomUUID(),!preview.rows[0].account_exists ? hashPassword(input.data.password!) : "",
+          digestAdminToken(sessionToken),Date.now()+86400000,randomUUID(),
+        ])).rows[0];
+        await client.query("COMMIT");
+      } catch(error) {
+        await client.query("ROLLBACK").catch(()=>{});
+        throw error;
+      } finally { client.release(); }
       if (!row?.activated) { res.status(400).json({ error:"Convite inválido, expirado ou já utilizado." }); return; }
       if (row.account_created) res.cookie("hp_session",sessionToken,{ httpOnly:true,sameSite:"strict",secure:process.env.NODE_ENV === "production",maxAge:86400000,path:"/" });
       res.json({ account_created:!!row.account_created, tenant_id:row.tenant_id });
@@ -388,7 +400,62 @@ export function createPlatformAdminApp(pool: Pool, encryptionKey: string, transf
     const rows = await pool.query("SELECT * FROM platform_admin.workshop_directory('','all',1,0,$1)", [tenantId]);
     if (!rows.rowCount) { res.status(404).json({ error: "Oficina não encontrada." }); return; }
     const invitations = await invitationViews(pool, [tenantId]);
-    res.json({ ...rows.rows[0], ...(invitations.get(tenantId) || { invitation_status:"none", invitation_expires_at:null, invitation_sent_at:null }) });
+    const catalogAccess = permissionsOf((res.locals.admin as AdminContext).permissions).includes("modules:manage")
+      ? (await pool.query("SELECT * FROM platform_admin.catalog_access_status($1)",[tenantId])).rows[0]
+      : undefined;
+    res.json({ ...rows.rows[0], ...(catalogAccess ? { catalog_access:catalogAccess } : {}), ...(invitations.get(tenantId) || { invitation_status:"none", invitation_expires_at:null, invitation_sent_at:null }) });
+  });
+  app.patch("/admin-api/workshops/:id/catalog-access", requireSession, requirePermission("modules:manage"), async (req,res) => {
+    const input=z.object({enabled:z.boolean(),valid_until:z.string().datetime().nullable().optional(),reason:z.string().trim().min(10).max(500)}).strict().safeParse(req.body);
+    if(!input.success){res.status(400).json({error:"Informe a situação, validade e justificativa do módulo."});return;}
+    const token=cookieValue(req); if(!token){res.status(401).json({error:"Entre no painel central."});return;}
+    const client=await pool.connect();
+    try{
+      await client.query("BEGIN");
+      const result=await client.query("SELECT * FROM platform_admin.manage_catalog_access($1,$2,$3,$4,$5)",[
+        String(req.params.id),digestAdminToken(token),input.data.enabled,
+        input.data.enabled && input.data.valid_until ? input.data.valid_until : null,input.data.reason,
+      ]);
+      await client.query("COMMIT");
+      res.json({ok:true,status:input.data.enabled?"active":"revoked",actor_email:result.rows[0]?.actor_email||""});
+    }catch(error){
+      await client.query("ROLLBACK").catch(()=>{});
+      const code=(error as {code?:string}).code;
+      if(code==="42501"){res.status(403).json({error:"Permissão administrativa insuficiente."});return;}
+      if(code==="P0002"){res.status(404).json({error:"Oficina não encontrada."});return;}
+      if(code==="22023"){res.status(400).json({error:"Período ou justificativa inválidos."});return;}
+      throw error;
+    }finally{client.release();}
+  });
+  app.get("/admin-api/catalog-test-access",requireSession,requirePermission("modules:manage"),async(req,res)=>{
+    const projectId=catalogHomologationProjectId(req.hostname);
+    if(!projectId){res.status(403).json({error:"A liberação coletiva está disponível somente no projeto autorizado de homologação."});return;}
+    const state=await pool.query("SELECT * FROM platform_admin.catalog_test_access_status()");
+    res.json({available:true,...state.rows[0]});
+  });
+  app.put("/admin-api/catalog-test-access",requireSession,requirePermission("modules:manage"),async(req,res)=>{
+    const input=z.object({enabled:z.boolean(),valid_until:z.string().datetime().nullable().optional(),reason:z.string().trim().min(10).max(500)}).strict().safeParse(req.body);
+    if(!input.success){res.status(400).json({error:"Informe a validade temporária e a justificativa."});return;}
+    const projectId=catalogHomologationProjectId(req.hostname);
+    if(!projectId){res.status(403).json({error:"A liberação coletiva está disponível somente no projeto autorizado de homologação."});return;}
+    const token=cookieValue(req);if(!token){res.status(401).json({error:"Entre no painel central."});return;}
+    const client=await pool.connect();
+    try{
+      await client.query("BEGIN");
+      await client.query("SELECT set_config('app.vercel_project_id',$1,true),set_config('app.vercel_env',$2,true)",[projectId,process.env.VERCEL_ENV||""]);
+      const result=await client.query("SELECT * FROM platform_admin.set_catalog_test_access($1,$2,$3,$4,$5)",[
+        digestAdminToken(token),projectId,input.data.enabled,input.data.enabled?input.data.valid_until||null:null,input.data.reason,
+      ]);
+      await writeAdminAudit(client,{actorId:result.rows[0]?.actor_id,actorEmail:result.rows[0]?.actor_email,action:input.data.enabled?"admin.catalog_test_access.enabled":"admin.catalog_test_access.disabled",result:"success",technical:{changed_count:result.rows[0]?.changed_count,valid_until:input.data.enabled?input.data.valid_until||null:null,reason:input.data.reason}});
+      await client.query("COMMIT");
+      res.json({ok:true,changed_count:result.rows[0]?.changed_count||0});
+    }catch(error){
+      await client.query("ROLLBACK").catch(()=>{});
+      const code=(error as {code?:string}).code;
+      if(code==="42501"){res.status(403).json({error:"Permissão ou ambiente não autorizado."});return;}
+      if(code==="22023"){res.status(400).json({error:"Período ou justificativa inválidos."});return;}
+      throw error;
+    }finally{client.release();}
   });
   app.post("/admin-api/workshops", requireSession, requirePermission("workshops:manage"), async (req, res) => {
     const input = workshopRegistrationSchema.safeParse(req.body);
@@ -441,6 +508,9 @@ export function createPlatformAdminApp(pool: Pool, encryptionKey: string, transf
     const actor = res.locals.admin as AdminContext, tenantId = String(req.params.id), client = await pool.connect();
     try {
       await client.query("BEGIN");
+      const homologationProjectId = catalogHomologationProjectId(req.hostname);
+      await client.query("SELECT set_config('app.vercel_project_id',$1,true),set_config('app.vercel_env',$2,true)",
+        [homologationProjectId || "", homologationProjectId ? process.env.VERCEL_ENV || "" : ""]);
       const current = await client.query("SELECT status,trial_ends_at FROM platform_admin.workshops WHERE tenant_id=$1 FOR UPDATE",[tenantId]);
       if (!current.rowCount) { await client.query("ROLLBACK"); res.status(404).json({ error:"Oficina gerenciada não encontrada." }); return; }
       const from = effectiveWorkshopStatus(current.rows[0].status,current.rows[0].trial_ends_at);

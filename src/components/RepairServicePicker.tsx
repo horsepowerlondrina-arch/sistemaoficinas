@@ -5,7 +5,13 @@ import { money, type Entity } from "../lib/types";
 import { Field, Modal, PageHeading } from "./ui";
 import { NumericInput } from "./NumericInput";
 
-type Info = { enabled: boolean; categories: Entity[]; service_markup_bps: number };
+type Info = { enabled: boolean; catalog_status:"active"|"not_contracted"|"expired"|"revoked"|"not_installed"; categories: Entity[]; service_markup_bps: number };
+const catalogStatusMessage:Record<Exclude<Info["catalog_status"],"active">,string>={
+  not_contracted:"O Catálogo Técnico é um módulo adicional e não está habilitado para esta oficina.",
+  expired:"O acesso ao Catálogo Técnico venceu. Solicite a renovação à administração da plataforma.",
+  revoked:"O acesso ao Catálogo Técnico foi revogado. Seus serviços particulares continuam disponíveis.",
+  not_installed:"O Catálogo Técnico ainda não foi instalado neste ambiente.",
+};
 export function LaborRates() {
   const [info, setInfo] = useState<Info | null>(null),
     [error, setError] = useState(""),
@@ -441,12 +447,7 @@ export function RepairServicePicker({
           Serviços da oficina
         </button>
       </div>
-      {!info?.enabled && info && (
-        <p>
-          Catálogo de tempos indisponível no plano desta oficina. Seus serviços
-          próprios continuam disponíveis.
-        </p>
-      )}
+      {!info?.enabled && info && <p role="status">{info.catalog_status === "active" ? "Não foi possível consultar o Catálogo Técnico agora." : catalogStatusMessage[info.catalog_status]} Seus serviços particulares continuam disponíveis.</p>}
       {mode === "catalog" && (
         <>
           <div className="repair-model">
