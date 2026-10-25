@@ -58,9 +58,9 @@ try {
   const files = readdirSync("local-postgres")
     .filter((name) => /^\d{3}-.*\.sql$/.test(name))
     .sort();
-  if (files.length !== 18)
+  if (files.length !== 19)
     throw new Error(
-      "A série completa de 18 migrações locais não está presente.",
+      "A série completa de 19 migrações locais não está presente.",
     );
   for (const file of files)
     await target.query(readFileSync(join("local-postgres", file), "utf8"));
@@ -105,8 +105,40 @@ try {
     1,
     "preflight fixture verification must rollback its synthetic cleanup",
   );
+
+  await target.query("BEGIN");
+  try {
+    await target.query("SET LOCAL ROLE hp_catalog_importer");
+    await target.query(
+      "INSERT INTO service_catalog.brands(id,name) VALUES('00000000-0000-4000-8000-000000000008','Marca de Importação Fictícia')",
+    );
+    const inserted = await target.query(
+      "SELECT count(*)::int n FROM service_catalog.brands WHERE id='00000000-0000-4000-8000-000000000008'",
+    );
+    assert.equal(inserted.rows[0].n, 1, "the import role must see its central catalog inserts");
+    const release = await target.query(
+      "UPDATE service_catalog.releases SET source_sha256=$1 WHERE version='1.2-operacional' AND status='loading'",
+      ["5557e09a16362452e1a5716164e9cc0e13d48a26140c1682ffdc5ae48b0eefaa"],
+    );
+    assert.equal(release.rowCount, 1, "the import role must update only its loading release");
+  } finally {
+    await target.query("ROLLBACK");
+  }
+
+  await target.query("BEGIN");
+  try {
+    await target.query("SET LOCAL ROLE horse_power_app");
+    await assert.rejects(
+      target.query(
+        "INSERT INTO service_catalog.brands(id,name) VALUES('00000000-0000-4000-8000-000000000009','Marca Negada')",
+      ),
+      /permission denied|row-level security/,
+    );
+  } finally {
+    await target.query("ROLLBACK");
+  }
   console.log(
-    "Disposable PostgreSQL 17 prepared; safe fixture cleanup passed and the fixture remains available for a repeatable import.",
+    "Disposable PostgreSQL 17 prepared; fixture rollback and scoped import RLS passed.",
   );
 } catch (error) {
   await target.query("ROLLBACK").catch(() => {});
