@@ -116,6 +116,16 @@ try {
       "SELECT count(*)::int n FROM service_catalog.brands WHERE id='00000000-0000-4000-8000-000000000008'",
     );
     assert.equal(inserted.rows[0].n, 1, "the import role must see its central catalog inserts");
+    await target.query(`INSERT INTO service_catalog.models
+      (id,brand_id,family_id,classification_id,name,fipe_code,complete,service_count,base_id,excluded_service_ids)
+      VALUES
+      ('00000000-0000-4000-8000-00000000000a','00000000-0000-4000-8000-000000000001',
+       '00000000-0000-4000-8000-000000000002','00000000-0000-4000-8000-000000000004',
+       'Modelo Fictício de Importação','000000-1',1,1,'00000000-0000-4000-8000-000000000003','[]')`);
+    const category = await target.query(
+      "SELECT category_id FROM service_catalog.model_labor_categories WHERE model_id='00000000-0000-4000-8000-00000000000a'",
+    );
+    assert.equal(category.rows[0]?.category_id, "compacto", "the model trigger must create its commercial category");
     const release = await target.query(
       "UPDATE service_catalog.releases SET source_sha256=$1 WHERE version='1.2-operacional' AND status='loading'",
       ["5557e09a16362452e1a5716164e9cc0e13d48a26140c1682ffdc5ae48b0eefaa"],
