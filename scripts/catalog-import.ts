@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { createReadStream, readFileSync } from "node:fs";
+import { createReadStream, readFileSync, statSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -31,6 +31,10 @@ export function matchesCategoryCounts(
     ([category, count]) => (actual[category] ?? 0) === count,
   );
 }
+export function estimateCatalogImportPeak(databaseBytes: number, sourceBytes: number) {
+  return databaseBytes + Math.ceil(sourceBytes * 1.4);
+}
+
 const technicalCategoryMap: Record<string, string> = {
   "Básico Elétrico": "compacto",
   "SUV Compacto": "compacto",
@@ -429,15 +433,12 @@ async function stageTable(
   table: Table,
 ) {
   const columns = tables[table];
-  await client.query(
-    `CREATE TEMP TABLE cat_stage_${table} (LIKE service_catalog.${table} INCLUDING ALL) ON COMMIT DROP`,
-  );
   const iterator = source
     .prepare(
       `SELECT ${columns.map((column) => `"${column}"`).join(",")} FROM "${table}" ORDER BY id`,
     )
     .iterate() as IterableIterator<Record<string, unknown>>;
-  const chunkSize = 400;
+  const chunkSize = 1000;
   let chunk: Record<string, unknown>[] = [];
   const flush = async () => {
     if (!chunk.length) return;
@@ -454,7 +455,7 @@ async function stageTable(
       )
       .join(",");
     await client.query(
-      `INSERT INTO cat_stage_${table}(${columns.map((column) => `"${column}"`).join(",")}) VALUES ${values}`,
+      `INSERT INTO service_catalog.${table}(${columns.map((column) => `"${column}"`).join(",")}) VALUES ${values}`,
       params,
     );
     chunk = [];
@@ -470,10 +471,6 @@ async function stageCommercialCategories(
   client: pg.PoolClient,
   source: DatabaseSync,
 ) {
-  await client.query(`CREATE TEMP TABLE cat_stage_model_categories (
-    model_id uuid PRIMARY KEY, category_id text NOT NULL, technical_classification_id uuid,
-    assignment_source text NOT NULL, review_status text NOT NULL, change_reason text NOT NULL
-  ) ON COMMIT DROP`);
   const overrideIds = approvedOverrideIds();
   const rows = source
     .prepare(
@@ -496,25 +493,25 @@ async function stageCommercialCategories(
       })
       .join(",");
     await client.query(
-      `INSERT INTO cat_stage_model_categories(model_id,category_id,technical_classification_id,assignment_source,review_status,change_reason) VALUES ${values}`,
+      `INSERT INTO service_catalog.model_labor_categories(model_id,category_id,technical_classification_id,assignment_source,review_status,change_reason) VALUES ${values}`,
       params,
     );
     chunk = [];
   };
   for (const row of rows) {
     chunk.push(row);
-    if (chunk.length === 400) await flush();
+    if (chunk.length === 1000) await flush();
   }
   await flush();
   const actual = await client.query(
-    "SELECT category_id,count(*)::int n FROM cat_stage_model_categories GROUP BY category_id",
+    "SELECT category_id,count(*)::int n FROM service_catalog.model_labor_categories GROUP BY category_id",
   );
   const counts = Object.fromEntries(
     actual.rows.map((row) => [row.category_id, row.n]),
   );
   if (
     Number(
-      (await client.query("SELECT count(*) n FROM cat_stage_model_categories"))
+      (await client.query("SELECT count(*) n FROM service_catalog.model_labor_categories"))
         .rows[0].n,
     ) !== expected.models ||
     !matchesCategoryCounts(counts, expectedCategories)
@@ -528,7 +525,7 @@ async function stageCommercialCategories(
 async function validateStage(client: pg.PoolClient, source: DatabaseSync) {
   for (const [table, count] of Object.entries(expected) as [Table, number][]) {
     const actual = Number(
-      (await client.query(`SELECT count(*) n FROM cat_stage_${table}`)).rows[0]
+      (await client.query(`SELECT count(*) n FROM service_catalog.${table}`)).rows[0]
         .n,
     );
     if (actual !== count)
@@ -538,7 +535,7 @@ async function validateStage(client: pg.PoolClient, source: DatabaseSync) {
     let last = "00000000-0000-0000-0000-000000000000";
     for (;;) {
       const result = await client.query(
-        `SELECT ${columns.map((column) => `"${column}"`).join(",")} FROM cat_stage_${table} WHERE id>$1::uuid ORDER BY id LIMIT 1000`,
+        `SELECT ${columns.map((column) => `"${column}"`).join(",")} FROM service_catalog.${table} WHERE id>$1::uuid ORDER BY id LIMIT 1000`,
         [last],
       );
       if (!result.rowCount) break;
@@ -692,11 +689,25 @@ async function main() {
       (SELECT count(*) FROM service_catalog.families) families,(SELECT count(*) FROM service_catalog.bases) bases,
       (SELECT count(*) FROM service_catalog.models) models,(SELECT count(*) FROM service_catalog.services) services,
       (SELECT count(*) FROM service_catalog.repair_times) repair_times,
+      (SELECT count(*) FROM service_catalog.model_labor_categories) model_categories,
       (SELECT count(*) FROM service_catalog.releases WHERE status='active') active_releases`);
     if (Object.values(occupied.rows[0]).some((value) => Number(value) !== 0))
       throw new Error(
         "Destino ocupado; use um banco local isolado vazio. Nenhuma linha foi removida ou sobrescrita.",
       );
+    if (target.target === "homologation") {
+      const sizes = await client.query(
+        "SELECT pg_database_size(current_database())::bigint database_bytes",
+      );
+      const projectedPeak = estimateCatalogImportPeak(
+        Number(sizes.rows[0].database_bytes),
+        statSync(sourcePath).size,
+      );
+      if (projectedPeak > 450 * 1024 * 1024)
+        throw new Error(
+          `Carga abortada antes da gravação: pico projetado ${projectedPeak} bytes excede o teto operacional de 450 MiB.`,
+        );
+    }
     for (const table of Object.keys(tables) as Table[])
       await stageTable(client, source, table);
     await validateStage(client, source);
@@ -704,18 +715,6 @@ async function main() {
       client,
       source,
     );
-    if (target.target === "homologation") {
-      const sizes =
-        await client.query(`SELECT pg_database_size(current_database())::bigint database_bytes,
-        coalesce((SELECT sum(pg_total_relation_size(format('%I.%I',schemaname,tablename)))
-          FROM pg_tables WHERE schemaname LIKE 'pg_temp_%' AND tablename LIKE 'cat_stage_%'),0)::bigint staging_bytes`);
-      const { database_bytes, staging_bytes } = sizes.rows[0];
-      const projectedPeak = Number(database_bytes) + Number(staging_bytes) * 2;
-      if (projectedPeak > 450 * 1024 * 1024)
-        throw new Error(
-          `Carga abortada antes da gravação final: pico conservador projetado ${projectedPeak} bytes excede o teto operacional de 450 MiB.`,
-        );
-    }
     const oldRelease = await client.query(
       "SELECT status,source_sha256 FROM service_catalog.releases WHERE version='1.2-operacional'",
     );
@@ -739,19 +738,10 @@ async function main() {
         "INSERT INTO service_catalog.releases(version,status,source_sha256,model_count,time_count,application_count) VALUES('1.2-operacional','loading',$1,7534,836093,7292579)",
         [expectedSha256],
       );
-    for (const table of Object.keys(tables) as Table[]) {
-      const columns = tables[table];
-      await client.query(
-        `INSERT INTO service_catalog.${table}(${columns.map((column) => `"${column}"`).join(",")}) SELECT ${columns.map((column) => `"${column}"`).join(",")} FROM cat_stage_${table}`,
-      );
-    }
-    const persistedCategories =
-      await client.query(`INSERT INTO service_catalog.model_labor_categories(model_id,category_id,technical_classification_id,assignment_source,review_status,change_reason)
-      SELECT model_id,category_id,technical_classification_id,assignment_source,review_status,change_reason FROM cat_stage_model_categories
-      ON CONFLICT(model_id) DO UPDATE SET technical_classification_id=EXCLUDED.technical_classification_id,category_id=EXCLUDED.category_id,
-        assignment_source=EXCLUDED.assignment_source,review_status='confirmed',change_reason=EXCLUDED.change_reason,updated_at=statement_timestamp()
-      WHERE service_catalog.model_labor_categories.assignment_source IN ('automatic','reviewed')`);
-    if (persistedCategories.rowCount !== expected.models)
+    const persistedCategories = await client.query(
+      "SELECT count(*)::int n FROM service_catalog.model_labor_categories",
+    );
+    if (Number(persistedCategories.rows[0].n) !== expected.models)
       throw new Error("A gravação das categorias não cobriu todos os modelos.");
     const persistedDigest = await client.query(
       `SELECT model_id,category_id,technical_classification_id,assignment_source,review_status,change_reason FROM service_catalog.model_labor_categories ORDER BY model_id`,
@@ -804,6 +794,16 @@ async function main() {
     )
       throw new Error(
         "Contagens finais divergentes; a transação será revertida.",
+      );
+    const preCommitSize = await client.query(
+      "SELECT pg_database_size(current_database())::bigint bytes",
+    );
+    if (
+      target.target === "homologation" &&
+      Number(preCommitSize.rows[0].bytes) > 450 * 1024 * 1024
+    )
+      throw new Error(
+        "Carga revertida: o tamanho real do banco excedeu 450 MiB antes da ativação.",
       );
     await client.query(
       "UPDATE service_catalog.releases SET status='active',validated_at=statement_timestamp() WHERE version='1.2-operacional' AND source_sha256=$1",
