@@ -6,9 +6,27 @@ import { writeAdminAudit } from "./auth/platformAdmin.js";
 import { transferFileSha256, TRANSFER_MEDIA_TYPE } from "../shared/transferPackage.js";
 import type { PlatformPermission } from "./auth/platformAdmin.js";
 import type { PlatformAdminDataTransfer } from "./services/platformAdminDataTransfer.js";
+import { TransferVerificationError, type TransferVerificationFailureCode } from "./services/dataTransferVerification.js";
 
 type Actor = { id: string; email: string };
 type PermissionMiddleware = (permission: PlatformPermission) => RequestHandler;
+
+type VerificationFailure = { status: number; code: string; message: string };
+function verificationFailure(error: unknown): VerificationFailure {
+  if (error instanceof TransferVerificationError) {
+    const known: Record<TransferVerificationFailureCode, VerificationFailure> = {
+      invalid_package: { status: 422, code: "invalid_package", message: "Pacote inválido ou frase secreta incorreta. Confira o arquivo .hptx e tente novamente." },
+      workshop_unavailable: { status: 404, code: "workshop_unavailable", message: "A oficina selecionada não está disponível para conferência." },
+      authorization: { status: 403, code: "authorization", message: "Não foi possível confirmar o contexto autorizado da oficina para esta conferência." },
+    };
+    return known[error.code];
+  }
+  const databaseCode = typeof error === "object" && error !== null && "code" in error ? String((error as { code?: unknown }).code || "") : "";
+  if (databaseCode === "42501" || /^(08|25|53|57|58|XX)/.test(databaseCode)) {
+    return { status: 503, code: "database_unavailable", message: "O serviço de dados está indisponível para conferir o pacote agora. Nenhum dado foi alterado." };
+  }
+  return { status: 500, code: "processing_failed", message: "Falha ao processar a conferência. Nenhum dado foi alterado; tente novamente mais tarde." };
+}
 
 export function createPlatformAdminDataTransferRoutes(
   pool: Pool,
@@ -71,10 +89,20 @@ export function createPlatformAdminDataTransferRoutes(
     if(!input.success){res.status(400).json({error:"Arquivo, frase secreta ou modo inválidos. O limite online é 4 MiB."});return;}
     if(!transfer)return unavailable(res);
     const actor=admin(res),tenantId=String(req.params.id),sha=transferFileSha256(Buffer.from(input.data.packageText,"utf8"));
-    try { const report=await transfer.verify(tenantId,input.data.packageText,input.data.passphrase,input.data.mode);
-      await audit(actor,tenantId,"admin.data_transfer.verified","success",{mode:input.data.mode,package_sha256:sha});
-      res.set("Cache-Control","no-store").json(report);
-    } catch { await audit(actor,tenantId,"admin.data_transfer.verification_failed","failure",{mode:input.data.mode,package_sha256:sha}).catch(()=>{}); res.status(400).json({error:"Não foi possível conferir o pacote."}); }
+    let report: unknown;
+    try { report=await transfer.verify(tenantId,input.data.packageText,input.data.passphrase,input.data.mode); }
+    catch (error) {
+      const failure=verificationFailure(error);
+      await audit(actor,tenantId,"admin.data_transfer.verification_failed","failure",{mode:input.data.mode,package_sha256:sha,reason:failure.code}).catch(()=>{});
+      res.status(failure.status).json({error:failure.message,code:failure.code});
+      return;
+    }
+    try { await audit(actor,tenantId,"admin.data_transfer.verified","success",{mode:input.data.mode,package_sha256:sha}); }
+    catch {
+      res.status(503).json({error:"A conferência foi executada sem alterações, mas a auditoria não pôde ser confirmada. Verifique o histórico administrativo antes de repetir.",code:"audit_unavailable"});
+      return;
+    }
+    res.set("Cache-Control","no-store").json(report);
   });
 
   router.get("/admin-api/workshops/:id/data-transfer/history",requireSession,requirePermission("data-transfer:manage"),async(req,res)=>{

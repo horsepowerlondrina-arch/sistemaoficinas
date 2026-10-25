@@ -8,7 +8,8 @@ import { createTransferPayload, openTransferPackage, sealTransferPackage, transf
 import { getWorkshopTransferBackup, importWorkshopPackage, previewWorkshopImport } from "../server/services/dataTransferImport.js";
 import { documentHistory, readArchivedDocument, readDocument } from "../server/services/documents.js";
 import { createWorkshopTransfer } from "../server/services/dataTransferExport.js";
-import { verifyWorkshopImport } from "../server/services/dataTransferVerification.js";
+import { TransferVerificationError, verifyWorkshopImport } from "../server/services/dataTransferVerification.js";
+import { createPlatformAdminDataTransfer } from "../server/services/platformAdminDataTransfer.js";
 
 if (existsSync(".env.local")) process.loadEnvFile(".env.local");
 if (existsSync(".env.platform-admin.local")) process.loadEnvFile(".env.platform-admin.local");
@@ -91,7 +92,21 @@ test("PostgreSQL local: transferência fictícia completa preserva IDs, relaçõ
       assert.equal(beforeImportVerification.mode, "empty");
       assert.equal(beforeImportVerification.entities.customers.missing, 1);
       assert.equal(beforeImportVerification.overall, "divergent");
-      await assert.rejects(verifyWorkshopImport(db, tenantId, file, "frase-incorreta-ficticia", userId, "empty"), /Não foi possível abrir/);
+      const adminTargetPool={query:async (_sql:string,values:unknown[] = []) => {
+        assert.deepEqual(values,[tenantId]);
+        return {rowCount:1,rows:[{tenant_id:tenantId,name:"Oficina Fictícia MIG002"}]};
+      }} as never;
+      const adminTransfer=createPlatformAdminDataTransfer(db,adminTargetPool);
+      const beforeReadOnlyCounts=await db.prepare("SELECT (SELECT count(*) FROM customers WHERE tenant_id=?) AS customers,(SELECT count(*) FROM audit_events WHERE tenant_id=?) AS audit_events").get(tenantId,tenantId);
+      const adminVerification=await adminTransfer.verify(tenantId,file.toString("utf8"),phrase,"empty");
+      assert.equal((adminVerification as {overall:string}).overall,"divergent");
+      assert.equal((adminVerification as {entities:Record<string,{missing:number}>}).entities.customers.missing,1);
+      const afterReadOnlyCounts=await db.prepare("SELECT (SELECT count(*) FROM customers WHERE tenant_id=?) AS customers,(SELECT count(*) FROM audit_events WHERE tenant_id=?) AS audit_events").get(tenantId,tenantId);
+      assert.deepEqual(afterReadOnlyCounts,beforeReadOnlyCounts,"a conferência administrativa não deve alterar dados nem auditoria operacional");
+      await assert.rejects(adminTransfer.verify(tenantId,file.toString("utf8"),"frase-incorreta-ficticia","empty"),
+        error=>error instanceof TransferVerificationError && error.code==="invalid_package");
+      await assert.rejects(verifyWorkshopImport(db, tenantId, file, "frase-incorreta-ficticia", userId, "empty"),
+        error=>error instanceof TransferVerificationError && error.code==="invalid_package");
       const result = await importWorkshopPackage(db, tenantId, file, phrase, preview.confirmationId, userId);
       assert.equal(result.counts.external_catalog_links, 1);
       const externalLink = await db.prepare("SELECT source,external_key,catalog_id FROM external_catalog_links WHERE tenant_id=?").get(tenantId);
@@ -147,7 +162,8 @@ test("PostgreSQL local: transferência fictícia completa preserva IDs, relaçõ
       await db.prepare("UPDATE cash_entries SET amount=? WHERE tenant_id=? AND id=?").run(4000, tenantId, cashEntryId);
 
       await admin.query("UPDATE horse_power.memberships SET role='operator' WHERE tenant_id=$1 AND user_id=$2", [tenantId, userId]);
-      await assert.rejects(verifyWorkshopImport(db, tenantId, file, phrase, userId, "merge"), /proprietário/);
+      await assert.rejects(verifyWorkshopImport(db, tenantId, file, phrase, userId, "merge"),
+        error=>error instanceof TransferVerificationError && error.code==="authorization");
       await admin.query("UPDATE horse_power.memberships SET role='owner' WHERE tenant_id=$1 AND user_id=$2", [tenantId, userId]);
       const rows = await db.prepare(`SELECT c.id AS customer_id,v.customer_id AS vehicle_customer,o.vehicle_id,i.price,r.issued_by,r.payload
         FROM customers c JOIN vehicles v ON v.tenant_id=c.tenant_id AND v.customer_id=c.id

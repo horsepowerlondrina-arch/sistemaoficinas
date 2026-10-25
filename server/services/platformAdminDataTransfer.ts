@@ -3,7 +3,7 @@ import type { DB } from "../db/database.js";
 import { createWorkshopTransfer } from "./dataTransferExport.js";
 import { getWorkshopTransferBackup, importWorkshopPackage, listWorkshopTransferBackups, previewWorkshopImport } from "./dataTransferImport.js";
 import type { WorkshopImportMode } from "./dataTransferImport.js";
-import { verifyWorkshopImport } from "./dataTransferVerification.js";
+import { TransferVerificationError, verifyWorkshopImport } from "./dataTransferVerification.js";
 
 export const ADMIN_TRANSFER_MAX_FILE_BYTES = 4 * 1024 * 1024;
 export type PlatformAdminDataTransfer = {
@@ -31,14 +31,14 @@ export function createPlatformAdminDataTransfer(db: DB, adminPool: Pool): Platfo
   async function target(tenantId: string) {
     assertTenantId(tenantId);
     const row = await adminPool.query("SELECT tenant_id,name FROM platform_admin.workshop_directory('','all',1,0,$1)", [tenantId]);
-    if (!row.rowCount || String(row.rows[0].tenant_id) !== tenantId) throw new Error("Oficina não encontrada no cadastro administrativo.");
+    if (!row.rowCount || String(row.rows[0].tenant_id) !== tenantId) throw new TransferVerificationError("workshop_unavailable");
     return { tenantId, workshopName: String(row.rows[0].name) };
   }
   async function scope(tenantId: string) {
     const registered = await target(tenantId);
     if (!db.withTenantRead || !db.withRequestContext) throw new Error("A transferência administrativa exige PostgreSQL com contexto de oficina.");
     const owner = await db.withTenantRead(tenantId, async () => await db.prepare("SELECT user_id FROM memberships WHERE tenant_id=? AND role='owner' ORDER BY user_id LIMIT 1").get(tenantId));
-    if (!owner?.user_id) throw new Error("A oficina não possui proprietário operacional ativo para preservar autoria e vínculos.");
+    if (!owner?.user_id) throw new TransferVerificationError("authorization");
     return { ...registered, ownerUserId: String(owner.user_id) };
   }
   async function within<T>(tenantId: string, callback: (selected: Awaited<ReturnType<typeof scope>>) => Promise<T>) {

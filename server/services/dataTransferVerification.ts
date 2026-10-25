@@ -11,6 +11,14 @@ import type { TransferPayload, TransferRow, TransferTable } from "../../shared/t
 export type TransferVerificationMode = "empty" | "merge" | "replace";
 export type TransferVerificationStatus = "corresponding" | "transformed" | "divergent" | "not-verifiable";
 
+export type TransferVerificationFailureCode = "invalid_package" | "workshop_unavailable" | "authorization";
+export class TransferVerificationError extends Error {
+  constructor(readonly code: TransferVerificationFailureCode) {
+    super("Transfer verification could not continue.");
+    this.name = "TransferVerificationError";
+  }
+}
+
 const AUTHOR_FIELDS = new Set(["user_id", "issued_by", "created_by"]);
 const IDENTITY_FIELDS: Partial<Record<TransferTable, string[]>> = {
   card_rates: ["method", "installments"],
@@ -254,11 +262,13 @@ export async function verifyWorkshopImport(
   mode: TransferVerificationMode,
   now = new Date().toISOString(),
 ): Promise<TransferVerificationReport> {
-  const payload = openTransferPackage(file, passphrase);
+  let payload: TransferPayload;
+  try { payload = openTransferPackage(file, passphrase); }
+  catch { throw new TransferVerificationError("invalid_package"); }
   const target = await db.prepare("SELECT id,name FROM tenants WHERE id=?").get(tenantId);
-  if (!target) throw new Error("A oficina autenticada não foi encontrada.");
+  if (!target) throw new TransferVerificationError("workshop_unavailable");
   const membership = await db.prepare("SELECT role FROM memberships WHERE tenant_id=? AND user_id=?").get(tenantId, actorUserId);
-  if (!membership || membership.role !== "owner") throw new Error("Somente o proprietário pode conferir dados importados.");
+  if (!membership || membership.role !== "owner") throw new TransferVerificationError("authorization");
 
   const rowCount = Object.values(payload.records).reduce((total, rows) => total + (Array.isArray(rows) ? rows.length : 0), 1);
   if (rowCount > MAX_VERIFY_ROWS) throw new Error("O pacote excede o limite de registros para conferência online.");
