@@ -151,7 +151,7 @@ test("PostgreSQL local: autenticação, oficinas, transações e RLS do catálog
         const other=profiles[1-index],ctx={tenantId:profile.tenant,userId:"local-owner-"+profile.tenant.slice(-1),role:"owner"};
         const current=await getWorkshopProfile(db,ctx);
         assert.equal(current.name,profile.name);assert.equal(current.document_logo,profile.logo);
-        const identity=(await db.prepare("SELECT t.name,t.document_logo FROM tenants t JOIN memberships m ON m.tenant_id=t.id WHERE m.user_id=? AND t.id=?").get(ctx.userId,ctx.tenantId))!;
+        const identity=(await db.withRequestContext({"app.tenant_id":ctx.tenantId,"app.user_id":ctx.userId},async()=>await db.prepare("SELECT t.name,t.document_logo FROM tenants t JOIN memberships m ON m.tenant_id=t.id WHERE m.user_id=? AND t.id=?").get(ctx.userId,ctx.tenantId)))!;
         for(const Component of [WorkshopBrand,DocumentHeader]){
           const html=renderToStaticMarkup(createElement(Component,{shop:identity}));
           assert.ok(html.includes(profile.logo));assert.ok(html.includes(profile.name));
