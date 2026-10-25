@@ -352,7 +352,7 @@ test("PostgreSQL local: admin transfer uses scoped RLS context and verifies a wo
       db.prepare("SELECT user_id FROM memberships WHERE tenant_id=? AND role='owner' ORDER BY user_id LIMIT 1").get(otherTenantId));
     assert.equal(foreignOwner, undefined, "o contexto de serviço não deve revelar vínculos de outra oficina");
 
-    const names = new Map([[ownerlessTenantId, "Oficina Fictícia sem Proprietário"], [ownerTenantId, "Oficina Fictícia Administrativa"]]);
+    const names = new Map<string, string>([[ownerlessTenantId, "Oficina Fictícia sem Proprietário"], [ownerTenantId, "Oficina Fictícia Administrativa"]]);
     const adminTargetPool = {
       query: async (_sql: string, values: unknown[] = []) => {
         const tenantId = String(values[0] || "");
