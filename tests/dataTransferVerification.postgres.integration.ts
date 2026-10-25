@@ -128,23 +128,23 @@ test("PostgreSQL local: transferência fictícia completa preserva IDs, relaçõ
       assert.equal(initialVerification.historicalDocuments.missing, 0);
       assert.equal((await db.prepare("SELECT count(*) AS count FROM audit_events WHERE tenant_id=?").get(tenantId))?.count, auditCountBefore, "a conferência não deve gerar eventos de auditoria");
 
-      await admin.query("UPDATE horse_power.customers SET name='Cliente Fictício Alterado' WHERE tenant_id=$1 AND id=$2", [tenantId, customerId]);
+      await db.prepare("UPDATE customers SET name=? WHERE tenant_id=? AND id=?").run("Cliente Fictício Alterado", tenantId, customerId);
       const changedCustomer = await verifyWorkshopImport(db, tenantId, file, phrase, userId, "merge");
       assert.equal(changedCustomer.entities.customers.divergent, 1);
       assert.ok(changedCustomer.entities.customers.records.some((record) => record.recordId === customerId && record.differingFields?.includes("name")));
-      await admin.query("UPDATE horse_power.customers SET name='Cliente Fictício' WHERE tenant_id=$1 AND id=$2", [tenantId, customerId]);
+      await db.prepare("UPDATE customers SET name=? WHERE tenant_id=? AND id=?").run("Cliente Fictício", tenantId, customerId);
 
-      await admin.query("UPDATE horse_power.catalog SET stock=6 WHERE tenant_id=$1 AND id=$2", [tenantId, catalogId]);
+      await db.prepare("UPDATE catalog SET stock=? WHERE tenant_id=? AND id=?").run(6, tenantId, catalogId);
       const changedStock = await verifyWorkshopImport(db, tenantId, file, phrase, userId, "merge");
       assert.equal(changedStock.stock.differenceUnits, "3");
       assert.equal(changedStock.entities.catalog.divergent, 1);
-      await admin.query("UPDATE horse_power.catalog SET stock=3 WHERE tenant_id=$1 AND id=$2", [tenantId, catalogId]);
+      await db.prepare("UPDATE catalog SET stock=? WHERE tenant_id=? AND id=?").run(3, tenantId, catalogId);
 
-      await admin.query("UPDATE horse_power.cash_entries SET amount=4025 WHERE tenant_id=$1 AND id=$2", [tenantId, cashEntryId]);
+      await db.prepare("UPDATE cash_entries SET amount=? WHERE tenant_id=? AND id=?").run(4025, tenantId, cashEntryId);
       const changedPayment = await verifyWorkshopImport(db, tenantId, file, phrase, userId, "merge");
       assert.equal(changedPayment.financial["cash_entries.amount"]?.differenceCents, "25");
       assert.equal(changedPayment.entities.cash_entries.divergent, 1);
-      await admin.query("UPDATE horse_power.cash_entries SET amount=4000 WHERE tenant_id=$1 AND id=$2", [tenantId, cashEntryId]);
+      await db.prepare("UPDATE cash_entries SET amount=? WHERE tenant_id=? AND id=?").run(4000, tenantId, cashEntryId);
 
       await admin.query("UPDATE horse_power.memberships SET role='operator' WHERE tenant_id=$1 AND user_id=$2", [tenantId, userId]);
       await assert.rejects(verifyWorkshopImport(db, tenantId, file, phrase, userId, "merge"), /proprietário/);
