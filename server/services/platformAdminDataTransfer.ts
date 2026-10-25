@@ -37,7 +37,7 @@ export function createPlatformAdminDataTransfer(db: DB, adminPool: Pool): Platfo
   async function scope(tenantId: string) {
     const registered = await target(tenantId);
     if (!db.withTenantRead || !db.withRequestContext) throw new Error("A transferência administrativa exige PostgreSQL com contexto de oficina.");
-    const owner = await db.withTenantRead(tenantId, () => db.prepare("SELECT user_id FROM memberships WHERE tenant_id=? AND role='owner' ORDER BY user_id LIMIT 1").get(tenantId));
+    const owner = await db.withTenantRead(tenantId, async () => await db.prepare("SELECT user_id FROM memberships WHERE tenant_id=? AND role='owner' ORDER BY user_id LIMIT 1").get(tenantId));
     if (!owner?.user_id) throw new Error("A oficina não possui proprietário operacional ativo para preservar autoria e vínculos.");
     return { ...registered, ownerUserId: String(owner.user_id) };
   }
