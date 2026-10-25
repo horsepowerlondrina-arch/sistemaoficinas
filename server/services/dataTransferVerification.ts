@@ -428,11 +428,16 @@ export async function verifyWorkshopImport(
 
   let foreignKeys: ForeignKeyPair[] = [];
   try {
-    foreignKeys = await db.prepare(`SELECT kcu.table_name,kcu.column_name,ccu.table_name AS foreign_table_name,ccu.column_name AS foreign_column_name,kcu.constraint_name
+    const rows = await db.prepare(`SELECT kcu.table_name,kcu.column_name,ccu.table_name AS foreign_table_name,ccu.column_name AS foreign_column_name,kcu.constraint_name
       FROM information_schema.table_constraints tc
       JOIN information_schema.key_column_usage kcu ON kcu.constraint_catalog=tc.constraint_catalog AND kcu.constraint_schema=tc.constraint_schema AND kcu.constraint_name=tc.constraint_name
       JOIN information_schema.constraint_column_usage ccu ON ccu.constraint_catalog=tc.constraint_catalog AND ccu.constraint_schema=tc.constraint_schema AND ccu.constraint_name=tc.constraint_name
       WHERE tc.constraint_type='FOREIGN KEY' AND tc.table_schema='horse_power' AND ccu.table_schema='horse_power'`).all();
+    foreignKeys = rows.map((row) => ({
+      table_name: String(row.table_name || ""), column_name: String(row.column_name || ""),
+      foreign_table_name: String(row.foreign_table_name || ""), foreign_column_name: String(row.foreign_column_name || ""),
+      constraint_name: String(row.constraint_name || ""),
+    }));
   } catch { foreignKeys = []; }
   const referential = { checked: 0, divergent: 0, notVerifiable: 0 };
   for (const relation of foreignKeys) {
