@@ -12,6 +12,7 @@ export type TransferVerificationMode = "empty" | "merge" | "replace";
 export type TransferVerificationStatus = "corresponding" | "transformed" | "divergent" | "not-verifiable";
 
 export type TransferVerificationFailureCode = "invalid_package" | "workshop_unavailable" | "authorization";
+export type TransferVerificationActor = string | { kind: "platform-admin-transfer"; tenantId: string };
 export class TransferVerificationError extends Error {
   constructor(readonly code: TransferVerificationFailureCode) {
     super("Transfer verification could not continue.");
@@ -258,7 +259,7 @@ export async function verifyWorkshopImport(
   tenantId: string,
   file: Buffer,
   passphrase: string,
-  actorUserId: string,
+  actor: TransferVerificationActor,
   mode: TransferVerificationMode,
   now = new Date().toISOString(),
 ): Promise<TransferVerificationReport> {
@@ -267,8 +268,14 @@ export async function verifyWorkshopImport(
   catch { throw new TransferVerificationError("invalid_package"); }
   const target = await db.prepare("SELECT id,name FROM tenants WHERE id=?").get(tenantId);
   if (!target) throw new TransferVerificationError("workshop_unavailable");
-  const membership = await db.prepare("SELECT role FROM memberships WHERE tenant_id=? AND user_id=?").get(tenantId, actorUserId);
-  if (!membership || membership.role !== "owner") throw new TransferVerificationError("authorization");
+  if (typeof actor === "string") {
+    const membership = actor
+      ? await db.prepare("SELECT role FROM memberships WHERE tenant_id=? AND user_id=?").get(tenantId, actor)
+      : undefined;
+    if (!membership || membership.role !== "owner") throw new TransferVerificationError("authorization");
+  } else if (actor.kind !== "platform-admin-transfer" || actor.tenantId !== tenantId) {
+    throw new TransferVerificationError("authorization");
+  }
 
   const rowCount = Object.values(payload.records).reduce((total, rows) => total + (Array.isArray(rows) ? rows.length : 0), 1);
   if (rowCount > MAX_VERIFY_ROWS) throw new Error("O pacote excede o limite de registros para conferência online.");
