@@ -427,7 +427,7 @@ async function existingReleaseIsValid(
   return true;
 }
 
-async function stageTable(
+async function importTable(
   client: pg.PoolClient,
   source: DatabaseSync,
   table: Table,
@@ -467,7 +467,7 @@ async function stageTable(
   await flush();
 }
 
-async function stageCommercialCategories(
+async function importCommercialCategories(
   client: pg.PoolClient,
   source: DatabaseSync,
 ) {
@@ -517,19 +517,19 @@ async function stageCommercialCategories(
     !matchesCategoryCounts(counts, expectedCategories)
   )
     throw new Error(
-      "Estágio de categorias comerciais incompleto ou divergente.",
+      "Categorias comerciais incompletas ou divergentes.",
     );
   return sourceCommercialDigest(source);
 }
 
-async function validateStage(client: pg.PoolClient, source: DatabaseSync) {
+async function validateImportedCatalog(client: pg.PoolClient, source: DatabaseSync) {
   for (const [table, count] of Object.entries(expected) as [Table, number][]) {
     const actual = Number(
       (await client.query(`SELECT count(*) n FROM service_catalog.${table}`)).rows[0]
         .n,
     );
     if (actual !== count)
-      throw new Error(`Estágio incompleto: ${table} (${actual}/${count}).`);
+      throw new Error(`Carga incompleta: ${table} (${actual}/${count}).`);
     const columns = tables[table];
     const hash = createHash("sha256");
     let last = "00000000-0000-0000-0000-000000000000";
@@ -547,17 +547,17 @@ async function validateStage(client: pg.PoolClient, source: DatabaseSync) {
   }
   const checks = await client.query(`
     SELECT
-      (SELECT count(*) FROM cat_stage_families f LEFT JOIN cat_stage_brands b ON b.id=f.brand_id WHERE b.id IS NULL) AS bad_families,
-      (SELECT count(*) FROM cat_stage_bases b LEFT JOIN cat_stage_families f ON f.id=b.family_id WHERE f.id IS NULL) AS bad_bases,
-      (SELECT count(*) FROM cat_stage_models m LEFT JOIN cat_stage_brands b ON b.id=m.brand_id LEFT JOIN cat_stage_families f ON f.id=m.family_id
-        LEFT JOIN cat_stage_classifications c ON c.id=m.classification_id LEFT JOIN cat_stage_bases base ON base.id=m.base_id
+      (SELECT count(*) FROM service_catalog.families f LEFT JOIN service_catalog.brands b ON b.id=f.brand_id WHERE b.id IS NULL) AS bad_families,
+      (SELECT count(*) FROM service_catalog.bases b LEFT JOIN service_catalog.families f ON f.id=b.family_id WHERE f.id IS NULL) AS bad_bases,
+      (SELECT count(*) FROM service_catalog.models m LEFT JOIN service_catalog.brands b ON b.id=m.brand_id LEFT JOIN service_catalog.families f ON f.id=m.family_id
+        LEFT JOIN service_catalog.classifications c ON c.id=m.classification_id LEFT JOIN service_catalog.bases base ON base.id=m.base_id
         WHERE b.id IS NULL OR f.id IS NULL OR c.id IS NULL OR base.id IS NULL OR f.brand_id<>m.brand_id OR base.family_id<>m.family_id OR
           jsonb_typeof(m.excluded_service_ids::jsonb)<>'array') AS bad_models,
-      (SELECT count(*) FROM cat_stage_repair_times t LEFT JOIN cat_stage_services s ON s.id=t.service_id
-        LEFT JOIN cat_stage_models m ON m.id=t.model_id LEFT JOIN cat_stage_bases b ON b.id=t.base_id
+      (SELECT count(*) FROM service_catalog.repair_times t LEFT JOIN service_catalog.services s ON s.id=t.service_id
+        LEFT JOIN service_catalog.models m ON m.id=t.model_id LEFT JOIN service_catalog.bases b ON b.id=t.base_id
         WHERE s.id IS NULL OR (t.model_id IS NOT NULL AND m.id IS NULL) OR (t.base_id IS NOT NULL AND b.id IS NULL)) AS bad_times,
-      (SELECT count(*) FROM cat_stage_repair_times WHERE minutes<0 OR (base_id IS NULL)=(model_id IS NULL)) AS bad_targets,
-      (SELECT coalesce(sum(x.n),0) FROM cat_stage_models m JOIN (SELECT base_id,count(*) n FROM cat_stage_repair_times WHERE base_id IS NOT NULL GROUP BY base_id) x ON x.base_id=m.base_id) AS logical_applications`);
+      (SELECT count(*) FROM service_catalog.repair_times WHERE minutes<0 OR (base_id IS NULL)=(model_id IS NULL)) AS bad_targets,
+      (SELECT coalesce(sum(x.n),0) FROM service_catalog.models m JOIN (SELECT base_id,count(*) n FROM service_catalog.repair_times WHERE base_id IS NOT NULL GROUP BY base_id) x ON x.base_id=m.base_id) AS logical_applications`);
   const row = checks.rows[0];
   if (
     [
@@ -709,9 +709,9 @@ async function main() {
         );
     }
     for (const table of Object.keys(tables) as Table[])
-      await stageTable(client, source, table);
-    await validateStage(client, source);
-    const expectedCategoryDigest = await stageCommercialCategories(
+      await importTable(client, source, table);
+    await validateImportedCatalog(client, source);
+    const expectedCategoryDigest = await importCommercialCategories(
       client,
       source,
     );
