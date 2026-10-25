@@ -372,12 +372,15 @@ async function existingReleaseIsValid(
   source: DatabaseSync,
 ) {
   const release = await client.query(
-    "SELECT status,source_sha256 FROM service_catalog.releases WHERE version='1.2-operacional'",
+    "SELECT status,source_sha256,model_count,time_count,application_count FROM service_catalog.releases WHERE version='1.2-operacional'",
   );
   if (!release.rowCount) return false;
   if (
     release.rows[0].status === "loading" &&
-    ["pending", expectedSha256].includes(release.rows[0].source_sha256)
+    ["pending", expectedSha256].includes(release.rows[0].source_sha256) &&
+    Number(release.rows[0].model_count) === expected.models &&
+    Number(release.rows[0].time_count) === expected.repair_times &&
+    Number(release.rows[0].application_count) === 7292579
   )
     return false;
   if (
