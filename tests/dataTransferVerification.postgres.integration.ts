@@ -116,7 +116,9 @@ test("PostgreSQL local: transferência fictícia completa preserva IDs, relaçõ
       assert.equal(initialVerification.entities.customers.unrelatedExistingIgnored, 1);
       assert.equal(initialVerification.entities.customers.destinationRows, 2, "a contagem deve excluir os dados da outra oficina");
       assert.equal(initialVerification.entities.cash_entries.corresponding, 2);
-      assert.equal(initialVerification.entities.orders.corresponding, 1);
+      assert.equal(initialVerification.entities.orders.destinationMatched, 1, JSON.stringify(initialVerification.entities.orders.records));
+      assert.equal(initialVerification.entities.orders.divergent, 0, JSON.stringify(initialVerification.entities.orders.records));
+      assert.equal(initialVerification.entities.orders.notVerifiable, 1, JSON.stringify(initialVerification.entities.orders.records));
       assert.equal(initialVerification.entities.document_revisions.transformed, 1);
       assert.equal(initialVerification.policy.auditEventsExcluded, 1);
       assert.ok(initialVerification.policy.authorsRemapped > 0);
