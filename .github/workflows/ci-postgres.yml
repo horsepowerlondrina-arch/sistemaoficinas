@@ -2,7 +2,7 @@ name: CI PostgreSQL
 
 on:
   push:
-    branches: [mig-004-merge-replace]
+    branches: [main]
   pull_request:
     branches: [main]
 
