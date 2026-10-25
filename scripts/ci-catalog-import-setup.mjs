@@ -74,8 +74,6 @@ try {
       VALUES('00000000-0000-4000-8000-000000000006','00000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000000002','00000000-0000-4000-8000-000000000004','Modelo Fictício','000000-0',1,1,'00000000-0000-4000-8000-000000000003','[]');
     INSERT INTO service_catalog.repair_times(id,base_id,model_id,service_id,service_name,minutes,time_identifier)
       VALUES('00000000-0000-4000-8000-000000000007','00000000-0000-4000-8000-000000000003',NULL,'00000000-0000-4000-8000-000000000005','Inspeção Fictícia',30,'synthetic-demo');
-    INSERT INTO service_catalog.model_labor_categories(model_id,category_id,technical_classification_id,assignment_source,review_status,change_reason)
-      VALUES('00000000-0000-4000-8000-000000000006','compacto','00000000-0000-4000-8000-000000000004','automatic','confirmed','Fixture sintética de validação.');
     INSERT INTO service_catalog.releases(version,status,source_sha256,model_count,time_count,application_count)
       VALUES('homologacao-sintetica','active','synthetic',1,1,1)`);
   await target.query("COMMIT");
