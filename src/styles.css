@@ -1515,20 +1515,20 @@ td strong {
   font-size: 10px;
 }
 .item-fields {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));
   gap: 14px;
-  align-items: flex-end;
+  align-items: end;
 }
 .item-fields .field {
-  flex: 1;
   min-width: 0;
 }
 .item-fields .field:first-child {
-  max-width: 80px;
+  max-width: none;
 }
 .item-fields .field > span {
   font-size: 10px;
-  white-space: nowrap;
+  white-space: normal;
 }
 .item-fields .field input,
 .item-fields select {
@@ -1537,10 +1537,11 @@ td strong {
   min-height: 36px;
 }
 .item-total {
-  margin-left: auto;
+  margin-left: 0;
   text-align: right;
   align-self: center;
-  min-width: 85px;
+  justify-self: end;
+  min-width: 0;
 }
 .item-total span {
   display: block;
