@@ -52,6 +52,7 @@ export async function audit(
       )
       .run(...values, JSON.stringify(metadata));
     await db.exec("RELEASE SAVEPOINT audit_metadata_compat");
+    return true;
   } catch (error) {
     await db.exec("ROLLBACK TO SAVEPOINT audit_metadata_compat");
     await db.exec("RELEASE SAVEPOINT audit_metadata_compat");
@@ -66,6 +67,7 @@ export async function audit(
         "INSERT INTO audit_events(id,tenant_id,user_id,action,entity_id) VALUES(?,?,?,?,?)",
       )
       .run(...values);
+    return false;
   }
 }
 
