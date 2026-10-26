@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import { AppContext } from "../src/lib/context";
 import { OrderEditor } from "../src/pages/OrderEditor";
+import { ServiceExecutionFields } from "../src/components/RepairServicePicker";
 
 const customer = {
   id: "c",
@@ -85,6 +86,35 @@ test("editing a linked quote shows its registered customer without a duplicate g
   assert.doesNotMatch(html, /Nome para o orçamento/);
   assert.match(html, /value="ABC1D23"/);
 });
+test("service items retain saved pricing settings without OS execution or billing selectors", () => {
+  const html = renderToStaticMarkup(h(ServiceExecutionFields, {
+    item: {
+      id: "service-item",
+      kind: "service",
+      name: "Serviço terceirizado",
+      price: 6500,
+      repair_service_id: "catalog-service",
+      repair_model_id: "catalog-model",
+      commercial_category_id: "premium",
+      service_execution: "outsourced",
+      service_cost: 5000,
+      service_details: {
+        commercial_category_id: "premium",
+        execution: "outsourced",
+        cost: 5000,
+        markup_bps: 3000,
+        hourly_rate: 18000,
+        minutes: 30,
+      },
+    },
+    onChange: () => {},
+  }));
+  assert.doesNotMatch(html, /Porte de cobrança nesta OS/);
+  assert.doesNotMatch(html, /Execução nesta OS/);
+  assert.match(html, /Custo do terceiro/);
+  assert.match(html, /value="50"/);
+});
+
 test("a guest quote preserves optional name and vehicle with a single plate input", () => {
   const html = render("/ordens/o", {
     id: "o",

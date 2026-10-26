@@ -577,8 +577,7 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
         {(vehicleOnly || linkStatus === "needs_confirmation" || linkStatus === "mismatch") && <p className="muted" role="status">{linkStatus === "linked" || linkStatus === "matched" ? "Vinculado ao Catálogo Técnico." : linkStatus === "needs_confirmation" ? "Aguardando confirmação: escolha a versão correta." : linkStatus === "mismatch" ? "O vínculo diverge dos dados atuais. Revise e confirme novamente o modelo antes de incluir serviços." : "Não identificado no Catálogo Técnico."}</p>}
         {brandLocked && <p className="muted catalog-lock-note">A marca está vinculada ao veículo. Para corrigi-la, atualize o cadastro do veículo.</p>}
         {vehicle && <p className="muted">{[vehicle.brand, vehicle.model, vehicle.year].filter(Boolean).join(" · ")}</p>}
-        {!vehicleOnly && <p className="muted">{commercialCategory ? "Hora do porte: " + money(rate) + ". " : ""}{commercialCategory && rate <= 0 ? "Tarifa não configurada. " : ""}<Link to="/configuracoes?aba=servicos">Configurar valores da hora</Link></p>}
-      </>}
+       </>}
       {shouldShowWorkshopServices(mode, vehicleOnly) && (
         <>
           <Field label="Porte do serviço">
@@ -687,26 +686,6 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
         <div className="repair-selection">
           <h4>{selected.name}</h4>
           <div className="form-grid">
-            <Field label="Execução nesta OS">
-              <select
-                value={execution}
-                onChange={(e) => setExecution(e.target.value)}
-              >
-                <option value="internal">Interno</option>
-                <option value="outsourced">Terceirizado</option>
-              </select>
-            </Field>
-            <Field label="Porte de cobrança nesta OS">
-              <select
-                value={commercialCategory}
-                onChange={(e) => setCommercialCategory(e.target.value)}
-              >
-                <option value="">Selecione o porte</option>
-                {info?.categories.map((p) => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </select>
-            </Field>
             {execution === "outsourced" ? (
               <Field label="Custo do terceiro (R$)">
                 <NumericInput
@@ -848,49 +827,11 @@ export function ServiceExecutionFields({
   onChange: (updates: Record<string, any>) => void;
 }) {
   const detail = item.service_details || {};
-  const [categoryBusy, setCategoryBusy] = useState(false);
-  const [categoryError, setCategoryError] = useState("");
   const execution = item.service_execution || detail.execution || "internal";
   const cost = Number(item.service_cost ?? item.cost ?? 0),
     markup = Number(detail.markup_bps ?? 3000),
     minutes = Number(item.service_minutes ?? detail.minutes ?? 0),
     rate = Number(detail.hourly_rate || 0);
-  const categoryId = String(item.commercial_category_id || detail.commercial_category_id || "");
-  async function updateCategory(value: string) {
-    setCategoryBusy(true);
-    setCategoryError("");
-    try {
-      const selection = {
-        repair_service_id: item.repair_service_id,
-        repair_model_id: item.repair_model_id,
-        workshop_service_id: item.workshop_service_id,
-        commercial_category_id: value,
-        service_execution: execution,
-        service_cost: cost,
-        ...(minutes > 0 ? { service_minutes: minutes } : {}),
-      };
-      const result = item.order_id
-        ? await send("/repair-services/reprice", {
-            order_id: item.order_id,
-            item_id: item.id,
-            execution,
-            cost,
-            commercial_category_id: value,
-          })
-        : await send("/repair-services/preview", selection);
-      onChange({
-        commercial_category_id: value,
-        price: result.price,
-        service_details: result,
-        service_minutes: result.minutes,
-        duration_seconds: Number(result.minutes || 0) * 60,
-      });
-    } catch (e) {
-      setCategoryError((e as Error).message);
-    } finally {
-      setCategoryBusy(false);
-    }
-  }
   function update(mode: string, value: number) {
     onChange({
       service_execution: mode,
@@ -906,29 +847,6 @@ export function ServiceExecutionFields({
   }
   return (
     <>
-      <Field label="Porte de cobrança nesta OS">
-        <select
-          value={categoryId}
-          disabled={categoryBusy}
-          onChange={(e) => void updateCategory(e.target.value)}
-        >
-          <option value="">Selecione o porte</option>
-          <option value="compacto">Compacto</option>
-          <option value="medio">Médio</option>
-          <option value="premium">Premium</option>
-          <option value="pesado">Pesado</option>
-        </select>
-      </Field>
-      {categoryError && <p className="form-error" role="alert">{categoryError}</p>}
-      <Field label="Execução nesta OS">
-        <select
-          value={execution}
-          onChange={(e) => update(e.target.value, cost)}
-        >
-          <option value="internal">Interno</option>
-          <option value="outsourced">Terceirizado</option>
-        </select>
-      </Field>
       {execution === "outsourced" && (
         <Field label="Custo do terceiro (R$)">
           <NumericInput
@@ -962,10 +880,9 @@ export function ServiceExecutionFields({
         </Field>
       )}
       <small className="muted">
-        {minutes} min · Hora utilizada: {money(rate)} · Alterações de execução,
-        custo e preço valem somente para esta OS.
+        {minutes} min · Hora utilizada: {money(rate)} · Ajustes de custo e preço
+        valem somente para esta OS.
       </small>
     </>
   );
 }
-
