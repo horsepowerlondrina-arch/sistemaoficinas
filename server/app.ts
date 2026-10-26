@@ -1104,12 +1104,17 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
       await db.prepare("UPDATE vehicles SET " + assignments + " WHERE tenant_id=? AND id=?")
          .run(...fields.map((field) => values[field as keyof typeof values]), tenant, vehicleId);
       const after = Object.fromEntries(fields.map((field) => [field, values[field as keyof typeof values]]));
-      await audit(db, res.locals.context, "vehicles.external_lookup_updated", vehicleId, {
+      const auditMetadataSaved = await audit(db, res.locals.context, "vehicles.external_lookup_updated", vehicleId, {
         source: result.source,
         updated_fields: fields,
         before,
         after,
       });
+      if (!auditMetadataSaved)
+        throw Object.assign(
+          new Error("A confirmação de dados do veículo ficará disponível após a migração de auditoria."),
+          { status: 503 },
+        );
     });
     res.json({ ok: true });
   });
