@@ -51,12 +51,11 @@ test("CAT-008 import role is limited to catalog data and refuses unknown fixture
 
     await client.query("BEGIN");
     await client.query("SET LOCAL ROLE hp_catalog_importer");
-    const overrides = await client.query(
-      "SELECT count(*)::int n FROM service_catalog.model_labor_category_overrides",
-    );
-    assert.equal(overrides.rows[0].n, 51);
+    const portes = await client.query("SELECT count(*)::int n FROM service_catalog.classifications");
+    assert.equal(portes.rows[0].n, 4);
     await client.query("ROLLBACK");
   } finally {
     await client.end();
   }
 });
+

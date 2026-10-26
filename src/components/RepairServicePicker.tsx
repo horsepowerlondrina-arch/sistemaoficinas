@@ -28,10 +28,10 @@ export function LaborRates() {
   }, []);
   return (
     <section className="panel work-order-section">
-      <h3>Valor da hora por categoria comercial</h3>
+      <h3>Valor da hora por porte</h3>
       <p>
         O preço dos serviços internos é o tempo em minutos ÷ 60 × valor da hora
-        da categoria comercial. Defina os valores usados pela oficina.
+        da porte. Defina os valores usados pela oficina.
       </p>
       {error && (
         <p className="form-error" role="alert">
@@ -114,7 +114,6 @@ function ServiceForm({
   const [form, setForm] = useState({
     name: initial?.name || "",
     execution: initial?.execution || "internal",
-    porte_id: initial?.porte_id || porteId || null,
     commercial_category_id: initial?.commercial_category_id || commercialCategoryId || "",
     pricing_mode: initial?.pricing_mode || "time",
     minutes: Number(initial?.minutes || 0),
@@ -143,7 +142,7 @@ function ServiceForm({
       title={
         initial ? "Editar serviço da oficina" : "Cadastrar serviço da oficina"
       }
-      description="O serviço pertence somente a esta oficina e usa a categoria comercial escolhida."
+      description="O serviço pertence somente a esta oficina e usa a porte escolhida."
       onClose={onClose}
     >
       <div className="modal-body">
@@ -164,12 +163,12 @@ function ServiceForm({
               <option value="outsourced">Terceirizado</option>
             </select>
           </Field>
-          <Field label="Categoria comercial">
+          <Field label="Porte">
             <select
               value={form.commercial_category_id}
               onChange={(e) => set("commercial_category_id", e.target.value)}
             >
-              <option value="">Selecione a categoria</option>
+              <option value="">Selecione o porte</option>
               {info.categories.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
@@ -458,7 +457,7 @@ export function RepairServicePicker({
             </strong>
             {model && (
               <p>
-                Porte técnico: {model.porte_name} · Categoria comercial: {model.commercial_category_name || "não classificada"} · FIPE: {model.fipe_code || "não informado"}
+                Porte: {model.porte_name} · FIPE: {model.fipe_code || "não informado"}
               </p>
             )}
             <button
@@ -522,7 +521,7 @@ export function RepairServicePicker({
                       {m.brand} · {m.name}
                     </strong>
                     <small>
-                      {m.porte_name} · {m.commercial_category_name || "Sem categoria comercial"} · FIPE {m.fipe_code || "não informado"} ·{" "}
+                      {m.porte_name} · FIPE {m.fipe_code || "não informado"} ·{" "}
                       {m.service_count} serviços
                     </small>
                   </button>
@@ -558,7 +557,7 @@ export function RepairServicePicker({
       )}
       {mode === "manual" && (
         <>
-          <Field label="Categoria comercial do serviço">
+          <Field label="Porte do serviço">
             <select
               value={commercialCategory}
               onChange={(e) => {
@@ -566,7 +565,7 @@ export function RepairServicePicker({
                 setOffset(0);
               }}
             >
-              <option value="">Selecione a categoria</option>
+              <option value="">Selecione o porte</option>
               {info?.categories.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
@@ -595,7 +594,7 @@ export function RepairServicePicker({
         />
       </Field>
       <p className="muted">
-        {commercialCategory ? `Hora da categoria: ${money(rate)}. ` : ""}
+        {commercialCategory ? `Hora do porte: ${money(rate)}. ` : ""}
         {commercialCategory && rate <= 0 ? "Tarifa não configurada. " : ""}
         <Link to="/configuracoes?aba=servicos">Configurar valores da hora</Link>
       </p>
@@ -693,12 +692,12 @@ export function RepairServicePicker({
                 <option value="outsourced">Terceirizado</option>
               </select>
             </Field>
-            <Field label="Categoria comercial nesta OS">
+            <Field label="Porte de cobrança nesta OS">
               <select
                 value={commercialCategory}
                 onChange={(e) => setCommercialCategory(e.target.value)}
               >
-                <option value="">Selecione a categoria</option>
+                <option value="">Selecione o porte</option>
                 {info?.categories.map((p) => (
                   <option key={p.id} value={p.id}>{p.name}</option>
                 ))}
@@ -900,13 +899,13 @@ export function ServiceExecutionFields({
   }
   return (
     <>
-      <Field label="Categoria comercial nesta OS">
+      <Field label="Porte de cobrança nesta OS">
         <select
           value={categoryId}
           disabled={categoryBusy}
           onChange={(e) => void updateCategory(e.target.value)}
         >
-          <option value="">Selecione a categoria</option>
+          <option value="">Selecione o porte</option>
           <option value="compacto">Compacto</option>
           <option value="medio">Médio</option>
           <option value="premium">Premium</option>
@@ -962,3 +961,4 @@ export function ServiceExecutionFields({
     </>
   );
 }
+

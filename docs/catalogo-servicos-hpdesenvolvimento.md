@@ -1,3 +1,5 @@
+> Registro histórico do HPDesenvolvimento. Os 14 portes e o hash abaixo descrevem aquela versão; o contrato atual de quatro portes está em [CAT-009](CAT-009-quatro-portes.md).
+
 # Catálogo operacional de serviços — HPDesenvolvimento
 
 Publicado exclusivamente no Supabase `rapvlvstqcqordttqrru`, no schema privado `service_catalog`. Nenhuma migração ou importação foi executada no banco da oficina em produção.
@@ -50,3 +52,4 @@ As consultas ao catálogo usam uma transação de leitura dedicada com contexto 
 Peças permanecem fora deste catálogo operacional e não geram produtos ou movimentos de estoque. A interface de captura de serviços do Tempario foi retirada e novas capturas dessa origem são recusadas no HPDesenvolvimento; os registros anteriores permanecem para o histórico. A captura de produtos do Sky Peças continua funcionando. Esta etapa não publica uma nova extensão na Chrome Web Store nem modifica a oficina em produção.
 
 Validação da integração: suíte local completa com 146 testes; testes adicionais de migração, vínculo por família e diferença por modelo, ambiguidade FIPE, isolamento entre oficinas, tempos zero, preço e snapshots; teste HTTP com catálogo real, OS/veículo/cliente/serviço temporários removidos ao final; TypeScript e build Vite. A navegação visual local não pôde ser conferida pelo navegador integrado, que não alcançou o servidor local; não foi criado acesso público ou bypass da proteção do ambiente.
+

@@ -11,38 +11,24 @@ test("PostgreSQL local: autenticação, oficinas, transações e RLS do catálog
   t.after(()=>db.close());
   const credentialsPath=process.env.LOCAL_TEST_CREDENTIALS_FILE || "data/local-credentials.json";
   const credentials=JSON.parse(readFileSync(credentialsPath,"utf8"));
-  await t.test("importação posterior classifica automaticamente e aplica a exceção CAT-007 persistente",async()=>{
-    const {adminClient}=await import("../scripts/local-admin");const admin=adminClient();await admin.connect();
-    try{
+  await t.test("porte direto não reaplica exceção histórica nem cria classificação paralela",async()=>{
+    const {adminClient}=await import("../scripts/local-admin"); const admin=adminClient(); await admin.connect();
+    try {
       await admin.query("BEGIN");
-      const brand="00000000-0000-4000-8000-000000000009",family="00000000-0000-4000-8000-000000000010",base="00000000-0000-4000-8000-000000000011",classification="00000000-0000-4000-8000-000000000012",model="ab7b2905-17d3-4664-8743-62ef07085599";
-      if(process.env.CATALOG_EXPECT_FULL === "1"){
-        const approved=await admin.query(`SELECT count(*)::int n FROM service_catalog.model_labor_category_overrides o
-          JOIN service_catalog.model_labor_categories c ON c.model_id=o.model_id AND c.category_id='premium'`);
-        assert.equal(approved.rows[0].n,51);
-        await admin.query("INSERT INTO service_catalog.brands(id,name) VALUES($1,'Marca Fictícia Importada')",[brand]);
-        await admin.query("INSERT INTO service_catalog.families(id,brand_id) VALUES($1,$2)",[family,brand]);
-        await admin.query("INSERT INTO service_catalog.bases(id,family_id,service_count) VALUES($1,$2,0)",[base,family]);
-        const compactClass=(await admin.query("SELECT id FROM service_catalog.classifications WHERE name='Básico Elétrico'")).rows[0].id;
-        const compactModel="00000000-0000-4000-8000-000000000014";
-        await admin.query("INSERT INTO service_catalog.models(id,brand_id,family_id,classification_id,name,fipe_code,complete,service_count,base_id,excluded_service_ids) VALUES($1,$2,$3,$4,'Modelo Fictício Novo','999998-9',1,0,$5,'[]')",[compactModel,brand,family,compactClass,base]);
-        const compact=(await admin.query("SELECT category_id,assignment_source FROM service_catalog.model_labor_categories WHERE model_id=$1",[compactModel])).rows[0];
-        assert.deepEqual(compact,{category_id:"compacto",assignment_source:"automatic"});
-      } else {
-        await admin.query("INSERT INTO service_catalog.brands(id,name) VALUES($1,'Marca Fictícia Importada')",[brand]);
-        await admin.query("INSERT INTO service_catalog.families(id,brand_id) VALUES($1,$2)",[family,brand]);
-        await admin.query("INSERT INTO service_catalog.bases(id,family_id,service_count) VALUES($1,$2,0)",[base,family]);
-        await admin.query("INSERT INTO service_catalog.classifications(id,name) VALUES($1,'Veículo Médio')",[classification]);
-        await admin.query("INSERT INTO service_catalog.models(id,brand_id,family_id,classification_id,name,fipe_code,complete,service_count,base_id,excluded_service_ids) VALUES($1,$2,$3,$4,'Modelo Fictício Importado','999999-9',1,0,$5,'[]')",[model,brand,family,classification,base]);
-        const category=(await admin.query("SELECT category_id,assignment_source,review_status FROM service_catalog.model_labor_categories WHERE model_id=$1",[model])).rows[0];
-        assert.deepEqual(category,{category_id:"premium",assignment_source:"reviewed",review_status:"confirmed"});
-        const compactClass=(await admin.query("SELECT id FROM service_catalog.classifications WHERE name='Básico Elétrico'")).rows[0].id,compactModel="00000000-0000-4000-8000-000000000014";
-        await admin.query("INSERT INTO service_catalog.models(id,brand_id,family_id,classification_id,name,fipe_code,complete,service_count,base_id,excluded_service_ids) VALUES($1,$2,$3,$4,'Modelo Fictício Novo','999998-9',1,0,$5,'[]')",[compactModel,brand,family,compactClass,base]);
-        const compact=(await admin.query("SELECT category_id,assignment_source FROM service_catalog.model_labor_categories WHERE model_id=$1",[compactModel])).rows[0];
-        assert.deepEqual(compact,{category_id:"compacto",assignment_source:"automatic"});
-      }
-    }finally{await admin.query("ROLLBACK");await admin.end();}
-  });  await t.test("catálogo sem contexto não é visível; autorização da oficina é obrigatória",async()=>{
+      const before=Number((await admin.query("SELECT count(*) n FROM service_catalog.model_labor_categories")).rows[0].n);
+      const cls=(await admin.query("SELECT id FROM service_catalog.classifications WHERE name='Médio'")).rows[0].id;
+      const brand="00000000-0000-4000-8000-000000000009",family="00000000-0000-4000-8000-000000000010",base="00000000-0000-4000-8000-000000000011";
+      await admin.query("INSERT INTO service_catalog.brands(id,name) VALUES($1,'Marca Fictícia Importada')",[brand]);
+      await admin.query("INSERT INTO service_catalog.families(id,brand_id) VALUES($1,$2)",[family,brand]);
+      await admin.query("INSERT INTO service_catalog.bases(id,family_id,service_count) VALUES($1,$2,0)",[base,family]);
+      await admin.query("INSERT INTO service_catalog.models(id,brand_id,family_id,classification_id,name,fipe_code,complete,service_count,base_id,excluded_service_ids) VALUES($1,$2,$3,$4,'Modelo Fictício Importado','999999-9',1,0,$5,'[]')",["ab7b2905-17d3-4664-8743-62ef07085599",brand,family,cls,base]);
+      const model=(await admin.query("SELECT c.name FROM service_catalog.models m JOIN service_catalog.classifications c ON c.id=m.classification_id WHERE m.id=$1",["ab7b2905-17d3-4664-8743-62ef07085599"])).rows[0];
+      assert.equal(model.name,"Médio");
+      assert.equal(Number((await admin.query("SELECT count(*) n FROM service_catalog.model_labor_categories")).rows[0].n),before);
+      assert.equal((await admin.query("SELECT 1 FROM pg_trigger WHERE tgrelid='service_catalog.models'::regclass AND tgname='assign_model_labor_category_after_catalog_import'")).rowCount,0);
+    } finally { await admin.query("ROLLBACK"); await admin.end(); }
+  });
+  await t.test("catálogo sem contexto não é visível; autorização da oficina é obrigatória",async()=>{
     assert.equal((await db.prepare("SELECT * FROM service_catalog.models").all()).length,0);
     assert.equal(await db.withTenantRead("local-a",async()=>(await db.prepare("SELECT count(*) n FROM service_catalog.models").get() as any).n),expectedCatalogModels);
     assert.equal(await db.withTenantRead("local-b",async()=>(await db.prepare("SELECT * FROM service_catalog.models").all()).length),0);
@@ -233,3 +219,4 @@ test("PostgreSQL local: autenticação, oficinas, transações e RLS do catálog
     await request("/api/logout",sessions[1],{});
   });
 });
+

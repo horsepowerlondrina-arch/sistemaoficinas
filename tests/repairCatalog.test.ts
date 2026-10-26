@@ -20,9 +20,8 @@ function fixture() {
   db.exec(
     "INSERT INTO tenants(id,name) VALUES('a','A'),('b','B'); INSERT INTO users VALUES('u','Teste','test@example.com','disabled'); INSERT INTO customers(id,tenant_id,name) VALUES('c','a','Cliente'); INSERT INTO vehicles(id,tenant_id,customer_id,plate,brand,model,year) VALUES('v','a','c','ABC1D23','Marca','Modelo',2020);",
   );
-  const porte = String(
-    db.prepare("SELECT id FROM labor_portes ORDER BY name LIMIT 1").get()!.id,
-  );
+  const porte = randomUUID();
+  const portes = { compacto: porte, medio: randomUUID(), premium: randomUUID(), pesado: randomUUID() };
   const category = "compacto";
   const brand = randomUUID(),
     model = randomUUID(),
@@ -37,7 +36,6 @@ function fixture() {
  CREATE TABLE service_catalog.brands(id TEXT,name TEXT);
  CREATE TABLE service_catalog.classifications(id TEXT,name TEXT);
  CREATE TABLE service_catalog.models(id TEXT,brand_id TEXT,name TEXT,fipe_code TEXT,classification_id TEXT,base_id TEXT,excluded_service_ids TEXT,service_count INTEGER);
- CREATE TABLE service_catalog.model_labor_categories(model_id TEXT,technical_classification_id TEXT,category_id TEXT,assignment_source TEXT,review_status TEXT);
  CREATE TABLE service_catalog.repair_times(id TEXT,base_id TEXT,model_id TEXT,service_id TEXT,service_name TEXT,minutes REAL,time_identifier TEXT);
  CREATE VIEW service_catalog.model_services AS SELECT m.id model_id,t.service_id,t.service_name,t.minutes,t.time_identifier,t.id repair_time_id FROM models m JOIN repair_times t ON t.base_id=m.base_id WHERE NOT EXISTS(SELECT 1 FROM json_each(m.excluded_service_ids) e WHERE e.value=t.service_id) AND NOT EXISTS(SELECT 1 FROM repair_times x WHERE x.model_id=m.id AND x.service_id=t.service_id) UNION ALL SELECT model_id,service_id,service_name,minutes,time_identifier,id FROM repair_times WHERE model_id IS NOT NULL;
  INSERT INTO service_catalog.tenant_access VALUES('a',1,NULL),('b',0,NULL);
@@ -46,10 +44,8 @@ function fixture() {
     brand,
     "Marca",
   );
-  db.prepare("INSERT INTO service_catalog.classifications VALUES(?,?)").run(
-    porte,
-    "Porte",
-  );
+  for (const [key,name] of [["compacto","Compacto"],["medio","Médio"],["premium","Premium"],["pesado","Pesado"]] as const)
+    db.prepare("INSERT INTO service_catalog.classifications VALUES(?,?)").run(portes[key], name);
   for (const [key, name, keyBase] of [
     [model, "Modelo 1", base],
     [other, "Modelo 2", otherBase],
@@ -58,8 +54,6 @@ function fixture() {
     db.prepare(
       "INSERT INTO service_catalog.models VALUES(?,?,?,?,?,?,?,?)",
     ).run(key, brand, name, "123456-7", porte, keyBase, "[]", 1);
-  for (const key of [model, other, override])
-    db.prepare("INSERT INTO service_catalog.model_labor_categories VALUES(?,?,?,'automatic','confirmed')").run(key, porte, category);
   for (const [keyBase, keyModel, time] of [
     [base, null, 60],
     [otherBase, null, 120],
@@ -77,7 +71,7 @@ function fixture() {
       "tempo",
     );
   db.prepare("INSERT INTO labor_commercial_rates(tenant_id,category_id,hourly_rate) VALUES(?,?,?)").run("a", category, 12000);
-  return { db, porte, model, other, override, service };
+  return { db, porte, portes, model, other, override, service };
 }
 test("FIPE ambígua retorna modelos distintos, mantendo tempos por base e diferenças específicas", async () => {
   const f = fixture();
@@ -140,6 +134,7 @@ test("OS preserva snapshots após mudança de tarifa, catálogo e assinatura; no
     );
     const before = (await listOrders(f.db, "a")).find((o) => o.id === id)!;
     f.db.prepare("UPDATE service_catalog.repair_times SET minutes=999").run();
+    f.db.prepare("UPDATE service_catalog.classifications SET name='Nome histórico alterado'").run();
     f.db.prepare("UPDATE labor_commercial_rates SET hourly_rate=99900").run();
     f.db.prepare("UPDATE service_catalog.tenant_access SET enabled=0").run();
     await saveOrder(
@@ -201,7 +196,7 @@ test("quatro tarifas são isoladas por oficina e a categoria manual fica no snap
     assert.equal(priced.category_override, true);
     const snapshot = JSON.parse(priced.service_snapshot);
     assert.equal(snapshot.hourly_rate, 18000);
-    assert.equal(snapshot.technical_classification, "Porte");
+    assert.equal(snapshot.technical_classification, "Compacto");
     await saveLaborRates(f.db, ctx, [{ category_id: "premium", hourly_rate: 30000 }]);
     const preserved = await resolveService(f.db, ctx, {
       repair_service_id: f.service,
@@ -250,13 +245,10 @@ test("serviços particulares têm isolamento e porte; tempo/preço são calculad
     assert.equal(preview.minutes, 30);
     assert.equal(preview.cost, 0);
     assert.equal(preview.price, 6000);
-    await assert.rejects(
-      resolveService(f.db, ctx, {
-        workshop_service_id: manual,
-        porte_id: randomUUID(),
-      }),
-      /outro porte/,
-    );
+    assert.equal((await resolveService(f.db, ctx, {
+      workshop_service_id: manual, porte_id: f.portes.medio,
+    })).price,6000);
+    assert.equal(f.db.prepare("SELECT porte_id FROM workshop_services WHERE id=?").get(manual)!.porte_id,null);
     assert.equal(
       (await serviceInfo(f.db, ctx)).categories.find((p) => p.id === "compacto")!
         .hourly_rate,
@@ -307,3 +299,25 @@ test("tempo zero exige complemento e um serviço não pode ser aplicado a um mod
     f.db.close();
   }
 });
+
+test("os quatro portes do próprio modelo escolhem as quatro tarifas sem tabela auxiliar", async () => {
+  const f = fixture();
+  try {
+    const rates = { compacto: 12000, medio: 15000, premium: 18000, pesado: 22000 };
+    await saveLaborRates(f.db, ctx, Object.entries(rates).map(([category_id, hourly_rate]) => ({ category_id, hourly_rate })));
+    for (const id of Object.keys(rates) as (keyof typeof rates)[]) {
+      f.db.prepare("UPDATE service_catalog.models SET classification_id=? WHERE id=?").run(f.portes[id], f.model);
+      const models = await searchModels(f.db, ctx, { fipe: "123456-7" });
+      const model = models.items.find((m) => m.id === f.model)!;
+      assert.equal(model.porte_id, f.portes[id]);
+      assert.equal(model.commercial_category_id, id);
+      assert.equal(model.porte_name, model.commercial_category_name);
+      const priced = await resolveService(f.db, ctx, { repair_service_id: f.service, repair_model_id: f.model });
+      assert.equal(priced.price, rates[id]);
+      assert.equal(JSON.parse(priced.service_snapshot).classification_id, f.portes[id]);
+    }
+    f.db.prepare("UPDATE service_catalog.classifications SET name='SUV Médio' WHERE id=?").run(f.portes.pesado);
+    await assert.rejects(resolveService(f.db, ctx, { repair_service_id: f.service, repair_model_id: f.model }), /quatro portes/);
+  } finally { f.db.close(); }
+});
+
