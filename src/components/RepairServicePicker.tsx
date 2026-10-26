@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type KeyboardEvent } from "react";
 import { Link } from "react-router-dom";
 import { api, send } from "../lib/api";
 import { money, type Entity } from "../lib/types";
@@ -270,287 +270,169 @@ function ServiceForm({
     </Modal>
   );
 }
-export function RepairServicePicker({
-  vehicle,
-  modelId,
-  onModelChange,
-  onAdd,
-}: {
+const normalizeCatalogValue = (value: string) => value.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase().trim();
+
+export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd }: {
   vehicle?: Record<string, any>;
   modelId: string;
   onModelChange: (id: string) => void;
   onAdd?: (item: Entity) => void;
 }) {
-  const [info, setInfo] = useState<Info | null>(null),
-    [error, setError] = useState("");
-  const [mode, setMode] = useState("manual"),
-    [model, setModel] = useState<Entity | null>(null),
-    [models, setModels] = useState<Entity[]>([]),
-    [modelSearch, setModelSearch] = useState(
-      String(
-        vehicle?.fipe_code ? "" : vehicle?.model || vehicle?.brand || "",
-      ).split(/[ /]/)[0],
-    ),
-    [modelOffset, setModelOffset] = useState(0),
-    [moreModels, setMoreModels] = useState(false),
-    [matchingFipe, setMatchingFipe] = useState(true),
-    [choosing, setChoosing] = useState(!modelId);
+  const [info, setInfo] = useState<Info | null>(null), [error, setError] = useState("");
+  const [mode, setMode] = useState("manual"), [model, setModel] = useState<Entity | null>(null),
+    [models, setModels] = useState<Entity[]>([]), [modelSearch, setModelSearch] = useState(String(vehicle?.model || vehicle?.fipe_model || "")),
+    [modelOffset, setModelOffset] = useState(0), [moreModels, setMoreModels] = useState(false),
+    [matchingFipe, setMatchingFipe] = useState(!!vehicle?.fipe_code), [choosing, setChoosing] = useState(!modelId);
+  const [brand, setBrand] = useState<Entity | null>(null), [brandQuery, setBrandQuery] = useState(String(vehicle?.brand || "")),
+    [brandOptions, setBrandOptions] = useState<Entity[]>([]), [brandOffset, setBrandOffset] = useState(0),
+    [brandMore, setBrandMore] = useState(false), [brandOpen, setBrandOpen] = useState(false), [modelOpen, setModelOpen] = useState(!modelId),
+    [brandActiveIndex, setBrandActiveIndex] = useState(-1), [modelActiveIndex, setModelActiveIndex] = useState(-1),
+    [modelsLoading, setModelsLoading] = useState(false), [autoBrandPending, setAutoBrandPending] = useState(!!vehicle?.brand && !modelId);
   const [porte, setPorte] = useState(String(vehicle?.service_porte_id || "")),
     [commercialCategory, setCommercialCategory] = useState(String(vehicle?.service_commercial_category_id || "")),
-    [search, setSearch] = useState(""),
-    [offset, setOffset] = useState(0),
-    [rows, setRows] = useState<Entity[]>([]),
-    [more, setMore] = useState(false),
-    [loading, setLoading] = useState(false),
-    [revision, setRevision] = useState(0);
-  const [editing, setEditing] = useState<Entity | null | undefined>(),
-    [selected, setSelected] = useState<Entity | null>(null),
-    [execution, setExecution] = useState("internal"),
-    [cost, setCost] = useState(0),
-    [minutes, setMinutes] = useState(0),
-    [price, setPrice] = useState(0),
-    [inputMode, setInputMode] = useState("time"),
-    [adding, setAdding] = useState(false);
+    [search, setSearch] = useState(""), [offset, setOffset] = useState(0), [rows, setRows] = useState<Entity[]>([]),
+    [more, setMore] = useState(false), [loading, setLoading] = useState(false), [revision, setRevision] = useState(0);
+  const [editing, setEditing] = useState<Entity | null | undefined>(), [selected, setSelected] = useState<Entity | null>(null),
+    [execution, setExecution] = useState("internal"), [cost, setCost] = useState(0), [minutes, setMinutes] = useState(0),
+    [price, setPrice] = useState(0), [inputMode, setInputMode] = useState("time"), [adding, setAdding] = useState(false);
   useEffect(() => {
     let active = true;
-    api<Info>("/repair-services/config")
-      .then((v) => {
-        if (active) {
-          setInfo(v);
-          setMode(v.enabled ? "catalog" : "manual");
-        }
-      })
-      .catch((e) => active && setError(e.message));
-    return () => {
-      active = false;
-    };
+    api<Info>("/repair-services/config").then((v) => { if (active) { setInfo(v); setMode(v.enabled ? "catalog" : "manual"); } }).catch((e) => active && setError(e.message));
+    return () => { active = false; };
   }, []);
   useEffect(() => {
     let active = true;
-    setModel(null);
-    if (modelId && info?.enabled)
-      api<Entity>(`/repair-services/models/${modelId}`)
-        .then((v) => {
-          if (active) {
-            setModel(v);
-            setPorte(v.porte_id || "");
-            setCommercialCategory(v.commercial_category_id || "");
-            setChoosing(false);
-          }
-        })
-        .catch((e) => active && setError(e.message));
-    return () => {
-      active = false;
-    };
-  }, [modelId, info?.enabled]);
+    if (!modelId) { setModel(null); setPorte(""); setCommercialCategory(""); return () => { active = false; }; }
+    if (!info?.enabled) return () => { active = false; };
+    api<Entity>(`/repair-services/models/${modelId}`).then((v) => {
+      if (!active) return;
+      setModel(v); setBrand({ id: v.brand_id, name: v.brand }); setBrandQuery(String(v.brand || ""));
+      setModelSearch(String(v.name || "")); setBrandOpen(false); setModelOpen(false); setAutoBrandPending(false);
+      setPorte(v.porte_id || ""); setCommercialCategory(v.commercial_category_id || ""); setChoosing(false); setError("");
+    }).catch((e) => {
+      if (!active) return;
+      const message = String(e?.message || e);
+      if (message.includes("Modelo não encontrado no catálogo")) {
+        setModel(null); setBrand(null); setBrandQuery(String(vehicle?.brand || ""));
+        setModelSearch(String(vehicle?.model || vehicle?.fipe_model || "")); setAutoBrandPending(!!vehicle?.brand);
+        setBrandOpen(!!vehicle?.brand); setModelOpen(!!(vehicle?.model || vehicle?.fipe_code));
+        setPorte(""); setCommercialCategory(""); onModelChange(""); setError("");
+      } else setError(message);
+    });
+    return () => { active = false; };
+  }, [modelId, info?.enabled, vehicle?.brand, vehicle?.model, vehicle?.fipe_model, vehicle?.fipe_code, onModelChange]);
   useEffect(() => {
-    let active = true;
-    setModels([]);
-    setMoreModels(false);
-    if (!choosing || !info?.enabled) return;
+    let active = true; setBrandOptions([]); setBrandMore(false);
+    if (!info?.enabled || mode !== "catalog" || !brandQuery.trim()) return () => { active = false; };
     const timer = setTimeout(() => {
-      const params = new URLSearchParams({
-        q: modelSearch,
-        fipe: matchingFipe ? vehicle?.fipe_code || "" : "",
-        offset: String(modelOffset),
-      });
-      api(`/repair-services/models?${params}`)
-        .then((v) => {
-          if (active) {
-            setModels(v.items);
-            setMoreModels(v.has_more);
+      const params = new URLSearchParams({ q: brandQuery, offset: String(brandOffset) });
+      api<{ items: Entity[]; has_more: boolean }>("/repair-services/brands?" + params).then((v) => {
+        if (!active) return; setBrandOptions(v.items); setBrandMore(v.has_more); setBrandActiveIndex(-1);
+        if (autoBrandPending && normalizeCatalogValue(brandQuery) === normalizeCatalogValue(String(vehicle?.brand || ""))) {
+          const exact = v.items.filter((item) => normalizeCatalogValue(String(item.name)) === normalizeCatalogValue(brandQuery));
+          if (exact.length === 1) {
+            setBrand(exact[0]); setBrandQuery(String(exact[0].name)); setBrandOpen(false);
+            setModelSearch(String(vehicle?.model || vehicle?.fipe_model || "")); setModelOpen(!!(vehicle?.model || vehicle?.fipe_code));
           }
-        })
-        .catch((e) => active && setError(e.message));
-    }, 300);
-    return () => {
-      active = false;
-      clearTimeout(timer);
-    };
-  }, [
-    choosing,
-    info?.enabled,
-    modelSearch,
-    modelOffset,
-    matchingFipe,
-    vehicle?.fipe_code,
-  ]);
+          setAutoBrandPending(false);
+        }
+      }).catch((e) => active && setError(e.message));
+    }, 250);
+    return () => { active = false; clearTimeout(timer); };
+  }, [info?.enabled, mode, brandQuery, brandOffset, autoBrandPending, vehicle?.brand, vehicle?.model, vehicle?.fipe_model, vehicle?.fipe_code]);
   useEffect(() => {
-    let active = true;
-    setRows([]);
-    setMore(false);
-    setSelected(null);
-    setLoading(false);
-    if (mode === "catalog" && !modelId) return;
+    let active = true; setModels([]); setMoreModels(false);
+    if (!info?.enabled || mode !== "catalog" || !brand?.id || !modelOpen) { setModelsLoading(false); return () => { active = false; }; }
+    setModelsLoading(true);
+    const timer = setTimeout(() => {
+      const params = new URLSearchParams({ brand_id: String(brand.id), q: modelSearch, fipe: matchingFipe ? String(vehicle?.fipe_code || "") : "", offset: String(modelOffset) });
+      api<{ items: Entity[]; has_more: boolean }>("/repair-services/models?" + params).then((v) => {
+        if (!active) return; setModels(v.items); setMoreModels(v.has_more); setModelActiveIndex(-1);
+      }).catch((e) => active && setError(e.message)).finally(() => active && setModelsLoading(false));
+    }, 250);
+    return () => { active = false; clearTimeout(timer); };
+  }, [info?.enabled, mode, brand?.id, modelOpen, modelSearch, matchingFipe, vehicle?.fipe_code, modelOffset]);
+  useEffect(() => {
+    let active = true; setRows([]); setMore(false); setSelected(null); setLoading(false);
+    if (mode === "catalog" && !modelId) return () => { active = false; };
     setLoading(true);
     const timer = setTimeout(() => {
-      const params = new URLSearchParams({
-        q: search,
-        offset: String(offset),
-        category_id: commercialCategory,
-      });
-      api(
-        mode === "catalog"
-          ? `/repair-services/models/${modelId}/services?${params}`
-          : `/workshop-services?${params}`,
-      )
-        .then((v) => {
-          if (active) {
-            setRows(v.items);
-            setMore(v.has_more);
-          }
-        })
-        .catch((e) => active && setError(e.message))
-        .finally(() => active && setLoading(false));
+      const params = new URLSearchParams({ q: search, offset: String(offset), category_id: commercialCategory });
+      api(mode === "catalog" ? `/repair-services/models/${modelId}/services?${params}` : `/workshop-services?${params}`)
+        .then((v) => { if (active) { setRows(v.items); setMore(v.has_more); } })
+        .catch((e) => active && setError(e.message)).finally(() => active && setLoading(false));
     }, 250);
-    return () => {
-      active = false;
-      clearTimeout(timer);
-    };
+    return () => { active = false; clearTimeout(timer); };
   }, [mode, modelId, commercialCategory, search, offset, revision]);
-  const rate = Number(
-    info?.categories.find((p) => p.id === commercialCategory)?.hourly_rate || 0,
-  );
+  const rate = Number(info?.categories.find((p) => p.id === commercialCategory)?.hourly_rate || 0);
   function choose(row: Entity) {
-    setSelected(row);
-    if (row.commercial_category_id) setCommercialCategory(row.commercial_category_id);
-    setExecution(row.execution || "internal");
-    setCost(Number(row.cost || 0));
-    setMinutes(Number(row.minutes || 0));
-    setPrice(Number(row.price || 0));
-    setInputMode("time");
-    setError("");
+    setSelected(row); if (row.commercial_category_id) setCommercialCategory(row.commercial_category_id);
+    setExecution(row.execution || "internal"); setCost(Number(row.cost || 0)); setMinutes(Number(row.minutes || 0));
+    setPrice(Number(row.price || 0)); setInputMode("time"); setError("");
+  }
+  function chooseBrand(row: Entity) {
+    setBrand(row); setBrandQuery(String(row.name)); setBrandOptions([]); setBrandOpen(false); setBrandActiveIndex(-1);
+    setAutoBrandPending(false); setModel(null); setModelSearch(""); setModels([]); setModelOffset(0); setMoreModels(false);
+    setModelActiveIndex(-1); setModelOpen(true); setPorte(""); setCommercialCategory(""); onModelChange("");
+    setOffset(0); setSelected(null); setError("");
+  }
+  function editBrand(value: string) {
+    setBrand(null); setBrandQuery(value); setBrandOffset(0); setBrandOpen(true); setBrandActiveIndex(-1); setAutoBrandPending(false);
+    setModel(null); setModelSearch(""); setModels([]); setModelOffset(0); setMoreModels(false); setModelOpen(false);
+    setPorte(""); setCommercialCategory(""); onModelChange(""); setOffset(0); setSelected(null); setError("");
+  }
+  function editModel(value: string) {
+    setModel(null); setModelSearch(value); setModelOffset(0); setModelActiveIndex(-1); setModelOpen(true);
+    setPorte(""); setCommercialCategory(""); onModelChange(""); setOffset(0); setSelected(null); setError("");
+  }
+  function chooseModel(row: Entity) {
+    setModel(row); setBrand({ id: row.brand_id, name: row.brand }); setBrandQuery(String(row.brand || ""));
+    setBrandOptions([]); setBrandOpen(false); setModelSearch(String(row.name || "")); setModels([]); setModelOpen(false);
+    setPorte(row.porte_id || ""); setCommercialCategory(row.commercial_category_id || ""); onModelChange(row.id);
+    setChoosing(false); setOffset(0); setSelected(null); setError("");
+  }
+  function brandKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "ArrowDown") { event.preventDefault(); setBrandOpen(true); setBrandActiveIndex((i) => Math.min(i + 1, brandOptions.length - 1)); }
+    else if (event.key === "ArrowUp") { event.preventDefault(); setBrandActiveIndex((i) => Math.max(i - 1, 0)); }
+    else if (event.key === "Enter" && brandOpen) { const exact = brandOptions.filter((x) => normalizeCatalogValue(String(x.name)) === normalizeCatalogValue(brandQuery)); const row = brandOptions[brandActiveIndex] || (exact.length === 1 ? exact[0] : null); if (row) { event.preventDefault(); chooseBrand(row); } }
+    else if (event.key === "Escape") setBrandOpen(false);
+  }
+  function modelKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "ArrowDown") { event.preventDefault(); setModelOpen(true); setModelActiveIndex((i) => Math.min(i + 1, models.length - 1)); }
+    else if (event.key === "ArrowUp") { event.preventDefault(); setModelActiveIndex((i) => Math.max(i - 1, 0)); }
+    else if (event.key === "Enter" && modelOpen) { const exact = models.filter((x) => normalizeCatalogValue(String(x.name)) === normalizeCatalogValue(modelSearch)); const row = models[modelActiveIndex] || (exact.length === 1 ? exact[0] : null); if (row) { event.preventDefault(); chooseModel(row); } }
+    else if (event.key === "Escape") setModelOpen(false);
   }
   return (
     <section className="repair-picker">
       <div className="tabs">
-        <button
-          type="button"
-          className={mode === "catalog" ? "active" : ""}
-          disabled={!info?.enabled}
-          onClick={() => {
-            setMode("catalog");
-            setOffset(0);
-          }}
-        >
-          Catálogo de tempos
-        </button>
-        <button
-          type="button"
-          className={mode === "manual" ? "active" : ""}
-          onClick={() => {
-            setMode("manual");
-            setOffset(0);
-          }}
-        >
-          Serviços da oficina
-        </button>
+        <button type="button" className={mode === "catalog" ? "active" : ""} disabled={!info?.enabled} onClick={() => { setMode("catalog"); setOffset(0); }}>Catálogo de tempos</button>
+        <button type="button" className={mode === "manual" ? "active" : ""} onClick={() => { setMode("manual"); setOffset(0); }}>Serviços da oficina</button>
       </div>
       {!info?.enabled && info && <p role="status">{info.catalog_status === "active" ? "Não foi possível consultar o Catálogo Técnico agora." : catalogStatusMessage[info.catalog_status]} Seus serviços particulares continuam disponíveis.</p>}
       {mode === "catalog" && (
         <>
           <div className="repair-model">
-            <strong>
-              {model
-                ? `${model.brand} · ${model.name}`
-                : "Confirme o modelo do veículo"}
-            </strong>
-            {model && (
-              <p>
-                Porte: {model.porte_name} · FIPE: {model.fipe_code || "não informado"}
-              </p>
-            )}
-            <button
-              type="button"
-              className="button"
-              onClick={() => setChoosing((v) => !v)}
-            >
-              {model ? "Alterar modelo" : "Escolher modelo"}
-            </button>
-            <p className="muted">
-              {vehicle
-                ? [vehicle.brand, vehicle.model, vehicle.year]
-                    .filter(Boolean)
-                    .join(" · ")
-                : "Escolha o modelo para consultar seus serviços."}{" "}
-              Confira versão, motor e câmbio no nome da opção. Nenhuma opção é
-              escolhida automaticamente.
-            </p>
+            <strong>{model ? `${model.brand} · ${model.name}` : "Confirme o modelo do veículo"}</strong>
+            {model && <p>Porte: {model.porte_name} · FIPE: {model.fipe_code || "não informado"}</p>}
+            <button type="button" className="button" onClick={() => { setChoosing(true); if (brand?.id) setModelOpen(true); }}>{model ? "Alterar marca ou modelo" : "Escolher marca e modelo"}</button>
+            <p className="muted">{vehicle ? [vehicle.brand, vehicle.model, vehicle.year].filter(Boolean).join(" · ") : "Escolha o veículo para consultar seus serviços."} Confira versão, motor e câmbio. Versões ambíguas precisam de confirmação.</p>
           </div>
           {choosing && (
             <div className="repair-model-search">
-              <Field label="Pesquisar marca, modelo, versão ou motor">
-                <input
-                  value={modelSearch}
-                  onChange={(e) => {
-                    setModelSearch(e.target.value);
-                    setModelOffset(0);
-                  }}
-                />
-              </Field>
-              {vehicle?.fipe_code && (
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={matchingFipe}
-                    onChange={(e) => {
-                      setMatchingFipe(e.target.checked);
-                      setModelOffset(0);
-                    }}
-                  />{" "}
-                  Mostrar somente candidatos do código FIPE {vehicle.fipe_code}
-                </label>
-              )}
-              <div className="repair-results">
-                {models.map((m) => (
-                  <button
-                    type="button"
-                    className="button repair-result"
-                    key={m.id}
-                    onClick={() => {
-                      setModel(m);
-                      setPorte(m.porte_id || "");
-                      setCommercialCategory(m.commercial_category_id || "");
-                      onModelChange(m.id);
-                      setChoosing(false);
-                      setOffset(0);
-                      setSelected(null);
-                    }}
-                  >
-                    <strong>
-                      {m.brand} · {m.name}
-                    </strong>
-                    <small>
-                      {m.porte_name} · FIPE {m.fipe_code || "não informado"} ·{" "}
-                      {m.service_count} serviços
-                    </small>
-                  </button>
-                ))}
-              </div>
-              {!models.length && (
-                <p>
-                  Nenhum candidato nesta busca. Você pode pesquisar outro nome
-                  ou usar um serviço da oficina.
-                </p>
-              )}
-              <div className="capture-actions">
-                <button
-                  type="button"
-                  className="button"
-                  disabled={!modelOffset}
-                  onClick={() => setModelOffset((v) => Math.max(0, v - 30))}
-                >
-                  Anterior
-                </button>
-                <button
-                  type="button"
-                  className="button"
-                  disabled={!moreModels}
-                  onClick={() => setModelOffset((v) => v + 30)}
-                >
-                  Próximos modelos
-                </button>
-              </div>
+              <Field label="Marca"><input role="combobox" aria-autocomplete="list" aria-expanded={brandOpen && brandOptions.length > 0} aria-controls="repair-brand-options" autoComplete="off" value={brandQuery} onFocus={() => { if (brandQuery.trim()) setBrandOpen(true); }} onChange={(e) => editBrand(e.target.value)} onKeyDown={brandKeyDown} placeholder="Digite a marca" /></Field>
+              {brandOpen && brandOptions.length > 0 && <div id="repair-brand-options" className="repair-results" role="listbox" aria-label="Sugestões de marca">
+                {brandOptions.map((row, index) => <button type="button" role="option" aria-selected={index === brandActiveIndex} className="button repair-result" key={row.id} onClick={() => chooseBrand(row)}><strong>{row.name}</strong></button>)}
+                {brandMore && <button type="button" className="button" onClick={() => setBrandOffset((v) => v + 20)}>Mais marcas</button>}
+              </div>}
+              <Field label="Modelo"><input role="combobox" aria-autocomplete="list" aria-expanded={modelOpen && models.length > 0} aria-controls="repair-model-options" autoComplete="off" disabled={!brand?.id} value={modelSearch} onFocus={() => { if (brand?.id) setModelOpen(true); }} onChange={(e) => editModel(e.target.value)} onKeyDown={modelKeyDown} placeholder={brand?.id ? "Digite modelo, versão ou motor" : "Selecione uma marca primeiro"} /></Field>
+              {!brand?.id && <p className="muted">Escolha uma marca para pesquisar somente os modelos correspondentes.</p>}
+              {vehicle?.fipe_code && brand?.id && <label><input type="checkbox" checked={matchingFipe} onChange={(e) => { setMatchingFipe(e.target.checked); setModelOffset(0); }} /> Incluir candidatos do código FIPE {vehicle.fipe_code}</label>}
+              {modelOpen && brand?.id && <div id="repair-model-options" className="repair-results" role="listbox" aria-label="Sugestões de modelo" aria-busy={modelsLoading}>
+                {modelsLoading ? <p role="status">Buscando modelos desta marca…</p> : models.map((row, index) => <button type="button" role="option" aria-selected={index === modelActiveIndex} className="button repair-result" key={row.id} onClick={() => chooseModel(row)}><strong>{row.name}</strong><small>{row.porte_name} · FIPE {row.fipe_code || "não informado"} · {row.service_count} serviços</small></button>)}
+                {!modelsLoading && !models.length && <p>Nenhuma opção encontrada. Ajuste a busca ou o código FIPE.</p>}
+                {!modelsLoading && <div className="capture-actions"><button type="button" className="button" disabled={!modelOffset || modelsLoading} onClick={() => setModelOffset((v) => Math.max(0, v - 30))}>Anterior</button><button type="button" className="button" disabled={!moreModels || modelsLoading} onClick={() => setModelOffset((v) => v + 30)}>Mais modelos</button></div>}
+              </div>}
             </div>
           )}
         </>

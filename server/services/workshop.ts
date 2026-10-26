@@ -243,10 +243,15 @@ export async function saveOrder(
           .prepare("SELECT * FROM order_items WHERE tenant_id=? AND order_id=?")
           .all(ctx.tenantId, record!)
       : [];
-    if (input.service_model_id && vehicleId && input.service_model_id!==vehicle?.service_model_id) {
-      const selectedModel=await repairModel(db,ctx,input.service_model_id);
-      if (vehicleId) await db.prepare('UPDATE vehicles SET service_model_id=?,service_porte_id=? WHERE tenant_id=? AND id=?').run(input.service_model_id,selectedModel.porte_id||'',ctx.tenantId,vehicleId);
-      if(vehicle) {vehicle.service_model_id=input.service_model_id;vehicle.service_porte_id=selectedModel.porte_id||'';}
+    if (Object.prototype.hasOwnProperty.call(input, "service_model_id") && vehicleId && input.service_model_id !== vehicle?.service_model_id) {
+      if (input.service_model_id) {
+        const selectedModel = await repairModel(db, ctx, input.service_model_id);
+        await db.prepare('UPDATE vehicles SET service_model_id=?,service_porte_id=? WHERE tenant_id=? AND id=?').run(input.service_model_id, selectedModel.porte_id || '', ctx.tenantId, vehicleId);
+        if (vehicle) { vehicle.service_model_id = input.service_model_id; vehicle.service_porte_id = selectedModel.porte_id || ''; }
+      } else {
+        await db.prepare("UPDATE vehicles SET service_model_id='',service_porte_id='' WHERE tenant_id=? AND id=?").run(ctx.tenantId, vehicleId);
+        if (vehicle) { vehicle.service_model_id = ''; vehicle.service_porte_id = ''; }
+      }
     }
     const items = await Promise.all(
       input.items.map(async (item: Row) => {

@@ -107,6 +107,9 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
   const [lookedUp, setLookedUp] = useState<Record<string, any>>({});
   const [tab, setTab] = useState(initialCapture && order ? "items" : "details");
   const [itemKind, setItemKind] = useState("product");
+  const [serviceModelId, setServiceModelId] = useState(data.vehicles.find((v) => v.id === order?.vehicle_id)?.service_model_id || '');
+  const storedServiceModelId = data.vehicles.find((v) => v.id === form.vehicle_id)?.service_model_id || '';
+  useEffect(() => { setServiceModelId(storedServiceModelId); }, [form.vehicle_id, lookupPlate, storedServiceModelId]);
   const [serviceModelId,setServiceModelId]=useState(data.vehicles.find(v=>v.id===order?.vehicle_id)?.service_model_id||'');
   const storedServiceModelId=data.vehicles.find(v=>v.id===form.vehicle_id)?.service_model_id||'';
   useEffect(()=>{setServiceModelId(storedServiceModelId);},[form.vehicle_id,lookupPlate,storedServiceModelId]);
@@ -235,7 +238,7 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
     }
     return {
       ...form,
-      ...(serviceModelId?{service_model_id:serviceModelId}:{}),
+      service_model_id: serviceModelId || null,
       guest_name: form.customer_id || newCustomer ? "" : form.guest_name,
       new_customer: newCustomer,
       new_vehicle: newVehicle,
@@ -450,6 +453,8 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
                       }
                       setError("");
                       if (r.source === "local" && r.vehicle) {
+                        setLookedUp(r.vehicle);
+                        setServiceModelId(String(r.vehicle.service_model_id || ""));
                         const owner = data.customers.find(
                           (c) => c.id === r.vehicle!.customer_id,
                         );

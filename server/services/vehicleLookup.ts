@@ -89,7 +89,7 @@ export async function lookupVehicle(
     throw new Error("Informe uma placa válida.");
   const local = await db
     .prepare(
-      "SELECT id,customer_id,plate,brand,model,year,color,km,chassis,active,fipe_code,fipe_model,fipe_year_id FROM vehicles WHERE tenant_id=? AND plate=?",
+      "SELECT id,customer_id,plate,brand,model,year,color,km,chassis,active,fipe_code,fipe_model,fipe_year_id,service_model_id,service_porte_id FROM vehicles WHERE tenant_id=? AND plate=?",
     )
     .get(tenant, plate);
   if (local)
