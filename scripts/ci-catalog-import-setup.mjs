@@ -58,9 +58,12 @@ try {
   const files = readdirSync("local-postgres")
     .filter((name) => /^\d{3}-.*\.sql$/.test(name))
     .sort();
-  if (files.length !== 20)
+  if (
+    files.length !== 21 ||
+    !files.includes("021-vehicle-update-audit-metadata.sql")
+  )
     throw new Error(
-      "A série completa de 20 migrações locais não está presente.",
+      "A série completa de 21 migrações locais, incluindo auditoria de atualização de veículos, não está presente.",
     );
   for (const file of files)
     await target.query(readFileSync(join("local-postgres", file), "utf8"));
