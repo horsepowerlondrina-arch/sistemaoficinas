@@ -556,10 +556,11 @@ test("auditoria permanece gravável durante a implantação antes da migração 
   const f = fixture();
   try {
     f.db.exec("ALTER TABLE audit_events DROP COLUMN metadata");
-    await audit(f.db, ctx, "vehicles.external_lookup_updated", "v", {
+    const metadataSaved = await audit(f.db, ctx, "vehicles.external_lookup_updated", "v", {
       source: "fipeplaca",
       updated_fields: ["brand"],
     });
+    assert.equal(metadataSaved, false);
     const event = f.db.prepare("SELECT action FROM audit_events WHERE tenant_id='a' AND entity_id='v'").get() as any;
     assert.equal(event.action, "vehicles.external_lookup_updated");
   } finally { f.db.close(); }
