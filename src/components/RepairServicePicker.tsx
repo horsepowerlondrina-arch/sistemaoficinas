@@ -5,6 +5,7 @@ import { api, send } from "../lib/api";
 import { money, type Entity } from "../lib/types";
 import { Field, Modal, PageHeading } from "./ui";
 import { NumericInput } from "./NumericInput";
+import { shouldShowVehicleCatalog, shouldShowWorkshopServices } from "../../shared/repairCatalogVisibility";
 
 type Info = { enabled: boolean; catalog_status:"active"|"not_contracted"|"expired"|"revoked"|"not_installed"; categories: Entity[]; service_markup_bps: number };
 const catalogStatusMessage:Record<Exclude<Info["catalog_status"],"active">,string>={
@@ -278,14 +279,19 @@ const formatCatalogMinutes = (value: unknown) => {
   return [hours ? hours + "h" : "", minutes || !hours ? minutes + " min" : ""].filter(Boolean).join(" ");
 };
 
-export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, brandLocked = false }: {
+export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, brandLocked = false, vehicleOnly = false }: {
   vehicle?: Record<string, any>;
   modelId: string;
   onModelChange: (id: string) => void;
   onAdd?: (item: Entity) => void;
   brandLocked?: boolean;
+  vehicleOnly?: boolean;
 }) {
   const [info, setInfo] = useState<Info | null>(null), [error, setError] = useState("");
+  const [linkStatus, setLinkStatus] = useState<"linked"|"matched"|"needs_confirmation"|"not_identified"|"unavailable"|"mismatch">(modelId ? "linked" : "not_identified");
+  const autoMatchTried = useRef("");
+  const manualEditKey = useRef("");
+  const vehicleIdentity = [vehicle?.id, vehicle?.plate, vehicle?.brand, vehicle?.model, vehicle?.year, vehicle?.fipe_code, vehicle?.fipe_model, vehicle?.fipe_year_id].join("|");
   const [mode, setMode] = useState("manual");
   const [models, setModels] = useState<Entity[]>([]), [modelSearch, setModelSearch] = useState(String(vehicle?.model || vehicle?.fipe_model || "")),
     [modelOffset, setModelOffset] = useState(0), [moreModels, setMoreModels] = useState(false);
@@ -341,12 +347,35 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
   }, []);
   useEffect(() => {
     let active = true;
+    const key = vehicleIdentity;
+    if (!vehicle || modelId || !info?.enabled || !key.replace(/\|/g, "")) { if (!info?.enabled) setLinkStatus("unavailable"); return () => { active = false; }; }
+    if (manualEditKey.current === key || autoMatchTried.current === key) return () => { active = false; };
+    autoMatchTried.current = key;
+    send("/repair-services/identify-model", { vehicle }, "POST").then((result: any) => {
+      if (!active) return;
+      setLinkStatus(result.status || "not_identified");
+      if (result.status === "matched" && result.model) {
+        const row = result.model as Entity;
+        setBrand({ id: row.brand_id, name: row.brand }); setBrandQuery(String(row.brand || ""));
+        setModelSearch(String(row.name || "")); setBrandOpen(false); setModelOpen(false);
+        onModelChange(String(row.id));
+      } else if (result.status === "needs_confirmation" && result.candidates?.length) {
+        const first = result.candidates[0] as Entity;
+        setBrand({ id: first.brand_id, name: first.brand }); setBrandQuery(String(first.brand || ""));
+        setModelSearch(String(vehicle.fipe_model || vehicle.model || "")); setModelOpen(true);
+      }
+    }).catch((e: any) => { if (active) setError(e.message); });
+    return () => { active = false; };
+  }, [vehicleIdentity, modelId, info?.enabled, onModelChange]);
+  useEffect(() => {
+    let active = true;
     if (!modelId) { setPorte(""); setCommercialCategory(""); return () => { active = false; }; }
     if (!info?.enabled) return () => { active = false; };
     api<Entity>(`/repair-services/models/${modelId}`).then((v) => {
       if (!active) return;
       setBrand({ id: v.brand_id, name: v.brand }); setBrandQuery(String(v.brand || ""));
-      setModelSearch(String(v.name || "")); setBrandOpen(false); setModelOpen(false); setAutoBrandPending(false);
+      setModelSearch(String(v.name || "")); setBrandOpen(false); setModelOpen(false); setAutoBrandPending(false); setLinkStatus("linked");
+      send("/repair-services/identify-model", { vehicle: { ...vehicle, service_model_id: modelId } }, "POST").then((result: any) => { if (active) setLinkStatus(result.status || "linked"); }).catch(() => {});
       setPorte(v.porte_id || ""); setCommercialCategory(v.commercial_category_id || ""); setError("");
     }).catch((e) => {
       if (!active) return;
@@ -355,11 +384,11 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
         setBrand(null); setBrandQuery(String(vehicle?.brand || ""));
         setModelSearch(String(vehicle?.model || vehicle?.fipe_model || "")); setAutoBrandPending(!!vehicle?.brand);
         setBrandOpen(!!vehicle?.brand); setModelOpen(!!(vehicle?.model || vehicle?.fipe_code));
-        setPorte(""); setCommercialCategory(""); onModelChange(""); setError("");
+        setPorte(""); setCommercialCategory(""); setLinkStatus("mismatch"); setError("");
       } else setError(message);
     });
     return () => { active = false; };
-  }, [modelId, info?.enabled, vehicle?.brand, vehicle?.model, vehicle?.fipe_model, vehicle?.fipe_code, onModelChange]);
+  }, [modelId, info?.enabled, vehicle?.brand, vehicle?.model, vehicle?.fipe_model, vehicle?.fipe_code]);
   useEffect(() => {
     let active = true; setBrandOptions([]); setBrandMore(false);
     if (!info?.enabled || mode !== "catalog" || (!brandOpen && !autoBrandPending)) return () => { active = false; };
@@ -437,12 +466,14 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
   }
   function editBrand(value: string) {
     if (brandLocked) return;
+    manualEditKey.current = vehicleIdentity; setLinkStatus("not_identified");
     setBrand(null); setBrandQuery(value); setBrandOffset(0); setBrandActiveIndex(-1); setAutoBrandPending(false);
     setBrandOpen(true); setModelOpen(false); setServiceOpen(false);
     setModelSearch(""); setModels([]); setModelOffset(0); setMoreModels(false); setModelActiveIndex(-1);
     setPorte(""); setCommercialCategory(""); onModelChange(""); setSearch(""); setOffset(0); setSelected(null); setError("");
   }
   function editModel(value: string) {
+    manualEditKey.current = vehicleIdentity; setLinkStatus("needs_confirmation");
     setModelSearch(value); setModelOffset(0); setModelActiveIndex(-1);
     setBrandOpen(false); setModelOpen(true); setServiceOpen(false);
     setPorte(""); setCommercialCategory(""); onModelChange(""); setSearch(""); setOffset(0); setSelected(null); setError("");
@@ -451,7 +482,7 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
     setBrand({ id: row.brand_id, name: row.brand }); setBrandQuery(String(row.brand || ""));
     setBrandOptions([]); setModelSearch(String(row.name || "")); setModels([]);
     setBrandOpen(false); setModelOpen(false); setServiceOpen(false);
-    setPorte(row.porte_id || ""); setCommercialCategory(row.commercial_category_id || ""); onModelChange(row.id);
+    setPorte(row.porte_id || ""); setCommercialCategory(row.commercial_category_id || ""); setLinkStatus("linked"); onModelChange(row.id);
     setSearch(""); setOffset(0); setSelected(null); setError("");
     window.setTimeout(() => serviceInputRef.current?.focus(), 0);
   }
@@ -473,7 +504,7 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
     else if (event.key === "Enter" && serviceOpen) { const exact = rows.filter((x) => normalizeCatalogValue(String(x.name)) === normalizeCatalogValue(search)); const row = rows[serviceActiveIndex] || (exact.length === 1 ? exact[0] : null); if (row) { event.preventDefault(); choose(row); } }
     else if (event.key === "Escape") setServiceOpen(false);
   }
-  const dropdownContent = openKind && dropdownPosition && typeof document !== "undefined" ? createPortal(
+  const dropdownContent = openKind && info?.enabled && dropdownPosition && typeof document !== "undefined" ? createPortal(
     <div ref={dropdownRef} className="catalog-dropdown" style={{ position: "fixed", left: dropdownPosition.left, top: dropdownPosition.top, width: dropdownPosition.width, zIndex: 9999 }}>
       {openKind === "brand" && <div className="catalog-dropdown-list" style={{ maxHeight: dropdownPosition.maxHeight }}>
         <div id={dropdownId + "-brands"} role="listbox" aria-label="Marcas">
@@ -513,37 +544,40 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
   return (
     <>
       <section className="repair-picker" ref={pickerRef}>
-      <div className="tabs">
+      {!vehicleOnly && <div className="tabs">
         <button type="button" className={mode === "catalog" ? "active" : ""} disabled={!info?.enabled} onClick={() => { closeDropdowns(); setSelected(null); setMode("catalog"); setOffset(0); }}>Catálogo de tempos</button>
         <button type="button" className={mode === "manual" ? "active" : ""} onClick={() => { closeDropdowns(); setSelected(null); setMode("manual"); setOffset(0); }}>Serviços da oficina</button>
-      </div>
-      {!info?.enabled && info && <p role="status">{info.catalog_status === "active" ? "Não foi possível consultar o Catálogo Técnico agora." : catalogStatusMessage[info.catalog_status]} Seus serviços particulares continuam disponíveis.</p>}
-      {mode === "catalog" && <>
+      </div>}
+      {!vehicleOnly && !info?.enabled && info && <p role="status">{info.catalog_status === "active" ? "Não foi possível consultar o Catálogo Técnico agora." : catalogStatusMessage[info.catalog_status]} Seus serviços particulares continuam disponíveis.</p>}
+      {vehicleOnly && !info && <p className="muted" role="status">Verificando acesso ao Catálogo Técnico…</p>}
+      {vehicleOnly && info && !info.enabled && <p className="muted" role="status">{info.catalog_status === "active" ? "Catálogo Técnico indisponível no momento." : catalogStatusMessage[info.catalog_status]}</p>}
+      {shouldShowVehicleCatalog(mode, vehicleOnly, !!info?.enabled) && <>
         <div className="catalog-selection-row">
           <Field label="Marca">
             <div className="catalog-combobox-control">
-              <input ref={brandInputRef} role="combobox" aria-autocomplete="list" aria-expanded={brandOpen} aria-controls={dropdownId + "-brands"} aria-activedescendant={brandOpen && brandActiveIndex >= 0 ? dropdownId + "-brand-" + brandActiveIndex : undefined} autoComplete="off" value={brandQuery} disabled={brandLocked} onFocus={openBrandDropdown} onChange={(e) => editBrand(e.target.value)} onKeyDown={brandKeyDown} placeholder="Selecionar marca" />
-              <button type="button" aria-label={brandOpen ? "Fechar marcas" : "Abrir marcas"} aria-haspopup="listbox" aria-expanded={brandOpen} disabled={brandLocked} onClick={toggleBrandDropdown}>▾</button>
+              <input ref={brandInputRef} role="combobox" aria-autocomplete="list" aria-expanded={brandOpen} aria-controls={dropdownId + "-brands"} aria-activedescendant={brandOpen && brandActiveIndex >= 0 ? dropdownId + "-brand-" + brandActiveIndex : undefined} autoComplete="off" value={brandQuery} disabled={!info?.enabled || brandLocked} onFocus={openBrandDropdown} onChange={(e) => editBrand(e.target.value)} onKeyDown={brandKeyDown} placeholder="Selecionar marca" />
+              <button type="button" aria-label={brandOpen ? "Fechar marcas" : "Abrir marcas"} aria-haspopup="listbox" aria-expanded={brandOpen} disabled={!info?.enabled || brandLocked} onClick={toggleBrandDropdown}>▾</button>
             </div>
           </Field>
           <Field label="Veículo">
             <div className="catalog-combobox-control">
-              <input ref={modelInputRef} role="combobox" aria-autocomplete="list" aria-expanded={modelOpen} aria-controls={dropdownId + "-vehicles"} aria-activedescendant={modelOpen && modelActiveIndex >= 0 ? dropdownId + "-vehicle-" + modelActiveIndex : undefined} autoComplete="off" value={modelSearch} disabled={!brand?.id} onFocus={openModelDropdown} onChange={(e) => editModel(e.target.value)} onKeyDown={modelKeyDown} placeholder="Selecionar veículo" />
-              <button type="button" aria-label={modelOpen ? "Fechar veículos" : "Abrir veículos"} aria-haspopup="listbox" aria-expanded={modelOpen} disabled={!brand?.id} onClick={toggleModelDropdown}>▾</button>
+              <input ref={modelInputRef} role="combobox" aria-autocomplete="list" aria-expanded={modelOpen} aria-controls={dropdownId + "-vehicles"} aria-activedescendant={modelOpen && modelActiveIndex >= 0 ? dropdownId + "-vehicle-" + modelActiveIndex : undefined} autoComplete="off" value={modelSearch} disabled={!info?.enabled || !brand?.id} onFocus={openModelDropdown} onChange={(e) => editModel(e.target.value)} onKeyDown={modelKeyDown} placeholder="Selecionar veículo" />
+              <button type="button" aria-label={modelOpen ? "Fechar veículos" : "Abrir veículos"} aria-haspopup="listbox" aria-expanded={modelOpen} disabled={!info?.enabled || !brand?.id} onClick={toggleModelDropdown}>▾</button>
             </div>
           </Field>
-          <Field label="Serviço">
+          {!vehicleOnly && <Field label="Serviço">
             <div className="catalog-combobox-control">
               <input ref={serviceInputRef} role="combobox" aria-autocomplete="list" aria-expanded={serviceOpen} aria-controls={dropdownId + "-services"} aria-activedescendant={serviceOpen && serviceActiveIndex >= 0 ? dropdownId + "-service-" + serviceActiveIndex : undefined} autoComplete="off" value={search} disabled={!modelId} onFocus={openServiceDropdown} onChange={(e) => { setSearch(e.target.value); setOffset(0); setSelected(null); setServiceOpen(true); setBrandOpen(false); setModelOpen(false); }} onKeyDown={serviceKeyDown} placeholder="Digite uma palavra do serviço" />
               <button type="button" aria-label={serviceOpen ? "Fechar serviços" : "Abrir serviços"} aria-haspopup="listbox" aria-expanded={serviceOpen} disabled={!modelId} onClick={toggleServiceDropdown}>▾</button>
             </div>
-          </Field>
+          </Field>}
         </div>
+        {(vehicleOnly || linkStatus === "needs_confirmation" || linkStatus === "mismatch") && <p className="muted" role="status">{linkStatus === "linked" || linkStatus === "matched" ? "Vinculado ao Catálogo Técnico." : linkStatus === "needs_confirmation" ? "Aguardando confirmação: escolha a versão correta." : linkStatus === "mismatch" ? "O vínculo diverge dos dados do veículo. Revise a versão selecionada." : "Não identificado no Catálogo Técnico."}</p>}
         {brandLocked && <p className="muted catalog-lock-note">A marca está vinculada ao veículo. Para corrigi-la, atualize o cadastro do veículo.</p>}
         {vehicle && <p className="muted">{[vehicle.brand, vehicle.model, vehicle.year].filter(Boolean).join(" · ")}</p>}
-        <p className="muted">{commercialCategory ? "Hora do porte: " + money(rate) + ". " : ""}{commercialCategory && rate <= 0 ? "Tarifa não configurada. " : ""}<Link to="/configuracoes?aba=servicos">Configurar valores da hora</Link></p>
+        {!vehicleOnly && <p className="muted">{commercialCategory ? "Hora do porte: " + money(rate) + ". " : ""}{commercialCategory && rate <= 0 ? "Tarifa não configurada. " : ""}<Link to="/configuracoes?aba=servicos">Configurar valores da hora</Link></p>}
       </>}
-      {mode === "manual" && (
+      {shouldShowWorkshopServices(mode, vehicleOnly) && (
         <>
           <Field label="Porte do serviço">
             <select
@@ -571,7 +605,7 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
           </button>
         </>
       )}
-      {mode === "manual" && <Field label="Buscar serviço">
+      {shouldShowWorkshopServices(mode, vehicleOnly) && <Field label="Buscar serviço">
         <input
           value={search}
           onChange={(e) => {
@@ -581,17 +615,17 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
           placeholder="Nome do serviço"
         />
       </Field>}
-      <p className="muted">
+      {!vehicleOnly && <p className="muted">
         {commercialCategory ? `Hora do porte: ${money(rate)}. ` : ""}
         {commercialCategory && rate <= 0 ? "Tarifa não configurada. " : ""}
         <Link to="/configuracoes?aba=servicos">Configurar valores da hora</Link>
-      </p>
+      </p>}
       {error && (
         <p className="form-error" role="alert">
           {error}
         </p>
       )}
-      {mode === "manual" && <div className="repair-results" aria-busy={loading}>
+      {shouldShowWorkshopServices(mode, vehicleOnly) && <div className="repair-results" aria-busy={loading}>
         {loading ? (
           <p>Buscando serviços…</p>
         ) : (
@@ -607,7 +641,7 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
                   {`${row.execution === "outsourced" ? "Terceirizado" : "Interno"} · ${row.porte_name || "Todos os portes"}`}
                 </small>
               </button>
-              {mode === "manual" && (
+              {shouldShowWorkshopServices(mode, vehicleOnly) && (
                 <div className="capture-actions">
                   <button
                     type="button"
@@ -640,7 +674,7 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
           ))
         )}
       </div>}
-      {mode === "manual" && <>
+      {shouldShowWorkshopServices(mode, vehicleOnly) && <>
         {!loading && !rows.length && <p>Nenhum serviço encontrado nesta busca.</p>}
         <div className="capture-actions">
           <button type="button" className="button" disabled={!offset || loading} onClick={() => setOffset((v) => Math.max(0, v - 50))}>Anterior</button>
@@ -770,7 +804,7 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
           </button>
         </div>
       )}
-      {editing !== undefined && info && (
+      {!vehicleOnly && editing !== undefined && info && (
         <ServiceForm
           info={info}
           initial={editing || undefined}

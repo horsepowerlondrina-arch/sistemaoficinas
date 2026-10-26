@@ -108,8 +108,10 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
   const [tab, setTab] = useState(initialCapture && order ? "items" : "details");
   const [itemKind, setItemKind] = useState("product");
   const [serviceModelId,setServiceModelId]=useState(data.vehicles.find(v=>v.id===order?.vehicle_id)?.service_model_id||'');
+  const [serviceModelTouched,setServiceModelTouched]=useState(false);
+  const handleServiceModelChange=(id:string)=>{setServiceModelId(id);setServiceModelTouched(true);};
   const storedServiceModelId=data.vehicles.find(v=>v.id===form.vehicle_id)?.service_model_id||'';
-  useEffect(()=>{setServiceModelId(storedServiceModelId);},[form.vehicle_id,lookupPlate,storedServiceModelId]);
+  useEffect(()=>{setServiceModelId(storedServiceModelId);setServiceModelTouched(false);},[form.vehicle_id,lookupPlate,storedServiceModelId]);
   const [pick, setPick] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -235,7 +237,7 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
     }
     return {
       ...form,
-      service_model_id: serviceModelId || null,
+      ...(serviceModelTouched ? { service_model_id: serviceModelId || null } : {}),
       guest_name: form.customer_id || newCustomer ? "" : form.guest_name,
       new_customer: newCustomer,
       new_vehicle: newVehicle,
@@ -901,7 +903,7 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
                   <p className="muted">
                     {itemKind==='product'?'Cadastre produtos, importe pelo Sky Peças ou reutilize seu catálogo.':'Escolha o modelo e os serviços compatíveis, ou utilize os serviços da oficina. Atribua a execução à sua equipe.'}
                   </p>
-                  {!locked && itemKind==='service' && <RepairServicePicker key={form.vehicle_id||lookupPlate||'guest'} vehicle={vehicle||lookedUp} brandLocked={!!((vehicle||lookedUp)?.id&&(vehicle||lookedUp)?.brand)} modelId={serviceModelId} onModelChange={setServiceModelId} onAdd={item=>setForm(f=>({...f,items:[...f.items,item]}))}/>}
+                  {!locked && itemKind==='service' && <RepairServicePicker key={form.vehicle_id||lookupPlate||'guest'} vehicle={vehicle||lookedUp} brandLocked={!!((vehicle||lookedUp)?.id&&(vehicle||lookedUp)?.brand)} modelId={serviceModelId} onModelChange={handleServiceModelChange} onAdd={item=>setForm(f=>({...f,items:[...f.items,item]}))}/>}
                   {!locked && itemKind==='product' && (
                     <div className="item-picker">
                       <CatalogPicker

@@ -1,4 +1,5 @@
 import test from "node:test";
+import { randomUUID } from "node:crypto";
 import assert from "node:assert/strict";
 import { createDatabase } from "../server/db/database";
 import {
@@ -292,4 +293,21 @@ test("foto pode ser removida enquanto checklist está em rascunho", async () => 
   } finally {
     db.close();
   }
+});
+
+test("checklist cria veículo e vincula modelo técnico único ao finalizar", async () => {
+  const db = fixture();
+  try {
+    const brandId = randomUUID(), modelId = randomUUID(), classId = randomUUID();
+    db.exec("ATTACH DATABASE ':memory:' AS service_catalog; CREATE TABLE service_catalog.tenant_access(tenant_id TEXT,enabled INTEGER,valid_until TEXT); CREATE TABLE service_catalog.releases(version TEXT,status TEXT,imported_at TEXT); CREATE TABLE service_catalog.brands(id TEXT,name TEXT); CREATE TABLE service_catalog.classifications(id TEXT,name TEXT); CREATE TABLE service_catalog.models(id TEXT,name TEXT,brand_id TEXT,fipe_code TEXT,classification_id TEXT,service_count INTEGER);");
+    db.prepare("INSERT INTO service_catalog.tenant_access VALUES(?,?,NULL)").run("t",1);
+    db.prepare("INSERT INTO service_catalog.releases VALUES(?,?,?)").run("1.2","active","2026-10-26");
+    db.prepare("INSERT INTO service_catalog.brands VALUES(?,?)").run(brandId,"Honda");
+    db.prepare("INSERT INTO service_catalog.classifications VALUES(?,?)").run(classId,"Compacto");
+    db.prepare("INSERT INTO service_catalog.models VALUES(?,?,?,?,?,?)").run(modelId,"Civic",brandId,"",classId,10);
+    const created = await createChecklist(db, ctx, { order_id: null, plate: "XYZ1A23", lookup_source: "manual", customer_id: "c", customer_name: "Cliente Teste", phone: "43999999999", vehicle_data: { brand: "Honda", model: "Civic", year: 2022, color: "Prata", chassis: "", service_model_id: null }, km: 12500, fuel_level: 50, inspector: "Responsável" });
+    await updateChecklist(db, ctx, created.id, { km:12500, fuel_level:50, inspector:"Responsável", complaint:"", conditions:{}, accessories_notes:"", panel_lights:{}, panel_notes:"", objects_left:"", functioning_notes:"", damages:[], damage_notes:"", signature_data:"data:image/png;base64,QUJDRA==", signature_absent_reason:"", customer_confirmed:true });
+    await finalizeChecklist(db, ctx, created.id);
+    assert.equal(db.prepare("SELECT service_model_id FROM vehicles WHERE tenant_id='t' AND plate='XYZ1A23'").get()?.service_model_id, modelId);
+  } finally { db.close(); }
 });

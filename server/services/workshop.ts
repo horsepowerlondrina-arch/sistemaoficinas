@@ -1,5 +1,5 @@
 import { productLabel } from "../../shared/productIdentity.js";
-import { repairModel, resolveService } from './repairCatalog.js';
+import { resolveService, identifyVehicleModel, confirmVehicleModel, catalogAccessState } from './repairCatalog.js';
 import {
   normalizeCustomerName,
   customerPhoneDigits,
@@ -47,6 +47,43 @@ export async function audit(
       "INSERT INTO audit_events(id,tenant_id,user_id,action,entity_id) VALUES(?,?,?,?,?)",
     )
     .run(id(), ctx.tenantId, ctx.userId, action, entity);
+}
+
+export async function previewVehicleCatalogBackfill(db: DB, ctx: Context, limit = 250, cursor = "") {
+  requireAdmin(ctx);
+  const bounded = Math.max(1, Math.min(500, Math.trunc(limit)));
+  const total = Number((await db.prepare("SELECT COUNT(*) n FROM vehicles WHERE tenant_id=? AND COALESCE(service_model_id,'')=''").get(ctx.tenantId))?.n || 0);
+  const rows = await db.prepare("SELECT * FROM vehicles WHERE tenant_id=? AND COALESCE(service_model_id,'')='' AND id>? ORDER BY id LIMIT ?").all(ctx.tenantId, cursor, bounded);
+  const counts = { linked: 0, matched: 0, needs_confirmation: 0, not_identified: 0, unavailable: 0, mismatch: 0 };
+  const results = [];
+  for (const vehicle of rows) {
+    const match = await identifyVehicleModel(db, ctx, vehicle);
+    counts[match.status] = (counts as any)[match.status] + 1;
+    results.push({ vehicle_id: vehicle.id, plate: vehicle.plate, brand: vehicle.brand, vehicle_model: vehicle.model, status: match.status, matched_model: match.model, candidates: match.candidates });
+  }
+  const last = rows.length ? String(rows[rows.length - 1].id) : cursor;
+  const more = !!(last && await db.prepare("SELECT 1 yes FROM vehicles WHERE tenant_id=? AND COALESCE(service_model_id,'')='' AND id>? LIMIT 1").get(ctx.tenantId, last));
+  return { dry_run: true, scanned: rows.length, total_unlinked: total, next_cursor: more ? last : null, has_more: more, counts, results };
+}
+
+export async function applyVehicleCatalogBackfill(db: DB, ctx: Context, limit = 50, cursor = "") {
+  requireAdmin(ctx);
+  const bounded = Math.max(1, Math.min(50, Math.trunc(limit)));
+  return transaction(db, async () => {
+    const rows = await db.prepare("SELECT * FROM vehicles WHERE tenant_id=? AND COALESCE(service_model_id,'')='' AND id>? ORDER BY id LIMIT ?").all(ctx.tenantId, cursor, bounded);
+    let linked = 0, ambiguous = 0, unidentified = 0;
+    for (const vehicle of rows) {
+      const match = await identifyVehicleModel(db, ctx, vehicle);
+      if (match.status === "matched" && match.model) {
+        const result = await db.prepare("UPDATE vehicles SET service_model_id=?,service_porte_id=? WHERE tenant_id=? AND id=? AND COALESCE(service_model_id,'')=''").run(match.model.id, match.model.porte_id || "", ctx.tenantId, vehicle.id);
+        if (result.changes) { linked++; await audit(db, ctx, "vehicles.catalog_link_backfill", String(vehicle.id)); }
+      } else if (match.status === "needs_confirmation") ambiguous++;
+      else unidentified++;
+    }
+    const last = rows.length ? String(rows[rows.length - 1].id) : cursor;
+    const more = !!(last && await db.prepare("SELECT 1 yes FROM vehicles WHERE tenant_id=? AND COALESCE(service_model_id,'')='' AND id>? LIMIT 1").get(ctx.tenantId, last));
+    return { dry_run: false, scanned: rows.length, linked, ambiguous, unidentified, next_cursor: more ? last : null, has_more: more };
+  });
 }
 
 export async function invalidateOrderShares(
@@ -175,11 +212,22 @@ async function resolveOrderIdentity(db: DB, ctx: Context, input: Row) {
           "Esta placa já pertence a outro cliente ou está inativa. Consulte a placa e selecione o cadastro correto.",
         );
       vehicleId = existing.id;
+      if (!existing.service_model_id) {
+        const match = await identifyVehicleModel(db, ctx, existing);
+        if (match.status === "matched") {
+          await db.prepare("UPDATE vehicles SET service_model_id=?,service_porte_id=? WHERE tenant_id=? AND id=? AND service_model_id=''").run(match.model.id, match.model.porte_id || "", ctx.tenantId, vehicleId);
+          await audit(db, ctx, "vehicles.catalog_link_auto", vehicleId);
+        }
+      }
     } else {
       vehicleId = id();
+      const selection = v.service_model_id || input.service_model_id;
+      const selectedModel = selection && await catalogAccessState(db, ctx) === "active" ? await confirmVehicleModel(db, ctx, v, selection) : null;
+      const match = selectedModel ? null : await identifyVehicleModel(db, ctx, v);
+      const model = selectedModel || (match?.status === "matched" ? match.model : null);
       await db
         .prepare(
-          "INSERT INTO vehicles(id,tenant_id,customer_id,plate,brand,model,year,color,km,chassis,fipe_code,fipe_model,fipe_year_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
+          "INSERT INTO vehicles(id,tenant_id,customer_id,plate,brand,model,year,color,km,chassis,fipe_code,fipe_model,fipe_year_id,service_model_id,service_porte_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         )
         .run(
           vehicleId,
@@ -195,8 +243,11 @@ async function resolveOrderIdentity(db: DB, ctx: Context, input: Row) {
           v.fipe_code || "",
           v.fipe_model || "",
           v.fipe_year_id || "",
+          model?.id || "",
+          model?.porte_id || "",
         );
       await audit(db, ctx, "vehicles.created", vehicleId);
+      if (model) await audit(db, ctx, selection ? "vehicles.catalog_link_confirmed" : "vehicles.catalog_link_auto", vehicleId);
     }
   }
   return { customerId, vehicleId };
@@ -243,11 +294,23 @@ export async function saveOrder(
           .prepare("SELECT * FROM order_items WHERE tenant_id=? AND order_id=?")
           .all(ctx.tenantId, record!)
       : [];
-    if (Object.prototype.hasOwnProperty.call(input, "service_model_id") && vehicleId && input.service_model_id !== vehicle?.service_model_id) {
+    const hasExplicitModel = Object.prototype.hasOwnProperty.call(input, "service_model_id");
+    if (!hasExplicitModel && vehicle && !vehicle.service_model_id) {
+      const match = await identifyVehicleModel(db, ctx, vehicle);
+      if (match.status === "matched") {
+        await db.prepare("UPDATE vehicles SET service_model_id=?,service_porte_id=? WHERE tenant_id=? AND id=? AND service_model_id=''").run(match.model.id, match.model.porte_id || "", ctx.tenantId, vehicleId);
+        vehicle.service_model_id = match.model.id; vehicle.service_porte_id = match.model.porte_id || "";
+        await audit(db, ctx, "vehicles.catalog_link_auto", String(vehicle.id));
+      }
+    }
+    if (hasExplicitModel && vehicleId && input.service_model_id !== vehicle?.service_model_id) {
       if (input.service_model_id) {
-        const selectedModel = await repairModel(db, ctx, input.service_model_id);
-        await db.prepare('UPDATE vehicles SET service_model_id=?,service_porte_id=? WHERE tenant_id=? AND id=?').run(input.service_model_id, selectedModel.porte_id || '', ctx.tenantId, vehicleId);
-        if (vehicle) { vehicle.service_model_id = input.service_model_id; vehicle.service_porte_id = selectedModel.porte_id || ''; }
+        if (await catalogAccessState(db, ctx) === "active") {
+          const selectedModel = await confirmVehicleModel(db, ctx, vehicle || {}, input.service_model_id);
+          await db.prepare('UPDATE vehicles SET service_model_id=?,service_porte_id=? WHERE tenant_id=? AND id=?').run(input.service_model_id, selectedModel.porte_id || '', ctx.tenantId, vehicleId);
+          if (vehicle) { vehicle.service_model_id = input.service_model_id; vehicle.service_porte_id = selectedModel.porte_id || ''; }
+          await audit(db, ctx, "vehicles.catalog_link_confirmed", vehicleId);
+        }
       } else {
         await db.prepare("UPDATE vehicles SET service_model_id='',service_porte_id='' WHERE tenant_id=? AND id=?").run(ctx.tenantId, vehicleId);
         if (vehicle) { vehicle.service_model_id = ''; vehicle.service_porte_id = ''; }

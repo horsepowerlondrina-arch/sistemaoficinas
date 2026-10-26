@@ -28,6 +28,7 @@ import {
   Empty,
 } from "../components/ui";
 import { PlateField } from "../components/PlateField";
+import { RepairServicePicker } from "../components/RepairServicePicker";
 import { fipeFields, emptyFipe } from "../../shared/vehicleFipe";
 type Kind = "customers" | "vehicles" | "catalog" | "professionals";
 const config = {
@@ -657,7 +658,7 @@ export function RegisterModal({
                         <PlateField
                           value={vehicle.plate}
                           onChange={(plate) =>
-                            setVehicle((v) => ({ ...v, plate, ...emptyFipe }))
+                            setVehicle((v) => ({ ...v, plate, ...emptyFipe, service_model_id: undefined }))
                           }
                           onFound={(r) => {
                             if (r.selectionOnly) {
@@ -696,6 +697,7 @@ export function RegisterModal({
                             />
                           </Field>
                         ))}
+                        <div className="form-grid full"><RepairServicePicker vehicle={vehicle} modelId={String(vehicle.service_model_id || "")} onModelChange={(id) => setVehicle((v) => ({ ...v, service_model_id: id || null }))} vehicleOnly /></div>
                       </div>
                     )}
                   </>
@@ -721,7 +723,7 @@ export function RegisterModal({
                 </Field>
                 <PlateField
                   value={form.plate}
-                  onChange={(plate) => setForm(current => ({ ...current, plate, ...emptyFipe }))}
+                  onChange={(plate) => setForm(current => ({ ...current, plate, ...emptyFipe, service_model_id: undefined }))}
                   onFound={(r) => {
                     if (r.selectionOnly) {
                       setForm(current => ({ ...current, ...fipeFields(r.vehicle) }));
@@ -740,6 +742,7 @@ export function RegisterModal({
                 {input("color", "Cor")}
                 {input("km", "Quilometragem", "number")}
                 {input("chassis", "Chassi", "text", false, true)}
+                <div className="form-grid full"><RepairServicePicker vehicle={form} modelId={String(form.service_model_id || "")} onModelChange={(id) => set("service_model_id", id || null)} vehicleOnly /></div>
                 <Field label="Código FIPE" full>
                   <input readOnly value={form.fipe_code || ""} placeholder="Não identificado" />
                   {!!form.fipe_model && <small>{form.fipe_model} · {form.fipe_year_id}</small>}
