@@ -307,6 +307,26 @@ test("PostgreSQL local: autenticação, oficinas, transações e RLS do catálog
         "SELECT color FROM vehicles WHERE tenant_id=? AND id=?"
       ).get("local-a",createdBody.vehicle_id) as any).then((row:any)=>row.color),"Branco");
 
+      await db.exec("ALTER TABLE audit_events DROP COLUMN metadata");
+      try {
+        const beforeMissingMetadata = await db.withTenantRead("local-a",async()=>db.prepare(
+          "SELECT color FROM vehicles WHERE tenant_id=? AND id=?"
+        ).get("local-a",createdBody.vehicle_id) as any);
+        const previewWithoutMetadataResponse = await request(`/api/vehicles/${createdBody.vehicle_id}/lookup-refresh`,localACookie,{});
+        assert.equal(previewWithoutMetadataResponse.status,200);
+        const previewWithoutMetadata = await previewWithoutMetadataResponse.json() as any;
+        const blockedWithoutMetadata = await request(`/api/vehicles/${createdBody.vehicle_id}/apply-lookup`,localACookie,{
+          fields:["color"],confirmation_token:previewWithoutMetadata.confirmation_token,
+        });
+        assert.equal(blockedWithoutMetadata.status,503,await blockedWithoutMetadata.text());
+        const afterMissingMetadata = await db.withTenantRead("local-a",async()=>db.prepare(
+          "SELECT color FROM vehicles WHERE tenant_id=? AND id=?"
+        ).get("local-a",createdBody.vehicle_id) as any);
+        assert.equal(afterMissingMetadata.color,beforeMissingMetadata.color);
+      } finally {
+        await db.exec("ALTER TABLE audit_events ADD COLUMN metadata text NOT NULL DEFAULT '{}'");
+      }
+
       const serviceExample=await db.withTenantRead("local-a",async()=>db.prepare(
         "SELECT service_id FROM service_catalog.model_services WHERE model_id=? AND minutes>0 ORDER BY service_id LIMIT 1"
       ).get(sample.id) as any);
