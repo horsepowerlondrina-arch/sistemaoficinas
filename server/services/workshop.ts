@@ -255,7 +255,6 @@ export async function saveOrder(
           if(item.repair_service_id && !priorService && item.repair_model_id!==(input.service_model_id||vehicle?.service_model_id))throw new Error('Confirme o modelo usado nos serviços deste veículo.');
           if(item.professional_id && !(await scoped(db,'professionals',ctx.tenantId,item.professional_id)).active)throw new Error('Profissional inativo.');
           const service=await resolveService(db,ctx,item,priorService);
-          if(item.workshop_service_id && !priorService && vehicle?.service_porte_id && service.porte_id!==vehicle.service_porte_id)throw new Error('Este serviço não pertence ao porte do veículo.');
           const details=JSON.parse(service.service_snapshot);details.charged_price=item.price;
           return {...item,catalog_id:null,snapshotId:priorService?.id||id(),kind:'service',name:service.name,cost:service.cost,professional_id:item.professional_id||null,service_snapshot:JSON.stringify(details)};
         }
@@ -661,3 +660,4 @@ export async function mechanicWorkspace(db: DB, tenant: string) {
     payment_settings: null,
   };
 }
+

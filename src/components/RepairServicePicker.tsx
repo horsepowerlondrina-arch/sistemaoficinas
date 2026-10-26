@@ -31,7 +31,7 @@ export function LaborRates() {
       <h3>Valor da hora por porte</h3>
       <p>
         O preço dos serviços internos é o tempo em minutos ÷ 60 × valor da hora
-        da porte. Defina os valores usados pela oficina.
+        do porte. Defina os valores usados pela oficina.
       </p>
       {error && (
         <p className="form-error" role="alert">
@@ -142,7 +142,7 @@ function ServiceForm({
       title={
         initial ? "Editar serviço da oficina" : "Cadastrar serviço da oficina"
       }
-      description="O serviço pertence somente a esta oficina e usa a porte escolhida."
+      description="O serviço pertence somente a esta oficina e usa o porte escolhido."
       onClose={onClose}
     >
       <div className="modal-body">

@@ -321,3 +321,22 @@ test("os quatro portes do próprio modelo escolhem as quatro tarifas sem tabela 
   } finally { f.db.close(); }
 });
 
+test("serviço particular na OS usa sua tarifa apesar do porte legado em cache no veículo", async () => {
+  const f = fixture();
+  try {
+    f.db.prepare("UPDATE vehicles SET service_model_id=?,service_porte_id=? WHERE id='v'").run(f.model, randomUUID());
+    const manual = await saveWorkshopService(f.db, ctx, {
+      name: "Serviço particular", execution: "internal", commercial_category_id: "compacto",
+      pricing_mode: "time", minutes: 60, price: 12000, cost: 0,
+    });
+    const id = await saveOrder(f.db, ctx, {
+      status: "quote", customer_id: "c", vehicle_id: "v", service_model_id: f.model,
+      entered_on: "2026-10-25", due_on: "2026-10-25", km: 0, discount: 0, notes: "", problem: "",
+      items: [{ id: randomUUID(), workshop_service_id: manual, commercial_category_id: "compacto", price: 12000, quantity: 1 }],
+    });
+    const order = (await listOrders(f.db, "a")).find((o) => o.id === id)!;
+    assert.equal(order.items[0].service_details.hourly_rate, 12000);
+    assert.equal(order.items[0].price, 12000);
+  } finally { f.db.close(); }
+});
+

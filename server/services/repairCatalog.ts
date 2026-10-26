@@ -97,7 +97,7 @@ export async function saveLaborRates(db: DB, ctx: Context, body: unknown) {
     .max(4)
     .parse(body);
   if (new Set(rates.map((r) => r.category_id)).size !== rates.length)
-    throw new Error("Porte repetida.");
+    throw new Error("Porte repetido.");
   await tenantRead(db, ctx, async () => {
     for (const rate of rates) {
       if (!rate.hourly_rate) {
@@ -115,6 +115,7 @@ export async function saveLaborRates(db: DB, ctx: Context, body: unknown) {
   });
 }
 function withModelPorte(model: Row): Row {
+  // Compatibility fields expose the tariff key of this same catalog classification.
   const categoryId = porteRateId(model.porte_name);
   if (!categoryId)
     throw Object.assign(new Error("O modelo não possui um dos quatro portes do catálogo atualizado."), { status: 409 });
@@ -245,6 +246,7 @@ export async function saveWorkshopService(
       v.cost,
       (await getPartsPricing(db, ctx.tenantId)).service_markup_bps ?? 3000,
     );
+  // Legacy porte_id values stay untouched; private services select only a tariff key.
   const key = record || randomUUID();
   if (record)
     await db
@@ -368,11 +370,11 @@ export async function resolveService(
   let originalCategory = String(snapshot.original_commercial_category_id || snapshot.commercial_category_id || "");
   const categoryId = selected.commercial_category_id || originalCategory;
   if (!categoryId && !existing)
-    throw new Error("Este veículo ou serviço não tem porte definida.");
+    throw new Error("Este veículo ou serviço não tem porte definido.");
   const category = categoryId
     ? await db.prepare("SELECT id,name FROM labor_categories WHERE id=?").get(categoryId)
     : undefined;
-  if (categoryId && !category) throw new Error("Porte inválida.");
+  if (categoryId && !category) throw new Error("Porte inválido.");
   const categoryChanged = existing && !!selected.commercial_category_id && categoryId !== String(snapshot.commercial_category_id || "");
   const shouldPersistCategory = !existing || !!snapshot.commercial_category_id || !!selected.commercial_category_id;
   let rate = Number(snapshot.hourly_rate || 0),
@@ -409,7 +411,7 @@ export async function resolveService(
     calculated = servicePrice(minutes, rate);
   } else if (snapshot.execution !== execution || categoryChanged) {
     if (execution === "internal" && !categoryId)
-      throw new Error("Selecione uma porte para recalcular este serviço.");
+      throw new Error("Selecione um porte para recalcular este serviço.");
     if (!rate)
       rate = await commercialRate(db, ctx, categoryId);
     if (!minutes)

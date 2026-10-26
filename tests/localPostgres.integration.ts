@@ -18,11 +18,12 @@ test("PostgreSQL local: autenticação, oficinas, transações e RLS do catálog
       const before=Number((await admin.query("SELECT count(*) n FROM service_catalog.model_labor_categories")).rows[0].n);
       const cls=(await admin.query("SELECT id FROM service_catalog.classifications WHERE name='Médio'")).rows[0].id;
       const brand="00000000-0000-4000-8000-000000000009",family="00000000-0000-4000-8000-000000000010",base="00000000-0000-4000-8000-000000000011";
+      const importedId=process.env.CATALOG_EXPECT_FULL === "1" ? "00000000-0000-4000-8000-000000000015" : "ab7b2905-17d3-4664-8743-62ef07085599";
       await admin.query("INSERT INTO service_catalog.brands(id,name) VALUES($1,'Marca Fictícia Importada')",[brand]);
       await admin.query("INSERT INTO service_catalog.families(id,brand_id) VALUES($1,$2)",[family,brand]);
       await admin.query("INSERT INTO service_catalog.bases(id,family_id,service_count) VALUES($1,$2,0)",[base,family]);
-      await admin.query("INSERT INTO service_catalog.models(id,brand_id,family_id,classification_id,name,fipe_code,complete,service_count,base_id,excluded_service_ids) VALUES($1,$2,$3,$4,'Modelo Fictício Importado','999999-9',1,0,$5,'[]')",["ab7b2905-17d3-4664-8743-62ef07085599",brand,family,cls,base]);
-      const model=(await admin.query("SELECT c.name FROM service_catalog.models m JOIN service_catalog.classifications c ON c.id=m.classification_id WHERE m.id=$1",["ab7b2905-17d3-4664-8743-62ef07085599"])).rows[0];
+      await admin.query("INSERT INTO service_catalog.models(id,brand_id,family_id,classification_id,name,fipe_code,complete,service_count,base_id,excluded_service_ids) VALUES($1,$2,$3,$4,'Modelo Fictício Importado','999999-9',1,0,$5,'[]')",[importedId,brand,family,cls,base]);
+      const model=(await admin.query("SELECT c.name FROM service_catalog.models m JOIN service_catalog.classifications c ON c.id=m.classification_id WHERE m.id=$1",[importedId])).rows[0];
       assert.equal(model.name,"Médio");
       assert.equal(Number((await admin.query("SELECT count(*) n FROM service_catalog.model_labor_categories")).rows[0].n),before);
       assert.equal((await admin.query("SELECT 1 FROM pg_trigger WHERE tgrelid='service_catalog.models'::regclass AND tgname='assign_model_labor_category_after_catalog_import'")).rowCount,0);
