@@ -82,7 +82,7 @@ test("PostgreSQL local: autenticação, oficinas, transações e RLS do catálog
       const example=await db.withTenantRead("local-a",async()=>db.prepare(`SELECT m.id,m.name,m.brand_id,b.name brand,s.service_id,s.service_name FROM service_catalog.models m
         JOIN service_catalog.brands b ON b.id=m.brand_id JOIN service_catalog.model_services s ON s.model_id=m.id
         WHERE s.minutes>0 ORDER BY m.id,s.service_id LIMIT 1`).get() as any);
-      const models=await searchModels(db,ctx,{brand_id:example.brand_id,q:`${example.brand} ${example.name}`});
+      const models=await searchModels(db,ctx,{brand_id:example.brand_id,q:example.name});
       const selected=models.items.find(item=>item.id===example.id);
       assert.ok(selected);
       model=selected.id;serviceId=example.service_id;serviceQuery=example.service_name;
