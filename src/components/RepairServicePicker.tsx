@@ -426,7 +426,7 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
     if (row.commercial_category_id) setCommercialCategory(row.commercial_category_id);
     setExecution(row.execution || "internal"); setCost(Number(row.cost || 0)); setMinutes(Number(row.minutes || 0));
     setPrice(Number(row.price || 0)); setInputMode("time"); setError("");
-    if (mode === "catalog") serviceInputRef.current?.focus();
+    // Keep the selected service visible; refocusing this input would fire onFocus and reopen the list.
   }
   function chooseBrand(row: Entity) {
     setBrand(row); setBrandQuery(String(row.name)); setBrandOptions([]); setBrandActiveIndex(-1);
