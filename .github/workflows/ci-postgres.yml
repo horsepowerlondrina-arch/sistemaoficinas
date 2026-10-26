@@ -42,11 +42,13 @@ jobs:
         run: npm run db:local:migrate
       - name: Seed fictitious local workshops
         run: npm run db:local:seed
-      - name: Verify CAT-008 import guard and fixture recovery on a second disposable PostgreSQL 17 database
+      - name: Verify four-porte catalog, rollback and import RLS on disposable PostgreSQL 17
         run: node scripts/ci-catalog-import-setup.mjs
         env:
           CI_PG_ADMIN_URL: postgres://postgres:ci-temporary-only@127.0.0.1:5432/postgres
+      - run: npx tsc --noEmit
       - run: npm run build
       - run: npm test
       - name: PostgreSQL integration suite
         run: npm run test:postgres
+

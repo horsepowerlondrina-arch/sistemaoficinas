@@ -1,3 +1,4 @@
+import { porteRateId } from "../shared/vehiclePorte.js";
 import { createHash } from "node:crypto";
 import { createReadStream, readFileSync, statSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
@@ -5,11 +6,11 @@ import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import pg from "pg";
 
-const expectedSha256 =
-  "5557e09a16362452e1a5716164e9cc0e13d48a26140c1682ffdc5ae48b0eefaa";
+const expectedSha256 = (process.env.CATALOG_SOURCE_SHA256 || "").trim().toLowerCase();
+const releaseVersion = "2.0-quatro-portes";
 const expected = {
   brands: 102,
-  classifications: 14,
+  classifications: 4,
   families: 928,
   bases: 928,
   models: 7534,
@@ -35,22 +36,6 @@ export function estimateCatalogImportPeak(databaseBytes: number, sourceBytes: nu
   return databaseBytes + Math.ceil(sourceBytes * 1.4);
 }
 
-const technicalCategoryMap: Record<string, string> = {
-  "Básico Elétrico": "compacto",
-  "SUV Compacto": "compacto",
-  "SUV Médio": "medio",
-  "SUV e Sedan Elétrico": "medio",
-  "Utilitário Compacto": "compacto",
-  "Utilitário Médio": "medio",
-  "Utilitário Médio Diesel": "medio",
-  "SUV Premium": "premium",
-  "SUV Premium Diesel": "premium",
-  "Utilitário Premium": "premium",
-  "Veículo Compacto": "compacto",
-  "Veículo Médio": "medio",
-  "Veículo Premium": "premium",
-  "Veículo de Luxo": "premium",
-};
 const tables = {
   brands: ["id", "name"],
   classifications: ["id", "name"],
@@ -225,205 +210,81 @@ function rowCount(source: DatabaseSync, table: Table) {
   return Number(source.prepare(`SELECT count(*) n FROM "${table}"`).get()?.n);
 }
 
-function approvedOverrideIds() {
-  const migration = readFileSync(
-    resolve(
-      "supabase/migrations/20261023000200_catalog_labor_category_overrides.sql",
-    ),
-    "utf8",
-  );
-  const ids = [
-    ...migration.matchAll(/\('([0-9a-f-]{36})'\s*::\s*uuid\s*,\s*'premium'/gi),
-  ].map((match) => match[1].toLowerCase());
-  if (ids.length !== 51 || new Set(ids).size !== 51)
-    throw new Error(
-      "A migração CAT-007 não contém os 51 UUIDs únicos aprovados.",
-    );
-  return new Set(ids);
+export function sourceSha256(env: NodeJS.ProcessEnv = process.env) {
+  const hash = (env.CATALOG_SOURCE_SHA256 || "").trim().toLowerCase();
+  if (!/^[0-9a-f]{64}$/.test(hash))
+    throw new Error("Configure CATALOG_SOURCE_SHA256 com o hash aprovado do SQLite convertido.");
+  return hash;
 }
 
-function mappedCommercialRow(
-  row: Record<string, unknown>,
-  overrides: Set<string>,
-) {
-  const override = overrides.has(String(row.model_id).toLowerCase());
-  const category = override
-    ? "premium"
-    : technicalCategoryMap[String(row.technical_name)];
-  const assignment = override ? "reviewed" : "automatic";
-  const reason = override
-    ? "CAT-007: exceção comercial aprovada; validação técnica externa não realizada."
-    : "Classificação comercial operacional v1 derivada do porte técnico; não representa validação técnica externa.";
-  return [
-    row.model_id,
-    category,
-    row.classification_id,
-    assignment,
-    "confirmed",
-    reason,
-  ];
-}
-
-function sourceCommercialDigest(source: DatabaseSync) {
-  const overrides = approvedOverrideIds(),
-    hash = createHash("sha256");
-  const rows = source
-    .prepare(
-      "SELECT m.id model_id,m.classification_id,c.name technical_name FROM models m JOIN classifications c ON c.id=m.classification_id ORDER BY m.id",
-    )
-    .iterate() as Iterable<Record<string, unknown>>;
-  for (const row of rows)
-    hash.update(JSON.stringify(mappedCommercialRow(row, overrides)) + "\n");
-  return hash.digest("hex");
-}
-
-async function targetCommercialDigest(client: pg.PoolClient) {
-  const hash = createHash("sha256");
-  let last = "00000000-0000-0000-0000-000000000000";
-  for (;;) {
-    const batch = await client.query(
-      `SELECT model_id,category_id,technical_classification_id,assignment_source,review_status,change_reason FROM service_catalog.model_labor_categories WHERE model_id>$1::uuid ORDER BY model_id LIMIT 1000`,
-      [last],
-    );
-    if (!batch.rowCount) break;
-    appendRows(hash, batch.rows as Record<string, unknown>[], [
-      "model_id",
-      "category_id",
-      "technical_classification_id",
-      "assignment_source",
-      "review_status",
-      "change_reason",
-    ]);
-    last = String(batch.rows.at(-1).model_id);
+export function readPorteCounts(source: DatabaseSync) {
+  const rows = source.prepare(
+    "SELECT c.id,c.name,count(m.id) n FROM classifications c LEFT JOIN models m ON m.classification_id=c.id GROUP BY c.id,c.name",
+  ).all();
+  if (rows.length !== 4) throw new Error("O catálogo deve conter somente os quatro portes.");
+  const counts: Record<string, number> = {};
+  for (const row of rows) {
+    const key = porteRateId(row.name);
+    if (!key || key in counts) throw new Error("Porte inválido ou duplicado no catálogo convertido.");
+    counts[key] = Number(row.n);
   }
-  return hash.digest("hex");
+  const orphaned = Number(source.prepare(
+    "SELECT count(*) n FROM models m LEFT JOIN classifications c ON c.id=m.classification_id WHERE c.id IS NULL",
+  ).get()?.n);
+  if (orphaned) throw new Error("Há modelo sem porte no catálogo convertido.");
+  return counts;
+}
+
+async function targetPorteCounts(client: pg.PoolClient) {
+  const result = await client.query(
+    "SELECT c.id,c.name,count(m.id)::int n FROM service_catalog.classifications c LEFT JOIN service_catalog.models m ON m.classification_id=c.id GROUP BY c.id,c.name",
+  );
+  if (result.rows.length !== 4) throw new Error("O destino não contém exatamente quatro portes.");
+  const counts: Record<string, number> = {};
+  for (const row of result.rows) {
+    const key = porteRateId(row.name);
+    if (!key || key in counts) throw new Error("Porte inválido ou duplicado no destino.");
+    counts[key] = Number(row.n);
+  }
+  if (!matchesCategoryCounts(counts, expectedCategories))
+    throw new Error("Distribuição dos quatro portes divergente.");
+  return counts;
 }
 
 async function readSource(path: string) {
-  if ((await fileHash(path)) !== expectedSha256)
-    throw new Error("SHA-256 da fonte diverge do pacote operacional aprovado.");
+  const approvedHash = sourceSha256();
+  if ((await fileHash(path)) !== approvedHash)
+    throw new Error("SHA-256 da fonte diverge do SQLite convertido aprovado.");
   const source = new DatabaseSync(path, { readOnly: true });
-  for (const [table, count] of Object.entries(expected) as [Table, number][]) {
-    if (rowCount(source, table) !== count)
-      throw new Error(`Contagem inesperada na origem: ${table}.`);
-    const actual = new Set(
-      source
-        .prepare(`PRAGMA table_info("${table}")`)
-        .all()
-        .map((column: any) => String(column.name)),
-    );
-    if (tables[table].some((column) => !actual.has(column)))
-      throw new Error(`Estrutura incompatível na origem: ${table}.`);
-  }
-  const categories = source
-    .prepare(
-      `SELECT c.name,count(m.id) n FROM classifications c LEFT JOIN models m ON m.classification_id=c.id GROUP BY c.id,c.name`,
-    )
-    .all();
-  if (categories.length !== 14)
-    throw new Error("A origem não contém os 14 portes técnicos esperados.");
-  const unmapped = categories.filter(
-    (row: any) => !(String(row.name) in technicalCategoryMap),
-  );
-  if (unmapped.length)
-    throw new Error("Há porte técnico sem correspondência comercial aprovada.");
-  const counts: Record<string, number> = {
-    compacto: 0,
-    medio: 0,
-    premium: 0,
-    pesado: 0,
-  };
-  for (const row of categories as { name: string; n: number }[])
-    counts[technicalCategoryMap[row.name]] += Number(row.n);
-  const overrideIds = approvedOverrideIds();
-  const model = source.prepare(
-    "SELECT classification_id FROM models WHERE id=?",
-  );
-  const className = source.prepare(
-    "SELECT name FROM classifications WHERE id=?",
-  );
-  for (const id of overrideIds) {
-    const row = model.get(id) as { classification_id: string } | undefined;
-    if (!row)
-      throw new Error(`UUID CAT-007 ausente no catálogo operacional: ${id}.`);
-    const original =
-      technicalCategoryMap[
-        String(
-          (className.get(row.classification_id) as { name: string } | undefined)
-            ?.name,
-        )
-      ];
-    if (!original || original === "premium")
-      throw new Error(`Exceção CAT-007 sem mudança aplicável: ${id}.`);
-    counts[original]--;
-    counts.premium++;
-  }
-  if (
-    !matchesCategoryCounts(counts, expectedCategories)
-  )
-    throw new Error(
-      "Distribuição comercial derivada da fonte e exceções CAT-007 diverge da aprovada.",
-    );
-  return source;
+  try {
+    if (source.prepare("PRAGMA integrity_check").get()?.integrity_check !== "ok" ||
+        source.prepare("PRAGMA foreign_key_check").all().length)
+      throw new Error("Integridade SQLite inválida.");
+    for (const [table, count] of Object.entries(expected) as [Table, number][]) {
+      if (rowCount(source, table) !== count) throw new Error(`Contagem inesperada na origem: ${table}.`);
+      const columns = new Set(source.prepare(`PRAGMA table_info("${table}")`).all().map((c) => String(c.name)));
+      if (tables[table].some((column) => !columns.has(column)))
+        throw new Error(`Estrutura incompatível na origem: ${table}.`);
+    }
+    if (!matchesCategoryCounts(readPorteCounts(source), expectedCategories))
+      throw new Error("Distribuição dos quatro portes diverge da aprovada.");
+    return source;
+  } catch (error) { source.close(); throw error; }
 }
 
-async function existingReleaseIsValid(
-  client: pg.PoolClient,
-  source: DatabaseSync,
-) {
+async function existingReleaseIsValid(client: pg.PoolClient, source: DatabaseSync) {
   const release = await client.query(
-    "SELECT status,source_sha256 FROM service_catalog.releases WHERE version='1.2-operacional'",
+    "SELECT status,source_sha256,model_count,time_count,application_count FROM service_catalog.releases WHERE version=$1", [releaseVersion],
   );
   if (!release.rowCount) return false;
-  if (
-    release.rows[0].source_sha256 !== expectedSha256 ||
-    release.rows[0].status !== "active"
-  )
-    throw new Error(
-      "Já existe uma release 1.2-operacional diferente ou inativa; nenhuma substituição foi feita.",
-    );
-  for (const [table, count] of Object.entries(expected) as [Table, number][]) {
-    const actual = Number(
-      (await client.query(`SELECT count(*) n FROM service_catalog.${table}`))
-        .rows[0].n,
-    );
-    if (
-      actual !== count ||
-      sourceDigest(source, table) !== (await targetDigest(client, table))
-    )
-      throw new Error(`A release já instalada diverge da fonte: ${table}.`);
-  }
-  const categories = await client.query(
-    "SELECT category_id,count(*)::int n FROM service_catalog.model_labor_categories GROUP BY category_id",
-  );
-  const actual = Object.fromEntries(
-    categories.rows.map((row) => [row.category_id, row.n]),
-  );
-  if (
-    !matchesCategoryCounts(actual, expectedCategories)
-  )
-    throw new Error(
-      "A release existente tem distribuição comercial divergente.",
-    );
-  const categoryHash = await client.query(
-    "SELECT count(*)::int n FROM service_catalog.model_labor_categories",
-  );
-  if (categoryHash.rows[0].n !== expected.models)
-    throw new Error("A release existente não classifica todos os modelos.");
-  if ((await targetCommercialDigest(client)) !== sourceCommercialDigest(source))
-    throw new Error(
-      "Classificações comerciais existentes divergem dos UUIDs aprovados.",
-    );
-  const actualOverrides = Number(
-    (
-      await client.query(`SELECT count(*)::int n FROM service_catalog.model_labor_category_overrides o
-    JOIN service_catalog.model_labor_categories c ON c.model_id=o.model_id AND c.category_id='premium'`)
-    ).rows[0].n,
-  );
-  if (actualOverrides !== 51)
-    throw new Error(
-      "A release existente não contém as 51 exceções CAT-007 aprovadas.",
-    );
+  const row = release.rows[0];
+  if (row.status === "loading" && row.source_sha256 === expectedSha256 &&
+      Number(row.model_count) === expected.models && Number(row.time_count) === expected.repair_times &&
+      Number(row.application_count) === 7292579) return false;
+  if (row.status !== "active" || row.source_sha256 !== expectedSha256)
+    throw new Error("Release existente divergente; nenhuma substituição foi feita.");
+  await validateImportedCatalog(client, source);
+  await targetPorteCounts(client);
   return true;
 }
 
@@ -439,6 +300,7 @@ async function importTable(
     )
     .iterate() as IterableIterator<Record<string, unknown>>;
   const chunkSize = 1000;
+  let imported = 0;
   let chunk: Record<string, unknown>[] = [];
   const flush = async () => {
     if (!chunk.length) return;
@@ -458,6 +320,8 @@ async function importTable(
       `INSERT INTO service_catalog.${table}(${columns.map((column) => `"${column}"`).join(",")}) VALUES ${values}`,
       params,
     );
+    imported += chunk.length;
+    if (imported % 100000 === 0) console.log(JSON.stringify({ phase: "loading", table, rows: imported }));
     chunk = [];
   };
   for (const row of iterator) {
@@ -465,61 +329,7 @@ async function importTable(
     if (chunk.length === chunkSize) await flush();
   }
   await flush();
-}
-
-async function importCommercialCategories(
-  client: pg.PoolClient,
-  source: DatabaseSync,
-) {
-  const overrideIds = approvedOverrideIds();
-  const rows = source
-    .prepare(
-      `SELECT m.id model_id,m.classification_id,c.name technical_name FROM models m JOIN classifications c ON c.id=m.classification_id ORDER BY m.id`,
-    )
-    .iterate() as IterableIterator<Record<string, unknown>>;
-  let chunk: Record<string, unknown>[] = [];
-  const flush = async () => {
-    if (!chunk.length) return;
-    const params: unknown[] = [];
-    const values = chunk
-      .map((row) => {
-        const mapped = mappedCommercialRow(row, overrideIds);
-        return `(${mapped
-          .map((value) => {
-            params.push(value ?? null);
-            return `$${params.length}`;
-          })
-          .join(",")})`;
-      })
-      .join(",");
-    await client.query(
-      `INSERT INTO service_catalog.model_labor_categories(model_id,category_id,technical_classification_id,assignment_source,review_status,change_reason) VALUES ${values}`,
-      params,
-    );
-    chunk = [];
-  };
-  for (const row of rows) {
-    chunk.push(row);
-    if (chunk.length === 1000) await flush();
-  }
-  await flush();
-  const actual = await client.query(
-    "SELECT category_id,count(*)::int n FROM service_catalog.model_labor_categories GROUP BY category_id",
-  );
-  const counts = Object.fromEntries(
-    actual.rows.map((row) => [row.category_id, row.n]),
-  );
-  if (
-    Number(
-      (await client.query("SELECT count(*) n FROM service_catalog.model_labor_categories"))
-        .rows[0].n,
-    ) !== expected.models ||
-    !matchesCategoryCounts(counts, expectedCategories)
-  )
-    throw new Error(
-      "Categorias comerciais incompletas ou divergentes.",
-    );
-  return sourceCommercialDigest(source);
+  console.log(JSON.stringify({ phase: "loaded", table, rows: imported }));
 }
 
 async function validateImportedCatalog(client: pg.PoolClient, source: DatabaseSync) {
@@ -577,277 +387,65 @@ async function validateImportedCatalog(client: pg.PoolClient, source: DatabaseSy
 async function main() {
   const args = process.argv.slice(2);
   const sourceArg = args.find((arg) => !arg.startsWith("--"));
-  const sourcePath = resolve(
-    sourceArg || "C:/Users/horse/Documents/catalogo.sqlite",
-  );
+  if (!sourceArg) throw new Error("Informe explicitamente o caminho do SQLite convertido.");
+  const sourcePath = resolve(sourceArg);
   const source = await readSource(sourcePath);
   if (args.includes("--verify-source")) {
-    const technical = source
-      .prepare(
-        "SELECT c.id,c.name,count(m.id) n FROM classifications c LEFT JOIN models m ON m.classification_id=c.id GROUP BY c.id,c.name ORDER BY c.name",
-      )
-      .all() as { id: string; name: string; n: number }[];
-    const categories: Record<string, number> = {
-      compacto: 0,
-      medio: 0,
-      premium: 0,
-      pesado: 0,
-    };
-    for (const row of technical)
-      categories[technicalCategoryMap[row.name]] += Number(row.n);
-    const ids = approvedOverrideIds();
-    for (const id of ids) {
-      const model = source
-        .prepare("SELECT classification_id FROM models WHERE id=?")
-        .get(id) as { classification_id: string } | undefined;
-      const name = technical.find(
-        (item) => item.id === model?.classification_id,
-      )?.name;
-      const original = technicalCategoryMap[String(name)];
-      categories[original]--;
-      categories.premium++;
-    }
-    console.log(
-      JSON.stringify(
-        {
-          source_sha256: expectedSha256,
-          counts: expected,
-          technical_classifications: technical.map(({ name, n }) => ({
-            name,
-            count: Number(n),
-          })),
-          commercial_categories: categories,
-          cat007_overrides: ids.size,
-          verified: true,
-        },
-        null,
-        2,
-      ),
-    );
-    source.close();
+    try { console.log(JSON.stringify({ source_sha256: expectedSha256, counts: expected, portes: readPorteCounts(source), verified: true }, null, 2)); }
+    finally { source.close(); }
     return;
   }
   const target = assertTarget();
-  const pool = new pg.Pool({
-    connectionString: target.connectionString,
-    ssl:
-      target.target === "homologation"
-        ? {
-            ca: readFileSync(
-              resolve("server/db/certs/supabase-ca.crt"),
-              "utf8",
-            ),
-            rejectUnauthorized: true,
-          }
-        : false,
-    max: 1,
-    connectionTimeoutMillis: 15000,
-    application_name: `cat008-${target.target}-import`,
+  const pool = new pg.Pool({ connectionString: target.connectionString,
+    ssl: target.target === "homologation" ? { ca: readFileSync(resolve("server/db/certs/supabase-ca.crt"), "utf8"), rejectUnauthorized: true } : false,
+    max: 1, connectionTimeoutMillis: 15000, application_name: `cat009-${target.target}-import`,
   });
-  const client = await pool.connect();
+  let client: pg.PoolClient | undefined;
   try {
+    client = await pool.connect();
     if (target.target === "local") {
-      const identity = await client.query(
-        "SELECT current_database() db,current_user role,r.rolsuper superuser FROM pg_roles r WHERE r.rolname=current_user",
-      );
-      if (
-        identity.rows[0]?.db !== "horse_power_cat008_test" ||
-        !identity.rows[0]?.superuser
-      )
-        throw new Error(
-          "Destino recusado: a importação local exige o administrador do banco isolado horse_power_cat008_test.",
-        );
+      const identity = await client.query("SELECT current_database() db,current_user role,r.rolsuper superuser FROM pg_roles r WHERE r.rolname=current_user");
+      if (identity.rows[0]?.db !== "horse_power_cat008_test" || !identity.rows[0]?.superuser)
+        throw new Error("Destino local recusado: exige o banco descartável isolado.");
     } else {
-      const session =
-        await client.query(`SELECT current_database() db,session_user login,
+      const session = await client.query(`SELECT current_database() db,
         pg_has_role(session_user,'hp_catalog_importer','MEMBER') member,
         coalesce((SELECT rolsuper OR rolbypassrls FROM pg_roles WHERE rolname=session_user),true) elevated`);
-      if (
-        session.rows[0]?.db !== "postgres" ||
-        session.rows[0]?.member !== true ||
-        session.rows[0]?.elevated !== false
-      )
-        throw new Error(
-          "Destino recusado: o login não tem somente a associação limitada hp_catalog_importer.",
-        );
+      if (session.rows[0]?.db !== "postgres" || session.rows[0]?.member !== true || session.rows[0]?.elevated !== false)
+        throw new Error("Login de importação sem escopo restrito.");
       await client.query("SET ROLE hp_catalog_importer");
-      if (target.target !== "homologation")
-        throw new Error("Destino de homologação não confirmado.");
     }
     await client.query("BEGIN");
     await client.query("SELECT pg_advisory_xact_lock(202610250008)");
     if (await existingReleaseIsValid(client, source)) {
-      await client.query("COMMIT");
-      console.log("Catálogo já íntegro: nenhuma duplicação foi feita.");
-      return;
+      await client.query("COMMIT"); console.log("Catálogo já íntegro; nenhuma duplicação foi feita."); return;
     }
-    await client.query(
-      "SELECT service_catalog.prepare_catalog_import_for_cat008()",
-    );
-    const occupied = await client.query(`SELECT
-      (SELECT count(*) FROM service_catalog.brands) brands,(SELECT count(*) FROM service_catalog.classifications) classifications,
-      (SELECT count(*) FROM service_catalog.families) families,(SELECT count(*) FROM service_catalog.bases) bases,
-      (SELECT count(*) FROM service_catalog.models) models,(SELECT count(*) FROM service_catalog.services) services,
-      (SELECT count(*) FROM service_catalog.repair_times) repair_times,
-      (SELECT count(*) FROM service_catalog.model_labor_categories) model_categories,
-      (SELECT count(*) FROM service_catalog.releases WHERE status='active') active_releases`);
-    if (Object.values(occupied.rows[0]).some((value) => Number(value) !== 0))
-      throw new Error(
-        "Destino ocupado; use um banco local isolado vazio. Nenhuma linha foi removida ou sobrescrita.",
-      );
+    for (const table of Object.keys(tables) as Table[]) {
+      if (Number((await client.query(`SELECT count(*) n FROM service_catalog.${table}`)).rows[0].n))
+        throw new Error("Destino ocupado: a instalação do catálogo convertido exige procedimento autorizado separado; nenhum registro será apagado.");
+    }
+    if ((await client.query("SELECT 1 FROM service_catalog.releases WHERE status='active' LIMIT 1")).rowCount)
+      throw new Error("Existe uma release ativa; nenhuma substituição foi feita.");
     if (target.target === "homologation") {
-      const sizes = await client.query(
-        "SELECT pg_database_size(current_database())::bigint database_bytes",
-      );
-      const projectedPeak = estimateCatalogImportPeak(
-        Number(sizes.rows[0].database_bytes),
-        statSync(sourcePath).size,
-      );
-      if (projectedPeak > 450 * 1024 * 1024)
-        throw new Error(
-          `Carga abortada antes da gravação: pico projetado ${projectedPeak} bytes excede o teto operacional de 450 MiB.`,
-        );
+      const size = Number((await client.query("SELECT pg_database_size(current_database())::bigint n")).rows[0].n);
+      if (estimateCatalogImportPeak(size, statSync(sourcePath).size) > 450 * 1024 * 1024)
+        throw new Error("Projeção de armazenamento excede 450 MiB.");
     }
-    for (const table of Object.keys(tables) as Table[])
-      await importTable(client, source, table);
+    await client.query(`INSERT INTO service_catalog.releases(version,status,source_sha256,model_count,time_count,application_count)
+      VALUES($1,'loading',$2,7534,836093,7292579) ON CONFLICT(version) DO NOTHING`, [releaseVersion, expectedSha256]);
+    for (const table of Object.keys(tables) as Table[]) await importTable(client, source, table);
     await validateImportedCatalog(client, source);
-    const expectedCategoryDigest = await importCommercialCategories(
-      client,
-      source,
-    );
-    const oldRelease = await client.query(
-      "SELECT status,source_sha256 FROM service_catalog.releases WHERE version='1.2-operacional'",
-    );
-    if (
-      oldRelease.rowCount &&
-      !(
-        oldRelease.rows[0].status === "loading" &&
-        ["pending", expectedSha256].includes(oldRelease.rows[0].source_sha256)
-      )
-    )
-      throw new Error(
-        "Registro de release pré-existente incompatível; nada foi substituído.",
-      );
-    if (oldRelease.rowCount)
-      await client.query(
-        "UPDATE service_catalog.releases SET source_sha256=$1,model_count=7534,time_count=836093,application_count=7292579 WHERE version='1.2-operacional'",
-        [expectedSha256],
-      );
-    else
-      await client.query(
-        "INSERT INTO service_catalog.releases(version,status,source_sha256,model_count,time_count,application_count) VALUES('1.2-operacional','loading',$1,7534,836093,7292579)",
-        [expectedSha256],
-      );
-    const persistedCategories = await client.query(
-      "SELECT count(*)::int n FROM service_catalog.model_labor_categories",
-    );
-    if (Number(persistedCategories.rows[0].n) !== expected.models)
-      throw new Error("A gravação das categorias não cobriu todos os modelos.");
-    const persistedDigest = await client.query(
-      `SELECT model_id,category_id,technical_classification_id,assignment_source,review_status,change_reason FROM service_catalog.model_labor_categories ORDER BY model_id`,
-    );
-    const persistedHash = createHash("sha256");
-    appendRows(
-      persistedHash,
-      persistedDigest.rows as Record<string, unknown>[],
-      [
-        "model_id",
-        "category_id",
-        "technical_classification_id",
-        "assignment_source",
-        "review_status",
-        "change_reason",
-      ],
-    );
-    if (persistedHash.digest("hex") !== expectedCategoryDigest)
-      throw new Error(
-        "Hash das classificações comerciais persistidas diverge da fonte.",
-      );
-    const categoryRows = await client.query(
-      "SELECT category_id,count(*)::int n FROM service_catalog.model_labor_categories GROUP BY category_id",
-    );
-    const categories = Object.fromEntries(
-      categoryRows.rows.map((row) => [row.category_id, row.n]),
-    );
-    if (
-      !matchesCategoryCounts(categories, expectedCategories)
-    )
-      throw new Error(
-        "Distribuição comercial divergente; a transação será revertida.",
-      );
-    const overrides =
-      await client.query(`SELECT count(*)::int n FROM service_catalog.model_labor_category_overrides o
-      JOIN service_catalog.model_labor_categories c ON c.model_id=o.model_id AND c.category_id='premium'`);
-    if (overrides.rows[0].n !== 51)
-      throw new Error(
-        "As 51 exceções CAT-007 não foram aplicadas integralmente.",
-      );
-    const counts =
-      await client.query(`SELECT (SELECT count(*) FROM service_catalog.brands)::int brands,
-      (SELECT count(*) FROM service_catalog.models)::int models,(SELECT count(*) FROM service_catalog.services)::int services,
-      (SELECT count(*) FROM service_catalog.repair_times)::int repair_times`);
-    if (
-      counts.rows[0].brands !== 102 ||
-      counts.rows[0].models !== 7534 ||
-      counts.rows[0].services !== 6491 ||
-      counts.rows[0].repair_times !== 836093
-    )
-      throw new Error(
-        "Contagens finais divergentes; a transação será revertida.",
-      );
-    const preCommitSize = await client.query(
-      "SELECT pg_database_size(current_database())::bigint bytes",
-    );
-    if (
-      target.target === "homologation" &&
-      Number(preCommitSize.rows[0].bytes) > 450 * 1024 * 1024
-    )
-      throw new Error(
-        "Carga revertida: o tamanho real do banco excedeu 450 MiB antes da ativação.",
-      );
-    await client.query(
-      "UPDATE service_catalog.releases SET status='active',validated_at=statement_timestamp() WHERE version='1.2-operacional' AND source_sha256=$1",
-      [expectedSha256],
-    );
+    const portes = await targetPorteCounts(client);
+    const size = Number((await client.query("SELECT pg_database_size(current_database())::bigint n")).rows[0].n);
+    if (target.target === "homologation" && size > 450 * 1024 * 1024)
+      throw new Error("Tamanho real excede 450 MiB; a carga será revertida.");
+    const activated = await client.query("UPDATE service_catalog.releases SET status='active',validated_at=statement_timestamp() WHERE version=$1 AND source_sha256=$2 AND status='loading'", [releaseVersion, expectedSha256]);
+    if (activated.rowCount !== 1) throw new Error("A release não pôde ser ativada.");
     await client.query("COMMIT");
-    const size = await client.query(
-      "SELECT pg_database_size(current_database())::bigint bytes,pg_size_pretty(pg_database_size(current_database())) pretty",
-    );
-    console.log(
-      JSON.stringify(
-        {
-          target: target.target,
-          source_sha256: expectedSha256,
-          counts: counts.rows[0],
-          categories,
-          approved_overrides: overrides.rows[0].n,
-          database_bytes: Number(size.rows[0].bytes),
-          database_size: size.rows[0].pretty,
-          version: "1.2-operacional",
-        },
-        null,
-        2,
-      ),
-    );
-  } catch (error) {
-    await client.query("ROLLBACK").catch(() => {});
-    throw error;
-  } finally {
-    client.release();
-    await pool.end();
-    source.close();
-  }
+    console.log(JSON.stringify({ target: target.target, source_sha256: expectedSha256, counts: expected, portes, database_bytes: size, version: releaseVersion }, null, 2));
+  } catch (error) { await client?.query("ROLLBACK").catch(() => {}); throw error; }
+  finally { client?.release(); await pool.end(); source.close(); }
 }
 
-if (
-  process.argv[1] &&
-  pathToFileURL(resolve(process.argv[1])).href === import.meta.url
-)
-  main().catch((error) => {
-    console.error(
-      "Importação não concluída:",
-      error instanceof Error ? error.message : "erro",
-    );
-    process.exitCode = 1;
-  });
-
+if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url)
+  main().catch((error) => { console.error("Importação não concluída:", error instanceof Error ? error.message : "erro"); process.exitCode = 1; });

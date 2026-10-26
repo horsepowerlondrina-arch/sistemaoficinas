@@ -1,4 +1,4 @@
-name: CAT-008 catalog preflight and homologation import
+name: Four-porte catalog preflight and authorized homologation import
 
 on:
   workflow_dispatch:
@@ -57,11 +57,14 @@ jobs:
       - name: Download and verify the private source into the ephemeral runner
         run: node scripts/catalog-source-download.mjs "$RUNNER_TEMP/catalogo.sqlite"
         env:
+          CATALOG_SOURCE_SHA256: ${{ vars.CATALOG_SOURCE_SHA256 }}
+          CATALOG_SOURCE_BYTES: ${{ vars.CATALOG_SOURCE_BYTES }}
           CATALOG_SOURCE_URL: ${{ secrets.CATALOG_SOURCE_URL }}
           CATALOG_SOURCE_ALLOWED_HOSTS: ${{ secrets.CATALOG_SOURCE_ALLOWED_HOSTS }}
       - name: Run complete transactional preflight import on PostgreSQL 17
         run: npm run catalog:import -- "$RUNNER_TEMP/catalogo.sqlite"
         env:
+          CATALOG_SOURCE_SHA256: ${{ vars.CATALOG_SOURCE_SHA256 }}
           CATALOG_IMPORT_DATABASE_URL: postgres://postgres:ci-temporary-only@127.0.0.1:5432/horse_power_cat008_test
           CATALOG_IMPORT_TARGET: local
           CATALOG_IMPORT_CONFIRM: CAT-008-ISOLATED-LOCAL
@@ -69,6 +72,7 @@ jobs:
         if: inputs.operation == 'load-homologation'
         run: npm run catalog:import -- "$RUNNER_TEMP/catalogo.sqlite"
         env:
+          CATALOG_SOURCE_SHA256: ${{ vars.CATALOG_SOURCE_SHA256 }}
           CATALOG_IMPORT_DATABASE_URL: ${{ secrets.CATALOG_IMPORT_DATABASE_URL }}
           CATALOG_IMPORT_TARGET: homologation
           CATALOG_IMPORT_CONFIRM: CAT-008-HOMOLOGATION-IMPORT
@@ -76,3 +80,4 @@ jobs:
       - name: Remove the private source from the ephemeral runner
         if: always()
         run: rm -f "$RUNNER_TEMP/catalogo.sqlite"
+

@@ -3,9 +3,8 @@ import { createWriteStream, rm } from "node:fs";
 import { Readable, Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
 
-const expectedSha256 =
-  "5557e09a16362452e1a5716164e9cc0e13d48a26140c1682ffdc5ae48b0eefaa";
-const expectedBytes = 294141952;
+const expectedSha256 = (process.env.CATALOG_SOURCE_SHA256 || "").trim().toLowerCase();
+const expectedBytes = Number(process.env.CATALOG_SOURCE_BYTES || 0);
 const output = process.argv[2];
 const sourceUrl = process.env.CATALOG_SOURCE_URL;
 const allowedHosts = new Set(
@@ -28,6 +27,8 @@ function assertAllowed(url) {
 }
 
 async function main() {
+  if (!/^[0-9a-f]{64}$/.test(expectedSha256) || !Number.isSafeInteger(expectedBytes) || expectedBytes <= 0)
+    throw new Error("Configure o SHA-256 e o tamanho aprovados do SQLite convertido.");
   if (!output || !sourceUrl || allowedHosts.size === 0)
     throw new Error(
       "Configure o destino temporário e os segredos de origem privada.",
@@ -89,3 +90,4 @@ main().catch((error) => {
   );
   process.exitCode = 1;
 });
+

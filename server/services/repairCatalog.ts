@@ -1,3 +1,4 @@
+import { PORTE_RATE_IDS, porteRateId } from "../../shared/vehiclePorte.js";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import type { DB, Row } from "../db/database.js";
@@ -16,12 +17,7 @@ const plain=accented.normalize('NFD').replace(/\p{Diacritic}/gu,'').toLowerCase(
 const searchKey=(value:string)=>value.normalize('NFD').replace(/\p{Diacritic}/gu,'').toLowerCase();
 const searchColumn=(column:string)=>`LOWER(translate(${column},'${accented}','${plain}'))`;
 const cents = z.number().int().min(0).max(100000000);
-export const commercialCategorySchema = z.enum([
-  "compacto",
-  "medio",
-  "premium",
-  "pesado",
-]);
+export const commercialCategorySchema = z.enum(PORTE_RATE_IDS);
 export const serviceSelectionSchema = z.object({
   repair_service_id: uuid.optional(),
   repair_model_id: uuid.optional(),
@@ -101,7 +97,7 @@ export async function saveLaborRates(db: DB, ctx: Context, body: unknown) {
     .max(4)
     .parse(body);
   if (new Set(rates.map((r) => r.category_id)).size !== rates.length)
-    throw new Error("Categoria comercial repetida.");
+    throw new Error("Porte repetido.");
   await tenantRead(db, ctx, async () => {
     for (const rate of rates) {
       if (!rate.hourly_rate) {
@@ -118,19 +114,28 @@ export async function saveLaborRates(db: DB, ctx: Context, body: unknown) {
     }
   });
 }
+function withModelPorte(model: Row): Row {
+  // Compatibility fields expose the tariff key of this same catalog classification.
+  const categoryId = porteRateId(model.porte_name);
+  if (!categoryId)
+    throw Object.assign(new Error("O modelo não possui um dos quatro portes do catálogo atualizado."), { status: 409 });
+  return { ...model, classification_id: model.porte_id,
+    commercial_category_id: categoryId, commercial_category_name: model.porte_name,
+    category_assignment_source: "catalog", category_review_status: "confirmed" };
+}
 export async function repairModel(db: DB, ctx: Context, modelId: string) {
   uuid.parse(modelId);
   return withCatalog(db, ctx, async () => {
     const model = await db
       .prepare(
-        "SELECT m.id,m.name,m.brand_id,m.fipe_code,m.classification_id porte_id,b.name brand,p.name porte_name,m.service_count,lc.category_id commercial_category_id,cat.name commercial_category_name,lc.assignment_source category_assignment_source,lc.review_status category_review_status FROM service_catalog.models m JOIN service_catalog.brands b ON b.id=m.brand_id LEFT JOIN service_catalog.classifications p ON p.id=m.classification_id LEFT JOIN service_catalog.model_labor_categories lc ON lc.model_id=m.id LEFT JOIN labor_categories cat ON cat.id=lc.category_id WHERE m.id=?",
+        "SELECT m.id,m.name,m.brand_id,m.fipe_code,m.classification_id porte_id,b.name brand,p.name porte_name,m.service_count FROM service_catalog.models m JOIN service_catalog.brands b ON b.id=m.brand_id LEFT JOIN service_catalog.classifications p ON p.id=m.classification_id WHERE m.id=?",
       )
       .get(modelId);
     if (!model)
       throw Object.assign(new Error("Modelo não encontrado no catálogo."), {
         status: 404,
       });
-    return model;
+    return withModelPorte(model);
   });
 }
 async function commercialRate(db: DB, ctx: Context, categoryId: string) {
@@ -151,10 +156,10 @@ export async function searchModels(db: DB, ctx: Context, query: unknown) {
   return withCatalog(db, ctx, async () => {
     const rows = await db
       .prepare(
-        `SELECT m.id,m.name,m.fipe_code,m.classification_id porte_id,b.name brand,p.name porte_name,m.service_count,lc.category_id commercial_category_id,cat.name commercial_category_name,lc.assignment_source category_assignment_source,lc.review_status category_review_status FROM service_catalog.models m JOIN service_catalog.brands b ON b.id=m.brand_id LEFT JOIN service_catalog.classifications p ON p.id=m.classification_id LEFT JOIN service_catalog.model_labor_categories lc ON lc.model_id=m.id LEFT JOIN labor_categories cat ON cat.id=lc.category_id WHERE (?='' OR m.fipe_code=?) AND ${searchColumn("b.name || ' ' || m.name")} LIKE ? ORDER BY b.name,m.name,m.id LIMIT 31 OFFSET ?`,
+        `SELECT m.id,m.name,m.fipe_code,m.classification_id porte_id,b.name brand,p.name porte_name,m.service_count FROM service_catalog.models m JOIN service_catalog.brands b ON b.id=m.brand_id LEFT JOIN service_catalog.classifications p ON p.id=m.classification_id WHERE (?='' OR m.fipe_code=?) AND ${searchColumn("b.name || ' ' || m.name")} LIKE ? ORDER BY b.name,m.name,m.id LIMIT 31 OFFSET ?`,
       )
       .all(q.fipe, q.fipe, `%${searchKey(q.q)}%`, q.offset);
-    return { items: rows.slice(0, 30), has_more: rows.length > 30 };
+    return { items: rows.slice(0, 30).map(withModelPorte), has_more: rows.length > 30 };
   });
 }
 export async function searchRepairServices(
@@ -194,7 +199,7 @@ export async function listWorkshopServices(
   const rows = await tenantRead(db, ctx, async () =>
     await db
       .prepare(
-        `SELECT s.*,p.name porte_name,COALESCE(s.commercial_category_id,CASE p.name WHEN 'Básico Elétrico' THEN 'compacto' WHEN 'SUV Compacto' THEN 'compacto' WHEN 'SUV Médio' THEN 'medio' WHEN 'SUV e Sedan Elétrico' THEN 'medio' WHEN 'Utilitário Compacto' THEN 'compacto' WHEN 'Utilitário Médio' THEN 'medio' WHEN 'Utilitário Médio Diesel' THEN 'medio' WHEN 'SUV Premium' THEN 'premium' WHEN 'SUV Premium Diesel' THEN 'premium' WHEN 'Utilitário Premium' THEN 'premium' WHEN 'Veículo Compacto' THEN 'compacto' WHEN 'Veículo Médio' THEN 'medio' WHEN 'Veículo Premium' THEN 'premium' WHEN 'Veículo de Luxo' THEN 'premium' END) commercial_category_id FROM workshop_services s LEFT JOIN labor_portes p ON p.id=s.porte_id WHERE s.tenant_id=? AND s.active=1 AND (CAST(? AS TEXT) IS NULL OR COALESCE(s.commercial_category_id,CASE p.name WHEN 'Básico Elétrico' THEN 'compacto' WHEN 'SUV Compacto' THEN 'compacto' WHEN 'SUV Médio' THEN 'medio' WHEN 'SUV e Sedan Elétrico' THEN 'medio' WHEN 'Utilitário Compacto' THEN 'compacto' WHEN 'Utilitário Médio' THEN 'medio' WHEN 'Utilitário Médio Diesel' THEN 'medio' WHEN 'SUV Premium' THEN 'premium' WHEN 'SUV Premium Diesel' THEN 'premium' WHEN 'Utilitário Premium' THEN 'premium' WHEN 'Veículo Compacto' THEN 'compacto' WHEN 'Veículo Médio' THEN 'medio' WHEN 'Veículo Premium' THEN 'premium' WHEN 'Veículo de Luxo' THEN 'premium' END)=CAST(? AS TEXT)) AND ${searchColumn('s.name')} LIKE ? ORDER BY s.name,s.id LIMIT 51 OFFSET ?`,
+        `SELECT s.*,p.name porte_name FROM workshop_services s LEFT JOIN labor_categories p ON p.id=s.commercial_category_id WHERE s.tenant_id=? AND s.active=1 AND (CAST(? AS TEXT) IS NULL OR s.commercial_category_id=CAST(? AS TEXT)) AND ${searchColumn('s.name')} LIKE ? ORDER BY s.name,s.id LIMIT 51 OFFSET ?`,
       )
       .all(ctx.tenantId, q.category_id || null, q.category_id || null, `%${searchKey(q.q)}%`, q.offset),
   );
@@ -232,8 +237,6 @@ export async function saveWorkshopService(
   const rate = Number((await db
     .prepare("SELECT hourly_rate FROM labor_commercial_rates WHERE tenant_id=? AND category_id=?")
     .get(ctx.tenantId, v.commercial_category_id))?.hourly_rate || 0);
-  if (v.porte_id && !(await db.prepare("SELECT id FROM labor_portes WHERE id=?").get(v.porte_id)))
-    throw new Error("Porte técnico legado inválido.");
   if (v.execution === "internal") {
     v.cost = 0;
     if (v.pricing_mode === "time") v.price = servicePrice(v.minutes, rate);
@@ -243,16 +246,16 @@ export async function saveWorkshopService(
       v.cost,
       (await getPartsPricing(db, ctx.tenantId)).service_markup_bps ?? 3000,
     );
+  // Legacy porte_id values stay untouched; private services select only a tariff key.
   const key = record || randomUUID();
   if (record)
     await db
       .prepare(
-        "UPDATE workshop_services SET name=?,execution=?,porte_id=?,commercial_category_id=?,minutes=?,price=?,cost=?,pricing_mode=? WHERE tenant_id=? AND id=?",
+        "UPDATE workshop_services SET name=?,execution=?,commercial_category_id=?,minutes=?,price=?,cost=?,pricing_mode=? WHERE tenant_id=? AND id=?",
       )
       .run(
         v.name,
         v.execution,
-        v.porte_id,
         v.commercial_category_id,
         v.minutes,
         v.price,
@@ -264,14 +267,13 @@ export async function saveWorkshopService(
   else
     await db
       .prepare(
-        "INSERT INTO workshop_services(id,tenant_id,name,execution,porte_id,commercial_category_id,minutes,price,cost,pricing_mode) VALUES(?,?,?,?,?,?,?,?,?,?)",
+        "INSERT INTO workshop_services(id,tenant_id,name,execution,commercial_category_id,minutes,price,cost,pricing_mode) VALUES(?,?,?,?,?,?,?,?,?)",
       )
       .run(
         key,
         ctx.tenantId,
         v.name,
         v.execution,
-        v.porte_id,
         v.commercial_category_id,
         v.minutes,
         v.price,
@@ -324,6 +326,9 @@ export async function resolveService(
         model_id: model.id,
         model_name: `${model.brand} ${model.name}`,
         porte_id: model.porte_id,
+        classification_id: model.porte_id,
+        classification_name: model.porte_name,
+        porte_name: model.porte_name,
         technical_classification: model.porte_name,
         commercial_category_id: model.commercial_category_id,
         commercial_category_name: model.commercial_category_name,
@@ -345,13 +350,11 @@ export async function resolveService(
       )
       .get(selected.workshop_service_id, ctx.tenantId));
     if (!service) throw new Error("Serviço não encontrado nesta oficina.");
-    if (service.porte_id && selected.porte_id !== service.porte_id)
-      throw new Error("Este serviço pertence a outro porte.");
     snapshot = {
       source: "manual",
       workshop_service_id: service.id,
       name: service.name,
-      porte_id: service.porte_id || selected.porte_id,
+      porte_id: selected.porte_id || null,
       commercial_category_id: service.commercial_category_id,
       commercial_category_name: service.commercial_category_id
         ? (await db.prepare("SELECT name FROM labor_categories WHERE id=?").get(service.commercial_category_id))?.name
@@ -365,27 +368,19 @@ export async function resolveService(
   }
   if (!snapshot) throw new Error("Escolha um serviço válido.");
   let originalCategory = String(snapshot.original_commercial_category_id || snapshot.commercial_category_id || "");
-  if (!originalCategory && snapshot.porte_id) {
-    originalCategory = String((await db.prepare(
-      "SELECT CASE name WHEN 'Básico Elétrico' THEN 'compacto' WHEN 'SUV Compacto' THEN 'compacto' WHEN 'SUV Médio' THEN 'medio' WHEN 'SUV e Sedan Elétrico' THEN 'medio' WHEN 'Utilitário Compacto' THEN 'compacto' WHEN 'Utilitário Médio' THEN 'medio' WHEN 'Utilitário Médio Diesel' THEN 'medio' WHEN 'SUV Premium' THEN 'premium' WHEN 'SUV Premium Diesel' THEN 'premium' WHEN 'Utilitário Premium' THEN 'premium' WHEN 'Veículo Compacto' THEN 'compacto' WHEN 'Veículo Médio' THEN 'medio' WHEN 'Veículo Premium' THEN 'premium' WHEN 'Veículo de Luxo' THEN 'premium' END category_id FROM labor_portes WHERE id=?",
-    ).get(snapshot.porte_id))?.category_id || "");
-  }
   const categoryId = selected.commercial_category_id || originalCategory;
   if (!categoryId && !existing)
-    throw new Error("Este veículo ou serviço não tem categoria comercial definida.");
+    throw new Error("Este veículo ou serviço não tem porte definido.");
   const category = categoryId
     ? await db.prepare("SELECT id,name FROM labor_categories WHERE id=?").get(categoryId)
     : undefined;
-  if (categoryId && !category) throw new Error("Categoria comercial inválida.");
+  if (categoryId && !category) throw new Error("Porte inválido.");
   const categoryChanged = existing && !!selected.commercial_category_id && categoryId !== String(snapshot.commercial_category_id || "");
   const shouldPersistCategory = !existing || !!snapshot.commercial_category_id || !!selected.commercial_category_id;
   let rate = Number(snapshot.hourly_rate || 0),
     markup = Number(snapshot.markup_bps ?? 3000);
   if (!existing) {
-    const porte = snapshot.porte_id
-      ? await db.prepare("SELECT name FROM labor_portes WHERE id=?").get(snapshot.porte_id)
-      : undefined;
-    snapshot.porte_name = porte?.name || "";
+    snapshot.porte_name = snapshot.classification_name || snapshot.commercial_category_name || category?.name || "";
     rate = await commercialRate(db, ctx, categoryId);
     markup =
       (await getPartsPricing(db, ctx.tenantId)).service_markup_bps ?? 3000;
@@ -416,7 +411,7 @@ export async function resolveService(
     calculated = servicePrice(minutes, rate);
   } else if (snapshot.execution !== execution || categoryChanged) {
     if (execution === "internal" && !categoryId)
-      throw new Error("Selecione uma categoria comercial para recalcular este serviço.");
+      throw new Error("Selecione um porte para recalcular este serviço.");
     if (!rate)
       rate = await commercialRate(db, ctx, categoryId);
     if (!minutes)
