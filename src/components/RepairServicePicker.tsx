@@ -5,6 +5,7 @@ import { api, send } from "../lib/api";
 import { money, type Entity } from "../lib/types";
 import { Field, Modal, PageHeading } from "./ui";
 import { NumericInput } from "./NumericInput";
+import { shouldShowVehicleCatalog, shouldShowWorkshopServices } from "../../shared/repairCatalogVisibility";
 
 type Info = { enabled: boolean; catalog_status:"active"|"not_contracted"|"expired"|"revoked"|"not_installed"; categories: Entity[]; service_markup_bps: number };
 const catalogStatusMessage:Record<Exclude<Info["catalog_status"],"active">,string>={
@@ -548,7 +549,9 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
         <button type="button" className={mode === "manual" ? "active" : ""} onClick={() => { closeDropdowns(); setSelected(null); setMode("manual"); setOffset(0); }}>Serviços da oficina</button>
       </div>}
       {!vehicleOnly && !info?.enabled && info && <p role="status">{info.catalog_status === "active" ? "Não foi possível consultar o Catálogo Técnico agora." : catalogStatusMessage[info.catalog_status]} Seus serviços particulares continuam disponíveis.</p>}
-      {(vehicleOnly || mode === "catalog") && <>
+      {vehicleOnly && !info && <p className="muted" role="status">Verificando acesso ao Catálogo Técnico…</p>}
+      {vehicleOnly && info && !info.enabled && <p className="muted" role="status">{info.catalog_status === "active" ? "Catálogo Técnico indisponível no momento." : catalogStatusMessage[info.catalog_status]}</p>}
+      {shouldShowVehicleCatalog(mode, vehicleOnly, !!info?.enabled) && <>
         <div className="catalog-selection-row">
           <Field label="Marca">
             <div className="catalog-combobox-control">
@@ -574,7 +577,7 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
         {vehicle && <p className="muted">{[vehicle.brand, vehicle.model, vehicle.year].filter(Boolean).join(" · ")}</p>}
         {!vehicleOnly && <p className="muted">{commercialCategory ? "Hora do porte: " + money(rate) + ". " : ""}{commercialCategory && rate <= 0 ? "Tarifa não configurada. " : ""}<Link to="/configuracoes?aba=servicos">Configurar valores da hora</Link></p>}
       </>}
-      {!vehicleOnly && mode === "manual" && (
+      {shouldShowWorkshopServices(mode, vehicleOnly) && (
         <>
           <Field label="Porte do serviço">
             <select
@@ -602,7 +605,7 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
           </button>
         </>
       )}
-      {!vehicleOnly && mode === "manual" && <Field label="Buscar serviço">
+      {shouldShowWorkshopServices(mode, vehicleOnly) && <Field label="Buscar serviço">
         <input
           value={search}
           onChange={(e) => {
@@ -622,7 +625,7 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
           {error}
         </p>
       )}
-      {mode === "manual" && <div className="repair-results" aria-busy={loading}>
+      {shouldShowWorkshopServices(mode, vehicleOnly) && <div className="repair-results" aria-busy={loading}>
         {loading ? (
           <p>Buscando serviços…</p>
         ) : (
@@ -638,7 +641,7 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
                   {`${row.execution === "outsourced" ? "Terceirizado" : "Interno"} · ${row.porte_name || "Todos os portes"}`}
                 </small>
               </button>
-              {mode === "manual" && (
+              {shouldShowWorkshopServices(mode, vehicleOnly) && (
                 <div className="capture-actions">
                   <button
                     type="button"
@@ -671,7 +674,7 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
           ))
         )}
       </div>}
-      {mode === "manual" && <>
+      {shouldShowWorkshopServices(mode, vehicleOnly) && <>
         {!loading && !rows.length && <p>Nenhum serviço encontrado nesta busca.</p>}
         <div className="capture-actions">
           <button type="button" className="button" disabled={!offset || loading} onClick={() => setOffset((v) => Math.max(0, v - 50))}>Anterior</button>
@@ -801,7 +804,7 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
           </button>
         </div>
       )}
-      {editing !== undefined && info && (
+      {!vehicleOnly && editing !== undefined && info && (
         <ServiceForm
           info={info}
           initial={editing || undefined}

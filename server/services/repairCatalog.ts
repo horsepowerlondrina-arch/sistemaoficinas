@@ -171,7 +171,7 @@ const vehicleMatchInput = z.object({
   fipe_code: z.string().trim().max(20).default(""),
   fipe_model: z.string().trim().max(300).default(""),
   fipe_year_id: z.string().trim().max(30).default(""),
-  service_model_id: z.string().trim().max(80).default(""),
+  service_model_id: z.string().trim().max(80).nullable().default("").transform((value) => value || ""),
 });
 export type VehicleCatalogMatchStatus = "linked" | "matched" | "needs_confirmation" | "not_identified" | "unavailable" | "mismatch";
 export async function identifyVehicleModel(db: DB, ctx: Context, input: unknown) {
@@ -213,7 +213,10 @@ export async function identifyVehicleModel(db: DB, ctx: Context, input: unknown)
   }
   for (const hint of modelHints) {
     const exact = await queryCandidates(searchColumn("m.name") + "=?", [hint]);
-    if (exact.length === 1) return { status: "matched" as const, catalog_status: accessState, model: exact[0], candidates: exact };
+    if (exact.length === 1) {
+      if (vehicle.fipe_code) return { status: "needs_confirmation" as const, catalog_status: accessState, model: null, candidates: exact };
+      return { status: "matched" as const, catalog_status: accessState, model: exact[0], candidates: exact };
+    }
     if (exact.length > 1) return { status: "needs_confirmation" as const, catalog_status: accessState, model: null, candidates: sortByHints(exact).slice(0,10) };
   }
   const searchHint = modelHints[0] || vehicleSearchKey(vehicle.model);

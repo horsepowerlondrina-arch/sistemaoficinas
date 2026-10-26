@@ -305,7 +305,7 @@ test("checklist cria veículo e vincula modelo técnico único ao finalizar", as
     db.prepare("INSERT INTO service_catalog.brands VALUES(?,?)").run(brandId,"Honda");
     db.prepare("INSERT INTO service_catalog.classifications VALUES(?,?)").run(classId,"Compacto");
     db.prepare("INSERT INTO service_catalog.models VALUES(?,?,?,?,?,?)").run(modelId,"Civic",brandId,"",classId,10);
-    const created = await createChecklist(db, ctx, { order_id: null, plate: "XYZ1A23", lookup_source: "manual", customer_id: "c", customer_name: "Cliente Teste", phone: "43999999999", vehicle_data: { brand: "Honda", model: "Civic", year: 2022, color: "Prata", chassis: "" }, km: 12500, fuel_level: 50, inspector: "Responsável" });
+    const created = await createChecklist(db, ctx, { order_id: null, plate: "XYZ1A23", lookup_source: "manual", customer_id: "c", customer_name: "Cliente Teste", phone: "43999999999", vehicle_data: { brand: "Honda", model: "Civic", year: 2022, color: "Prata", chassis: "", service_model_id: null }, km: 12500, fuel_level: 50, inspector: "Responsável" });
     await updateChecklist(db, ctx, created.id, { km:12500, fuel_level:50, inspector:"Responsável", complaint:"", conditions:{}, accessories_notes:"", panel_lights:{}, panel_notes:"", objects_left:"", functioning_notes:"", damages:[], damage_notes:"", signature_data:"data:image/png;base64,QUJDRA==", signature_absent_reason:"", customer_confirmed:true });
     await finalizeChecklist(db, ctx, created.id);
     assert.equal(db.prepare("SELECT service_model_id FROM vehicles WHERE tenant_id='t' AND plate='XYZ1A23'").get()?.service_model_id, modelId);

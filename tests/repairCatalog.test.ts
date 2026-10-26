@@ -15,6 +15,7 @@ import {
 } from "../server/services/repairCatalog";
 import { saveOrder, listOrders, previewVehicleCatalogBackfill, applyVehicleCatalogBackfill } from "../server/services/workshop";
 import { servicePrice, serviceMinutes } from "../shared/servicePricing";
+import { shouldShowVehicleCatalog, shouldShowWorkshopServices } from "../shared/repairCatalogVisibility";
 
 const ctx = { tenantId: "a", userId: "u", role: "owner" };
 function fixture() {
@@ -387,9 +388,15 @@ test("serviço particular na OS usa sua tarifa apesar do porte legado em cache n
 test("identificação automática só vincula marca e modelo únicos e preserva vínculo incompatível para revisão", async () => {
   const f = fixture();
   try {
-    const unique = await identifyVehicleModel(f.db, ctx, { brand: "Marca", model: "Modelo 2", year: 2020 });
+    const unique = await identifyVehicleModel(f.db, ctx, { brand: "Marca", model: "Modelo 2", year: 2020, service_model_id: null });
     assert.equal(unique.status, "matched");
     assert.equal(unique.model?.id, f.other);
+    const emptyLink = await identifyVehicleModel(f.db, ctx, { brand: "Marca", model: "Modelo 2", service_model_id: "" });
+    assert.equal(emptyLink.status, "matched");
+    const fipeConflict = await identifyVehicleModel(f.db, ctx, { brand: "Marca", model: "Modelo 2", fipe_code: "999999-9", service_model_id: null });
+    assert.equal(fipeConflict.status, "needs_confirmation");
+    assert.equal(fipeConflict.model, null);
+    assert.equal(fipeConflict.candidates[0]?.id, f.other);
     const ambiguous = await identifyVehicleModel(f.db, ctx, { brand: "Marca", model: "Modelo", fipe_code: "123456-7" });
     assert.equal(ambiguous.status, "needs_confirmation");
     assert.equal(ambiguous.model, null);
@@ -441,4 +448,12 @@ test("veículo criado junto à OS recebe vínculo único sem segunda consulta à
     assert.ok(orderId);
     assert.equal(f.db.prepare("SELECT service_model_id FROM vehicles WHERE tenant_id='a' AND plate='XYZ1A23'").get()?.service_model_id, f.other);
   } finally { f.db.close(); }
+});
+
+test("vehicleOnly não exibe gestão nem resultados de serviços particulares", () => {
+  assert.equal(shouldShowWorkshopServices("manual", true), false);
+  assert.equal(shouldShowVehicleCatalog("manual", true, false), false);
+  assert.equal(shouldShowVehicleCatalog("manual", true, true), true);
+  assert.equal(shouldShowWorkshopServices("manual", false), true);
+  assert.equal(shouldShowVehicleCatalog("catalog", false, true), true);
 });

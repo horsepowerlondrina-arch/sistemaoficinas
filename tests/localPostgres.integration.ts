@@ -215,6 +215,28 @@ test("PostgreSQL local: autenticação, oficinas, transações e RLS do catálog
       const data=await workspace.json();
       assert.ok(data.customers.every((c:any)=>c.tenant_id===credential.tenant));
     }
+    const localAIndex=credentials.findIndex((credential:any)=>credential.tenant==="local-a");
+    assert.ok(localAIndex>=0);
+    const localACookie=sessions[localAIndex];
+    const sample=await db.withTenantRead("local-a",async()=>db.prepare(`SELECT m.id,m.name,b.name brand,m.fipe_code FROM service_catalog.models m JOIN service_catalog.brands b ON b.id=m.brand_id
+      WHERE m.complete AND NOT EXISTS(SELECT 1 FROM service_catalog.models x WHERE x.brand_id=m.brand_id AND x.name=m.name AND x.id<>m.id)
+      AND (COALESCE(m.fipe_code,'')='' OR (SELECT count(*) FROM service_catalog.models x WHERE x.brand_id=m.brand_id AND x.fipe_code=m.fipe_code)=1)
+      ORDER BY m.id LIMIT 1`).get() as any);
+    assert.ok(sample,"a fictional catalog model with a unique safe match should exist");
+    const identified=await request("/api/repair-services/identify-model",localACookie,{brand:sample.brand,model:sample.name,fipe_code:sample.fipe_code||"",service_model_id:null});
+    assert.equal(identified.status,200);
+    const identifiedBody=await identified.json() as any;
+    assert.equal(identifiedBody.status,"matched");
+    assert.equal(identifiedBody.model.id,sample.id);
+    const createdVehicle=await request("/api/customers-with-vehicle",localACookie,{
+      customer:{name:"Cliente CAT013 Nulo",phone:"",email:"",document:"",birthday:"",address:"",notes:"",active:1},
+      vehicle:{plate:"QAZ1C23",brand:sample.brand,model:sample.name,year:2020,color:"",km:0,chassis:"",fipe_code:sample.fipe_code||"",fipe_model:"",fipe_year_id:"",service_model_id:null}
+    });
+    const createdVehicleText=await createdVehicle.text();
+    assert.equal(createdVehicle.status,201,createdVehicleText);
+    const createdBody=JSON.parse(createdVehicleText) as any;
+    const persistedLink=await db.withTenantRead("local-a",async()=>db.prepare("SELECT service_model_id FROM vehicles WHERE tenant_id=? AND id=?").get("local-a",createdBody.vehicle_id) as any);
+    assert.equal(persistedLink.service_model_id,sample.id);
     assert.equal((await request("/api/tenant",sessions[0],{tenant_id:"local-b"})).status,403);
     assert.equal((await request("/api/logout",sessions[0],{})).status,200);
     assert.equal((await request("/api/session",sessions[0])).status,401);
