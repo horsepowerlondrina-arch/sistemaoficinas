@@ -107,9 +107,6 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
   const [lookedUp, setLookedUp] = useState<Record<string, any>>({});
   const [tab, setTab] = useState(initialCapture && order ? "items" : "details");
   const [itemKind, setItemKind] = useState("product");
-  const [serviceModelId, setServiceModelId] = useState(data.vehicles.find((v) => v.id === order?.vehicle_id)?.service_model_id || '');
-  const storedServiceModelId = data.vehicles.find((v) => v.id === form.vehicle_id)?.service_model_id || '';
-  useEffect(() => { setServiceModelId(storedServiceModelId); }, [form.vehicle_id, lookupPlate, storedServiceModelId]);
   const [serviceModelId,setServiceModelId]=useState(data.vehicles.find(v=>v.id===order?.vehicle_id)?.service_model_id||'');
   const storedServiceModelId=data.vehicles.find(v=>v.id===form.vehicle_id)?.service_model_id||'';
   useEffect(()=>{setServiceModelId(storedServiceModelId);},[form.vehicle_id,lookupPlate,storedServiceModelId]);
