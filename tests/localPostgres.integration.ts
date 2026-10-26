@@ -258,9 +258,9 @@ test("PostgreSQL local: autenticação, oficinas, transações e RLS do catálog
         fipe_status: "found",
         message: "Consulta sintética de teste.",
       };
-      await db.withTenantRead("local-a", async () => db.prepare(
+      await db.prepare(
         "INSERT INTO vehicle_lookup_cache(tenant_id,plate,result_json,expires_at) VALUES(?,?,?,?) ON CONFLICT(tenant_id,plate) DO UPDATE SET result_json=excluded.result_json,expires_at=excluded.expires_at"
-      ).run("local-a","QAZ1C23",JSON.stringify(platePreview),Date.now()+600000));
+      ).run("local-a","QAZ1C23",JSON.stringify(platePreview),Date.now()+600000);
       const refreshed = await request(`/api/vehicles/${createdBody.vehicle_id}/lookup-refresh`,localACookie,{});
       assert.equal(refreshed.status,200,await refreshed.text());
       const previewBody = await refreshed.json() as any;
@@ -296,9 +296,9 @@ test("PostgreSQL local: autenticação, oficinas, transações e RLS do catálog
 
       const secondPreviewResponse=await request(`/api/vehicles/${createdBody.vehicle_id}/lookup-refresh`,localACookie,{});
       const secondPreview=await secondPreviewResponse.json() as any;
-      await db.withTenantRead("local-a",async()=>db.prepare(
+      await db.prepare(
         "UPDATE vehicles SET color='Branco' WHERE tenant_id=? AND id=?"
-      ).run("local-a",createdBody.vehicle_id));
+      ).run("local-a",createdBody.vehicle_id);
       const staleApply=await request(`/api/vehicles/${createdBody.vehicle_id}/apply-lookup`,localACookie,{
         fields:["color"],confirmation_token:secondPreview.confirmation_token,
       });
