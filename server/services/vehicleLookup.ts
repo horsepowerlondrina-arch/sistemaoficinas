@@ -3,9 +3,15 @@ import type { DB } from "../db/database.js";
 import { z } from "zod";
 type FipeLookup = Awaited<ReturnType<typeof lookupFipePlaca>>;
 const pending = new WeakMap<object, Map<string, Promise<FipeLookup>>>();
-function publicCachedLookup<T extends Record<string, unknown>>(result: T): Omit<T, "_confirmation"> {
+type PublicLookupResult = {
+  source: string;
+  vehicle: Record<string, unknown> | null;
+  message: string;
+  [key: string]: unknown;
+};
+function publicCachedLookup(result: Record<string, unknown>): PublicLookupResult {
   const { _confirmation: _discardConfirmation, ...publicResult } = result;
-  return publicResult;
+  return publicResult as PublicLookupResult;
 }
 async function cachedFipeLookup(
   db: DB,
