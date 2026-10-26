@@ -11,6 +11,16 @@ test("PostgreSQL local: autenticação, oficinas, transações e RLS do catálog
   t.after(()=>db.close());
   const credentialsPath=process.env.LOCAL_TEST_CREDENTIALS_FILE || "data/local-credentials.json";
   const credentials=JSON.parse(readFileSync(credentialsPath,"utf8"));
+  await t.test("migração PostgreSQL registra metadados de auditoria de veículos",async()=>{
+    const {adminClient}=await import("../scripts/local-admin");
+    const admin=adminClient(); await admin.connect();
+    try {
+      const column=await admin.query("SELECT column_default,is_nullable FROM information_schema.columns WHERE table_schema='horse_power' AND table_name='audit_events' AND column_name='metadata'");
+      assert.equal(column.rowCount,1);
+      assert.equal(column.rows[0].column_default,"'{}'::text");
+      assert.equal(column.rows[0].is_nullable,"NO");
+    } finally { await admin.end(); }
+  });
   await t.test("porte direto não reaplica exceção histórica nem cria classificação paralela",async()=>{
     const {adminClient}=await import("../scripts/local-admin"); const admin=adminClient(); await admin.connect();
     try {
