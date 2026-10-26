@@ -604,9 +604,7 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
               >
                 <strong>{row.name}</strong>
                 <small>
-                  {mode === "catalog"
-                    ? `${row.minutes} min · ${row.minutes > 0 && rate > 0 ? money(Math.round((row.minutes * rate) / 60)) : "Informe tempo/preço ou configure a hora"}`
-                    : `${row.execution === "outsourced" ? "Terceirizado" : "Interno"} · ${row.porte_name || "Todos os portes"}`}
+                  {`${row.execution === "outsourced" ? "Terceirizado" : "Interno"} · ${row.porte_name || "Todos os portes"}`}
                 </small>
               </button>
               {mode === "manual" && (
