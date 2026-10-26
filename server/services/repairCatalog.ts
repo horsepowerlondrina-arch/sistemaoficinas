@@ -164,17 +164,29 @@ export async function searchModels(db: DB, ctx: Context, query: unknown) {
       const exactFirstPage = q.offset === 0 ? rows : await loadExact(0);
       if (!exactFirstPage.length) {
         const tokens = searchKey(q.q).split(/\s+/).filter(Boolean);
-        for (let count = tokens.length - 1; count >= 1; count--) {
-          const term = tokens.slice(0, count).join(" ");
-          const pattern = "%"+term+"%";
-          const exists = await db.prepare(
-            "SELECT 1 FROM service_catalog.models m WHERE m.brand_id=? AND " + searchColumn("m.name") + " LIKE ? LIMIT 1"
-          ).get(q.brand_id, pattern);
-          if (!exists) continue;
-          rows = await db.prepare(
+        const minimumTokens = Math.min(2, tokens.length);
+        let fallbackPattern = "";
+        let fallbackFirstPage: Row[] = [];
+        for (let count = tokens.length - 1; count >= minimumTokens; count--) {
+          const pattern = "%" + tokens.slice(0, count).join(" ") + "%";
+          const candidates = await db.prepare(
+            "SELECT m.id,m.name,m.brand_id,m.fipe_code,m.classification_id porte_id,b.name brand,p.name porte_name,m.service_count FROM service_catalog.models m JOIN service_catalog.brands b ON b.id=m.brand_id LEFT JOIN service_catalog.classifications p ON p.id=m.classification_id WHERE m.brand_id=? AND " + searchColumn("m.name") + " LIKE ? ORDER BY m.name,m.id LIMIT 31"
+          ).all(q.brand_id, pattern);
+          if (!candidates.length) continue;
+          fallbackPattern = pattern;
+          fallbackFirstPage = candidates;
+          if (candidates.length > 1) break;
+        }
+        if (!fallbackPattern && tokens.length === 1) {
+          fallbackPattern = "%" + tokens[0] + "%";
+          fallbackFirstPage = await db.prepare(
+            "SELECT m.id,m.name,m.brand_id,m.fipe_code,m.classification_id porte_id,b.name brand,p.name porte_name,m.service_count FROM service_catalog.models m JOIN service_catalog.brands b ON b.id=m.brand_id LEFT JOIN service_catalog.classifications p ON p.id=m.classification_id WHERE m.brand_id=? AND " + searchColumn("m.name") + " LIKE ? ORDER BY m.name,m.id LIMIT 31"
+          ).all(q.brand_id, fallbackPattern);
+        }
+        if (fallbackPattern) {
+          rows = q.offset === 0 ? fallbackFirstPage : await db.prepare(
             "SELECT m.id,m.name,m.brand_id,m.fipe_code,m.classification_id porte_id,b.name brand,p.name porte_name,m.service_count FROM service_catalog.models m JOIN service_catalog.brands b ON b.id=m.brand_id LEFT JOIN service_catalog.classifications p ON p.id=m.classification_id WHERE m.brand_id=? AND " + searchColumn("m.name") + " LIKE ? ORDER BY m.name,m.id LIMIT 31 OFFSET ?"
-          ).all(q.brand_id, pattern, q.offset);
-          break;
+          ).all(q.brand_id, fallbackPattern, q.offset);
         }
       }
     }
