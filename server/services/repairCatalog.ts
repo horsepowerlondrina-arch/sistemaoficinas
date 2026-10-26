@@ -162,6 +162,73 @@ export async function searchModels(db: DB, ctx: Context, query: unknown) {
     return { items: rows.slice(0, 30).map(withModelPorte), has_more: rows.length > 30 };
   });
 }
+const vehicleSearchKey = (value: unknown) => searchKey(String(value || "").trim()).replace(/\s+/g, " ");
+const catalogModelSelect = "SELECT m.id,m.name,m.brand_id,m.fipe_code,m.classification_id porte_id,b.name brand,p.name porte_name,m.service_count FROM service_catalog.models m JOIN service_catalog.brands b ON b.id=m.brand_id LEFT JOIN service_catalog.classifications p ON p.id=m.classification_id";
+const vehicleMatchInput = z.object({
+  brand: z.string().trim().max(150).default(""),
+  model: z.string().trim().max(300).default(""),
+  year: z.coerce.number().int().min(1900).max(2100).nullable().optional(),
+  fipe_code: z.string().trim().max(20).default(""),
+  fipe_model: z.string().trim().max(300).default(""),
+  fipe_year_id: z.string().trim().max(30).default(""),
+  service_model_id: z.string().trim().max(80).default(""),
+});
+export type VehicleCatalogMatchStatus = "linked" | "matched" | "needs_confirmation" | "not_identified" | "unavailable" | "mismatch";
+export async function identifyVehicleModel(db: DB, ctx: Context, input: unknown) {
+  const vehicle = vehicleMatchInput.parse(input);
+  const accessState = await tenantRead(db, ctx, () => catalogAccessState(db, ctx));
+  if (accessState !== "active") return { status: "unavailable" as const, catalog_status: accessState, model: null, candidates: [] };
+  const brandKey = vehicleSearchKey(vehicle.brand);
+  const modelHints = [...new Set([vehicle.fipe_model, vehicle.model].map(vehicleSearchKey).filter(Boolean))];
+  if (vehicle.service_model_id) {
+    if (!uuid.safeParse(vehicle.service_model_id).success) return { status: "mismatch" as const, catalog_status: accessState, model: null, candidates: [] };
+    const saved = await db.prepare(catalogModelSelect + " WHERE m.id=?").get(vehicle.service_model_id);
+    if (!saved) return { status: "mismatch" as const, catalog_status: accessState, model: null, candidates: [] };
+    const model = withModelPorte(saved);
+    const brandCompatible = !brandKey || vehicleSearchKey(model.brand) === brandKey;
+    const fipeCompatible = !vehicle.fipe_code || !model.fipe_code || String(model.fipe_code) === vehicle.fipe_code;
+    const savedName = vehicleSearchKey(model.name);
+    const modelCompatible = !modelHints.length || modelHints.some(hint => savedName === hint || savedName.startsWith(hint) || hint.startsWith(savedName));
+    return { status: brandCompatible && fipeCompatible && modelCompatible ? "linked" as const : "mismatch" as const, catalog_status: accessState, model, candidates: [model] };
+  }
+  if (!brandKey) return { status: "not_identified" as const, catalog_status: accessState, model: null, candidates: [] };
+  const brandMatch = searchColumn("b.name") + "=?";
+  const queryCandidates = async (where: string, values: unknown[], order = "") =>
+    (await db.prepare(catalogModelSelect + " WHERE " + brandMatch + " AND (" + where + ") " + order + " LIMIT 21").all(brandKey, ...values)).map(withModelPorte);
+  const byFipe = vehicle.fipe_code
+    ? await queryCandidates("m.fipe_code=?", [vehicle.fipe_code], "ORDER BY m.name,m.id")
+    : [];
+  const sortByHints = (rows: Row[]) => rows.sort((a,b) => {
+    const ak=vehicleSearchKey(a.name), bk=vehicleSearchKey(b.name);
+    const score=(key:string)=>modelHints.reduce((best,hint)=>Math.min(best,key===hint?0:key.startsWith(hint)?1:key.includes(hint)?2:3),3);
+    const yearScore=(key:string)=>vehicle.year && new RegExp(`(^|\\D)${vehicle.year}($|\\D)`).test(key) ? 0 : 1;
+    return score(ak)-score(bk) || yearScore(ak)-yearScore(bk) || String(a.name).localeCompare(String(b.name)) || String(a.id).localeCompare(String(b.id));
+  });
+  if (byFipe.length) {
+    const candidates = sortByHints(byFipe);
+    const selected = candidates.length === 1 ? candidates[0] : null;
+    const nameCompatible = !modelHints.length || modelHints.some(hint => vehicleSearchKey(selected?.name) === hint || vehicleSearchKey(selected?.name).startsWith(hint));
+    if (selected && nameCompatible) return { status: "matched" as const, catalog_status: accessState, model: selected, candidates: [selected] };
+    return { status: "needs_confirmation" as const, catalog_status: accessState, model: null, candidates: candidates.slice(0,10) };
+  }
+  for (const hint of modelHints) {
+    const exact = await queryCandidates(searchColumn("m.name") + "=?", [hint]);
+    if (exact.length === 1) return { status: "matched" as const, catalog_status: accessState, model: exact[0], candidates: exact };
+    if (exact.length > 1) return { status: "needs_confirmation" as const, catalog_status: accessState, model: null, candidates: sortByHints(exact).slice(0,10) };
+  }
+  const searchHint = modelHints[0] || vehicleSearchKey(vehicle.model);
+  if (!searchHint || searchHint.length < 3) return { status: "not_identified" as const, catalog_status: accessState, model: null, candidates: [] };
+  const suggestions = await queryCandidates(searchColumn("m.name") + " LIKE ?", ["%" + searchHint + "%"]);
+  return suggestions.length
+    ? { status: "needs_confirmation" as const, catalog_status: accessState, model: null, candidates: sortByHints(suggestions).slice(0,10) }
+    : { status: "not_identified" as const, catalog_status: accessState, model: null, candidates: [] };
+}
+export async function confirmVehicleModel(db: DB, ctx: Context, vehicle: { brand?: unknown }, modelId: string) {
+  const model = await repairModel(db, ctx, modelId);
+  if (vehicleSearchKey(model.brand) !== vehicleSearchKey(vehicle.brand))
+    throw Object.assign(new Error("O modelo selecionado pertence a outra marca."), { status: 409 });
+  return model;
+}
 export async function searchRepairServices(
   db: DB,
   ctx: Context,

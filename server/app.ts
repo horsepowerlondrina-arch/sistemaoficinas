@@ -51,6 +51,8 @@ import {
   invalidateOrderShares,
   listOrders,
   mechanicWorkspace,
+  previewVehicleCatalogBackfill,
+  applyVehicleCatalogBackfill,
   saveOrder,
   scoped,
   settle,
@@ -70,7 +72,7 @@ import { getWorkshopProfile, saveWorkshopProfile } from "./services/workshopProf
 import { calculatePaymentPlan, paymentMethods } from "./domain/payments.js";
 import { lookupVehicle, providerToken } from "./services/vehicleLookup.js";
 import { vehicleFipeFields } from "./services/vehicleFipeFields.js";
-import { serviceInfo, saveLaborRates, searchBrands, searchModels, repairModel, searchRepairServices, listWorkshopServices, saveWorkshopService, resolveService, serviceSelectionSchema, withTenantScope } from './services/repairCatalog.js';
+import { serviceInfo, saveLaborRates, searchBrands, searchModels, repairModel, identifyVehicleModel, confirmVehicleModel, catalogAccessState, searchRepairServices, listWorkshopServices, saveWorkshopService, resolveService, serviceSelectionSchema, withTenantScope } from './services/repairCatalog.js';
 const text = z.string().trim().max(500).default("");
 const name = z
   .string()
@@ -114,6 +116,7 @@ const schemas = {
     color: text,
     km: integer,
     chassis: text,
+    service_model_id: z.string().uuid().nullable().optional(),
     active: z.number().int().min(0).max(1).default(1),
   }),
   catalog: z.object({
@@ -1004,6 +1007,9 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
   app.put('/api/repair-services/rates',async(req,res)=>{
     await transaction(db,async()=>{await saveLaborRates(db,res.locals.context,req.body.rates);await audit(db,res.locals.context,'labor_rates.updated',res.locals.context.tenantId);});res.json({ok:true});
   });
+  app.post('/api/repair-services/identify-model',async(req,res)=>res.json(await identifyVehicleModel(db,res.locals.context,req.body.vehicle || req.body)));
+  app.post('/api/vehicles/catalog-backfill/preview',async(req,res)=>{ requireAdmin(res.locals.context); const input=z.object({limit:z.number().int().min(1).max(500).optional(),cursor:z.string().max(80).optional()}).parse(req.body||{}); res.json(await previewVehicleCatalogBackfill(db,res.locals.context,input.limit,input.cursor)); });
+  app.post('/api/vehicles/catalog-backfill/apply',async(req,res)=>{ requireAdmin(res.locals.context); const input=z.object({limit:z.number().int().min(1).max(50).optional(),cursor:z.string().max(80).optional()}).parse(req.body||{}); res.json(await applyVehicleCatalogBackfill(db,res.locals.context,input.limit,input.cursor)); });
   app.get('/api/repair-services/brands',async(req,res)=>res.json(await searchBrands(db,res.locals.context,req.query)));
   app.get('/api/repair-services/models',async(req,res)=>res.json(await searchModels(db,res.locals.context,req.query)));
   app.get('/api/repair-services/models/:id',async(req,res)=>res.json(await repairModel(db,res.locals.context,String(req.params.id))));
@@ -1028,6 +1034,16 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
     const vehicle = schemas.vehicles
       .omit({ customer_id: true })
       .parse(req.body.vehicle);
+    let selectedModel: any = null;
+    if (vehicle.service_model_id) {
+      if (await catalogAccessState(db, ctx) === "active") selectedModel = await confirmVehicleModel(db, ctx, vehicle, vehicle.service_model_id);
+      else vehicle.service_model_id = null;
+    }
+    if (!vehicle.service_model_id) {
+      const match = await identifyVehicleModel(db, ctx, vehicle);
+      if (match.status === "matched") { selectedModel = match.model; vehicle.service_model_id = match.model.id; }
+    }
+    (vehicle as any).service_porte_id = selectedModel?.porte_id || "";
     const result = await transaction(db, async () => {
       const customerId = id(),
         vehicleId = id();
@@ -1053,6 +1069,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
         .run(vehicleId, ctx.tenantId, customerId, ...Object.values(vehicle));
       await audit(db, ctx, "customers.created", customerId);
       await audit(db, ctx, "vehicles.created", vehicleId);
+      if (selectedModel) await audit(db, ctx, vehicle.service_model_id === selectedModel.id && req.body.vehicle?.service_model_id ? "vehicles.catalog_link_confirmed" : "vehicles.catalog_link_auto", vehicleId);
       return { id: customerId, vehicle_id: vehicleId };
     });
     res.status(201).json(result);
@@ -1180,6 +1197,19 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
           if (!customer.active) throw new Error("Cliente inativo.");
           if (old && old.customer_id !== input.customer_id)
             await audit(db, ctx, `vehicles.owner_changed:${old.customer_id}:${input.customer_id}`, record!);
+          const explicitModel = Object.prototype.hasOwnProperty.call(input, "service_model_id");
+          let selectedModel: any = null;
+          if (explicitModel && input.service_model_id && input.service_model_id !== old?.service_model_id) {
+            if (await catalogAccessState(db, ctx) === "active") selectedModel = await confirmVehicleModel(db, ctx, input, input.service_model_id);
+            else input.service_model_id = old?.service_model_id || null;
+          } else if (!explicitModel && old?.service_model_id) {
+            input.service_model_id = old.service_model_id;
+          } else if (!old && !explicitModel) {
+            const match = await identifyVehicleModel(db, ctx, input);
+            if (match.status === "matched") { selectedModel = match.model; input.service_model_id = match.model.id; }
+          }
+          input.service_porte_id = selectedModel?.porte_id || (input.service_model_id && input.service_model_id === old?.service_model_id ? old?.service_porte_id || "" : "");
+          if (explicitModel && !input.service_model_id) input.service_porte_id = "";
         }
         if (table === "catalog") {
           if(input.kind==='service')throw new Error('Cadastre e edite os serviços no módulo Serviços.');
@@ -1229,6 +1259,10 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
                 .join(",")})`,
             )
             .run(recordId, ctx.tenantId, ...Object.values(input));
+        if (table === "vehicles" && input.service_model_id && input.service_model_id !== old?.service_model_id) {
+          const confirmed = Object.prototype.hasOwnProperty.call(req.body, "service_model_id") && !!req.body.service_model_id;
+          await audit(db, ctx, confirmed ? "vehicles.catalog_link_confirmed" : "vehicles.catalog_link_auto", recordId);
+        }
         await audit(
           db,
           ctx,

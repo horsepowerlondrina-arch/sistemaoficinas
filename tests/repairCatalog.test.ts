@@ -11,8 +11,9 @@ import {
   saveWorkshopService,
   listWorkshopServices,
   saveLaborRates,
+  identifyVehicleModel,
 } from "../server/services/repairCatalog";
-import { saveOrder, listOrders } from "../server/services/workshop";
+import { saveOrder, listOrders, previewVehicleCatalogBackfill, applyVehicleCatalogBackfill } from "../server/services/workshop";
 import { servicePrice, serviceMinutes } from "../shared/servicePricing";
 
 const ctx = { tenantId: "a", userId: "u", role: "owner" };
@@ -382,3 +383,62 @@ test("serviço particular na OS usa sua tarifa apesar do porte legado em cache n
   } finally { f.db.close(); }
 });
 
+
+test("identificação automática só vincula marca e modelo únicos e preserva vínculo incompatível para revisão", async () => {
+  const f = fixture();
+  try {
+    const unique = await identifyVehicleModel(f.db, ctx, { brand: "Marca", model: "Modelo 2", year: 2020 });
+    assert.equal(unique.status, "matched");
+    assert.equal(unique.model?.id, f.other);
+    const ambiguous = await identifyVehicleModel(f.db, ctx, { brand: "Marca", model: "Modelo", fipe_code: "123456-7" });
+    assert.equal(ambiguous.status, "needs_confirmation");
+    assert.equal(ambiguous.model, null);
+    const wrongBrand = await identifyVehicleModel(f.db, ctx, { brand: "Outra", model: "Modelo 2" });
+    assert.equal(wrongBrand.status, "not_identified");
+    const stale = await identifyVehicleModel(f.db, ctx, { brand: "Outra", model: "Modelo 1", service_model_id: f.model });
+    assert.equal(stale.status, "mismatch");
+    assert.equal(stale.model?.id, f.model);
+    const changed = await identifyVehicleModel(f.db, ctx, { brand: "Marca", model: "Versão diferente", service_model_id: f.model });
+    assert.equal(changed.status, "mismatch");
+    const denied = await identifyVehicleModel(f.db, { ...ctx, tenantId: "b" }, { brand: "Marca", model: "Modelo 2" });
+    assert.equal(denied.status, "unavailable");
+  } finally { f.db.close(); }
+});
+
+test("retroactive catalog preview is read-only and apply links only unique matches within one workshop", async () => {
+  const f = fixture();
+  try {
+    f.db.prepare("UPDATE vehicles SET brand=?,model=?,fipe_code='' WHERE tenant_id=? AND id=?").run("Marca", "Modelo 2", "a", "v");
+    f.db.prepare("INSERT INTO customers(id,tenant_id,name) VALUES('other-customer','b','Outro')").run();
+    f.db.prepare("INSERT INTO vehicles(id,tenant_id,customer_id,plate,brand,model,year) VALUES('other-vehicle','b','other-customer','ABC1D24','Marca','Modelo 2',2020)").run();
+    const preview = await previewVehicleCatalogBackfill(f.db, ctx, 10);
+    assert.equal(preview.dry_run, true);
+    assert.equal(preview.scanned, 1);
+    assert.equal(preview.counts.matched, 1);
+    assert.equal(f.db.prepare("SELECT service_model_id FROM vehicles WHERE tenant_id='a' AND id='v'").get()?.service_model_id, "");
+    const applied = await applyVehicleCatalogBackfill(f.db, ctx, 10);
+    assert.equal(applied.linked, 1);
+    assert.equal(f.db.prepare("SELECT service_model_id FROM vehicles WHERE tenant_id='a' AND id='v'").get()?.service_model_id, f.other);
+    assert.equal(f.db.prepare("SELECT service_model_id FROM vehicles WHERE tenant_id='b' AND id='other-vehicle'").get()?.service_model_id, "");
+  } finally { f.db.close(); }
+});
+
+test("OS com veículo antigo sem vínculo identifica a versão única sem reconsultar a placa", async () => {
+  const f = fixture();
+  try {
+    f.db.prepare("UPDATE vehicles SET brand=?,model=?,fipe_code='' WHERE tenant_id=? AND id=?").run("Marca", "Modelo 2", "a", "v");
+    const orderId = await saveOrder(f.db, ctx, { status: "quote", customer_id: "c", vehicle_id: "v", entered_on: "2026-10-25", due_on: "2026-10-25", km: 0, discount: 0, notes: "", problem: "", items: [] });
+    assert.ok(orderId);
+    assert.equal(f.db.prepare("SELECT service_model_id FROM vehicles WHERE tenant_id='a' AND id='v'").get()?.service_model_id, f.other);
+    assert.equal(f.db.prepare("SELECT action FROM audit_events WHERE tenant_id='a' AND action='vehicles.catalog_link_backfill'").get(), undefined);
+  } finally { f.db.close(); }
+});
+
+test("veículo criado junto à OS recebe vínculo único sem segunda consulta à placa", async () => {
+  const f = fixture();
+  try {
+    const orderId = await saveOrder(f.db, ctx, { status: "open", customer_id: "c", vehicle_id: null, new_vehicle: { plate: "XYZ1A23", brand: "Marca", model: "Modelo 2", year: 2020, color: "", fipe_code: "", fipe_model: "", fipe_year_id: "" }, entered_on: "2026-10-25", due_on: "2026-10-25", km: 0, discount: 0, notes: "", problem: "", items: [] });
+    assert.ok(orderId);
+    assert.equal(f.db.prepare("SELECT service_model_id FROM vehicles WHERE tenant_id='a' AND plate='XYZ1A23'").get()?.service_model_id, f.other);
+  } finally { f.db.close(); }
+});

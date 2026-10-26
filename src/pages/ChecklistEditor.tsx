@@ -21,6 +21,7 @@ import { useApp } from "../lib/context";
 import type { Entity } from "../lib/types";
 import { Empty, Field, PageHeading } from "../components/ui";
 import { PlateField } from "../components/PlateField";
+import { RepairServicePicker } from "../components/RepairServicePicker";
 import { fipeFields, emptyFipe } from "../../shared/vehicleFipe";
 
 const conditionItems = [
@@ -276,6 +277,7 @@ export function ChecklistEditor() {
       year: initialVehicle?.year || new Date().getFullYear(),
       color: initialVehicle?.color || "",
       chassis: initialVehicle?.chassis || "",
+      service_model_id: initialVehicle?.service_model_id || null,
     },
     km: initialOrder?.km || initialVehicle?.km || 0,
     fuel_level: 50,
@@ -522,6 +524,7 @@ export function ChecklistEditor() {
                   year: new Date().getFullYear(),
                   color: "",
                   chassis: "",
+                  service_model_id: null,
                 },
               }));
             }}
@@ -549,6 +552,7 @@ export function ChecklistEditor() {
                     year: Number(found.year || new Date().getFullYear()),
                     color: String(found.color || ""),
                     chassis: String(found.chassis || ""),
+                    service_model_id: found.service_model_id || null,
                   },
                   km: Number(found.km || current.km || 0),
                 }));
@@ -596,6 +600,7 @@ export function ChecklistEditor() {
                     : "Confira os dados abaixo. O cadastro só será criado quando o checklist for finalizado."}
                 </span>
               </div>
+              <RepairServicePicker vehicle={creating.vehicle_data} modelId={String(creating.vehicle_data.service_model_id || "")} onModelChange={(id) => setCreating((current) => ({ ...current, vehicle_data: { ...current.vehicle_data, service_model_id: id || null } }))} vehicleOnly />
 
               {!local && !initialOrder && (
                 <div className="form-grid checklist-customer-step">

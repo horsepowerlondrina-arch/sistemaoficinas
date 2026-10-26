@@ -5,6 +5,7 @@ import { requireAdmin } from "./payments.js";
 import { normalizePlate } from "./vehicleLookup.js";
 import { vehicleFipeFields } from "./vehicleFipeFields.js";
 import { audit, id, saveOrder, scoped } from "./workshop.js";
+import { identifyVehicleModel, confirmVehicleModel, catalogAccessState } from "./repairCatalog.js";
 
 const conditionState = z.enum(["ok", "issue", "unchecked"]);
 const damageSchema = z.object({
@@ -20,6 +21,7 @@ const vehicleDataSchema = z.object({
   year: z.number().int().min(1900).max(2100),
   color: z.string().trim().max(80).default(""),
   chassis: z.string().trim().max(100).default(""),
+  service_model_id: z.string().uuid().nullable().optional(),
 });
 const createSchema = z.object({
   order_id: z.string().trim().min(1).nullable().optional(),
@@ -410,6 +412,22 @@ export async function finalizeChecklist(
           );
         await audit(db, ctx, "vehicles.created_from_checklist", vehicleId);
         vehicle = await scoped(db, "vehicles", ctx.tenantId, vehicleId);
+      }
+    }
+
+    const vehicleDataRaw = parseJson(value.vehicle_data_json, {});
+    const requestedModelId = typeof vehicleDataRaw?.service_model_id === "string" && vehicleDataRaw.service_model_id ? z.string().uuid().parse(vehicleDataRaw.service_model_id) : "";
+    if (vehicle) {
+      let selectedModel: any = null;
+      if (requestedModelId && requestedModelId !== vehicle.service_model_id && await catalogAccessState(db, ctx) === "active") selectedModel = await confirmVehicleModel(db, ctx, vehicle, requestedModelId);
+      else if (!vehicle.service_model_id) {
+        const match = await identifyVehicleModel(db, ctx, vehicle);
+        if (match.status === "matched") selectedModel = match.model;
+      }
+      if (selectedModel) {
+        await db.prepare("UPDATE vehicles SET service_model_id=?,service_porte_id=? WHERE tenant_id=? AND id=?").run(selectedModel.id, selectedModel.porte_id || "", ctx.tenantId, vehicle.id);
+        vehicle.service_model_id = selectedModel.id; vehicle.service_porte_id = selectedModel.porte_id || "";
+        await audit(db, ctx, requestedModelId ? "vehicles.catalog_link_confirmed" : "vehicles.catalog_link_auto", String(vehicle.id));
       }
     }
 
