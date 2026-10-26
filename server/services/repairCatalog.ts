@@ -148,16 +148,17 @@ async function commercialRate(db: DB, ctx: Context, categoryId: string) {
 export async function searchBrands(db: DB, ctx: Context, query: unknown) {
   const q = z.object({ q: z.string().trim().max(100).default(""), offset: z.coerce.number().int().min(0).max(1000).default(0) }).parse(query);
   return withCatalog(db, ctx, async () => {
-    if (!q.q) return { items: [], has_more: false };
-    const rows = await db.prepare("SELECT id,name FROM service_catalog.brands WHERE " + searchColumn("name") + " LIKE ? ORDER BY CASE WHEN " + searchColumn("name") + "=? THEN 0 ELSE 1 END,name,id LIMIT 21 OFFSET ?").all("%" + searchKey(q.q) + "%", searchKey(q.q), q.offset);
+    const rows = await db.prepare("SELECT b.id,b.name,(SELECT count(*) FROM service_catalog.models m WHERE m.brand_id=b.id) vehicle_count FROM service_catalog.brands b WHERE " + searchColumn("b.name") + " LIKE ? ORDER BY CASE WHEN " + searchColumn("b.name") + "=? THEN 0 ELSE 1 END,b.name,b.id LIMIT 21 OFFSET ?").all("%" + searchKey(q.q) + "%", searchKey(q.q), q.offset);
     return { items: rows.slice(0, 20), has_more: rows.length > 20 };
   });
 }
 export async function searchModels(db: DB, ctx: Context, query: unknown) {
-  const q = z.object({ brand_id: uuid, q: z.string().trim().max(100).default(""), fipe: z.string().max(20).default(""), offset: z.coerce.number().int().min(0).max(10000).default(0) }).parse(query);
+  const q = z.object({ brand_id: uuid, q: z.string().trim().max(100).default(""), fipe: z.string().max(20).default(""), preferred: z.string().trim().max(200).default(""), year: z.string().trim().max(10).default(""), offset: z.coerce.number().int().min(0).max(10000).default(0) }).parse(query);
   return withCatalog(db, ctx, async () => {
-    const sql = "SELECT m.id,m.name,m.brand_id,m.fipe_code,m.classification_id porte_id,b.name brand,p.name porte_name,m.service_count FROM service_catalog.models m JOIN service_catalog.brands b ON b.id=m.brand_id LEFT JOIN service_catalog.classifications p ON p.id=m.classification_id WHERE m.brand_id=? AND ((?='' AND ?='') OR (?<>'' AND " + searchColumn("m.name") + " LIKE ?) OR (?<>'' AND m.fipe_code=?)) ORDER BY CASE WHEN (?<>'' AND m.fipe_code=?) THEN 0 ELSE 1 END,m.name,m.id LIMIT 31 OFFSET ?";
-    const rows = await db.prepare(sql).all(q.brand_id, q.q, q.fipe, q.q, "%" + searchKey(q.q) + "%", q.fipe, q.fipe, q.fipe, q.fipe, q.offset);
+    const sql = "SELECT m.id,m.name,m.brand_id,m.fipe_code,m.classification_id porte_id,b.name brand,p.name porte_name,m.service_count FROM service_catalog.models m JOIN service_catalog.brands b ON b.id=m.brand_id LEFT JOIN service_catalog.classifications p ON p.id=m.classification_id WHERE m.brand_id=? AND (" + searchColumn("m.name") + " LIKE ? OR (?<>'' AND m.fipe_code=?) OR (?<>'' AND " + searchColumn("m.name") + " LIKE ?)) ORDER BY CASE WHEN (?<>'' AND m.fipe_code=?) THEN 0 ELSE 1 END,CASE WHEN (?<>'' AND " + searchColumn("m.name") + "=?) THEN 0 ELSE 1 END,CASE WHEN (?<>'' AND " + searchColumn("m.name") + " LIKE ?) THEN 0 ELSE 1 END,CASE WHEN (?<>'' AND " + searchColumn("m.name") + " LIKE ?) THEN 0 ELSE 1 END,CASE WHEN (?<>'' AND " + searchColumn("m.name") + "=?) THEN 0 ELSE 1 END,m.name,m.id LIMIT 31 OFFSET ?";
+    const preferredKey = searchKey(q.preferred);
+    const yearKey = searchKey(q.year);
+    const rows = await db.prepare(sql).all(q.brand_id,"%"+searchKey(q.q)+"%",q.fipe,q.fipe,q.preferred,"%"+preferredKey+"%",q.fipe,q.fipe,q.preferred,preferredKey,q.preferred,"%"+preferredKey+"%",q.year,"%"+yearKey+"%",q.q,searchKey(q.q),q.offset);
     return { items: rows.slice(0, 30).map(withModelPorte), has_more: rows.length > 30 };
   });
 }

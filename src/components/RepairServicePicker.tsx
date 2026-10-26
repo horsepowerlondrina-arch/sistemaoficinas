@@ -1,4 +1,5 @@
-import { useEffect, useState, type KeyboardEvent } from "react";
+import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
+import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { api, send } from "../lib/api";
 import { money, type Entity } from "../lib/types";
@@ -271,27 +272,65 @@ function ServiceForm({
   );
 }
 const normalizeCatalogValue = (value: string) => value.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase().trim();
+const formatCatalogMinutes = (value: unknown) => {
+  const total = Math.max(0, Math.round(Number(value) || 0));
+  const hours = Math.floor(total / 60), minutes = total % 60;
+  return [hours ? hours + "h" : "", minutes || !hours ? minutes + " min" : ""].filter(Boolean).join(" ");
+};
 
-export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd }: {
+export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, brandLocked = false }: {
   vehicle?: Record<string, any>;
   modelId: string;
   onModelChange: (id: string) => void;
   onAdd?: (item: Entity) => void;
+  brandLocked?: boolean;
 }) {
   const [info, setInfo] = useState<Info | null>(null), [error, setError] = useState("");
-  const [mode, setMode] = useState("manual"), [model, setModel] = useState<Entity | null>(null),
-    [models, setModels] = useState<Entity[]>([]), [modelSearch, setModelSearch] = useState(String(vehicle?.model || vehicle?.fipe_model || "")),
-    [modelOffset, setModelOffset] = useState(0), [moreModels, setMoreModels] = useState(false),
-    [matchingFipe, setMatchingFipe] = useState(!!vehicle?.fipe_code), [choosing, setChoosing] = useState(!modelId);
+  const [mode, setMode] = useState("manual");
+  const [models, setModels] = useState<Entity[]>([]), [modelSearch, setModelSearch] = useState(String(vehicle?.model || vehicle?.fipe_model || "")),
+    [modelOffset, setModelOffset] = useState(0), [moreModels, setMoreModels] = useState(false);
   const [brand, setBrand] = useState<Entity | null>(null), [brandQuery, setBrandQuery] = useState(String(vehicle?.brand || "")),
     [brandOptions, setBrandOptions] = useState<Entity[]>([]), [brandOffset, setBrandOffset] = useState(0),
-    [brandMore, setBrandMore] = useState(false), [brandOpen, setBrandOpen] = useState(false), [modelOpen, setModelOpen] = useState(!modelId),
+    [brandMore, setBrandMore] = useState(false), [brandOpen, setBrandOpen] = useState(!!vehicle?.brand && !modelId && !brandLocked), [modelOpen, setModelOpen] = useState(false),
     [brandActiveIndex, setBrandActiveIndex] = useState(-1), [modelActiveIndex, setModelActiveIndex] = useState(-1),
+    [serviceOpen, setServiceOpen] = useState(false), [serviceActiveIndex, setServiceActiveIndex] = useState(-1),
     [modelsLoading, setModelsLoading] = useState(false), [autoBrandPending, setAutoBrandPending] = useState(!!vehicle?.brand && !modelId);
   const [porte, setPorte] = useState(String(vehicle?.service_porte_id || "")),
     [commercialCategory, setCommercialCategory] = useState(String(vehicle?.service_commercial_category_id || "")),
     [search, setSearch] = useState(""), [offset, setOffset] = useState(0), [rows, setRows] = useState<Entity[]>([]),
     [more, setMore] = useState(false), [loading, setLoading] = useState(false), [revision, setRevision] = useState(0);
+  const pickerRef = useRef<HTMLElement | null>(null), dropdownRef = useRef<HTMLDivElement | null>(null);
+  const brandInputRef = useRef<HTMLInputElement | null>(null), modelInputRef = useRef<HTMLInputElement | null>(null), serviceInputRef = useRef<HTMLInputElement | null>(null);
+  const dropdownId = useId().replace(/:/g, "");
+  const [dropdownPosition, setDropdownPosition] = useState<{ left: number; top: number; width: number; maxHeight: number } | null>(null);
+  const openKind = brandOpen ? "brand" : modelOpen ? "vehicle" : serviceOpen ? "service" : null;
+  useEffect(() => {
+    const closeIfOutside = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (pickerRef.current?.contains(target) || dropdownRef.current?.contains(target)) return;
+      setBrandOpen(false); setModelOpen(false); setServiceOpen(false);
+    };
+    document.addEventListener("pointerdown", closeIfOutside);
+    return () => document.removeEventListener("pointerdown", closeIfOutside);
+  }, []);
+  useEffect(() => {
+    if (!openKind) { setDropdownPosition(null); return; }
+    const update = () => {
+      const anchor = openKind === "brand" ? brandInputRef.current : openKind === "vehicle" ? modelInputRef.current : serviceInputRef.current;
+      if (!anchor) return;
+      const rect = anchor.getBoundingClientRect();
+      const below = window.innerHeight - rect.bottom - 12, above = rect.top - 12;
+      const maxHeight = Math.max(120, Math.min(320, below >= 180 ? below : Math.max(above, 120)));
+      const top = below >= 180 ? rect.bottom + 4 : Math.max(8, rect.top - maxHeight - 4);
+      const width = Math.min(rect.width, window.innerWidth - 16);
+      const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
+      setDropdownPosition({ left, top, width, maxHeight });
+    };
+    update();
+    window.addEventListener("resize", update);
+    window.addEventListener("scroll", update, true);
+    return () => { window.removeEventListener("resize", update); window.removeEventListener("scroll", update, true); };
+  }, [openKind]);
   const [editing, setEditing] = useState<Entity | null | undefined>(), [selected, setSelected] = useState<Entity | null>(null),
     [execution, setExecution] = useState("internal"), [cost, setCost] = useState(0), [minutes, setMinutes] = useState(0),
     [price, setPrice] = useState(0), [inputMode, setInputMode] = useState("time"), [adding, setAdding] = useState(false);
@@ -302,18 +341,18 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd }: 
   }, []);
   useEffect(() => {
     let active = true;
-    if (!modelId) { setModel(null); setPorte(""); setCommercialCategory(""); return () => { active = false; }; }
+    if (!modelId) { setPorte(""); setCommercialCategory(""); return () => { active = false; }; }
     if (!info?.enabled) return () => { active = false; };
     api<Entity>(`/repair-services/models/${modelId}`).then((v) => {
       if (!active) return;
-      setModel(v); setBrand({ id: v.brand_id, name: v.brand }); setBrandQuery(String(v.brand || ""));
+      setBrand({ id: v.brand_id, name: v.brand }); setBrandQuery(String(v.brand || ""));
       setModelSearch(String(v.name || "")); setBrandOpen(false); setModelOpen(false); setAutoBrandPending(false);
-      setPorte(v.porte_id || ""); setCommercialCategory(v.commercial_category_id || ""); setChoosing(false); setError("");
+      setPorte(v.porte_id || ""); setCommercialCategory(v.commercial_category_id || ""); setError("");
     }).catch((e) => {
       if (!active) return;
       const message = String(e?.message || e);
       if (message.includes("Modelo não encontrado no catálogo")) {
-        setModel(null); setBrand(null); setBrandQuery(String(vehicle?.brand || ""));
+        setBrand(null); setBrandQuery(String(vehicle?.brand || ""));
         setModelSearch(String(vehicle?.model || vehicle?.fipe_model || "")); setAutoBrandPending(!!vehicle?.brand);
         setBrandOpen(!!vehicle?.brand); setModelOpen(!!(vehicle?.model || vehicle?.fipe_code));
         setPorte(""); setCommercialCategory(""); onModelChange(""); setError("");
@@ -323,7 +362,7 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd }: 
   }, [modelId, info?.enabled, vehicle?.brand, vehicle?.model, vehicle?.fipe_model, vehicle?.fipe_code, onModelChange]);
   useEffect(() => {
     let active = true; setBrandOptions([]); setBrandMore(false);
-    if (!info?.enabled || mode !== "catalog" || !brandQuery.trim()) return () => { active = false; };
+    if (!info?.enabled || mode !== "catalog" || (!brandOpen && !autoBrandPending)) return () => { active = false; };
     const timer = setTimeout(() => {
       const params = new URLSearchParams({ q: brandQuery, offset: String(brandOffset) });
       api<{ items: Entity[]; has_more: boolean }>("/repair-services/brands?" + params).then((v) => {
@@ -339,22 +378,22 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd }: 
       }).catch((e) => active && setError(e.message));
     }, 250);
     return () => { active = false; clearTimeout(timer); };
-  }, [info?.enabled, mode, brandQuery, brandOffset, autoBrandPending, vehicle?.brand, vehicle?.model, vehicle?.fipe_model, vehicle?.fipe_code]);
+  }, [info?.enabled, mode, brandQuery, brandOffset, brandOpen, autoBrandPending, vehicle?.brand, vehicle?.model, vehicle?.fipe_model, vehicle?.fipe_code]);
   useEffect(() => {
     let active = true; setModels([]); setMoreModels(false);
     if (!info?.enabled || mode !== "catalog" || !brand?.id || !modelOpen) { setModelsLoading(false); return () => { active = false; }; }
     setModelsLoading(true);
     const timer = setTimeout(() => {
-      const params = new URLSearchParams({ brand_id: String(brand.id), q: modelSearch, fipe: matchingFipe ? String(vehicle?.fipe_code || "") : "", offset: String(modelOffset) });
+      const params = new URLSearchParams({ brand_id: String(brand.id), q: modelSearch, fipe: String(vehicle?.fipe_code || ""), preferred: String(vehicle?.model || vehicle?.fipe_model || ""), year: String(vehicle?.year || ""), offset: String(modelOffset) });
       api<{ items: Entity[]; has_more: boolean }>("/repair-services/models?" + params).then((v) => {
         if (!active) return; setModels(v.items); setMoreModels(v.has_more); setModelActiveIndex(-1);
       }).catch((e) => active && setError(e.message)).finally(() => active && setModelsLoading(false));
     }, 250);
     return () => { active = false; clearTimeout(timer); };
-  }, [info?.enabled, mode, brand?.id, modelOpen, modelSearch, matchingFipe, vehicle?.fipe_code, modelOffset]);
+  }, [info?.enabled, mode, brand?.id, modelOpen, modelSearch, vehicle?.fipe_code, vehicle?.model, vehicle?.fipe_model, vehicle?.year, modelOffset]);
   useEffect(() => {
-    let active = true; setRows([]); setMore(false); setSelected(null); setLoading(false);
-    if (mode === "catalog" && !modelId) return () => { active = false; };
+    let active = true; setRows([]); setMore(false); setLoading(false);
+    if (mode === "catalog" && (!modelId || !serviceOpen)) return () => { active = false; };
     setLoading(true);
     const timer = setTimeout(() => {
       const params = new URLSearchParams({ q: search, offset: String(offset), category_id: commercialCategory });
@@ -363,80 +402,147 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd }: 
         .catch((e) => active && setError(e.message)).finally(() => active && setLoading(false));
     }, 250);
     return () => { active = false; clearTimeout(timer); };
-  }, [mode, modelId, commercialCategory, search, offset, revision]);
+  }, [mode, modelId, commercialCategory, search, offset, revision, serviceOpen]);
   const rate = Number(info?.categories.find((p) => p.id === commercialCategory)?.hourly_rate || 0);
+  function closeDropdowns() { setBrandOpen(false); setModelOpen(false); setServiceOpen(false); }
+  function openBrandDropdown() {
+    if (brandLocked) return;
+    setBrandOpen(true); setModelOpen(false); setServiceOpen(false);
+  }
+  function openModelDropdown() {
+    if (!brand?.id) return;
+    setBrandOpen(false); setModelOpen(true); setServiceOpen(false);
+  }
+  function openServiceDropdown() {
+    if (!modelId) return;
+    setBrandOpen(false); setModelOpen(false); setServiceOpen(true);
+  }
+  function toggleBrandDropdown() { if (brandOpen) setBrandOpen(false); else openBrandDropdown(); }
+  function toggleModelDropdown() { if (modelOpen) setModelOpen(false); else openModelDropdown(); }
+  function toggleServiceDropdown() { if (serviceOpen) setServiceOpen(false); else openServiceDropdown(); }
   function choose(row: Entity) {
-    setSelected(row); if (row.commercial_category_id) setCommercialCategory(row.commercial_category_id);
+    setSelected(row);
+    if (mode === "catalog") { setSearch(String(row.name || "")); closeDropdowns(); }
+    if (row.commercial_category_id) setCommercialCategory(row.commercial_category_id);
     setExecution(row.execution || "internal"); setCost(Number(row.cost || 0)); setMinutes(Number(row.minutes || 0));
     setPrice(Number(row.price || 0)); setInputMode("time"); setError("");
+    if (mode === "catalog") serviceInputRef.current?.focus();
   }
   function chooseBrand(row: Entity) {
-    setBrand(row); setBrandQuery(String(row.name)); setBrandOptions([]); setBrandOpen(false); setBrandActiveIndex(-1);
-    setAutoBrandPending(false); setModel(null); setModelSearch(""); setModels([]); setModelOffset(0); setMoreModels(false);
-    setModelActiveIndex(-1); setModelOpen(true); setPorte(""); setCommercialCategory(""); onModelChange("");
-    setOffset(0); setSelected(null); setError("");
+    setBrand(row); setBrandQuery(String(row.name)); setBrandOptions([]); setBrandActiveIndex(-1);
+    setAutoBrandPending(false); setModelSearch(""); setModels([]); setModelOffset(0); setMoreModels(false);
+    setModelActiveIndex(-1); setBrandOpen(false); setModelOpen(true); setServiceOpen(false);
+    setPorte(""); setCommercialCategory(""); onModelChange(""); setSearch(""); setSelected(null);
+    setOffset(0); setError(""); modelInputRef.current?.focus();
   }
   function editBrand(value: string) {
-    setBrand(null); setBrandQuery(value); setBrandOffset(0); setBrandOpen(true); setBrandActiveIndex(-1); setAutoBrandPending(false);
-    setModel(null); setModelSearch(""); setModels([]); setModelOffset(0); setMoreModels(false); setModelOpen(false);
-    setPorte(""); setCommercialCategory(""); onModelChange(""); setOffset(0); setSelected(null); setError("");
+    if (brandLocked) return;
+    setBrand(null); setBrandQuery(value); setBrandOffset(0); setBrandActiveIndex(-1); setAutoBrandPending(false);
+    setBrandOpen(true); setModelOpen(false); setServiceOpen(false);
+    setModelSearch(""); setModels([]); setModelOffset(0); setMoreModels(false); setModelActiveIndex(-1);
+    setPorte(""); setCommercialCategory(""); onModelChange(""); setSearch(""); setOffset(0); setSelected(null); setError("");
   }
   function editModel(value: string) {
-    setModel(null); setModelSearch(value); setModelOffset(0); setModelActiveIndex(-1); setModelOpen(true);
-    setPorte(""); setCommercialCategory(""); onModelChange(""); setOffset(0); setSelected(null); setError("");
+    setModelSearch(value); setModelOffset(0); setModelActiveIndex(-1);
+    setBrandOpen(false); setModelOpen(true); setServiceOpen(false);
+    setPorte(""); setCommercialCategory(""); onModelChange(""); setSearch(""); setOffset(0); setSelected(null); setError("");
   }
   function chooseModel(row: Entity) {
-    setModel(row); setBrand({ id: row.brand_id, name: row.brand }); setBrandQuery(String(row.brand || ""));
-    setBrandOptions([]); setBrandOpen(false); setModelSearch(String(row.name || "")); setModels([]); setModelOpen(false);
+    setBrand({ id: row.brand_id, name: row.brand }); setBrandQuery(String(row.brand || ""));
+    setBrandOptions([]); setModelSearch(String(row.name || "")); setModels([]);
+    setBrandOpen(false); setModelOpen(false); setServiceOpen(false);
     setPorte(row.porte_id || ""); setCommercialCategory(row.commercial_category_id || ""); onModelChange(row.id);
-    setChoosing(false); setOffset(0); setSelected(null); setError("");
+    setSearch(""); setOffset(0); setSelected(null); setError("");
+    window.setTimeout(() => serviceInputRef.current?.focus(), 0);
   }
   function brandKeyDown(event: KeyboardEvent<HTMLInputElement>) {
-    if (event.key === "ArrowDown") { event.preventDefault(); setBrandOpen(true); setBrandActiveIndex((i) => Math.min(i + 1, brandOptions.length - 1)); }
+    if (event.key === "ArrowDown") { event.preventDefault(); openBrandDropdown(); setBrandActiveIndex((i) => Math.min(i < 0 ? 0 : i + 1, Math.max(brandOptions.length - 1, 0))); }
     else if (event.key === "ArrowUp") { event.preventDefault(); setBrandActiveIndex((i) => Math.max(i - 1, 0)); }
     else if (event.key === "Enter" && brandOpen) { const exact = brandOptions.filter((x) => normalizeCatalogValue(String(x.name)) === normalizeCatalogValue(brandQuery)); const row = brandOptions[brandActiveIndex] || (exact.length === 1 ? exact[0] : null); if (row) { event.preventDefault(); chooseBrand(row); } }
     else if (event.key === "Escape") setBrandOpen(false);
   }
   function modelKeyDown(event: KeyboardEvent<HTMLInputElement>) {
-    if (event.key === "ArrowDown") { event.preventDefault(); setModelOpen(true); setModelActiveIndex((i) => Math.min(i + 1, models.length - 1)); }
+    if (event.key === "ArrowDown") { event.preventDefault(); openModelDropdown(); setModelActiveIndex((i) => Math.min(i < 0 ? 0 : i + 1, Math.max(models.length - 1, 0))); }
     else if (event.key === "ArrowUp") { event.preventDefault(); setModelActiveIndex((i) => Math.max(i - 1, 0)); }
     else if (event.key === "Enter" && modelOpen) { const exact = models.filter((x) => normalizeCatalogValue(String(x.name)) === normalizeCatalogValue(modelSearch)); const row = models[modelActiveIndex] || (exact.length === 1 ? exact[0] : null); if (row) { event.preventDefault(); chooseModel(row); } }
     else if (event.key === "Escape") setModelOpen(false);
   }
+  function serviceKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "ArrowDown") { event.preventDefault(); openServiceDropdown(); setServiceActiveIndex((i) => Math.min(i < 0 ? 0 : i + 1, Math.max(rows.length - 1, 0))); }
+    else if (event.key === "ArrowUp") { event.preventDefault(); setServiceActiveIndex((i) => Math.max(i - 1, 0)); }
+    else if (event.key === "Enter" && serviceOpen) { const exact = rows.filter((x) => normalizeCatalogValue(String(x.name)) === normalizeCatalogValue(search)); const row = rows[serviceActiveIndex] || (exact.length === 1 ? exact[0] : null); if (row) { event.preventDefault(); choose(row); } }
+    else if (event.key === "Escape") setServiceOpen(false);
+  }
+  const dropdownContent = openKind && dropdownPosition && typeof document !== "undefined" ? createPortal(
+    <div ref={dropdownRef} className="catalog-dropdown" style={{ position: "fixed", left: dropdownPosition.left, top: dropdownPosition.top, width: dropdownPosition.width, zIndex: 9999 }}>
+      {openKind === "brand" && <div className="catalog-dropdown-list" style={{ maxHeight: dropdownPosition.maxHeight }}>
+        <div id={dropdownId + "-brands"} role="listbox" aria-label="Marcas">
+          {brandOptions.map((row, index) => <button id={dropdownId + "-brand-" + index} type="button" role="option" aria-selected={index === brandActiveIndex} className="catalog-dropdown-option" key={row.id} onClick={() => chooseBrand(row)}>
+            <strong>{row.name}</strong><small>{Number(row.vehicle_count || 0).toLocaleString("pt-BR")} veículos</small>
+          </button>)}
+        </div>
+        {!brandOptions.length && <p className="catalog-dropdown-empty">Nenhuma marca encontrada.</p>}
+        {brandMore && <button type="button" className="catalog-dropdown-more" onClick={() => setBrandOffset((v) => v + 20)}>Mais marcas</button>}
+      </div>}
+      {openKind === "vehicle" && <div className="catalog-dropdown-list" aria-busy={modelsLoading} style={{ maxHeight: dropdownPosition.maxHeight }}>
+        <div id={dropdownId + "-vehicles"} role="listbox" aria-label="Veículos do catálogo">
+          {!modelsLoading && models.map((row, index) => <button id={dropdownId + "-vehicle-" + index} type="button" role="option" aria-selected={index === modelActiveIndex} className="catalog-dropdown-option" key={row.id} onClick={() => chooseModel(row)}>
+            <strong>{row.name}</strong><small>{row.porte_name}</small>
+          </button>)}
+        </div>
+        {modelsLoading && <p role="status" className="catalog-dropdown-empty">Buscando veículos…</p>}
+        {!modelsLoading && !models.length && <p className="catalog-dropdown-empty">Nenhum veículo encontrado.</p>}
+        {!modelsLoading && <button type="button" className="catalog-dropdown-more" disabled={!moreModels} onClick={() => setModelOffset((v) => v + 30)}>{moreModels ? "Mais veículos" : "Fim da lista"}</button>}
+      </div>}
+      {openKind === "service" && <div className="catalog-dropdown-list" aria-busy={loading} style={{ maxHeight: dropdownPosition.maxHeight }}>
+        <div id={dropdownId + "-services"} role="listbox" aria-label="Serviços do veículo">
+          {!loading && rows.map((row, index) => <button id={dropdownId + "-service-" + index} type="button" role="option" aria-selected={index === serviceActiveIndex} className="catalog-dropdown-option" key={row.service_id || row.id} onClick={() => choose(row)}>
+            <strong>{row.name}</strong><small>{Number(row.minutes) > 0 ? formatCatalogMinutes(row.minutes) + " · " + (rate > 0 ? money(Math.round((Number(row.minutes) * rate) / 60)) : "Configure a tarifa do porte") : "Tempo técnico não cadastrado"}</small>
+          </button>)}
+        </div>
+        {loading && <p role="status" className="catalog-dropdown-empty">Buscando serviços…</p>}
+        {!loading && !rows.length && <p className="catalog-dropdown-empty">Nenhum serviço encontrado.</p>}
+        {!loading && <div className="catalog-dropdown-pagination">
+          <button type="button" disabled={!offset || loading} onClick={() => setOffset((v) => Math.max(0, v - 50))}>Anterior</button>
+          <button type="button" disabled={!more || loading} onClick={() => setOffset((v) => v + 50)}>Mais serviços</button>
+        </div>}
+      </div>}
+    </div>,
+    document.body,
+  ) : null;
   return (
-    <section className="repair-picker">
+    <>
+      <section className="repair-picker" ref={pickerRef}>
       <div className="tabs">
-        <button type="button" className={mode === "catalog" ? "active" : ""} disabled={!info?.enabled} onClick={() => { setMode("catalog"); setOffset(0); }}>Catálogo de tempos</button>
-        <button type="button" className={mode === "manual" ? "active" : ""} onClick={() => { setMode("manual"); setOffset(0); }}>Serviços da oficina</button>
+        <button type="button" className={mode === "catalog" ? "active" : ""} disabled={!info?.enabled} onClick={() => { closeDropdowns(); setSelected(null); setMode("catalog"); setOffset(0); }}>Catálogo de tempos</button>
+        <button type="button" className={mode === "manual" ? "active" : ""} onClick={() => { closeDropdowns(); setSelected(null); setMode("manual"); setOffset(0); }}>Serviços da oficina</button>
       </div>
       {!info?.enabled && info && <p role="status">{info.catalog_status === "active" ? "Não foi possível consultar o Catálogo Técnico agora." : catalogStatusMessage[info.catalog_status]} Seus serviços particulares continuam disponíveis.</p>}
-      {mode === "catalog" && (
-        <>
-          <div className="repair-model">
-            <strong>{model ? `${model.brand} · ${model.name}` : "Confirme o modelo do veículo"}</strong>
-            {model && <p>Porte: {model.porte_name} · FIPE: {model.fipe_code || "não informado"}</p>}
-            <button type="button" className="button" onClick={() => { setChoosing(true); if (brand?.id) setModelOpen(true); }}>{model ? "Alterar marca ou modelo" : "Escolher marca e modelo"}</button>
-            <p className="muted">{vehicle ? [vehicle.brand, vehicle.model, vehicle.year].filter(Boolean).join(" · ") : "Escolha o veículo para consultar seus serviços."} Confira versão, motor e câmbio. Versões ambíguas precisam de confirmação.</p>
-          </div>
-          {choosing && (
-            <div className="repair-model-search">
-              <Field label="Marca"><input role="combobox" aria-autocomplete="list" aria-expanded={brandOpen && brandOptions.length > 0} aria-controls="repair-brand-options" autoComplete="off" value={brandQuery} onFocus={() => { if (brandQuery.trim()) setBrandOpen(true); }} onChange={(e) => editBrand(e.target.value)} onKeyDown={brandKeyDown} placeholder="Digite a marca" /></Field>
-              {brandOpen && brandOptions.length > 0 && <div id="repair-brand-options" className="repair-results" role="listbox" aria-label="Sugestões de marca">
-                {brandOptions.map((row, index) => <button type="button" role="option" aria-selected={index === brandActiveIndex} className="button repair-result" key={row.id} onClick={() => chooseBrand(row)}><strong>{row.name}</strong></button>)}
-                {brandMore && <button type="button" className="button" onClick={() => setBrandOffset((v) => v + 20)}>Mais marcas</button>}
-              </div>}
-              <Field label="Modelo"><input role="combobox" aria-autocomplete="list" aria-expanded={modelOpen && models.length > 0} aria-controls="repair-model-options" autoComplete="off" disabled={!brand?.id} value={modelSearch} onFocus={() => { if (brand?.id) setModelOpen(true); }} onChange={(e) => editModel(e.target.value)} onKeyDown={modelKeyDown} placeholder={brand?.id ? "Digite modelo, versão ou motor" : "Selecione uma marca primeiro"} /></Field>
-              {!brand?.id && <p className="muted">Escolha uma marca para pesquisar somente os modelos correspondentes.</p>}
-              {vehicle?.fipe_code && brand?.id && <label><input type="checkbox" checked={matchingFipe} onChange={(e) => { setMatchingFipe(e.target.checked); setModelOffset(0); }} /> Incluir candidatos do código FIPE {vehicle.fipe_code}</label>}
-              {modelOpen && brand?.id && <div id="repair-model-options" className="repair-results" role="listbox" aria-label="Sugestões de modelo" aria-busy={modelsLoading}>
-                {modelsLoading ? <p role="status">Buscando modelos desta marca…</p> : models.map((row, index) => <button type="button" role="option" aria-selected={index === modelActiveIndex} className="button repair-result" key={row.id} onClick={() => chooseModel(row)}><strong>{row.name}</strong><small>{row.porte_name} · FIPE {row.fipe_code || "não informado"} · {row.service_count} serviços</small></button>)}
-                {!modelsLoading && !models.length && <p>Nenhuma opção encontrada. Ajuste a busca ou o código FIPE.</p>}
-                {!modelsLoading && <div className="capture-actions"><button type="button" className="button" disabled={!modelOffset || modelsLoading} onClick={() => setModelOffset((v) => Math.max(0, v - 30))}>Anterior</button><button type="button" className="button" disabled={!moreModels || modelsLoading} onClick={() => setModelOffset((v) => v + 30)}>Mais modelos</button></div>}
-              </div>}
+      {mode === "catalog" && <>
+        <div className="catalog-selection-row">
+          <Field label="Marca">
+            <div className="catalog-combobox-control">
+              <input ref={brandInputRef} role="combobox" aria-autocomplete="list" aria-expanded={brandOpen} aria-controls={dropdownId + "-brands"} aria-activedescendant={brandOpen && brandActiveIndex >= 0 ? dropdownId + "-brand-" + brandActiveIndex : undefined} autoComplete="off" value={brandQuery} disabled={brandLocked} onFocus={openBrandDropdown} onChange={(e) => editBrand(e.target.value)} onKeyDown={brandKeyDown} placeholder="Selecionar marca" />
+              <button type="button" aria-label={brandOpen ? "Fechar marcas" : "Abrir marcas"} aria-haspopup="listbox" aria-expanded={brandOpen} disabled={brandLocked} onClick={toggleBrandDropdown}>▾</button>
             </div>
-          )}
-        </>
-      )}
+          </Field>
+          <Field label="Veículo">
+            <div className="catalog-combobox-control">
+              <input ref={modelInputRef} role="combobox" aria-autocomplete="list" aria-expanded={modelOpen} aria-controls={dropdownId + "-vehicles"} aria-activedescendant={modelOpen && modelActiveIndex >= 0 ? dropdownId + "-vehicle-" + modelActiveIndex : undefined} autoComplete="off" value={modelSearch} disabled={!brand?.id} onFocus={openModelDropdown} onChange={(e) => editModel(e.target.value)} onKeyDown={modelKeyDown} placeholder="Selecionar veículo" />
+              <button type="button" aria-label={modelOpen ? "Fechar veículos" : "Abrir veículos"} aria-haspopup="listbox" aria-expanded={modelOpen} disabled={!brand?.id} onClick={toggleModelDropdown}>▾</button>
+            </div>
+          </Field>
+          <Field label="Serviço">
+            <div className="catalog-combobox-control">
+              <input ref={serviceInputRef} role="combobox" aria-autocomplete="list" aria-expanded={serviceOpen} aria-controls={dropdownId + "-services"} aria-activedescendant={serviceOpen && serviceActiveIndex >= 0 ? dropdownId + "-service-" + serviceActiveIndex : undefined} autoComplete="off" value={search} disabled={!modelId} onFocus={openServiceDropdown} onChange={(e) => { setSearch(e.target.value); setOffset(0); setSelected(null); setServiceOpen(true); setBrandOpen(false); setModelOpen(false); }} onKeyDown={serviceKeyDown} placeholder="Digite uma palavra do serviço" />
+              <button type="button" aria-label={serviceOpen ? "Fechar serviços" : "Abrir serviços"} aria-haspopup="listbox" aria-expanded={serviceOpen} disabled={!modelId} onClick={toggleServiceDropdown}>▾</button>
+            </div>
+          </Field>
+        </div>
+        {brandLocked && <p className="muted catalog-lock-note">A marca está vinculada ao veículo. Para corrigi-la, atualize o cadastro do veículo.</p>}
+        {vehicle && <p className="muted">{[vehicle.brand, vehicle.model, vehicle.year].filter(Boolean).join(" · ")}</p>}
+        <p className="muted">{commercialCategory ? "Hora do porte: " + money(rate) + ". " : ""}{commercialCategory && rate <= 0 ? "Tarifa não configurada. " : ""}<Link to="/configuracoes?aba=servicos">Configurar valores da hora</Link></p>
+      </>}
       {mode === "manual" && (
         <>
           <Field label="Porte do serviço">
@@ -465,7 +571,7 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd }: 
           </button>
         </>
       )}
-      <Field label="Buscar serviço">
+      {mode === "manual" && <Field label="Buscar serviço">
         <input
           value={search}
           onChange={(e) => {
@@ -474,7 +580,7 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd }: 
           }}
           placeholder="Nome do serviço"
         />
-      </Field>
+      </Field>}
       <p className="muted">
         {commercialCategory ? `Hora do porte: ${money(rate)}. ` : ""}
         {commercialCategory && rate <= 0 ? "Tarifa não configurada. " : ""}
@@ -485,7 +591,7 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd }: 
           {error}
         </p>
       )}
-      <div className="repair-results" aria-busy={loading}>
+      {mode === "manual" && <div className="repair-results" aria-busy={loading}>
         {loading ? (
           <p>Buscando serviços…</p>
         ) : (
@@ -535,32 +641,14 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd }: 
             </div>
           ))
         )}
-      </div>
-      {!loading && !rows.length && (
-        <p>
-          {mode === "catalog" && !modelId
-            ? "Escolha o modelo acima."
-            : "Nenhum serviço encontrado nesta busca."}
-        </p>
-      )}
-      <div className="capture-actions">
-        <button
-          type="button"
-          className="button"
-          disabled={!offset || loading}
-          onClick={() => setOffset((v) => Math.max(0, v - 50))}
-        >
-          Anterior
-        </button>
-        <button
-          type="button"
-          className="button"
-          disabled={!more || loading}
-          onClick={() => setOffset((v) => v + 50)}
-        >
-          Próximos serviços
-        </button>
-      </div>
+      </div>}
+      {mode === "manual" && <>
+        {!loading && !rows.length && <p>Nenhum serviço encontrado nesta busca.</p>}
+        <div className="capture-actions">
+          <button type="button" className="button" disabled={!offset || loading} onClick={() => setOffset((v) => Math.max(0, v - 50))}>Anterior</button>
+          <button type="button" className="button" disabled={!more || loading} onClick={() => setOffset((v) => v + 50)}>Próximos serviços</button>
+        </div>
+      </>}
       {selected && onAdd && (
         <div className="repair-selection">
           <h4>{selected.name}</h4>
@@ -672,6 +760,7 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd }: 
                   service_details: preview,
                 });
                 setSelected(null);
+                if (mode === "catalog") { setSearch(""); setOffset(0); setServiceOpen(true); setBrandOpen(false); setModelOpen(false); serviceInputRef.current?.focus(); }
               } catch (e) {
                 setError((e as Error).message);
               } finally {
@@ -679,7 +768,7 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd }: 
               }
             }}
           >
-            Adicionar à OS
+            Adicionar serviço
           </button>
         </div>
       )}
@@ -697,6 +786,8 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd }: 
         />
       )}
     </section>
+      {dropdownContent}
+    </>
   );
 }
 export function WorkshopServices() {
