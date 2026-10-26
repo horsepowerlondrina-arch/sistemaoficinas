@@ -70,7 +70,7 @@ import { getWorkshopProfile, saveWorkshopProfile } from "./services/workshopProf
 import { calculatePaymentPlan, paymentMethods } from "./domain/payments.js";
 import { lookupVehicle, providerToken } from "./services/vehicleLookup.js";
 import { vehicleFipeFields } from "./services/vehicleFipeFields.js";
-import { serviceInfo, saveLaborRates, searchModels, repairModel, searchRepairServices, listWorkshopServices, saveWorkshopService, resolveService, serviceSelectionSchema, withTenantScope } from './services/repairCatalog.js';
+import { serviceInfo, saveLaborRates, searchBrands, searchModels, repairModel, searchRepairServices, listWorkshopServices, saveWorkshopService, resolveService, serviceSelectionSchema, withTenantScope } from './services/repairCatalog.js';
 const text = z.string().trim().max(500).default("");
 const name = z
   .string()
@@ -140,7 +140,7 @@ const schemas = {
   }),
 };
 const orderSchema = z.object({
-  service_model_id:z.string().uuid().optional(),
+  service_model_id:z.string().uuid().nullable().optional(),
   customer_id: z.string().nullable().optional(),
   vehicle_id: z.string().nullable().optional(),
   new_customer: z.object({ name, phone: z.string().trim().max(60) }).optional(),
@@ -1004,6 +1004,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
   app.put('/api/repair-services/rates',async(req,res)=>{
     await transaction(db,async()=>{await saveLaborRates(db,res.locals.context,req.body.rates);await audit(db,res.locals.context,'labor_rates.updated',res.locals.context.tenantId);});res.json({ok:true});
   });
+  app.get('/api/repair-services/brands',async(req,res)=>res.json(await searchBrands(db,res.locals.context,req.query)));
   app.get('/api/repair-services/models',async(req,res)=>res.json(await searchModels(db,res.locals.context,req.query)));
   app.get('/api/repair-services/models/:id',async(req,res)=>res.json(await repairModel(db,res.locals.context,String(req.params.id))));
   app.get('/api/repair-services/models/:id/services',async(req,res)=>res.json(await searchRepairServices(db,res.locals.context,String(req.params.id),req.query)));

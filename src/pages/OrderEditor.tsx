@@ -235,7 +235,7 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
     }
     return {
       ...form,
-      ...(serviceModelId?{service_model_id:serviceModelId}:{}),
+      service_model_id: serviceModelId || null,
       guest_name: form.customer_id || newCustomer ? "" : form.guest_name,
       new_customer: newCustomer,
       new_vehicle: newVehicle,
@@ -450,6 +450,8 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
                       }
                       setError("");
                       if (r.source === "local" && r.vehicle) {
+                        setLookedUp(r.vehicle);
+                        setServiceModelId(String(r.vehicle.service_model_id || ""));
                         const owner = data.customers.find(
                           (c) => c.id === r.vehicle!.customer_id,
                         );

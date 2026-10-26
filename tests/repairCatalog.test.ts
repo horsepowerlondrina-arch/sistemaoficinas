@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { createDatabase } from "../server/db/database";
 import {
   serviceInfo,
+  searchBrands,
   searchModels,
   searchRepairServices,
   resolveService,
@@ -71,12 +72,12 @@ function fixture() {
       "tempo",
     );
   db.prepare("INSERT INTO labor_commercial_rates(tenant_id,category_id,hourly_rate) VALUES(?,?,?)").run("a", category, 12000);
-  return { db, porte, portes, model, other, override, service };
+  return { db, porte, portes, brand, model, other, override, service };
 }
 test("FIPE ambígua retorna modelos distintos, mantendo tempos por base e diferenças específicas", async () => {
   const f = fixture();
   try {
-    const models = await searchModels(f.db, ctx, { fipe: "123456-7" });
+    const models = await searchModels(f.db, ctx, { brand_id: f.brand, fipe: "123456-7" });
     assert.equal(models.items.length, 3);
     for (const [model, time] of [
       [f.model, 60],
@@ -88,7 +89,7 @@ test("FIPE ambígua retorna modelos distintos, mantendo tempos por base e difere
       assert.equal(result.items[0].minutes, time);
     }
     await assert.rejects(
-      searchModels(f.db, { ...ctx, tenantId: "b" }, {}),
+      searchModels(f.db, { ...ctx, tenantId: "b" }, { brand_id: f.brand }),
       /não está liberado/,
     );
     f.db
@@ -103,6 +104,42 @@ test("FIPE ambígua retorna modelos distintos, mantendo tempos por base e difere
   } finally {
     f.db.close();
   }
+});
+test("autocomplete do catálogo ignora acentos, restringe modelos à marca e pagina", async () => {
+  const f = fixture();
+  try {
+    const secondBrand = randomUUID();
+    f.db.prepare("INSERT INTO service_catalog.brands VALUES(?,?)").run(secondBrand, "Árvore Motores");
+    const secondModel = randomUUID();
+    f.db.prepare("INSERT INTO service_catalog.models VALUES(?,?,?,?,?,?,?,?)").run(secondModel, secondBrand, "SUV Elétrico 2.0", "999999-9", f.porte, null, "[]", 1);
+    const brands = await searchBrands(f.db, ctx, { q: "arvore" });
+    assert.deepEqual(brands.items.map((row: any) => row.id), [secondBrand]);
+    const fipeCandidates = await searchModels(f.db, ctx, { brand_id: f.brand, q: "sem correspondência", fipe: "123456-7" });
+    assert.equal(fipeCandidates.items.length, 3);
+    assert.ok(fipeCandidates.items.every((row: any) => row.brand_id === f.brand));
+    assert.equal((await searchModels(f.db, ctx, { brand_id: secondBrand, q: "eletrico" })).items[0].id, secondModel);
+    for (let index = 0; index < 28; index++) {
+      f.db.prepare("INSERT INTO service_catalog.models VALUES(?,?,?,?,?,?,?,?)").run(randomUUID(), f.brand, "Modelo adicional " + index, "", f.porte, null, "[]", 0);
+    }
+    const firstPage = await searchModels(f.db, ctx, { brand_id: f.brand });
+    const nextPage = await searchModels(f.db, ctx, { brand_id: f.brand, offset: 30 });
+    assert.equal(firstPage.items.length, 30); assert.equal(firstPage.has_more, true);
+    assert.equal(nextPage.items.length, 1); assert.equal(nextPage.has_more, false);
+    await assert.rejects(searchBrands(f.db, { ...ctx, tenantId: "b" }, { q: "arvore" }), /não está liberado/);
+  } finally { f.db.close(); }
+});
+test("limpar o vínculo do modelo preserva o snapshot existente da OS", async () => {
+  const f = fixture();
+  try {
+    const selection = { repair_service_id: f.service, repair_model_id: f.model };
+    const input = { status: 'quote', customer_id: 'c', vehicle_id: 'v', service_model_id: f.model, entered_on: '2026-10-25', due_on: '2026-10-25', km: 0, discount: 0, notes: '', problem: '', items: [{ ...selection, id: randomUUID(), price: 12000, quantity: 1 }] };
+    const id = await saveOrder(f.db, ctx, input);
+    const before = (await listOrders(f.db, 'a')).find((o) => o.id === id)!;
+    await saveOrder(f.db, ctx, { ...input, service_model_id: null, items: before.items }, id);
+    const after = (await listOrders(f.db, 'a')).find((o) => o.id === id)!;
+    assert.equal(f.db.prepare("SELECT service_model_id FROM vehicles WHERE id='v'").get()!.service_model_id, '');
+    assert.deepEqual(after.items, before.items);
+  } finally { f.db.close(); }
 });
 test("OS preserva snapshots após mudança de tarifa, catálogo e assinatura; nova inclusão não burla acesso", async () => {
   const f = fixture();
@@ -307,7 +344,7 @@ test("os quatro portes do próprio modelo escolhem as quatro tarifas sem tabela 
     await saveLaborRates(f.db, ctx, Object.entries(rates).map(([category_id, hourly_rate]) => ({ category_id, hourly_rate })));
     for (const id of Object.keys(rates) as (keyof typeof rates)[]) {
       f.db.prepare("UPDATE service_catalog.models SET classification_id=? WHERE id=?").run(f.portes[id], f.model);
-      const models = await searchModels(f.db, ctx, { fipe: "123456-7" });
+      const models = await searchModels(f.db, ctx, { brand_id: f.brand, fipe: "123456-7" });
       const model = models.items.find((m) => m.id === f.model)!;
       assert.equal(model.porte_id, f.portes[id]);
       assert.equal(model.commercial_category_id, id);

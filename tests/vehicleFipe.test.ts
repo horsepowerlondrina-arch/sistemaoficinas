@@ -135,9 +135,12 @@ test("persistent cache survives another lookup call, is tenant scoped, expires, 
     db.exec(
       "INSERT INTO vehicles(id,tenant_id,customer_id,plate,brand,model,year,fipe_code) VALUES('v','a','c','ABC1D23','Marca','Modelo',2021,'001235-1');",
     );
+    const serviceModelId = "11111111-1111-4111-8111-111111111111";
+    db.prepare("UPDATE vehicles SET service_model_id=? WHERE id='v'").run(serviceModelId);
     const local = await lookupVehicle(db, "a", "ABC1D23", provider);
     assert.equal(calls, 6);
     assert.equal(local.vehicle?.fipe_code, "001235-1");
+    assert.equal(local.vehicle?.service_model_id, serviceModelId);
   } finally {
     if (prior === undefined) delete process.env.FIPEPLACA_TOKENS_JSON;
     else process.env.FIPEPLACA_TOKENS_JSON = prior;
