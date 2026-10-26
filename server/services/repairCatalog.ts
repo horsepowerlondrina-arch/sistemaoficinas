@@ -162,7 +162,17 @@ export async function searchModels(db: DB, ctx: Context, query: unknown) {
     return { items: rows.slice(0, 30).map(withModelPorte), has_more: rows.length > 30 };
   });
 }
-const vehicleSearchKey = (value: unknown) => searchKey(String(value || "").trim()).replace(/\s+/g, " ");
+const vehicleSearchKey = (value: unknown) =>
+  searchKey(String(value || "").trim())
+    .replace(/[.,/]+/g, " ")
+    .replace(/[-_]+/g, " ")
+    .replace(/[^a-z0-9 ]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+const vehicleBrandKey = (value: unknown) => {
+  const key = vehicleSearchKey(value).replace(/^gm\s+/, "");
+  return key === "chevrolet gm" ? "chevrolet" : key;
+};
 const catalogModelSelect = "SELECT m.id,m.name,m.brand_id,m.fipe_code,m.classification_id porte_id,b.name brand,p.name porte_name,m.service_count FROM service_catalog.models m JOIN service_catalog.brands b ON b.id=m.brand_id LEFT JOIN service_catalog.classifications p ON p.id=m.classification_id";
 const vehicleMatchInput = z.object({
   brand: z.string().trim().max(150).default(""),
@@ -174,57 +184,145 @@ const vehicleMatchInput = z.object({
   service_model_id: z.string().trim().max(80).nullable().default("").transform((value) => value || ""),
 });
 export type VehicleCatalogMatchStatus = "linked" | "matched" | "needs_confirmation" | "not_identified" | "unavailable" | "mismatch";
+const modelEngineTokens = (value: string) =>
+  [...value.toLowerCase().matchAll(/\b(\d{1,2}(?:[.,]\d)?)\s*(mpfi|mfi|efi|mpi|tsi|tfsi|turbo|hdi|dci|cdti|tdi|16v|8v)?\b/g)]
+    .map((match) => `${match[1].replace(",", ".")}${match[2] ? " " + match[2] : ""}`);
+const vehicleFeatureTokens = (value: string) =>
+  [...value.toLowerCase().matchAll(/\b(2p|3p|4p|5p|hatchback|hatch|sedan|wagon|sw|perua|turbo|aspirado)\b/g)]
+    .map((match) => match[1]);
+const hasMultipleTechnicalVariants = (value: string) =>
+  modelEngineTokens(value).length > 1 || new Set(vehicleFeatureTokens(value)).size > 1;
 export async function identifyVehicleModel(db: DB, ctx: Context, input: unknown) {
   const vehicle = vehicleMatchInput.parse(input);
   const accessState = await tenantRead(db, ctx, () => catalogAccessState(db, ctx));
   if (accessState !== "active") return { status: "unavailable" as const, catalog_status: accessState, model: null, candidates: [] };
-  const brandKey = vehicleSearchKey(vehicle.brand);
-  const modelHints = [...new Set([vehicle.fipe_model, vehicle.model].map(vehicleSearchKey).filter(Boolean))];
+  const brandKey = vehicleBrandKey(vehicle.brand);
+  const rawHints = [...new Set([vehicle.fipe_model, vehicle.model].map((value) => String(value || "").trim()).filter(Boolean))];
+  const modelHints = [...new Set(rawHints.map(vehicleSearchKey).filter(Boolean))];
   if (vehicle.service_model_id) {
     if (!uuid.safeParse(vehicle.service_model_id).success) return { status: "mismatch" as const, catalog_status: accessState, model: null, candidates: [] };
     const saved = await db.prepare(catalogModelSelect + " WHERE m.id=?").get(vehicle.service_model_id);
     if (!saved) return { status: "mismatch" as const, catalog_status: accessState, model: null, candidates: [] };
     const model = withModelPorte(saved);
-    const brandCompatible = !brandKey || vehicleSearchKey(model.brand) === brandKey;
+    const brandCompatible = !brandKey || vehicleBrandKey(model.brand) === brandKey;
     const fipeCompatible = !vehicle.fipe_code || !model.fipe_code || String(model.fipe_code) === vehicle.fipe_code;
     const savedName = vehicleSearchKey(model.name);
-    const modelCompatible = !modelHints.length || modelHints.some(hint => savedName === hint || savedName.startsWith(hint) || hint.startsWith(savedName));
+    const modelCompatible = !modelHints.length || modelHints.some((hint) => savedName === hint || savedName.startsWith(hint) || hint.startsWith(savedName));
     return { status: brandCompatible && fipeCompatible && modelCompatible ? "linked" as const : "mismatch" as const, catalog_status: accessState, model, candidates: [model] };
   }
-  if (!brandKey) return { status: "not_identified" as const, catalog_status: accessState, model: null, candidates: [] };
-  const brandMatch = searchColumn("b.name") + "=?";
+  if (!brandKey || !modelHints.length) return { status: "not_identified" as const, catalog_status: accessState, model: null, candidates: [] };
+  const brandPattern = "%" + brandKey.split(" ").filter(Boolean).join("%") + "%";
+  const brandMatch = searchColumn("b.name") + " LIKE ?";
   const queryCandidates = async (where: string, values: unknown[], order = "") =>
-    (await db.prepare(catalogModelSelect + " WHERE " + brandMatch + " AND (" + where + ") " + order + " LIMIT 21").all(brandKey, ...values)).map(withModelPorte);
+    (await db.prepare(catalogModelSelect + " WHERE " + brandMatch + " AND (" + where + ") " + order + " LIMIT 101").all(brandPattern, ...values)).map(withModelPorte);
+  const variants = rawHints.flatMap(modelEngineTokens);
+  const hasAmbiguousTechnicalVariants = rawHints.some(hasMultipleTechnicalVariants);
+  const engineCompatible = (name: string) => {
+    if (!variants.length) return true;
+    const key = vehicleSearchKey(name);
+    return variants.some((variant) => {
+      const [displacement, code] = variant.split(" ");
+      const compact = key.replace(/ /g, "");
+      return compact.includes(displacement.replace(".", "")) &&
+        (!code || key.includes(code));
+    });
+  };
+  const vehicleFeaturesCompatible = (name: string) => {
+    const required = vehicleFeatureTokens(rawHints.join(" "));
+    if (!required.length) return true;
+    const key = vehicleSearchKey(name);
+    return required.every((feature) => key.split(" ").includes(vehicleSearchKey(feature)));
+  };
+  const technicallyCompatible = (name: string) => engineCompatible(name) && vehicleFeaturesCompatible(name);
+  const sortByRelevance = (rows: Row[]) => rows.sort((a, b) => {
+    const score = (name: string) => {
+      const key = vehicleSearchKey(name);
+      const tokens = new Set(key.split(" "));
+      return modelHints.reduce((best, hint) => {
+        const hintTokens = hint.split(" ").filter(Boolean);
+        const overlap = hintTokens.filter((token) => tokens.has(token)).length;
+        const prefix = key === hint ? 0 : key.startsWith(hint) ? 1 : key.includes(hint) ? 2 : 4;
+        return Math.min(best, prefix * 100 + Math.max(0, hintTokens.length - overlap) * 10);
+      }, 10000);
+    };
+    return score(a.name) - score(b.name) || String(a.name).localeCompare(String(b.name)) || String(a.id).localeCompare(String(b.id));
+  });
   const byFipe = vehicle.fipe_code
     ? await queryCandidates("m.fipe_code=?", [vehicle.fipe_code], "ORDER BY m.name,m.id")
     : [];
-  const sortByHints = (rows: Row[]) => rows.sort((a,b) => {
-    const ak=vehicleSearchKey(a.name), bk=vehicleSearchKey(b.name);
-    const score=(key:string)=>modelHints.reduce((best,hint)=>Math.min(best,key===hint?0:key.startsWith(hint)?1:key.includes(hint)?2:3),3);
-    const yearScore=(key:string)=>vehicle.year && new RegExp(`(^|\\D)${vehicle.year}($|\\D)`).test(key) ? 0 : 1;
-    return score(ak)-score(bk) || yearScore(ak)-yearScore(bk) || String(a.name).localeCompare(String(b.name)) || String(a.id).localeCompare(String(b.id));
-  });
   if (byFipe.length) {
-    const candidates = sortByHints(byFipe);
-    const selected = candidates.length === 1 ? candidates[0] : null;
-    const nameCompatible = !modelHints.length || modelHints.some(hint => vehicleSearchKey(selected?.name) === hint || vehicleSearchKey(selected?.name).startsWith(hint));
-    if (selected && nameCompatible) return { status: "matched" as const, catalog_status: accessState, model: selected, candidates: [selected] };
-    return { status: "needs_confirmation" as const, catalog_status: accessState, model: null, candidates: candidates.slice(0,10) };
+    const candidates = sortByRelevance(byFipe);
+    const compatible = candidates.filter((candidate) => !modelHints.length ||
+      modelHints.some((hint) => {
+        const name = vehicleSearchKey(candidate.name);
+        const family = hint.split(" ").slice(0, 2).join(" ");
+        return name.includes(family);
+      }));
+    const technical = compatible.filter((candidate) => technicallyCompatible(String(candidate.name || "")));
+    if (technical.length === 1 && compatible.length === 1 && !hasAmbiguousTechnicalVariants)
+      return { status: "matched" as const, catalog_status: accessState, model: technical[0], candidates: technical };
+    return { status: "needs_confirmation" as const, catalog_status: accessState, model: null, candidates: sortByRelevance((technical.length ? technical : compatible.length ? compatible : candidates)).slice(0, 10) };
   }
   for (const hint of modelHints) {
-    const exact = await queryCandidates(searchColumn("m.name") + "=?", [hint]);
-    if (exact.length === 1) {
-      if (vehicle.fipe_code) return { status: "needs_confirmation" as const, catalog_status: accessState, model: null, candidates: exact };
+    const exact = await queryCandidates(searchColumn("m.name") + "=?", [hint], "ORDER BY m.name,m.id");
+    if (exact.length === 1 && !vehicle.fipe_code && !hasAmbiguousTechnicalVariants && technicallyCompatible(String(exact[0].name || ""))) {
       return { status: "matched" as const, catalog_status: accessState, model: exact[0], candidates: exact };
     }
-    if (exact.length > 1) return { status: "needs_confirmation" as const, catalog_status: accessState, model: null, candidates: sortByHints(exact).slice(0,10) };
+    if (exact.length) return { status: "needs_confirmation" as const, catalog_status: accessState, model: null, candidates: sortByRelevance(exact).slice(0, 10) };
   }
-  const searchHint = modelHints[0] || vehicleSearchKey(vehicle.model);
-  if (!searchHint || searchHint.length < 3) return { status: "not_identified" as const, catalog_status: accessState, model: null, candidates: [] };
-  const suggestions = await queryCandidates(searchColumn("m.name") + " LIKE ?", ["%" + searchHint + "%"]);
-  return suggestions.length
-    ? { status: "needs_confirmation" as const, catalog_status: accessState, model: null, candidates: sortByHints(suggestions).slice(0,10) }
-    : { status: "not_identified" as const, catalog_status: accessState, model: null, candidates: [] };
+  const primary = modelHints[0];
+  const tokens = primary.split(" ").filter(Boolean);
+  const progressive: string[] = [];
+  for (let length = tokens.length; length >= 2; length--) progressive.push(tokens.slice(0, length).join(" "));
+  if (tokens.length) progressive.push(tokens[0]);
+  let suggestions: Row[] = [];
+  for (const term of [...new Set(progressive)]) {
+    if (term.length < 3) continue;
+    const found = await queryCandidates(searchColumn("m.name") + " LIKE ?", ["%" + term + "%"], "ORDER BY m.name,m.id");
+    const familyToken = tokens[0];
+    const familyOnly = found.filter((candidate) => vehicleSearchKey(candidate.name).split(" ")[0] === familyToken);
+    if (familyOnly.length) { suggestions = familyOnly; break; }
+  }
+  if (suggestions.length) {
+    const relevant = sortByRelevance(suggestions);
+    const compatible = relevant.filter((candidate) => technicallyCompatible(String(candidate.name || "")));
+    if (compatible.length === 1 && !vehicle.fipe_code && !hasAmbiguousTechnicalVariants)
+      return { status: "matched" as const, catalog_status: accessState, model: compatible[0], candidates: compatible };
+    return { status: "needs_confirmation" as const, catalog_status: accessState, model: null, candidates: (compatible.length ? compatible : relevant).slice(0, 10) };
+  }
+  return { status: "not_identified" as const, catalog_status: accessState, model: null, candidates: [] };
+}
+export async function previewVehicleCatalogReview(
+  db: DB,
+  ctx: Context,
+  input: { limit?: number; offset?: number; plateLookupEnabled?: boolean } = {},
+) {
+  const limit = Math.max(1, Math.min(50, Math.trunc(input.limit || 20)));
+  const offset = Math.max(0, Math.min(100000, Math.trunc(input.offset || 0)));
+  const page = await tenantRead(db, ctx, async () => {
+    const total = Number((await db.prepare("SELECT COUNT(*) n FROM vehicles WHERE tenant_id=?").get(ctx.tenantId))?.n || 0);
+    const rows = await db.prepare(
+      "SELECT v.*,c.name customer_name FROM vehicles v JOIN customers c ON c.id=v.customer_id AND c.tenant_id=v.tenant_id WHERE v.tenant_id=? ORDER BY v.plate,v.id LIMIT ? OFFSET ?",
+    ).all(ctx.tenantId, limit, offset);
+    return { total, rows };
+  });
+  const items = [];
+  for (const vehicle of page.rows) {
+    const incomplete = !String(vehicle.plate || "").trim() || !String(vehicle.brand || "").trim() || !String(vehicle.model || "").trim();
+    const match = incomplete
+      ? { status: "not_identified", candidates: [] as Row[] }
+      : await identifyVehicleModel(db, ctx, vehicle);
+    let status: string;
+    if (incomplete) status = "incomplete";
+    else if (match.status === "linked") status = "linked";
+    else if (match.status === "matched") status = "matched";
+    else if (match.status === "needs_confirmation" || match.status === "mismatch") status = "confirmation";
+    else if (match.status === "unavailable") status = "unavailable";
+    else if (match.status === "not_identified" && input.plateLookupEnabled && !vehicle.fipe_code) status = "plate_lookup";
+    else status = "not_identified";
+    items.push({ vehicle, status, candidates: (match.candidates || []).slice(0, 5) });
+  }
+  return { items, total: page.total, limit, offset, has_more: offset + items.length < page.total, dry_run: true };
 }
 export async function confirmVehicleModel(db: DB, ctx: Context, vehicle: { brand?: unknown }, modelId: string) {
   const model = await repairModel(db, ctx, modelId);

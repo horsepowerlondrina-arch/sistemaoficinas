@@ -70,9 +70,9 @@ import { previewStockInvoice, importStockInvoice } from "./services/stockInvoice
 import { listSuppliers, supplierDetails, saveSupplier } from "./services/suppliers.js";
 import { getWorkshopProfile, saveWorkshopProfile } from "./services/workshopProfile.js";
 import { calculatePaymentPlan, paymentMethods } from "./domain/payments.js";
-import { lookupVehicle, providerToken } from "./services/vehicleLookup.js";
+import { lookupVehicle, lookupVehicleExternal, providerToken } from "./services/vehicleLookup.js";
 import { vehicleFipeFields } from "./services/vehicleFipeFields.js";
-import { serviceInfo, saveLaborRates, searchBrands, searchModels, repairModel, identifyVehicleModel, confirmVehicleModel, catalogAccessState, searchRepairServices, listWorkshopServices, saveWorkshopService, resolveService, serviceSelectionSchema, withTenantScope } from './services/repairCatalog.js';
+import { serviceInfo, saveLaborRates, searchBrands, searchModels, repairModel, identifyVehicleModel, confirmVehicleModel, catalogAccessState, searchRepairServices, listWorkshopServices, saveWorkshopService, resolveService, serviceSelectionSchema, withTenantScope, previewVehicleCatalogReview } from './services/repairCatalog.js';
 const text = z.string().trim().max(500).default("");
 const name = z
   .string()
@@ -1002,6 +1002,70 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
     entry.count++;
     lookupLimits.set(tenant, entry);
     res.json(await lookupVehicle(db, tenant, plate));
+  });
+  app.post("/api/vehicles/:id/lookup-refresh", async (req, res) => {
+    const tenant = res.locals.context.tenantId;
+    const prior = lookupLimits.get(tenant);
+    const entry = prior && prior.until > Date.now() ? prior : { count: 0, until: Date.now() + 60000 };
+    if (entry.count >= 20) {
+      res.status(429).json({ error: "Limite de consultas atingido. Aguarde um minuto." });
+      return;
+    }
+    entry.count++;
+    lookupLimits.set(tenant, entry);
+    const current = await scoped(db, "vehicles", tenant, String(req.params.id));
+    const result = await lookupVehicleExternal(db, tenant, String(current.plate));
+    res.json({ ...result, current });
+  });
+  app.post("/api/vehicles/:id/apply-lookup", async (req, res) => {
+    const input = z.object({
+      fields: z.array(z.enum(["brand", "model", "year", "color", "fipe_code", "fipe_model", "fipe_year_id"])).min(1).max(7),
+      values: z.object({
+        brand: z.string().trim().min(2).max(150).optional(),
+        model: z.string().trim().min(2).max(150).optional(),
+        year: z.number().int().min(1900).max(2100).optional(),
+        color: z.string().trim().max(80).optional(),
+        fipe_code: z.string().trim().regex(/^(?:\\d{6}-\\d)?$/).optional(),
+        fipe_model: z.string().trim().max(300).optional(),
+        fipe_year_id: z.string().trim().regex(/^(?:(?:19|20|21)\\d{2}-\\d{1,2}|32000-\\d{1,2})?$/).optional(),
+      }).strict(),
+    }).strict().parse(req.body);
+    const fields = [...new Set(input.fields)];
+    for (const field of fields) {
+      if (!Object.prototype.hasOwnProperty.call(input.values, field))
+        throw new Error("Selecione somente informações presentes na consulta.");
+    }
+    const tenant = res.locals.context.tenantId;
+    const id = String(req.params.id);
+    await transaction(db, async () => {
+      const current = await scoped(db, "vehicles", tenant, id);
+      const before = Object.fromEntries(fields.map((field) => [field, current[field]]));
+      const assignments = fields.map((field) => field + "=?").join(",");
+      await db.prepare("UPDATE vehicles SET " + assignments + " WHERE tenant_id=? AND id=?")
+        .run(...fields.map((field) => input.values[field as keyof typeof input.values]), tenant, id);
+      const after = Object.fromEntries(fields.map((field) => [field, input.values[field as keyof typeof input.values]]));
+      await audit(db, res.locals.context, "vehicles.external_lookup_updated", id, {
+        source: "fipeplaca",
+        updated_fields: fields,
+        before,
+        after,
+      });
+    });
+    res.json({ ok: true });
+  });
+  app.get("/api/vehicles/catalog-review", async (req, res) => {
+    const query = z.object({
+      limit: z.coerce.number().int().min(1).max(50).default(20),
+      offset: z.coerce.number().int().min(0).max(100000).default(0),
+    }).parse(req.query);
+    res.json(await previewVehicleCatalogReview(db, res.locals.context, {
+      ...query,
+      plateLookupEnabled: !!providerToken(res.locals.context.tenantId),
+    }));
+  });
+  app.get('/api/repair-services/access', async (_req, res) => {
+    const catalog_status = await catalogAccessState(db, res.locals.context);
+    res.json({ enabled: catalog_status === "active", catalog_status, categories: [], service_markup_bps: 0 });
   });
   app.get('/api/repair-services/config',async(_req,res)=>res.json(await serviceInfo(db,res.locals.context)));
   app.put('/api/repair-services/rates',async(req,res)=>{

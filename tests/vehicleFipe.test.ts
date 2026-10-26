@@ -7,7 +7,7 @@ import {
   type FipeCandidate,
 } from "../shared/vehicleFipe";
 import { lookupFipePlaca } from "../server/services/fipePlaca";
-import { lookupVehicle } from "../server/services/vehicleLookup";
+import { lookupVehicle, lookupVehicleExternal } from "../server/services/vehicleLookup";
 import { createDatabase } from "../server/db/database";
 import { saveOrder } from "../server/services/workshop";
 import {
@@ -225,4 +225,34 @@ test("vehicle FIPE validation preserves leading zeroes and rejects malformed cod
   assert.equal(schema.parse(candidateFields(candidate)).fipe_code, "001235-1");
   assert.deepEqual(schema.parse({}), emptyFipe);
   assert.throws(() => schema.parse({ fipe_code: "1235" }));
+});
+
+test("consulta explícita de veículo já cadastrado reutiliza cache e só gera prévia sem escrever", async () => {
+  const db = fixture();
+  const prior = process.env.FIPEPLACA_TOKENS_JSON;
+  process.env.FIPEPLACA_TOKENS_JSON = JSON.stringify({ a: "fake", b: "fake" });
+  let calls = 0;
+  const provider = (async (url) => {
+    calls++;
+    return Response.json(String(url).endsWith("/fipe") ? [candidate] : { ...vehicle, modelo: "Modelo atualizado" });
+  }) as typeof fetch;
+  try {
+    db.exec("INSERT INTO vehicles(id,tenant_id,customer_id,plate,brand,model,year,color) VALUES('v','a','c','ABC1D23','Marca','Modelo antigo',2021,'Azul')");
+    const local = await lookupVehicle(db, "a", "ABC1D23", provider);
+    assert.equal(local.source, "local");
+    assert.equal(calls, 0);
+    const first = await lookupVehicleExternal(db, "a", "ABC1D23", provider);
+    assert.equal(first.source, "external");
+    assert.equal(calls, 2);
+    const cached = await lookupVehicleExternal(db, "a", "ABC1D23", provider);
+    assert.equal(cached.source, "external");
+    assert.equal(calls, 2);
+    assert.equal(db.prepare("SELECT model FROM vehicles WHERE tenant_id='a' AND id='v'").get()?.model, "Modelo antigo");
+    assert.equal((await lookupVehicleExternal(db, "b", "ABC1D23", provider)).source, "external");
+    assert.equal(calls, 4);
+  } finally {
+    if (prior === undefined) delete process.env.FIPEPLACA_TOKENS_JSON;
+    else process.env.FIPEPLACA_TOKENS_JSON = prior;
+    db.close();
+  }
 });

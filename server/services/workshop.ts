@@ -41,12 +41,13 @@ export async function audit(
   ctx: Context,
   action: string,
   entity: string,
+  metadata: Record<string, unknown> = {},
 ) {
   await db
     .prepare(
-      "INSERT INTO audit_events(id,tenant_id,user_id,action,entity_id) VALUES(?,?,?,?,?)",
+      "INSERT INTO audit_events(id,tenant_id,user_id,action,entity_id,metadata) VALUES(?,?,?,?,?,?)",
     )
-    .run(id(), ctx.tenantId, ctx.userId, action, entity);
+    .run(id(), ctx.tenantId, ctx.userId, action, entity, JSON.stringify(metadata));
 }
 
 export async function previewVehicleCatalogBackfill(db: DB, ctx: Context, limit = 250, cursor = "") {

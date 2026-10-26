@@ -12,10 +12,11 @@ import {
   listWorkshopServices,
   saveLaborRates,
   identifyVehicleModel,
+  previewVehicleCatalogReview,
 } from "../server/services/repairCatalog";
 import { saveOrder, listOrders, previewVehicleCatalogBackfill, applyVehicleCatalogBackfill } from "../server/services/workshop";
 import { servicePrice, serviceMinutes } from "../shared/servicePricing";
-import { shouldShowVehicleCatalog, shouldShowWorkshopServices } from "../shared/repairCatalogVisibility";
+import { shouldLoadRepairServiceSearch, shouldShowVehicleCatalog, shouldShowWorkshopServices } from "../shared/repairCatalogVisibility";
 
 const ctx = { tenantId: "a", userId: "u", role: "owner" };
 function fixture() {
@@ -456,4 +457,55 @@ test("vehicleOnly não exibe gestão nem resultados de serviços particulares", 
   assert.equal(shouldShowVehicleCatalog("manual", true, true), true);
   assert.equal(shouldShowWorkshopServices("manual", false), true);
   assert.equal(shouldShowVehicleCatalog("catalog", false, true), true);
+});
+
+test("importação longa sem FIPE sugere versões da mesma família sem vínculo automático ambíguo", async () => {
+  const f = fixture();
+  try {
+    const chevrolet = randomUUID();
+    const corsa14 = randomUUID();
+    const corsa16 = randomUUID();
+    f.db.prepare("INSERT INTO service_catalog.brands VALUES(?,?)").run(chevrolet, "Chevrolet");
+    f.db.prepare("INSERT INTO service_catalog.models VALUES(?,?,?,?,?,?,?,?)").run(corsa14, chevrolet, "Corsa GL 1.4 EFi", "", f.porte, randomUUID(), "[]", 1);
+    f.db.prepare("INSERT INTO service_catalog.models VALUES(?,?,?,?,?,?,?,?)").run(corsa16, chevrolet, "Corsa GL 1.6 MPFi", "", f.porte, randomUUID(), "[]", 1);
+    const result = await identifyVehicleModel(f.db, ctx, {
+      brand: "GM - Chevrolet",
+      model: "Corsa GL 1.6 MPFI / 1.4 EFI 2p e 4p",
+      year: 1998,
+      fipe_code: "",
+    });
+    assert.equal(result.status, "needs_confirmation");
+    assert.equal(result.model, null);
+    assert.deepEqual(new Set(result.candidates.map((candidate) => candidate.id)), new Set([corsa14, corsa16]));
+    const single = await identifyVehicleModel(f.db, ctx, {
+      brand: "Chevrolet",
+      model: "Corsa GL 1.4 EFI",
+      year: 1998,
+    });
+    assert.equal(single.status, "matched");
+    assert.equal(single.model?.id, corsa14);
+  } finally { f.db.close(); }
+});
+
+test("prévia paginada do catálogo é somente leitura e restrita à oficina autenticada", async () => {
+  const f = fixture();
+  try {
+    const before = f.db.prepare("SELECT service_model_id FROM vehicles WHERE tenant_id='a' AND id='v'").get()?.service_model_id;
+    const page = await previewVehicleCatalogReview(f.db, ctx, { limit: 1, offset: 0 });
+    assert.equal(page.dry_run, true);
+    assert.equal(page.total, 1);
+    assert.equal(page.items[0]?.vehicle.id, "v");
+    assert.equal(f.db.prepare("SELECT service_model_id FROM vehicles WHERE tenant_id='a' AND id='v'").get()?.service_model_id, before);
+    const denied = await previewVehicleCatalogReview(f.db, { ...ctx, tenantId: "b" }, { limit: 1 });
+    assert.equal(denied.total, 0);
+    assert.equal(denied.items.length, 0);
+  } finally { f.db.close(); }
+});
+
+test("vehicleOnly nunca dispara pesquisa de serviços ou exige categoria de cobrança", () => {
+  assert.equal(shouldLoadRepairServiceSearch("manual", true, "", false), false);
+  assert.equal(shouldLoadRepairServiceSearch("catalog", true, "modelo", true), false);
+  assert.equal(shouldLoadRepairServiceSearch("catalog", false, "modelo", false), false);
+  assert.equal(shouldLoadRepairServiceSearch("catalog", false, "modelo", true), true);
+  assert.equal(shouldLoadRepairServiceSearch("manual", false, "", false), true);
 });

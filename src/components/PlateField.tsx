@@ -89,9 +89,6 @@ export function PlateField({
               setSelected("");
               onChange(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""));
             }}
-            onBlur={() => {
-              if (value.length === 7) void lookup();
-            }}
           />
         </Field>
         <button
