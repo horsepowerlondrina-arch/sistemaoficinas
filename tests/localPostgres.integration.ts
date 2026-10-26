@@ -219,7 +219,7 @@ test("PostgreSQL local: autenticação, oficinas, transações e RLS do catálog
     assert.ok(localAIndex>=0);
     const localACookie=sessions[localAIndex];
     const sample=await db.withTenantRead("local-a",async()=>db.prepare(`SELECT m.id,m.name,b.name brand,m.fipe_code FROM service_catalog.models m JOIN service_catalog.brands b ON b.id=m.brand_id
-      WHERE m.complete AND NOT EXISTS(SELECT 1 FROM service_catalog.models x WHERE x.brand_id=m.brand_id AND x.name=m.name AND x.id<>m.id)
+      WHERE m.complete=1 AND NOT EXISTS(SELECT 1 FROM service_catalog.models x WHERE x.brand_id=m.brand_id AND x.name=m.name AND x.id<>m.id)
       AND (COALESCE(m.fipe_code,'')='' OR (SELECT count(*) FROM service_catalog.models x WHERE x.brand_id=m.brand_id AND x.fipe_code=m.fipe_code)=1)
       ORDER BY m.id LIMIT 1`).get() as any);
     assert.ok(sample,"a fictional catalog model with a unique safe match should exist");
