@@ -59,7 +59,7 @@ export async function previewVehicleCatalogBackfill(db: DB, ctx: Context, limit 
   for (const vehicle of rows) {
     const match = await identifyVehicleModel(db, ctx, vehicle);
     counts[match.status] = (counts as any)[match.status] + 1;
-    results.push({ vehicle_id: vehicle.id, plate: vehicle.plate, brand: vehicle.brand, model: vehicle.model, status: match.status, model: match.model, candidates: match.candidates });
+    results.push({ vehicle_id: vehicle.id, plate: vehicle.plate, brand: vehicle.brand, vehicle_model: vehicle.model, status: match.status, matched_model: match.model, candidates: match.candidates });
   }
   const last = rows.length ? String(rows[rows.length - 1].id) : cursor;
   const more = !!(last && await db.prepare("SELECT 1 yes FROM vehicles WHERE tenant_id=? AND COALESCE(service_model_id,'')='' AND id>? LIMIT 1").get(ctx.tenantId, last));

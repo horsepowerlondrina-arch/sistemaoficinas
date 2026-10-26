@@ -415,7 +415,7 @@ export async function finalizeChecklist(
       }
     }
 
-    const vehicleDataRaw = parseJson(value.vehicle_data_json, {});
+    const vehicleDataRaw: any = parseJson(value.vehicle_data_json, {});
     const requestedModelId = typeof vehicleDataRaw?.service_model_id === "string" && vehicleDataRaw.service_model_id ? z.string().uuid().parse(vehicleDataRaw.service_model_id) : "";
     if (vehicle) {
       let selectedModel: any = null;

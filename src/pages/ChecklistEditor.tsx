@@ -570,6 +570,7 @@ export function ChecklistEditor() {
                     year: Number(found?.year || new Date().getFullYear()),
                     color: String(found?.color || ""),
                     chassis: "",
+                    service_model_id: null,
                   },
                 }));
               }
