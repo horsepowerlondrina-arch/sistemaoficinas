@@ -27,6 +27,7 @@ export function migrate(db: DatabaseSync) {
     [24, "024-commercial-labor-categories.sql"],
     [25, "025-transfer-merge-replace.sql"],
     [26, "026-transfer-archives-retention.sql"],
+    [27, "027-vehicle-update-audit-metadata.sql"],
   ] as const) {
     if (db.prepare("SELECT 1 FROM migrations WHERE version=?").get(version))
       continue;

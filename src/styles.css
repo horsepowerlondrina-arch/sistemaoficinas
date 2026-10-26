@@ -4568,7 +4568,8 @@ body { padding-top: 36px; }
 }
 
 /* CAT-012: searchable catalog selectors with viewport-level suggestion panels. */
-.catalog-selection-row { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; align-items:start; }
+.catalog-selection-row { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; align-items:start; width:100%; }
+.catalog-selection-row > .field.full { grid-column:1 / -1; }
 .catalog-combobox-control { display:flex; min-width:0; width:100%; }
 .catalog-combobox-control input { min-width:0; flex:1 1 auto; border-top-right-radius:0; border-bottom-right-radius:0; }
 .catalog-combobox-control > button { flex:0 0 42px; border:1px solid var(--border); border-left:0; border-radius:0 9px 9px 0; background:#fff; color:#343943; cursor:pointer; }
@@ -4585,3 +4586,15 @@ body { padding-top: 36px; }
 .catalog-dropdown-pagination { display:flex; justify-content:space-between; border-top:1px solid var(--border); }
 .catalog-lock-note { margin-top:-4px; }
 @media (max-width:720px) { .catalog-selection-row { grid-template-columns:minmax(0,1fr); } }
+
+.vehicle-review-row { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:14px; padding:14px 0; border-bottom:1px solid var(--border); }
+.vehicle-review-row p { margin:5px 0; }
+.vehicle-review-row .badge { display:inline-flex; margin-top:4px; }
+.vehicle-review-pagination { display:flex; justify-content:space-between; align-items:center; gap:12px; padding-top:14px; }
+.vehicle-plate-refresh { display:grid; gap:10px; padding:14px; border:1px solid var(--border); border-radius:10px; }
+.vehicle-plate-refresh .capture-actions { align-items:center; }
+.vehicle-lookup-proposal { display:grid; gap:8px; }
+@media (max-width:720px) {
+  .vehicle-review-row { grid-template-columns:minmax(0,1fr); align-items:start; }
+  .vehicle-review-pagination { flex-wrap:wrap; }
+}

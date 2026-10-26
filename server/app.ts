@@ -32,6 +32,7 @@ import {
   updateChecklist,
 } from "./services/checklists.js";
 import express from "express";
+import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import { resolve } from "node:path";
 import type { DB } from "./db/database.js";
@@ -70,9 +71,9 @@ import { previewStockInvoice, importStockInvoice } from "./services/stockInvoice
 import { listSuppliers, supplierDetails, saveSupplier } from "./services/suppliers.js";
 import { getWorkshopProfile, saveWorkshopProfile } from "./services/workshopProfile.js";
 import { calculatePaymentPlan, paymentMethods } from "./domain/payments.js";
-import { lookupVehicle, providerToken } from "./services/vehicleLookup.js";
+import { lookupVehicle, lookupVehicleExternal, normalizePlate, providerToken } from "./services/vehicleLookup.js";
 import { vehicleFipeFields } from "./services/vehicleFipeFields.js";
-import { serviceInfo, saveLaborRates, searchBrands, searchModels, repairModel, identifyVehicleModel, confirmVehicleModel, catalogAccessState, searchRepairServices, listWorkshopServices, saveWorkshopService, resolveService, serviceSelectionSchema, withTenantScope } from './services/repairCatalog.js';
+import { serviceInfo, saveLaborRates, searchBrands, searchModels, repairModel, identifyVehicleModel, confirmVehicleModel, catalogAccessState, searchRepairServices, listWorkshopServices, saveWorkshopService, resolveService, serviceSelectionSchema, withTenantScope, previewVehicleCatalogReview } from './services/repairCatalog.js';
 const text = z.string().trim().max(500).default("");
 const name = z
   .string()
@@ -1002,6 +1003,134 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
     entry.count++;
     lookupLimits.set(tenant, entry);
     res.json(await lookupVehicle(db, tenant, plate));
+  });
+  app.post("/api/vehicles/:id/lookup-refresh", async (req, res) => {
+    const tenant = res.locals.context.tenantId;
+    const prior = lookupLimits.get(tenant);
+    const entry = prior && prior.until > Date.now() ? prior : { count: 0, until: Date.now() + 60000 };
+    if (entry.count >= 20) {
+      res.status(429).json({ error: "Limite de consultas atingido. Aguarde um minuto." });
+      return;
+    }
+    entry.count++;
+    lookupLimits.set(tenant, entry);
+    const current = await scoped(db, "vehicles", tenant, String(req.params.id));
+    const result = await lookupVehicleExternal(db, tenant, String(current.plate));
+    let confirmation_token: string | undefined;
+    if (result.source === "external" && result.vehicle) {
+      confirmation_token = randomBytes(32).toString("hex");
+      const fields = ["brand", "model", "year", "color", "fipe_code", "fipe_model", "fipe_year_id"];
+      const baseline = Object.fromEntries(fields.map((field) => [field, current[field]]));
+      const storedResult = {
+        ...result,
+        _confirmation: {
+          token: confirmation_token,
+          vehicle_id: String(current.id),
+          plate: normalizePlate(String(current.plate)),
+          baseline,
+          expires_at: Date.now() + 10 * 60 * 1000,
+        },
+      };
+      const saved = await db.prepare(
+        "UPDATE vehicle_lookup_cache SET result_json=? WHERE tenant_id=? AND plate=? AND expires_at>?"
+      ).run(JSON.stringify(storedResult), tenant, normalizePlate(String(current.plate)), Date.now());
+      if (Number(saved.changes) !== 1)
+        throw Object.assign(new Error("Não foi possível registrar a consulta para confirmação. Tente novamente."), { status: 503 });
+    }
+    res.json({ ...result, ...(confirmation_token ? { confirmation_token } : {}), current });
+  });
+  app.post("/api/vehicles/:id/apply-lookup", async (req, res) => {
+    const input = z.object({
+      confirmation_token: z.string().regex(/^[a-f0-9]{64}$/),
+      fields: z.array(z.enum(["brand", "model", "year", "color", "fipe_code", "fipe_model", "fipe_year_id"])).min(1).max(7),
+      fipe_candidate_index: z.number().int().min(0).max(999).nullable().optional(),
+    }).strict().parse(req.body);
+    const fields = [...new Set(input.fields)];
+    const tenant = res.locals.context.tenantId;
+    const vehicleId = String(req.params.id);
+    const rejectConfirmation = (message: string) => Object.assign(new Error(message), { status: 409 });
+    const current = await scoped(db, "vehicles", tenant, vehicleId);
+    const plate = normalizePlate(String(current.plate));
+    const cached = await db.prepare(
+      "SELECT result_json FROM vehicle_lookup_cache WHERE tenant_id=? AND plate=? AND expires_at>?"
+    ).get(tenant, plate, Date.now()) as { result_json?: string } | undefined;
+    if (!cached?.result_json)
+      throw rejectConfirmation("A consulta expirou ou não pertence a este veículo. Consulte a placa novamente.");
+    let storedResult: any;
+    try { storedResult = JSON.parse(cached.result_json); } catch {
+      throw rejectConfirmation("A consulta não pode ser confirmada. Consulte a placa novamente.");
+    }
+    const proof = storedResult?._confirmation;
+    if (!proof || proof.token !== input.confirmation_token || proof.expires_at <= Date.now() ||
+        proof.vehicle_id !== vehicleId || proof.plate !== plate)
+      throw rejectConfirmation("A consulta expirou ou não pertence a este veículo. Consulte a placa novamente.");
+    const { _confirmation: _discardConfirmation, ...result } = storedResult;
+    for (const field of fields)
+      if (current[field] !== proof.baseline[field])
+        throw rejectConfirmation("Os dados selecionados mudaram após a consulta. Consulte novamente.");
+    const sourceValues: Record<string, unknown> = { ...result.vehicle };
+    if (input.fipe_candidate_index !== undefined && input.fipe_candidate_index !== null) {
+      const candidate = result.fipe_candidates?.[input.fipe_candidate_index];
+      if (!candidate?.codigoFipe)
+        throw rejectConfirmation("A versão FIPE selecionada não pertence à consulta.");
+      sourceValues.fipe_code = candidate.codigoFipe;
+      sourceValues.fipe_model = candidate.modelo || "";
+      sourceValues.fipe_year_id = candidate.anoId || "";
+    }
+    const selectedValues = Object.fromEntries(fields.map((field) => [field, sourceValues[field]]));
+    for (const field of fields)
+      if (!Object.prototype.hasOwnProperty.call(sourceValues, field) || sourceValues[field] === undefined || sourceValues[field] === null)
+        throw rejectConfirmation("A consulta não retornou todos os campos selecionados.");
+    const values = z.object({
+      brand: z.string().trim().min(2).max(150).optional(),
+      model: z.string().trim().min(2).max(150).optional(),
+      year: z.number().int().min(1900).max(2100).optional(),
+      color: z.string().trim().max(80).optional(),
+      fipe_code: z.string().trim().regex(/^(?:\d{6}-\d)?$/).optional(),
+      fipe_model: z.string().trim().max(300).optional(),
+      fipe_year_id: z.string().trim().regex(/^(?:(?:19|20|21)\d{2}-\d{1,2}|32000-\d{1,2})?$/).optional(),
+    }).partial().strict().parse(selectedValues);
+    await transaction(db, async () => {
+      const latest = await scoped(db, "vehicles", tenant, vehicleId);
+      if (normalizePlate(String(latest.plate)) !== plate || fields.some((field) => latest[field] !== proof.baseline[field]))
+        throw rejectConfirmation("Os dados selecionados mudaram após a consulta. Consulte novamente.");
+      const consumed = await db.prepare(
+        "UPDATE vehicle_lookup_cache SET result_json=? WHERE tenant_id=? AND plate=? AND result_json=? AND expires_at>?"
+      ).run(JSON.stringify(result), tenant, plate, cached.result_json, Date.now());
+      if (Number(consumed.changes) !== 1)
+        throw rejectConfirmation("A consulta já foi utilizada ou atualizada. Consulte novamente.");
+      const before = Object.fromEntries(fields.map((field) => [field, latest[field]]));
+      const assignments = fields.map((field) => field + "=?").join(",");
+      await db.prepare("UPDATE vehicles SET " + assignments + " WHERE tenant_id=? AND id=?")
+         .run(...fields.map((field) => values[field as keyof typeof values]), tenant, vehicleId);
+      const after = Object.fromEntries(fields.map((field) => [field, values[field as keyof typeof values]]));
+      const auditMetadataSaved = await audit(db, res.locals.context, "vehicles.external_lookup_updated", vehicleId, {
+        source: result.source,
+        updated_fields: fields,
+        before,
+        after,
+      });
+      if (!auditMetadataSaved)
+        throw Object.assign(
+          new Error("A confirmação de dados do veículo ficará disponível após a migração de auditoria."),
+          { status: 503 },
+        );
+    });
+    res.json({ ok: true });
+  });
+  app.get("/api/vehicles/catalog-review", async (req, res) => {
+    const query = z.object({
+      limit: z.coerce.number().int().min(1).max(50).default(20),
+      offset: z.coerce.number().int().min(0).max(100000).default(0),
+    }).parse(req.query);
+    res.json(await previewVehicleCatalogReview(db, res.locals.context, {
+      ...query,
+      plateLookupEnabled: !!providerToken(res.locals.context.tenantId),
+    }));
+  });
+  app.get('/api/repair-services/access', async (_req, res) => {
+    const catalog_status = await catalogAccessState(db, res.locals.context);
+    res.json({ enabled: catalog_status === "active", catalog_status, categories: [], service_markup_bps: 0 });
   });
   app.get('/api/repair-services/config',async(_req,res)=>res.json(await serviceInfo(db,res.locals.context)));
   app.put('/api/repair-services/rates',async(req,res)=>{
