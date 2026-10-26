@@ -43,11 +43,30 @@ export async function audit(
   entity: string,
   metadata: Record<string, unknown> = {},
 ) {
-  await db
-    .prepare(
-      "INSERT INTO audit_events(id,tenant_id,user_id,action,entity_id,metadata) VALUES(?,?,?,?,?,?)",
-    )
-    .run(id(), ctx.tenantId, ctx.userId, action, entity, JSON.stringify(metadata));
+  const values = [id(), ctx.tenantId, ctx.userId, action, entity];
+  await db.exec("SAVEPOINT audit_metadata_compat");
+  try {
+    await db
+      .prepare(
+        "INSERT INTO audit_events(id,tenant_id,user_id,action,entity_id,metadata) VALUES(?,?,?,?,?,?)",
+      )
+      .run(...values, JSON.stringify(metadata));
+    await db.exec("RELEASE SAVEPOINT audit_metadata_compat");
+  } catch (error) {
+    await db.exec("ROLLBACK TO SAVEPOINT audit_metadata_compat");
+    await db.exec("RELEASE SAVEPOINT audit_metadata_compat");
+    const code = String((error as { code?: unknown })?.code || "");
+    const message = error instanceof Error ? error.message.toLowerCase() : "";
+    const missingMetadataColumn =
+      (code === "42703" && /metadata/.test(message)) ||
+      /(?:no such column: metadata|audit_events.*metadata|metadata.*audit_events|has no column named metadata)/.test(message);
+    if (!missingMetadataColumn) throw error;
+    await db
+      .prepare(
+        "INSERT INTO audit_events(id,tenant_id,user_id,action,entity_id) VALUES(?,?,?,?,?)",
+      )
+      .run(...values);
+  }
 }
 
 export async function previewVehicleCatalogBackfill(db: DB, ctx: Context, limit = 250, cursor = "") {
@@ -296,6 +315,15 @@ export async function saveOrder(
           .all(ctx.tenantId, record!)
       : [];
     const hasExplicitModel = Object.prototype.hasOwnProperty.call(input, "service_model_id");
+    const addsCatalogServices = input.items.some((item: Row) =>
+      item.repair_service_id && !previous.some((prior: Row) => prior.id === item.id && prior.service_snapshot),
+    );
+    const explicitlyChangedModel = hasExplicitModel && input.service_model_id !== vehicle?.service_model_id;
+    if (vehicle?.service_model_id && addsCatalogServices && !explicitlyChangedModel) {
+      const linkedMatch = await identifyVehicleModel(db, ctx, vehicle);
+      if (linkedMatch.status === "mismatch")
+        throw new Error("Os dados do veículo divergem do vínculo técnico. Revise e confirme novamente o modelo antes de incluir serviços.");
+    }
     if (!hasExplicitModel && vehicle && !vehicle.service_model_id) {
       const match = await identifyVehicleModel(db, ctx, vehicle);
       if (match.status === "matched") {

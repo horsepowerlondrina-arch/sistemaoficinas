@@ -247,6 +247,84 @@ test("PostgreSQL local: autenticação, oficinas, transações e RLS do catálog
     const createdBody=JSON.parse(createdVehicleText) as any;
     const persistedLink=await db.withTenantRead("local-a",async()=>db.prepare("SELECT service_model_id FROM vehicles WHERE tenant_id=? AND id=?").get("local-a",createdBody.vehicle_id) as any);
     assert.equal(persistedLink.service_model_id,sample.id);
+
+    const priorLookupTokens = process.env.FIPEPLACA_TOKENS_JSON;
+    try {
+      process.env.FIPEPLACA_TOKENS_JSON = JSON.stringify({ "local-a": "synthetic-ci-token" });
+      const platePreview = {
+        source: "external",
+        vehicle: { plate: "QAZ1C23", brand: "Marca Atualizada", model: "Modelo Atualizado", year: 2021, color: "Preto", fipe_code: "", fipe_model: "", fipe_year_id: "" },
+        fipe_candidates: [{ codigoFipe: "004004-5", modelo: "Modelo FIPE Atualizado", anoModelo: 2021, anoId: "2021-1", combustivel: "Gasolina", confianca: "alta", matchAno: true, matchCombustivel: true }],
+        fipe_status: "found",
+        message: "Consulta sintética de teste.",
+      };
+      await db.withTenantRead("local-a", async () => db.prepare(
+        "INSERT INTO vehicle_lookup_cache(tenant_id,plate,result_json,expires_at) VALUES(?,?,?,?) ON CONFLICT(tenant_id,plate) DO UPDATE SET result_json=excluded.result_json,expires_at=excluded.expires_at"
+      ).run("local-a","QAZ1C23",JSON.stringify(platePreview),Date.now()+600000));
+      const refreshed = await request(`/api/vehicles/${createdBody.vehicle_id}/lookup-refresh`,localACookie,{});
+      assert.equal(refreshed.status,200,await refreshed.text());
+      const previewBody = await refreshed.json() as any;
+      assert.match(previewBody.confirmation_token,/^[a-f0-9]{64}$/);
+      const updatePayload = {
+        fields:["brand","fipe_code","fipe_year_id"],
+        confirmation_token:previewBody.confirmation_token,
+        fipe_candidate_index:0,
+      };
+      const forged = await request(`/api/vehicles/${createdBody.vehicle_id}/apply-lookup`,localACookie,{
+        ...updatePayload,
+        values:{brand:"Valor adulterado",fipe_code:"999999-9",fipe_year_id:"2020-1"},
+      });
+      assert.notEqual(forged.status,200);
+      const localBCookie=sessions[credentials.findIndex((credential:any)=>credential.tenant==="local-b")];
+      const crossTenant = await request(`/api/vehicles/${createdBody.vehicle_id}/apply-lookup`,localBCookie,updatePayload);
+      assert.equal(crossTenant.status,409);
+      const applied = await request(`/api/vehicles/${createdBody.vehicle_id}/apply-lookup`,localACookie,updatePayload);
+      assert.equal(applied.status,200,await applied.text());
+      const appliedVehicle = await db.withTenantRead("local-a",async()=>db.prepare(
+        "SELECT brand,fipe_code,fipe_year_id,service_model_id FROM vehicles WHERE tenant_id=? AND id=?"
+      ).get("local-a",createdBody.vehicle_id) as any);
+      assert.equal(appliedVehicle.brand,"Marca Atualizada");
+      assert.equal(appliedVehicle.fipe_code,"004004-5");
+      assert.equal(appliedVehicle.fipe_year_id,"2021-1");
+      assert.equal(appliedVehicle.service_model_id,sample.id);
+      const auditRow = await db.withTenantRead("local-a",async()=>db.prepare(
+        "SELECT metadata FROM audit_events WHERE tenant_id=? AND entity_id=? AND action='vehicles.external_lookup_updated' ORDER BY created_at DESC LIMIT 1"
+      ).get("local-a",createdBody.vehicle_id) as any);
+      const auditMetadata=JSON.parse(auditRow.metadata);
+      assert.equal(auditMetadata.source,"external");
+      assert.deepEqual(auditMetadata.after,{brand:"Marca Atualizada",fipe_code:"004004-5",fipe_year_id:"2021-1"});
+
+      const secondPreviewResponse=await request(`/api/vehicles/${createdBody.vehicle_id}/lookup-refresh`,localACookie,{});
+      const secondPreview=await secondPreviewResponse.json() as any;
+      await db.withTenantRead("local-a",async()=>db.prepare(
+        "UPDATE vehicles SET color='Branco' WHERE tenant_id=? AND id=?"
+      ).run("local-a",createdBody.vehicle_id));
+      const staleApply=await request(`/api/vehicles/${createdBody.vehicle_id}/apply-lookup`,localACookie,{
+        fields:["color"],confirmation_token:secondPreview.confirmation_token,
+      });
+      assert.equal(staleApply.status,409);
+      assert.equal(await db.withTenantRead("local-a",async()=>db.prepare(
+        "SELECT color FROM vehicles WHERE tenant_id=? AND id=?"
+      ).get("local-a",createdBody.vehicle_id) as any).then((row:any)=>row.color),"Branco");
+
+      const serviceExample=await db.withTenantRead("local-a",async()=>db.prepare(
+        "SELECT service_id FROM service_catalog.model_services WHERE model_id=? AND minutes>0 ORDER BY service_id LIMIT 1"
+      ).get(sample.id) as any);
+      if(serviceExample){
+        const {saveOrder}=await import("../server/services/workshop");
+        await assert.rejects(saveOrder(db,{tenantId:"local-a",userId:"local-owner-a",role:"owner"},{
+          status:"quote",customer_id:createdBody.id,vehicle_id:createdBody.vehicle_id,service_model_id:sample.id,
+          entered_on:"2026-10-25",due_on:"2026-10-25",km:0,discount:0,notes:"",problem:"",
+          items:[{id:"cat013-stale-link",repair_service_id:serviceExample.service_id,repair_model_id:sample.id,price:1000,quantity:1}],
+        }),/divergem do vínculo técnico/);
+      } else {
+        assert.fail("A synthetic catalog fixture needs one service to verify stale vehicle links.");
+      }
+    } finally {
+      if(priorLookupTokens===undefined) delete process.env.FIPEPLACA_TOKENS_JSON;
+      else process.env.FIPEPLACA_TOKENS_JSON=priorLookupTokens;
+    }
+
     assert.equal((await request("/api/tenant",sessions[0],{tenant_id:"local-b"})).status,403);
     assert.equal((await request("/api/logout",sessions[0],{})).status,200);
     assert.equal((await request("/api/session",sessions[0])).status,401);

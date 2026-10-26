@@ -158,7 +158,26 @@ export async function searchModels(db: DB, ctx: Context, query: unknown) {
     const sql = "SELECT m.id,m.name,m.brand_id,m.fipe_code,m.classification_id porte_id,b.name brand,p.name porte_name,m.service_count FROM service_catalog.models m JOIN service_catalog.brands b ON b.id=m.brand_id LEFT JOIN service_catalog.classifications p ON p.id=m.classification_id WHERE m.brand_id=? AND (" + searchColumn("m.name") + " LIKE ? OR (?<>'' AND m.fipe_code=?) OR (?<>'' AND " + searchColumn("m.name") + " LIKE ?)) ORDER BY CASE WHEN (?<>'' AND m.fipe_code=?) THEN 0 ELSE 1 END,CASE WHEN (?<>'' AND " + searchColumn("m.name") + "=?) THEN 0 ELSE 1 END,CASE WHEN (?<>'' AND " + searchColumn("m.name") + " LIKE ?) THEN 0 ELSE 1 END,CASE WHEN (?<>'' AND " + searchColumn("m.name") + " LIKE ?) THEN 0 ELSE 1 END,CASE WHEN (?<>'' AND " + searchColumn("m.name") + "=?) THEN 0 ELSE 1 END,m.name,m.id LIMIT 31 OFFSET ?";
     const preferredKey = searchKey(q.preferred);
     const yearKey = searchKey(q.year);
-    const rows = await db.prepare(sql).all(q.brand_id,"%"+searchKey(q.q)+"%",q.fipe,q.fipe,q.preferred,"%"+preferredKey+"%",q.fipe,q.fipe,q.preferred,preferredKey,q.preferred,"%"+preferredKey+"%",q.year,"%"+yearKey+"%",q.q,searchKey(q.q),q.offset);
+    const loadExact = (offset: number) => db.prepare(sql).all(q.brand_id,"%"+searchKey(q.q)+"%",q.fipe,q.fipe,q.preferred,"%"+preferredKey+"%",q.fipe,q.fipe,q.preferred,preferredKey,q.preferred,"%"+preferredKey+"%",q.year,"%"+yearKey+"%",q.q,searchKey(q.q),offset);
+    let rows = await loadExact(q.offset);
+    if (!rows.length && q.q.trim()) {
+      const exactFirstPage = q.offset === 0 ? rows : await loadExact(0);
+      if (!exactFirstPage.length) {
+        const tokens = searchKey(q.q).split(/\s+/).filter(Boolean);
+        for (let count = tokens.length - 1; count >= 1; count--) {
+          const term = tokens.slice(0, count).join(" ");
+          const pattern = "%"+term+"%";
+          const exists = await db.prepare(
+            "SELECT 1 FROM service_catalog.models m WHERE m.brand_id=? AND " + searchColumn("m.name") + " LIKE ? LIMIT 1"
+          ).get(q.brand_id, pattern);
+          if (!exists) continue;
+          rows = await db.prepare(
+            "SELECT m.id,m.name,m.brand_id,m.fipe_code,m.classification_id porte_id,b.name brand,p.name porte_name,m.service_count FROM service_catalog.models m JOIN service_catalog.brands b ON b.id=m.brand_id LEFT JOIN service_catalog.classifications p ON p.id=m.classification_id WHERE m.brand_id=? AND " + searchColumn("m.name") + " LIKE ? ORDER BY m.name,m.id LIMIT 31 OFFSET ?"
+          ).all(q.brand_id, pattern, q.offset);
+          break;
+        }
+      }
+    }
     return { items: rows.slice(0, 30).map(withModelPorte), has_more: rows.length > 30 };
   });
 }
@@ -213,8 +232,12 @@ export async function identifyVehicleModel(db: DB, ctx: Context, input: unknown)
   if (!brandKey || (!modelHints.length && !vehicle.fipe_code)) return { status: "not_identified" as const, catalog_status: accessState, model: null, candidates: [] };
   const brandPattern = "%" + brandKey.split(" ").filter(Boolean).join("%") + "%";
   const brandMatch = searchColumn("b.name") + " LIKE ?";
-  const queryCandidates = async (where: string, values: unknown[], order = "") =>
-    (await db.prepare(catalogModelSelect + " WHERE " + brandMatch + " AND (" + where + ") " + order + " LIMIT 101").all(brandPattern, ...values)).map(withModelPorte);
+  let candidateSetTruncated = false;
+  const queryCandidates = async (where: string, values: unknown[], order = "") => {
+    const rows = await db.prepare(catalogModelSelect + " WHERE " + brandMatch + " AND (" + where + ") " + order + " LIMIT 102").all(brandPattern, ...values);
+    if (rows.length > 101) candidateSetTruncated = true;
+    return rows.slice(0, 101).map(withModelPorte);
+  };
   const variants = rawHints.flatMap(modelEngineTokens);
   const featureVariants = rawHints.flatMap(vehicleFeatureTokens);
   const hasAmbiguousTechnicalVariants =
@@ -263,13 +286,13 @@ export async function identifyVehicleModel(db: DB, ctx: Context, input: unknown)
         return name.includes(family);
       }));
     const technical = compatible.filter((candidate) => technicallyCompatible(String(candidate.name || "")));
-    if (technical.length === 1 && compatible.length === 1 && !hasAmbiguousTechnicalVariants)
+    if (technical.length === 1 && compatible.length === 1 && !hasAmbiguousTechnicalVariants && !candidateSetTruncated)
       return { status: "matched" as const, catalog_status: accessState, model: technical[0], candidates: technical };
     return { status: "needs_confirmation" as const, catalog_status: accessState, model: null, candidates: sortByRelevance((technical.length ? technical : compatible.length ? compatible : candidates)).slice(0, 10) };
   }
   for (const hint of modelHints) {
     const exact = await queryCandidates(searchColumn("m.name") + "=?", [hint], "ORDER BY m.name,m.id");
-    if (exact.length === 1 && !vehicle.fipe_code && !hasAmbiguousTechnicalVariants && technicallyCompatible(String(exact[0].name || ""))) {
+    if (exact.length === 1 && !vehicle.fipe_code && !hasAmbiguousTechnicalVariants && !candidateSetTruncated && technicallyCompatible(String(exact[0].name || ""))) {
       return { status: "matched" as const, catalog_status: accessState, model: exact[0], candidates: exact };
     }
     if (exact.length) return { status: "needs_confirmation" as const, catalog_status: accessState, model: null, candidates: sortByRelevance(exact).slice(0, 10) };
@@ -290,7 +313,7 @@ export async function identifyVehicleModel(db: DB, ctx: Context, input: unknown)
   if (suggestions.length) {
     const relevant = sortByRelevance(suggestions);
     const compatible = relevant.filter((candidate) => technicallyCompatible(String(candidate.name || "")));
-    if (compatible.length === 1 && !vehicle.fipe_code && !hasAmbiguousTechnicalVariants)
+    if (compatible.length === 1 && !vehicle.fipe_code && !hasAmbiguousTechnicalVariants && !candidateSetTruncated)
       return { status: "matched" as const, catalog_status: accessState, model: compatible[0], candidates: compatible };
     return { status: "needs_confirmation" as const, catalog_status: accessState, model: null, candidates: (compatible.length ? compatible : relevant).slice(0, 10) };
   }

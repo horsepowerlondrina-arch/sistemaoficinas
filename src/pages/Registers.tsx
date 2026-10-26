@@ -544,17 +544,27 @@ export function RegisterModal({
   };
   const applyVehicleLookup = async () => {
     if (kind !== "vehicles" || !record?.id || !plateProposal?.vehicle) return;
-    const candidate = selectedLookupCandidate
-      ? plateProposal.fipe_candidates?.[Number(selectedLookupCandidate)]
-      : undefined;
-    const values = { ...plateProposal.vehicle, ...(candidate ? candidateFields(candidate) : {}) };
-    const fields = selectedLookupFields.filter((field) => Object.prototype.hasOwnProperty.call(values, field));
+    if (!plateProposal.confirmation_token) {
+      setError("Consulte a placa novamente antes de aplicar os dados.");
+      return;
+    }
+    const candidateIndex = selectedLookupCandidate ? Number(selectedLookupCandidate) : null;
+    const candidate = candidateIndex === null
+      ? undefined
+      : plateProposal.fipe_candidates?.[candidateIndex];
+    const previewValues = { ...plateProposal.vehicle, ...(candidate ? candidateFields(candidate) : {}) };
+    const fields = selectedLookupFields.filter((field) => Object.prototype.hasOwnProperty.call(previewValues, field));
     if (!fields.length) { setError("Marque ao menos uma informação para atualizar."); return; }
+    const selectedValues = Object.fromEntries(fields.map((field) => [field, previewValues[field]]));
     setPlateProposalBusy(true);
     setError("");
     try {
-      await send(`/vehicles/${record.id}/apply-lookup`, { fields, values });
-      setForm((current) => ({ ...current, ...Object.fromEntries(fields.map((field) => [field, values[field]])) }));
+      await send(`/vehicles/${record.id}/apply-lookup`, {
+        fields,
+        confirmation_token: plateProposal.confirmation_token,
+        fipe_candidate_index: candidateIndex,
+      });
+      setForm((current) => ({ ...current, ...selectedValues }));
       await refresh();
       notify("Campos selecionados atualizados; a consulta foi registrada no histórico.");
       setPlateProposal(null);

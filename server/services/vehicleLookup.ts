@@ -3,6 +3,10 @@ import type { DB } from "../db/database.js";
 import { z } from "zod";
 type FipeLookup = Awaited<ReturnType<typeof lookupFipePlaca>>;
 const pending = new WeakMap<object, Map<string, Promise<FipeLookup>>>();
+function publicCachedLookup<T extends Record<string, unknown>>(result: T): Omit<T, "_confirmation"> {
+  const { _confirmation: _discardConfirmation, ...publicResult } = result;
+  return publicResult;
+}
 async function cachedFipeLookup(
   db: DB,
   tenant: string,
@@ -15,7 +19,7 @@ async function cachedFipeLookup(
       "SELECT result_json FROM vehicle_lookup_cache WHERE tenant_id=? AND plate=? AND expires_at>?",
     )
     .get(tenant, plate, Date.now());
-  if (saved) return { ...JSON.parse(saved.result_json), cache_status: "hit" };
+  if (saved) return { ...publicCachedLookup(JSON.parse(saved.result_json) as Record<string, unknown>), cache_status: "hit" };
   let running = pending.get(db);
   if (!running) {
     running = new Map();
@@ -95,7 +99,7 @@ export async function lookupVehicleExternal(
   const saved = await db.prepare(
     "SELECT result_json FROM vehicle_lookup_cache WHERE tenant_id=? AND plate=? AND expires_at>?",
   ).get(tenant, plate, Date.now());
-  if (saved) return { ...JSON.parse(saved.result_json), cache_status: "hit" };
+  if (saved) return { ...publicCachedLookup(JSON.parse(saved.result_json) as Record<string, unknown>), cache_status: "hit" };
   try {
     const response = await fetcher("https://api.placafipe.com.br/getplaca", {
       method: "POST",

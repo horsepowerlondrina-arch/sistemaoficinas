@@ -14,7 +14,7 @@ import {
   identifyVehicleModel,
   previewVehicleCatalogReview,
 } from "../server/services/repairCatalog";
-import { saveOrder, listOrders, previewVehicleCatalogBackfill, applyVehicleCatalogBackfill } from "../server/services/workshop";
+import { audit, saveOrder, listOrders, previewVehicleCatalogBackfill, applyVehicleCatalogBackfill } from "../server/services/workshop";
 import { servicePrice, serviceMinutes } from "../shared/servicePricing";
 import { shouldLoadRepairServiceSearch, shouldShowVehicleCatalog, shouldShowWorkshopServices } from "../shared/repairCatalogVisibility";
 
@@ -477,6 +477,11 @@ test("importação longa sem FIPE sugere versões da mesma família sem vínculo
     assert.equal(result.status, "needs_confirmation");
     assert.equal(result.model, null);
     assert.deepEqual(new Set(result.candidates.map((candidate) => candidate.id)), new Set([corsa14, corsa16]));
+    const selectorSuggestions = await searchModels(f.db, ctx, {
+      brand_id: chevrolet,
+      q: "Corsa GL 1.6 MPFI / 1.4 EFI 2p e 4p",
+    });
+    assert.deepEqual(new Set(selectorSuggestions.items.map((candidate) => candidate.id)), new Set([corsa14, corsa16]));
     const single = await identifyVehicleModel(f.db, ctx, {
       brand: "Chevrolet",
       model: "Corsa GL 1.4 EFI",
@@ -523,4 +528,63 @@ test("vehicleOnly nunca dispara pesquisa de serviços ou exige categoria de cobr
   assert.equal(shouldLoadRepairServiceSearch("catalog", false, "modelo", false), false);
   assert.equal(shouldLoadRepairServiceSearch("catalog", false, "modelo", true), true);
   assert.equal(shouldLoadRepairServiceSearch("manual", false, "", false), true);
+});
+
+
+test("família FIPE truncada acima de 101 candidatos nunca gera vínculo automático", async () => {
+  const f = fixture();
+  try {
+    const target = randomUUID();
+    f.db.prepare("INSERT INTO service_catalog.models VALUES(?,?,?,?,?,?,?,?)")
+      .run(target, f.brand, "Civic LXS 1.8", "004004-5", f.porte, randomUUID(), "[]", 1);
+    for (let index = 0; index < 101; index++) {
+      f.db.prepare("INSERT INTO service_catalog.models VALUES(?,?,?,?,?,?,?,?)")
+        .run(randomUUID(), f.brand, `Modelo Importado ${index.toString().padStart(3, "0")}`, "004004-5", f.porte, randomUUID(), "[]", 1);
+    }
+    const result = await identifyVehicleModel(f.db, ctx, {
+      brand: "Marca",
+      model: "Civic LXS 1.8",
+      fipe_code: "004004-5",
+    });
+    assert.equal(result.status, "needs_confirmation");
+    assert.equal(result.model, null);
+    assert.ok(result.candidates.some((candidate) => candidate.id === target));
+  } finally { f.db.close(); }
+});
+
+test("auditoria permanece gravável durante a implantação antes da migração de metadados", async () => {
+  const f = fixture();
+  try {
+    f.db.exec("ALTER TABLE audit_events DROP COLUMN metadata");
+    await audit(f.db, ctx, "vehicles.external_lookup_updated", "v", {
+      source: "fipeplaca",
+      updated_fields: ["brand"],
+    });
+    const event = f.db.prepare("SELECT action FROM audit_events WHERE tenant_id='a' AND entity_id='v'").get() as any;
+    assert.equal(event.action, "vehicles.external_lookup_updated");
+  } finally { f.db.close(); }
+});
+
+test("nova inclusão técnica exige revisar vínculo de veículo divergente", async () => {
+  const f = fixture();
+  try {
+    f.db.prepare("UPDATE vehicles SET service_model_id=?,brand=?,model=? WHERE tenant_id='a' AND id='v'")
+      .run(f.model, "Outra Marca", "Modelo incompatível");
+    const input = {
+      status: "quote",
+      customer_id: "c",
+      vehicle_id: "v",
+      service_model_id: f.model,
+      entered_on: "2026-10-25",
+      due_on: "2026-10-25",
+      km: 0,
+      discount: 0,
+      notes: "",
+      problem: "",
+      items: [{ id: randomUUID(), repair_service_id: f.service, repair_model_id: f.model, price: 12000, quantity: 1 }],
+    };
+    await assert.rejects(saveOrder(f.db, ctx, input), /divergem do vínculo técnico/);
+    assert.equal(f.db.prepare("SELECT count(*) n FROM orders WHERE tenant_id='a'").get()!.n, 0);
+    assert.equal(f.db.prepare("SELECT service_model_id FROM vehicles WHERE tenant_id='a' AND id='v'").get()!.service_model_id, f.model);
+  } finally { f.db.close(); }
 });
