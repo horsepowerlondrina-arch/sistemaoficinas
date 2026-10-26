@@ -114,6 +114,11 @@ test("autocomplete do catálogo ignora acentos, restringe modelos à marca e pag
     f.db.prepare("INSERT INTO service_catalog.models VALUES(?,?,?,?,?,?,?,?)").run(secondModel, secondBrand, "SUV Elétrico 2.0", "999999-9", f.porte, null, "[]", 1);
     const brands = await searchBrands(f.db, ctx, { q: "arvore" });
     assert.deepEqual(brands.items.map((row: any) => row.id), [secondBrand]);
+    assert.equal(Number((brands.items[0] as any).vehicle_count), 1);
+    const preferred = await searchModels(f.db, ctx, { brand_id: f.brand, fipe: "123456-7", preferred: "Modelo 2", year: "2020" });
+    assert.equal(preferred.items[0].id, f.other);
+    const firstBrands = await searchBrands(f.db, ctx, {});
+    assert.ok(firstBrands.items.length > 0);
     const fipeCandidates = await searchModels(f.db, ctx, { brand_id: f.brand, q: "sem correspondência", fipe: "123456-7" });
     assert.equal(fipeCandidates.items.length, 3);
     assert.ok(fipeCandidates.items.every((row: any) => row.brand_id === f.brand));
