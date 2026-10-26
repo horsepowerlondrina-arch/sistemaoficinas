@@ -262,7 +262,7 @@ test("PostgreSQL local: autenticação, oficinas, transações e RLS do catálog
         "INSERT INTO vehicle_lookup_cache(tenant_id,plate,result_json,expires_at) VALUES(?,?,?,?) ON CONFLICT(tenant_id,plate) DO UPDATE SET result_json=excluded.result_json,expires_at=excluded.expires_at"
       ).run("local-a","QAZ1C23",JSON.stringify(platePreview),Date.now()+600000);
       const refreshed = await request(`/api/vehicles/${createdBody.vehicle_id}/lookup-refresh`,localACookie,{});
-      assert.equal(refreshed.status,200,await refreshed.text());
+      assert.equal(refreshed.status,200);
       const previewBody = await refreshed.json() as any;
       assert.match(previewBody.confirmation_token,/^[a-f0-9]{64}$/);
       const updatePayload = {
