@@ -210,13 +210,17 @@ export async function identifyVehicleModel(db: DB, ctx: Context, input: unknown)
     const modelCompatible = !modelHints.length || modelHints.some((hint) => savedName === hint || savedName.startsWith(hint) || hint.startsWith(savedName));
     return { status: brandCompatible && fipeCompatible && modelCompatible ? "linked" as const : "mismatch" as const, catalog_status: accessState, model, candidates: [model] };
   }
-  if (!brandKey || !modelHints.length) return { status: "not_identified" as const, catalog_status: accessState, model: null, candidates: [] };
+  if (!brandKey || (!modelHints.length && !vehicle.fipe_code)) return { status: "not_identified" as const, catalog_status: accessState, model: null, candidates: [] };
   const brandPattern = "%" + brandKey.split(" ").filter(Boolean).join("%") + "%";
   const brandMatch = searchColumn("b.name") + " LIKE ?";
   const queryCandidates = async (where: string, values: unknown[], order = "") =>
     (await db.prepare(catalogModelSelect + " WHERE " + brandMatch + " AND (" + where + ") " + order + " LIMIT 101").all(brandPattern, ...values)).map(withModelPorte);
   const variants = rawHints.flatMap(modelEngineTokens);
-  const hasAmbiguousTechnicalVariants = rawHints.some(hasMultipleTechnicalVariants);
+  const featureVariants = rawHints.flatMap(vehicleFeatureTokens);
+  const hasAmbiguousTechnicalVariants =
+    rawHints.some(hasMultipleTechnicalVariants) ||
+    new Set(variants).size > 1 ||
+    new Set(featureVariants).size > 1;
   const engineCompatible = (name: string) => {
     if (!variants.length) return true;
     const key = vehicleSearchKey(name);

@@ -484,6 +484,21 @@ test("importação longa sem FIPE sugere versões da mesma família sem vínculo
     });
     assert.equal(single.status, "matched");
     assert.equal(single.model?.id, corsa14);
+    const conflict = await identifyVehicleModel(f.db, ctx, {
+      brand: "Chevrolet",
+      model: "Corsa GL 1.4 EFI",
+      fipe_model: "Corsa GL 1.6 MPFI",
+    });
+    assert.equal(conflict.status, "needs_confirmation");
+    const celta = randomUUID();
+    f.db.prepare("INSERT INTO service_catalog.models VALUES(?,?,?,?,?,?,?,?)").run(celta, chevrolet, "Celta 1.0", "555555-5", f.porte, randomUUID(), "[]", 1);
+    const fipeOnly = await identifyVehicleModel(f.db, ctx, {
+      brand: "Chevrolet",
+      model: "",
+      fipe_code: "555555-5",
+    });
+    assert.equal(fipeOnly.status, "matched");
+    assert.equal(fipeOnly.model?.id, celta);
   } finally { f.db.close(); }
 });
 
