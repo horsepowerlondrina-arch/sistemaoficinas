@@ -4568,7 +4568,8 @@ body { padding-top: 36px; }
 }
 
 /* CAT-012: searchable catalog selectors with viewport-level suggestion panels. */
-.catalog-selection-row { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; align-items:start; width:100%; }\n.catalog-selection-row > .field.full { grid-column:1 / -1; }
+.catalog-selection-row { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; align-items:start; width:100%; }
+.catalog-selection-row > .field.full { grid-column:1 / -1; }
 .catalog-combobox-control { display:flex; min-width:0; width:100%; }
 .catalog-combobox-control input { min-width:0; flex:1 1 auto; border-top-right-radius:0; border-bottom-right-radius:0; }
 .catalog-combobox-control > button { flex:0 0 42px; border:1px solid var(--border); border-left:0; border-radius:0 9px 9px 0; background:#fff; color:#343943; cursor:pointer; }

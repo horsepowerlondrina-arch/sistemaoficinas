@@ -68,7 +68,8 @@ export function Registers({ kind }: { kind: Kind }) {
   const [editing, setEditing] = useState<Entity | null | undefined>();
   const c = config[kind];
   const [categoriesOpen, setCategoriesOpen] = useState(false);
-  const [batchOpen, setBatchOpen] = useState(false);\n  const [vehicleReviewOpen, setVehicleReviewOpen] = useState(false);
+  const [batchOpen, setBatchOpen] = useState(false);
+  const [vehicleReviewOpen, setVehicleReviewOpen] = useState(false);
   const [capture, setCapture] = useState<"sky" | "tempario" | null>(null);
   const Icon = c.icon;
   const rows = data[kind].filter(
