@@ -307,15 +307,39 @@ test("PostgreSQL local: autenticação, oficinas, transações e RLS do catálog
         "SELECT color FROM vehicles WHERE tenant_id=? AND id=?"
       ).get("local-a",createdBody.vehicle_id) as any).then((row:any)=>row.color),"Branco");
 
-      await db.exec("ALTER TABLE audit_events DROP COLUMN metadata");
+      const missingMetadataDb = {
+        ...db,
+        prepare(sql: string) {
+          const statement = db.prepare(sql);
+          if (/INSERT INTO audit_events.*metadata/i.test(sql)) {
+            return {
+              get: (...values: any[]) => statement.get(...values),
+              all: (...values: any[]) => statement.all(...values),
+              run: async (..._values: any[]) => {
+                throw Object.assign(new Error('column "metadata" of relation "audit_events" does not exist'), { code: "42703" });
+              },
+            };
+          }
+          return statement;
+        },
+      } as typeof db;
+      const guardedServer=createApp(missingMetadataDb).listen(0,"127.0.0.1");
+      await once(guardedServer,"listening");
       try {
+        const guardedAddress=guardedServer.address();
+        assert.ok(guardedAddress&&typeof guardedAddress!=="string");
+        const guardedRequest=(path:string,body:unknown)=>fetch("http://127.0.0.1:"+guardedAddress.port+path,{
+          method:"POST",
+          headers:{"Content-Type":"application/json",Origin:"http://127.0.0.1:5173",Cookie:localACookie},
+          body:JSON.stringify(body),
+        });
         const beforeMissingMetadata = await db.withTenantRead("local-a",async()=>db.prepare(
           "SELECT color FROM vehicles WHERE tenant_id=? AND id=?"
         ).get("local-a",createdBody.vehicle_id) as any);
-        const previewWithoutMetadataResponse = await request(`/api/vehicles/${createdBody.vehicle_id}/lookup-refresh`,localACookie,{});
+        const previewWithoutMetadataResponse = await guardedRequest(`/api/vehicles/${createdBody.vehicle_id}/lookup-refresh`,{});
         assert.equal(previewWithoutMetadataResponse.status,200);
         const previewWithoutMetadata = await previewWithoutMetadataResponse.json() as any;
-        const blockedWithoutMetadata = await request(`/api/vehicles/${createdBody.vehicle_id}/apply-lookup`,localACookie,{
+        const blockedWithoutMetadata = await guardedRequest(`/api/vehicles/${createdBody.vehicle_id}/apply-lookup`,{
           fields:["color"],confirmation_token:previewWithoutMetadata.confirmation_token,
         });
         assert.equal(blockedWithoutMetadata.status,503,await blockedWithoutMetadata.text());
@@ -324,7 +348,7 @@ test("PostgreSQL local: autenticação, oficinas, transações e RLS do catálog
         ).get("local-a",createdBody.vehicle_id) as any);
         assert.equal(afterMissingMetadata.color,beforeMissingMetadata.color);
       } finally {
-        await db.exec("ALTER TABLE audit_events ADD COLUMN metadata text NOT NULL DEFAULT '{}'");
+        await new Promise<void>(resolve=>guardedServer.close(()=>resolve()));
       }
 
       const serviceExample=await db.withTenantRead("local-a",async()=>db.prepare(
