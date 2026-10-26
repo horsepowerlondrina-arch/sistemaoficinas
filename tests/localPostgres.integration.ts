@@ -277,7 +277,7 @@ test("PostgreSQL local: autenticação, oficinas, transações e RLS do catálog
       assert.notEqual(forged.status,200);
       const localBCookie=sessions[credentials.findIndex((credential:any)=>credential.tenant==="local-b")];
       const crossTenant = await request(`/api/vehicles/${createdBody.vehicle_id}/apply-lookup`,localBCookie,updatePayload);
-      assert.equal(crossTenant.status,409);
+      assert.equal(crossTenant.status,404);
       const applied = await request(`/api/vehicles/${createdBody.vehicle_id}/apply-lookup`,localACookie,updatePayload);
       assert.equal(applied.status,200,await applied.text());
       const appliedVehicle = await db.withTenantRead("local-a",async()=>db.prepare(
