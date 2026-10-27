@@ -5,17 +5,22 @@ import { requireAdmin } from "./payments.js";
 import { scoped, audit } from "./workshop.js";
 import { issueDocument,readDocument,publicDocument, type HistoricalShareUnavailable, type PublicOrderDocument } from "./documents.js";
 import { workshopIdentity } from "../../shared/workshopIdentity.js";
-export async function createShare(db:DB,ctx:Context,record:string,revision?:number){
+export async function createShare(db:DB,ctx:Context,record:string){
  requireAdmin(ctx);
  return transaction(db,async()=>{
-  const document=revision?await readDocument(db,ctx,"order",record,revision):await issueDocument(db,ctx,"order",record);
-  const current=await db.prepare("SELECT token_value FROM public_shares WHERE tenant_id=? AND order_id=? AND document_revision=? AND revoked=0 AND expires_at>? AND token_value IS NOT NULL AND token_value<>'' ORDER BY expires_at DESC LIMIT 1").get(ctx.tenantId,record,document.revision,Date.now());
-  const metadata={document:publicDocument(document),shop_name:document.shop.name};
-  if(current?.token_value){await audit(db,ctx,"order.share_reused",record);return{path:"/p/"+current.token_value,expires_days:null,reused:true,...metadata};}
+  const document=await issueDocument(db,ctx,"order",record,true);
   const token=randomBytes(32).toString("hex");
-  await db.prepare("INSERT INTO public_shares(token_hash,tenant_id,order_id,expires_at,token_value,document_revision) VALUES(?,?,?,?,?,?)").run(digest(token),ctx.tenantId,record,Number.MAX_SAFE_INTEGER,token,document.revision);
+  const expiresAt=Date.now()+30*24*60*60*1000;
+  await db.prepare("INSERT INTO public_shares(token_hash,tenant_id,order_id,expires_at,token_value,document_revision) VALUES(?,?,?,?,?,?)").run(digest(token),ctx.tenantId,record,expiresAt,token,document.revision);
   await audit(db,ctx,"order.shared",record);
-  return {path:"/p/"+token,expires_days:null,reused:false,...metadata};
+  return {
+   path:"/p/"+token,
+   expires_days:30,
+   expires_at:new Date(expiresAt).toISOString(),
+   reused:false,
+   document:publicDocument(document),
+   shop_name:document.shop.name,
+  };
  });
 }
 export async function readShare(db:DB,token:string):Promise<(PublicOrderDocument|HistoricalShareUnavailable)|null>{

@@ -19,6 +19,7 @@ type DocumentContextValue = {
   setError: (error: string) => void;
   setBusy: (busy: boolean) => void;
   issue: (newRevision: boolean) => Promise<void>;
+  currentOnly: boolean;
   setPrinting: (printing: boolean) => void;
 };
 const DocumentContext = createContext<DocumentContextValue | null>(null);
@@ -29,7 +30,7 @@ function useIssuedDocument() {
   return value;
 }
 
-export function IssuedDocumentProvider({ kind, id, children }: { kind: Kind; id: string; children: ReactNode }) {
+export function IssuedDocumentProvider({ kind, id, currentOnly = false, children }: { kind: Kind; id: string; currentOnly?: boolean; children: ReactNode }) {
   const { session } = useApp();
   const admin = session.role === "owner";
   const [history, setHistory] = useState<History>({ legacy: false, revisions: [] });
@@ -47,7 +48,7 @@ export function IssuedDocumentProvider({ kind, id, children }: { kind: Kind; id:
       .then(async (documentHistory) => {
         if (!active) return;
         setHistory(documentHistory);
-        if (documentHistory.revisions.length) {
+        if (!currentOnly && documentHistory.revisions.length) {
           const document = await api<Record<string, any>>(endpoint + "?revision=" + documentHistory.revisions[0].revision);
           if (active) setPayload(document);
         }
@@ -56,7 +57,7 @@ export function IssuedDocumentProvider({ kind, id, children }: { kind: Kind; id:
         if (active) setError(cause.message);
       });
     return () => { active = false; };
-  }, [endpoint]);
+  }, [endpoint, currentOnly]);
 
   useEffect(() => {
     if (!printing || !payload) return;
@@ -68,7 +69,7 @@ export function IssuedDocumentProvider({ kind, id, children }: { kind: Kind; id:
     setBusy(true);
     setError("");
     try {
-      const value = await send(endpoint, { new_revision: newRevision });
+      const value = await send(endpoint, { new_revision: newRevision, ...(currentOnly && kind === "order" ? { current_order: true } : {}) });
       setPayload(value);
       setHistory(await api(endpoint));
       setPrinting(true);
@@ -80,18 +81,21 @@ export function IssuedDocumentProvider({ kind, id, children }: { kind: Kind; id:
   }
 
   return (
-    <DocumentContext.Provider value={{ kind, id, admin, history, payload, error, busy, setPayload, setError, setBusy, issue, setPrinting }}>
+    <DocumentContext.Provider value={{ kind, id, admin, history, payload, error, busy, setPayload, setError, setBusy, issue, currentOnly, setPrinting }}>
       {children}
     </DocumentContext.Provider>
   );
 }
 
 export function IssuedDocumentActions() {
-  const { kind, id, admin, history, payload, error, busy, setPayload, setError, setBusy, issue, setPrinting } = useIssuedDocument();
+  const { kind, id, admin, history, payload, error, busy, setPayload, setError, setBusy, issue, currentOnly, setPrinting } = useIssuedDocument();
+  const { data, session } = useApp();
   const endpoint = "/documents/" + kind + "/" + id;
+  const order = data.orders.find((item) => item.id === id);
+  const customer = order?.customer_id ? data.customers.find((item) => item.id === order.customer_id) : undefined;
   return (
     <>
-      {history.revisions.length > 0 && (
+      {!currentOnly && history.revisions.length > 0 && (
         <label className="issued-document-revision">
           Revisão
           <select disabled={busy} value={payload?.revision || ""} onChange={async (event) => {
@@ -110,7 +114,11 @@ export function IssuedDocumentActions() {
         </label>
       )}
       <div className="capture-actions">
-        {payload ? (
+        {currentOnly ? (
+          <button type="button" className="button" disabled={busy} onClick={() => void issue(true)}>
+            Imprimir PDF
+          </button>
+        ) : payload ? (
           <button type="button" className="button" disabled={busy} onClick={() => setPrinting(true)}>
             Reimprimir revisão {payload.revision}
           </button>
@@ -119,7 +127,7 @@ export function IssuedDocumentActions() {
             Emitir e imprimir / PDF
           </button>
         )}
-        {admin && (history.legacy || history.revisions.length > 0) && (
+        {!currentOnly && admin && (history.legacy || history.revisions.length > 0) && (
           <button type="button" className="button" disabled={busy} onClick={() => {
             if (window.confirm("Emitir uma nova revisão com os dados atuais? As anteriores e seus links serão preservados.")) void issue(true);
           }}>
@@ -127,13 +135,12 @@ export function IssuedDocumentActions() {
           </button>
         )}
       </div>
-      {kind === "order" && admin && payload && (
+      {kind === "order" && admin && order && (currentOnly || payload) && (
         <ShareOrder
-          key={`${id}-${payload.revision}`}
-          revision={payload.revision}
-          shopName={payload.shop.name}
-          customerPhone={payload.customer?.phone}
-          order={{ id, number: payload.order.number, status: payload.order.status, total: payload.order.total, plate: payload.vehicle?.plate || payload.order.guest_plate || "", customer_id: payload.customer?.id || "", customer_name: payload.customer?.name || payload.order.guest_name || "Cliente não informado" }}
+          key={id}
+          shopName={session.tenant.name}
+          customerPhone={customer?.phone}
+          order={order}
         />
       )}
       {error && <p role="alert" className="error-box issued-document-error">{error}</p>}

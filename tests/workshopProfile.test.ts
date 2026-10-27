@@ -30,9 +30,9 @@ test("workshop identity editing is scoped and affects only explicitly issued doc
   assert.deepEqual(db.prepare("SELECT * FROM orders").get(),order);
   const publicData=(await readShare(db,share.path.slice(3)))!;
   assert.equal(publicData.shop!.name,"Oficina A");
-  const {issueDocument}=await import("../server/services/documents");
-  const revision=await issueDocument(db,ctx,"order","o",true);
-  const newer=await createShare(db,ctx,"o",revision.revision);
+  const newer=await createShare(db,ctx,"o");
+  assert.notEqual(newer.path,share.path);
+  assert.equal((await readShare(db,share.path.slice(3)))!.shop.name,"Oficina A");
   const newPublicData=(await readShare(db,newer.path.slice(3)))!;
   assert.equal(newPublicData.shop!.name,"Minha oficina");assert.equal(newPublicData.shop!.email,"contato@example.test");
   assert.equal(newPublicData.shop!.document_logo,png);

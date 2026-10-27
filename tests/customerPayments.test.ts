@@ -6,7 +6,6 @@ import {createDatabase} from '../server/db/database';
 import {createShare,readShare} from '../server/services/sharing';
 import {configurePlan,settleCredit,settleInstallment} from '../server/services/payments';
 import {customerPayments} from '../shared/customerPayments';
-import {issueDocument} from '../server/services/documents';
 import {OrderPrint} from '../src/components/OrderPrint';
 const ctx={tenantId:'a',userId:'u',role:'owner'};
 test('issued customer links freeze mixed payment totals and revisions expose only gross data',async()=>{
@@ -20,15 +19,13 @@ test('issued customer links freeze mixed payment totals and revisions expose onl
   const pix=db.prepare("SELECT id FROM payment_installments WHERE method='Pix'").get()!;
   await settleInstallment(db,ctx,String(pix.id),'bank');
   assert.equal((await readShare(db,token))!.payment_summary,null);
-  const partialDoc=await issueDocument(db,ctx,'order','o',true);
-  const partialShare=await createShare(db,ctx,'o',partialDoc.revision);
+  const partialShare=await createShare(db,ctx,'o');
   const partialToken=partialShare.path.slice(3);
   const partial=(await readShare(db,partialToken))!.payment_summary!;
   assert.equal(partial.status,'partial');assert.equal(partial.paid,2000);assert.equal(partial.balance,8000);
   await settleCredit(db,ctx,'r','bank');
   assert.equal((await readShare(db,partialToken))!.payment_summary!.status,'partial');
-  const paidDoc=await issueDocument(db,ctx,'order','o',true);
-  const paidShare=await createShare(db,ctx,'o',paidDoc.revision);
+  const paidShare=await createShare(db,ctx,'o');
   const out=(await readShare(db,paidShare.path.slice(3)))!;
   assert.equal(out.payment_summary!.status,'paid');assert.equal(out.payment_summary!.paid,10000);assert.equal(out.payment_summary!.balance,0);
   const credit=out.payment_summary!.payments.find(p=>p.method==='Cartão de crédito')!;

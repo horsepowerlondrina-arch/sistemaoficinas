@@ -87,24 +87,28 @@ test("OS details show the requested vehicle and order summary and keep issue con
 
   assert.doesNotMatch(html, /Documento emitido|Emissões são imutáveis/);
   const title = html.indexOf("<h1>Detalhes da OS</h1>");
-  const osActionsStart = html.indexOf('class="action-row order-view-os-actions"');
-  const documentsStart = html.indexOf('class="action-row order-view-document-actions"');
-  const pdfAction = html.indexOf("Emitir e imprimir / PDF");
-  assert.ok(title >= 0 && title < osActionsStart, "The title stays above and independent from action rows");
-  assert.ok(osActionsStart < documentsStart && documentsStart < pdfAction);
-  const osActions = html.slice(osActionsStart, documentsStart);
-  for (const action of ["Checklist de entrada", "Alterar status", "Editar atendimento", "Iniciar execução"]) {
-    assert.ok(osActions.includes(action), `Expected OS action row to include ${action}`);
-  }
-  assert.doesNotMatch(osActions, /Emitir e imprimir|Reimprimir revisão|Revisão/);
+  const actionsStart = html.indexOf('class="no-print order-view-toolbar"');
+  assert.ok(title >= 0 && title < actionsStart, "The title stays independent from the action row");
+  const actionLabels = [
+    "Checklist de entrada",
+    "Alterar status",
+    "Editar atendimento",
+    "Iniciar execução",
+    "Imprimir PDF",
+    "WhatsApp",
+  ];
+  const positions = actionLabels.map((label) => html.indexOf(label));
+  assert.ok(positions.every((position) => position > actionsStart));
+  assert.deepEqual(positions, [...positions].sort((a, b) => a - b));
+  assert.doesNotMatch(html, /Reimprimir revisão|Emitir e imprimir|Emitir nova revisão com dados atuais|Revisão \\d/);
 
   const quoteHtml = renderOrder(baseOrder({ status: "quote" }));
-  const quoteActionsStart = quoteHtml.indexOf('class="action-row order-view-os-actions"');
-  const quoteDocumentsStart = quoteHtml.indexOf('class="action-row order-view-document-actions"');
-  const quoteActions = quoteHtml.slice(quoteActionsStart, quoteDocumentsStart);
-  assert.ok(quoteActions.includes("Aprovar OS"));
-  assert.doesNotMatch(quoteActions, /Emitir e imprimir|Reimprimir revisão|Revisão/);
-  assert.ok(quoteHtml.indexOf("Emitir e imprimir / PDF") > quoteDocumentsStart);
+  const quoteActionsStart = quoteHtml.indexOf('class="no-print order-view-toolbar"');
+  const approve = quoteHtml.indexOf("Aprovar OS");
+  const print = quoteHtml.indexOf("Imprimir PDF");
+  const share = quoteHtml.indexOf("WhatsApp");
+  assert.ok(approve > quoteActionsStart && approve < print && print < share);
+  assert.doesNotMatch(quoteHtml, /Reimprimir revisão|Emitir e imprimir|Emitir nova revisão com dados atuais|Revisão \\d/);
 });
 
 test("missing vehicle and order values display Não informado", () => {
