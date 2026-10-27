@@ -973,9 +973,9 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
         .all(res.locals.context.tenantId),
     );
   });
-  app.post("/api/orders/:id/share", async (_req, res) => {
+  app.post("/api/orders/:id/share", async (req, res) => {
     const ctx: Context = res.locals.context;
-    const record = String(res.req.params.id);
+    const record = String(req.params.id);
     res.json({
       ...(await createShare(db, ctx, record)),
       public_origin: process.env.PUBLIC_ORIGIN || "",
