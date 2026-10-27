@@ -106,6 +106,7 @@ test("non-owner order lists do not expose order values", () => {
   const html = renderOrderTable([order()], "operator");
   assert.doesNotMatch(html, />Valor</);
   assert.doesNotMatch(html, /data-label="Valor"/);
+  assert.match(html, /class="order-list-table order-list-table-no-value"/);
 });
 
 test("sort controls order OS numbers, vehicles, statuses, dates and amounts", () => {

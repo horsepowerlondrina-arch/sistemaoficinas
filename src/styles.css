@@ -4718,12 +4718,17 @@ body { padding-top: 36px; }
   table-layout: fixed;
   white-space: normal;
 }
-.order-list-table .order-col-identity { width: 25%; }
-.order-list-table .order-col-vehicle { width: 18%; }
+.order-list-table .order-col-identity { width: 27%; }
+.order-list-table .order-col-vehicle { width: 20%; }
 .order-list-table .order-col-date { width: 13%; }
 .order-list-table .order-col-due { width: 17%; }
-.order-list-table .order-col-status { width: 16%; }
+.order-list-table .order-col-status { width: 12%; }
 .order-list-table .order-col-total { width: 11%; }
+.order-list-table-no-value .order-col-identity { width: 30%; }
+.order-list-table-no-value .order-col-vehicle { width: 22%; }
+.order-list-table-no-value .order-col-date { width: 14%; }
+.order-list-table-no-value .order-col-due { width: 18%; }
+.order-list-table-no-value .order-col-status { width: 16%; }
 .order-list-table th,
 .order-list-table td {
   padding: 9px 11px;

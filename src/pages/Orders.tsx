@@ -231,7 +231,6 @@ export function Orders() {
             )}
           </form>
         </details>
-        <p className="muted">No status Orçamento, a OS pode ser criada sem cliente. Para aprovar, informe cliente e veículo. OS no status Orçamento ficam fora do relatório financeiro e podem ser impressas no detalhe da OS.</p>
         <OrderTable orders={rows} />
         <div className="panel-foot">
           <span>
