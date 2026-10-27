@@ -47,3 +47,26 @@ test("seleção automática do veículo exige correspondência única confiável
 test("após incluir serviço a lista permanece fechada sem opção ativa", () => {
   assert.deepEqual(serviceDropdownStateAfterAdd(), { open: false, activeIndex: -1 });
 });
+
+import { calculateCatalogDropdownPlacement } from "../shared/catalogPickerUsability";
+
+test("menu de autocomplete abre abaixo do campo em viewport baixo quando cabe a lista rolável", () => {
+  const placement = calculateCatalogDropdownPlacement(
+    { left: 100, top: 390, right: 550, bottom: 430, width: 450 },
+    { width: 1366, height: 608 },
+  );
+  assert.equal(placement.top, 434);
+  assert.equal(placement.left, 100);
+  assert.equal(placement.width, 450);
+  assert.equal(placement.maxHeight, 114);
+});
+
+test("menu abre acima apenas quando não há espaço suficiente abaixo e cabe melhor acima", () => {
+  const placement = calculateCatalogDropdownPlacement(
+    { left: 100, top: 550, right: 550, bottom: 590, width: 450 },
+    { width: 1366, height: 608 },
+  );
+  assert.ok(placement.top < 550);
+  assert.ok(placement.top >= 8);
+  assert.ok(placement.maxHeight >= 80);
+});

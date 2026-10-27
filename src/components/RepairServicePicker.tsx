@@ -6,7 +6,7 @@ import { money, type Entity } from "../lib/types";
 import { Field, Modal, PageHeading } from "./ui";
 import { NumericInput } from "./NumericInput";
 import { shouldLoadRepairServiceSearch, shouldShowVehicleCatalog, shouldShowWorkshopServices } from "../../shared/repairCatalogVisibility";
-import { canAddRepairServiceImmediately, initialCatalogOptionIndex, nextCatalogOptionIndex, serviceDropdownStateAfterAdd, shouldAutoSelectCatalogVehicle } from "../../shared/catalogPickerUsability";
+import { calculateCatalogDropdownPlacement, canAddRepairServiceImmediately, initialCatalogOptionIndex, nextCatalogOptionIndex, serviceDropdownStateAfterAdd, shouldAutoSelectCatalogVehicle } from "../../shared/catalogPickerUsability";
 
 type Info = { enabled: boolean; catalog_status:"active"|"not_contracted"|"expired"|"revoked"|"not_installed"; categories: Entity[]; service_markup_bps: number };
 const catalogStatusMessage:Record<Exclude<Info["catalog_status"],"active">,string>={
@@ -326,13 +326,11 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
     const update = () => {
       const anchor = openKind === "brand" ? brandInputRef.current : openKind === "vehicle" ? modelInputRef.current : serviceInputRef.current;
       if (!anchor) return;
-      const rect = anchor.getBoundingClientRect();
-      const below = window.innerHeight - rect.bottom - 12, above = rect.top - 12;
-      const maxHeight = Math.max(120, Math.min(320, below >= 180 ? below : Math.max(above, 120)));
-      const top = below >= 180 ? rect.bottom + 4 : Math.max(8, rect.top - maxHeight - 4);
-      const width = Math.min(rect.width, window.innerWidth - 16);
-      const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
-      setDropdownPosition({ left, top, width, maxHeight });
+      const placement = calculateCatalogDropdownPlacement(
+        anchor.getBoundingClientRect(),
+        { width: window.innerWidth, height: window.innerHeight },
+      );
+      setDropdownPosition(placement);
     };
     update();
     window.addEventListener("resize", update);
