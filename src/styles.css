@@ -2718,6 +2718,29 @@ body {
   flex-wrap: wrap;
   gap: 10px;
 }
+.page-heading .order-view-action-row {
+  align-items: center;
+}
+.page-heading .order-view-action-row .button {
+  align-self: center;
+  flex: 0 0 auto;
+  height: 40px;
+  min-height: 40px;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+.page-heading .order-view-action-row .capture-actions {
+  align-items: center;
+  flex: 0 0 auto;
+}
+@media (max-width: 760px) {
+  .page-heading .order-view-action-row {
+    width: 100%;
+    align-items: center;
+    justify-content: flex-start;
+  }
+}
 .work-order-summary {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
