@@ -522,7 +522,7 @@ export async function finishCapture(db: DB, ctx: Context, orderId: string) {
           orderId,
         );
       if (staged.length)
-        await invalidateOrderShares(db, ctx.tenantId, orderId);
+        await invalidateOrderShares(db, ctx, orderId);
     }
     await db
       .prepare("DELETE FROM capture_sessions WHERE tenant_id=? AND order_id=?")
