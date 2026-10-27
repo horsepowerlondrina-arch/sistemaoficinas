@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { ArrowUpRight, ArrowUpDown, CarFront, ChevronDown, ChevronUp } from "lucide-react";
+import { useState, type KeyboardEvent } from "react";
+import { ArrowUpDown, CarFront, ChevronDown, ChevronUp } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { money, initials, type Order } from "../lib/types";
 import { useApp } from "../lib/context";
@@ -39,7 +39,7 @@ export function OrderTable({ orders }: { orders: Order[] }) {
       setDirection("asc");
     }
   };
-  const handleRowKey = (event: React.KeyboardEvent<HTMLElement>, order: Order) => {
+  const handleRowKey = (event: KeyboardEvent<HTMLElement>, order: Order) => {
     if (event.target !== event.currentTarget) return;
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
