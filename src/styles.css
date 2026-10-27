@@ -5013,3 +5013,27 @@ body { padding-top: 36px; }
     max-width: 100%;
   }
 }
+
+
+/* OS-006 — one desktop action line; controls wrap without stretching on narrow screens. */
+.order-view-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+}
+.order-view-toolbar .capture-actions {
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  gap: 10px;
+}
+.order-view-toolbar .issued-document-error { flex-basis: 100%; }
+@media (max-width: 760px) {
+  .order-view-toolbar {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .order-view-toolbar .capture-actions {
+    flex-wrap: wrap;
+  }
+}
