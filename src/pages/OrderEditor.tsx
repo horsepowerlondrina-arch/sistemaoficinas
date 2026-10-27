@@ -542,13 +542,13 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
                         + Novo veículo
                       </button>
                     )}
-                    <Field label="Marca do veículo">
+                    <Field label={"Marca do veículo" + (form.status !== "quote" || !!lookupPlate ? " *" : "")}>
                       <input maxLength={150} readOnly={!!form.vehicle_id} value={lookedUp.brand || ""} onChange={(e) => setLookedUp((current) => ({ ...current, brand: e.target.value }))} />
                     </Field>
-                    <Field label="Modelo do veículo">
+                    <Field label={"Modelo do veículo" + (form.status !== "quote" || !!lookupPlate ? " *" : "")}>
                       <input maxLength={150} readOnly={!!form.vehicle_id} value={lookedUp.model || ""} onChange={(e) => setLookedUp((current) => ({ ...current, model: e.target.value }))} />
                     </Field>
-                    <Field label="Ano fabricação/modelo">
+                    <Field label={"Ano fabricação/modelo" + (form.status !== "quote" || !!lookupPlate ? " *" : "")}>
                       <NumericInput type="number" min={1900} max={2100} disabled={!!form.vehicle_id} value={lookedUp.year || ""} onChange={(e) => setLookedUp((current) => ({ ...current, year: e.target.value ? Number(e.target.value) : "" }))} />
                     </Field>
                     <Field label="Quilometragem">
@@ -1032,7 +1032,7 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
           record={null}
           initial={
             quickCreate === "vehicles"
-              ? { ...lookedUp, customer_id: form.customer_id }
+              ? { ...(form.vehicle_id ? {} : lookedUp), customer_id: form.customer_id }
               : quickCreate === "catalog"
                 ? { kind: itemKind }
                 : undefined
