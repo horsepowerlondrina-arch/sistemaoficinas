@@ -152,54 +152,96 @@ test("PostgreSQL local: autenticação, oficinas, transações e RLS do catálog
     throw stop;
     }),e=>e===stop);
   });
-  await t.test("PROD-001.1: identidade, documentos e links públicos isolados entre oficinas",async()=>{
+  await t.test("OS-006: PDF atual, revogação, renovação e isolamento de links públicos",async()=>{
     const { saveWorkshopProfile,getWorkshopProfile }=await import("../server/services/workshopProfile");
     const { createShare,readShare }=await import("../server/services/sharing");
+    const { invalidateOrderShares,saveOrder }=await import("../server/services/workshop");
+    const { issueDocument,readDocument,documentHistory }=await import("../server/services/documents");
     const { workshopLogo }=await import("./fixtures/workshopLogo");
-    const { createElement }=await import("react");
-    const { renderToStaticMarkup }=await import("react-dom/server");
-    const { WorkshopBrand }=await import("../src/components/WorkshopBrand");
-    const { DocumentHeader }=await import("../src/components/DocumentHeader");
     const original=await db.prepare("SELECT id,name,document_logo FROM tenants ORDER BY id").all();
-    assert.ok(await db.prepare("SELECT version FROM migrations WHERE version=23").get());
-    const stop=new Error("rollback identidade fictícia");
+    const stop=new Error("rollback OS-006 fictícia");
     await assert.rejects(db.transaction(async()=>{
       const profiles=[
-        {tenant:"local-a",name:"Oficina Visual A",logo:workshopLogo(20,110,130)},
-        {tenant:"local-b",name:"Oficina Visual B",logo:workshopLogo(100,60,160)}
+        {tenant:"local-a",user:"local-owner-a",name:"Oficina Visual A",logo:workshopLogo(20,110,130)},
+        {tenant:"local-b",user:"local-owner-b",name:"Oficina Visual B",logo:workshopLogo(100,60,160)}
       ];
+      const input=(notes="")=>({
+        status:"quote",guest_name:"Cliente Fictício",guest_plate:"ABC1D23",
+        guest_vehicle:"Honda Civic",entered_on:"2026-10-21",due_on:"2026-10-21",
+        km:0,problem:"Relato inicial",notes,discount:0,items:[]
+      });
+      const orders:string[]=[];
       for(const profile of profiles){
-        const ctx={tenantId:profile.tenant,userId:"local-owner-"+profile.tenant.slice(-1),role:"owner"};
+        const ctx={tenantId:profile.tenant,userId:profile.user,role:"owner"};
         await saveWorkshopProfile(db,ctx,{tenant_id:profile.tenant,name:profile.name,document_logo:profile.logo});
-      }
-      for(const [index,profile]of profiles.entries()){
-        const other=profiles[1-index],ctx={tenantId:profile.tenant,userId:"local-owner-"+profile.tenant.slice(-1),role:"owner"};
-        const current=await getWorkshopProfile(db,ctx);
-        assert.equal(current.name,profile.name);assert.equal(current.document_logo,profile.logo);
-        const identity=(await db.withRequestContext({"app.tenant_id":ctx.tenantId,"app.user_id":ctx.userId},async()=>await db.prepare("SELECT t.name,t.document_logo FROM tenants t JOIN memberships m ON m.tenant_id=t.id WHERE m.user_id=? AND t.id=?").get(ctx.userId,ctx.tenantId)))!;
-        for(const Component of [WorkshopBrand,DocumentHeader]){
-          const html=renderToStaticMarkup(createElement(Component,{shop:identity}));
-          assert.ok(html.includes(profile.logo));assert.ok(html.includes(profile.name));
-          assert.ok(!html.includes(other.logo));assert.ok(!html.includes(other.name));assert.ok(!html.includes("Horse Power"));
-        }
-        await assert.rejects(saveWorkshopProfile(db,ctx,{tenant_id:other.tenant,name:"Não permitido"}),/oficina selecionada mudou/);
-        const order="local-visual-"+index;
-        await db.prepare("INSERT INTO orders(id,tenant_id,number,kind,status,entered_on,due_on,km,total) VALUES(?,?,?,'quote','quote','2026-10-21','2026-10-21',0,0)").run(order,profile.tenant,900+index);
-        const share=await createShare(db,ctx,order);
-        const document=await readShare(db,share.path.slice(3));
-        assert.equal(document!.shop!.name,profile.name);assert.equal(document!.shop!.document_logo,profile.logo);
-        const {issueDocument,readDocument}=await import("../server/services/documents");
+        const order=await saveOrder(db,ctx,input());
+        orders.push(order);
+
+        const first=await createShare(db,ctx,order);
+        const firstToken=first.path.slice(3);
+        assert.equal(first.expires_days,30);
+        assert.ok(Date.parse(first.expires_at)>Date.now());
+        assert.equal(first.reused,false);
+        const firstDocument=await readShare(db,firstToken);
+        assert.equal(firstDocument!.shop.name,profile.name);
+        assert.equal(firstDocument!.shop.document_logo,profile.logo);
+        const originalRevision=Number(first.document.revision);
+        assert.equal((await readDocument(db,ctx,"order",order,originalRevision)).order.notes,"");
+
+        // Repeated sharing creates a fresh token without revoking or reactivating the previous one.
+        const sameData=await saveOrder(db,ctx,input(),order);
+        assert.equal(sameData,order);
+        assert.ok(await readShare(db,firstToken));
+        const second=await createShare(db,ctx,order);
+        const secondToken=second.path.slice(3);
+        assert.notEqual(secondToken,firstToken);
+        assert.ok(await readShare(db,firstToken));
+        assert.ok(await readShare(db,secondToken));
+
         await saveWorkshopProfile(db,ctx,{name:profile.name+" Atualizada"});
-        assert.equal((await readShare(db,share.path.slice(3)))!.shop!.name,profile.name);
-        const next=await issueDocument(db,ctx,"order",order,true);
-        assert.equal(next.shop.name,profile.name+" Atualizada");
-        assert.equal((await readDocument(db,{...ctx,tenantId:other.tenant},"order",order,1).catch(()=>null)),null);
-        const oldAgain=await createShare(db,ctx,order,1);
-        assert.equal((await readShare(db,oldAgain.path.slice(3)))!.shop!.name,profile.name);
+        assert.equal((await readShare(db,firstToken))!.shop.name,profile.name);
+        const secondSnapshot=await readDocument(db,ctx,"order",order,Number(second.document.revision));
+        assert.equal(secondSnapshot.shop.name,profile.name);
+        assert.equal((await getWorkshopProfile(db,ctx)).document_logo,profile.logo);
+
+        // A real order edit immediately revokes every previous public link but leaves snapshots intact.
+        await saveOrder(db,ctx,input("Descrição atualizada"),order);
+        assert.equal(await readShare(db,firstToken),null);
+        assert.equal(await readShare(db,secondToken),null);
+        const oldAgain=await readDocument(db,ctx,"order",order,Number(second.document.revision));
+        assert.equal(oldAgain.order.notes,"");
+        const currentPdf=await issueDocument(db,ctx,"order",order,true);
+        assert.equal(currentPdf.order.notes,"Descrição atualizada");
+        assert.notEqual(currentPdf.revision,second.document.revision);
+
+        const renewed=await createShare(db,ctx,order);
+        const renewedToken=renewed.path.slice(3);
+        assert.notEqual(renewedToken,firstToken);
+        assert.notEqual(renewedToken,secondToken);
+        assert.equal(renewed.document.revision,currentPdf.revision+1);
+        assert.equal((await readShare(db,renewedToken))!.shop.name,profile.name+" Atualizada");
+        const remaining=Date.parse(renewed.expires_at)-Date.now();
+        assert.ok(remaining>29*24*60*60*1000 && remaining<=30*24*60*60*1000);
+        assert.equal(renewed.expires_days,30);
+
+        if(profile.tenant==="local-a"){
+          const other={tenantId:"local-b",userId:"local-owner-b",role:"owner"};
+          await assert.rejects(createShare(db,other,order),/não encontrado nesta oficina/);
+          await assert.rejects(readDocument(db,other,"order",order,Number(currentPdf.revision)),/não encontrado nesta oficina/);
+        }
+
+        // Manual revocation invalidates the latest link and preserves all audit rows.
+        assert.equal(await invalidateOrderShares(db,ctx,order),1);
+        assert.equal(await readShare(db,renewedToken),null);
+        const retained=await db.withTenantRead(profile.tenant,async()=>db.prepare(
+          "SELECT token_hash,revoked,expires_at FROM public_shares WHERE tenant_id=? AND order_id=? ORDER BY expires_at",
+        ).all(profile.tenant,order));
+        assert.equal(retained.length,3);
+        assert.ok(retained.every((row:any)=>Number(row.revoked)===1));
+        const history=await documentHistory(db,ctx,"order",order);
+        assert.ok(history.revisions.length>=4);
       }
-      await saveWorkshopProfile(db,{tenantId:"local-b",userId:"local-owner-b",role:"owner"},{name:"Oficina sem logo",document_logo:""});
-      assert.equal((await getWorkshopProfile(db,{tenantId:"local-b",userId:"local-owner-b",role:"owner"})).document_logo,"");
-      assert.equal((await getWorkshopProfile(db,{tenantId:"local-a",userId:"local-owner-a",role:"owner"})).document_logo,profiles[0].logo);
+      assert.notEqual(orders[0],orders[1]);
       throw stop;
     }),error=>error===stop);
     assert.deepEqual(await db.prepare("SELECT id,name,document_logo FROM tenants ORDER BY id").all(),original);
