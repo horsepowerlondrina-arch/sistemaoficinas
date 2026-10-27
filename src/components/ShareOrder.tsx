@@ -4,13 +4,14 @@ import { useApp } from "../lib/context";
 import { send } from "../lib/api";
 import { money, type Order } from "../lib/types";
 import { Modal, Field } from "./ui";
-export function ShareOrder({ order, revision, shopName, customerPhone }: { order: Pick<Order,"id"|"number"|"status"|"total"|"plate"|"customer_name"|"customer_id">; revision?:number; shopName?:string; customerPhone?:string }) {
+export function ShareOrder({ order, shopName, customerPhone }: { order: Pick<Order,"id"|"number"|"status"|"total"|"plate"|"customer_name"|"customer_id">; shopName?:string; customerPhone?:string }) {
   const { data, session } = useApp();
   const customer = data.customers.find((c) => c.id === order.customer_id);
   const [open, setOpen] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [url, setUrl] = useState(""),
+    [expiresAt, setExpiresAt] = useState(""),
     [publicReady, setPublicReady] = useState(false);
   const [phone, setPhone] = useState(
       (customerPhone || customer?.phone || "").split("/")[0].trim(),
@@ -32,12 +33,13 @@ export function ShareOrder({ order, revision, shopName, customerPhone }: { order
     setBusy(true);
     setError("");
     try {
-      const s = await send(`/orders/${order.id}/share`, revision ? {revision} : {});
+      const s = await send(`/orders/${order.id}/share`, {});
       const base = s.public_origin || window.location.origin;
       const shareUrl = new URL(s.path, base);
       shareUrl.searchParams.set("preview", "2");
       const link = shareUrl.toString();
       setUrl(link);
+      setExpiresAt(s.expires_at || "");
       setPublicReady(
         !!s.public_origin &&
           !["localhost", "127.0.0.1", "::1"].includes(new URL(base).hostname),
@@ -99,9 +101,10 @@ export function ShareOrder({ order, revision, shopName, customerPhone }: { order
                   />
                 </Field>
                 <p className="muted">
-                Este link abre a revisão imutável selecionada. Alterações
-                posteriores na oficina, na OS ou nos pagamentos não mudam o
-                documento. Você pode desativar os links da OS manualmente.
+                  Este link abre um documento imutável e expira em 30 dias
+                  {expiresAt ? ` (em ${new Date(expiresAt).toLocaleDateString("pt-BR")})` : ""}.
+                  Compartilhar novamente cria um token novo; links revogados não são reativados.
+                  Você também pode desativar os links da OS manualmente.
                 </p>
                 {!publicReady && (
                   <div className="error-box">
@@ -123,6 +126,7 @@ export function ShareOrder({ order, revision, shopName, customerPhone }: { order
                   onClick={async () => {
                     await send(`/orders/${order.id}/revoke-share`, {});
                     setUrl("");
+                    setExpiresAt("");
                     setPublicReady(false);
                     setMessage("");
                     setError(
