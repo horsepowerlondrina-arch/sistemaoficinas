@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  canShowCustomerVehicleOptions,
   orderVehiclesForCustomer,
   selectOrderCustomer,
   selectOrderVehicleFromCard,
@@ -60,5 +61,18 @@ test("clicking a vehicle card returns its details for the order form", () => {
     model: "Civic",
     year: 2020,
     km: 42000,
+  });
+});
+
+test("customer vehicle cards remain available for new orders only", () => {
+  assert.equal(canShowCustomerVehicleOptions(false, "customer-1"), true);
+  assert.equal(canShowCustomerVehicleOptions(true, "customer-1"), false);
+  assert.equal(canShowCustomerVehicleOptions(false, "customer-1", true), false);
+});
+
+test("changing the selected customer during OS editing preserves its linked vehicle id", () => {
+  assert.deepEqual(selectOrderCustomer("customer-2", "vehicle-1"), {
+    customer_id: "customer-2",
+    vehicle_id: "vehicle-1",
   });
 });

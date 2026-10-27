@@ -23,8 +23,12 @@ export function orderVehiclesForCustomer<T extends { id: string }>(
   });
 }
 
-export function selectOrderCustomer(customerId: string) {
-  return { customer_id: customerId, vehicle_id: "" };
+export function selectOrderCustomer(customerId: string, preservedVehicleId = "") {
+  return { customer_id: customerId, vehicle_id: preservedVehicleId };
+}
+
+export function canShowCustomerVehicleOptions(isEditing: boolean, customerId: string, locked = false) {
+  return !isEditing && !!customerId && !locked;
 }
 
 export function selectOrderVehicleFromCard<T extends { id: string }>(
