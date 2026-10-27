@@ -424,11 +424,7 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
                       </select>
                     </Field>
                   )}
-                  {form.status === "quote" && (
-                    <div className="info-box full">
-                      No status Orçamento, cliente e veículo podem ficar sem vínculo. Selecione um cartão para vincular um veículo cadastrado.
-                    </div>
-                  )}
+                  {/* Orçamentos permitem salvar sem cliente ou veículo; vincular permanece opcional até a aprovação. */}
                   <h3 className="form-section-title full"><UserRound size={18} />Cliente e veículo</h3>
                   <div className="form-grid order-identity-grid">
                     <CustomerPicker
