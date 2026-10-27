@@ -1,4 +1,4 @@
-import { IssuedDocument } from "../components/IssuedDocument";
+import { IssuedDocumentActions, IssuedDocumentPreview, IssuedDocumentProvider } from "../components/IssuedDocument";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useApp } from "../lib/context";
@@ -37,6 +37,15 @@ export function OrderView() {
     ready: ["completed", "Finalizar OS e receber"],
   };
   const action = next[order.status];
+  const displayValue = (...values: unknown[]) => {
+    const value = values.find((item) => item !== undefined && item !== null && String(item).trim() !== "");
+    return value === undefined ? "Não informado" : String(value);
+  };
+  const manufactureYear = displayValue(vehicle?.manufacture_year, vehicle?.year_manufacture, order.manufacture_year, order.year_manufacture);
+  const modelYear = displayValue(vehicle?.model_year, vehicle?.year_model, vehicle?.year, order.model_year, order.year_model, order.year);
+  const mileage = Number(order.km || 0) || Number(vehicle?.km || 0);
+  const mileageLabel = mileage > 0 ? mileage.toLocaleString("pt-BR") + " km" : "Não informado";
+  const engineVersion = displayValue(vehicle?.engine, vehicle?.motorization, vehicle?.motor, vehicle?.version, vehicle?.trim, vehicle?.fipe_model, order.engine, order.motorization, order.version);
   async function transition() {
     if (order && !["quote", "cancelled"].includes(confirm) && (!order.customer_id || !order.vehicle_id)) {
       notify("Informe o cliente e o veículo no atendimento e depois aprove a OS.");
@@ -64,7 +73,9 @@ export function OrderView() {
     }
   }
   return (
-    <>
+    <IssuedDocumentProvider key={id} kind="order" id={id!}>
+      <>
+      <div className="no-print">
       <button
         className="back-link no-print"
         onClick={() =>
@@ -73,12 +84,10 @@ export function OrderView() {
       >
         ← Voltar à lista
       </button>
-      <IssuedDocument key={id} kind="order" id={id!} />
-      <div className="no-print">
       <PageHeading
         eyebrow="ORDEM DE SERVIÇO"
-        title={`#${order.number} · ${order.plate || "Sem placa"}`}
-        description={`${order.customer_name} · ${[order.brand, order.model].filter(Boolean).join(" ") || "Veículo não informado"}`}
+        title="Detalhes da OS"
+        description="Dados do atendimento e do veículo"
         actions={
           <div className="no-print action-row">
             {admin && (
@@ -122,6 +131,7 @@ export function OrderView() {
                   : "Receber OS"}
               </button>
             )}
+            <IssuedDocumentActions />
           </div>
         }
       />
@@ -136,28 +146,46 @@ export function OrderView() {
           movimentação no caixa atual.
         </p>
       )}
-      <div className="work-order-meta panel">
-        <Badge status={displayStatus(order)} />
-        <span>
-          Entrada: <strong>{dateLabel(order.entered_on)}</strong>
-        </span>
-        <span>
-          Entrega: <strong>{dateLabel(order.due_on)}</strong>
-        </span>
-        <span>
-          <strong>
-            {order.source && !order.km
-              ? "Não informado"
-              : order.km.toLocaleString("pt-BR")}
-          </strong>{" "}
-          km
-        </span>
+      <section className="work-order-summary panel" aria-label="Resumo da ordem de serviço">
+        <div className="work-order-summary-item">
+          <span>OS</span><strong>#{order.number}</strong>
+        </div>
+        <div className="work-order-summary-item">
+          <span>Placa</span><strong>{displayValue(order.plate, vehicle?.plate, order.guest_plate)}</strong>
+        </div>
+        <div className="work-order-summary-item">
+          <span>Cliente</span><strong>{displayValue(order.customer_name, customer?.name, order.guest_name)}</strong>
+        </div>
+        <div className="work-order-summary-item">
+          <span>Marca</span><strong>{displayValue(order.brand, vehicle?.brand)}</strong>
+        </div>
+        <div className="work-order-summary-item">
+          <span>Modelo</span><strong>{displayValue(order.model, vehicle?.model, order.guest_vehicle)}</strong>
+        </div>
+        <div className="work-order-summary-item">
+          <span>Motorização / versão</span><strong>{engineVersion}</strong>
+        </div>
+        <div className="work-order-summary-item">
+          <span>Ano fabricação / modelo</span><strong>{manufactureYear} / {modelYear}</strong>
+        </div>
+        <div className="work-order-summary-item">
+          <span>Quilometragem</span><strong>{mileageLabel}</strong>
+        </div>
+        <div className="work-order-summary-item">
+          <span>Data de entrada</span><strong>{order.entered_on ? dateLabel(order.entered_on) : "Não informado"}</strong>
+        </div>
+        <div className="work-order-summary-item">
+          <span>Previsão de entrega</span><strong>{order.due_on ? dateLabel(order.due_on) : "Não informado"}</strong>
+        </div>
+        <div className="work-order-summary-item">
+          <span>Status</span><strong><Badge status={displayStatus(order)} /></strong>
+        </div>
         {admin && (
-          <span>
-            Total: <strong>{money(order.total)}</strong>
-          </span>
+          <div className="work-order-summary-item work-order-summary-total">
+            <span>Valor total</span><strong>{money(order.total)}</strong>
+          </div>
         )}
-      </div>
+      </section>
       <section className="panel work-order-section">
         <h2>Relato do cliente</h2>
         <p className="preserve-lines">
@@ -222,6 +250,7 @@ export function OrderView() {
         </button>
       )}
       </div>
+      <IssuedDocumentPreview />
       {statusPicker && (
         <Modal
           title="Alterar status do atendimento"
@@ -326,6 +355,7 @@ export function OrderView() {
           </form>
         </Modal>
       )}
-    </>
+      </>
+    </IssuedDocumentProvider>
   );
 }
