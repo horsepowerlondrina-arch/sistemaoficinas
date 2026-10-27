@@ -163,3 +163,26 @@ test("a saved quote without plate remains available without registering a vehicl
   assert.match(html, /value="Veículo de exemplo"/);
   assert.doesNotMatch(html, /Marca do veículo \*/);
 });
+
+test("editing a linked OS hides customer vehicle choices and offers explicit editing of its vehicle", () => {
+  const html = render("/ordens/o", {
+    id: "o",
+    status: "quote",
+    kind: "quote",
+    number: 1,
+    customer_id: "c",
+    vehicle_id: "v",
+    plate: vehicle.plate,
+    brand: vehicle.brand,
+    model: vehicle.model,
+    items: [],
+  });
+
+  assert.match(html, /Placa do veículo vinculado/);
+  assert.match(html, /value="ABC1D23"/);
+  assert.match(html, /value="Marca"/);
+  assert.match(html, /value="Modelo"/);
+  assert.match(html, /Editar veículo vinculado/);
+  assert.doesNotMatch(html, /order-vehicle-cards/);
+  assert.doesNotMatch(html, /\+ Novo veículo/);
+});
