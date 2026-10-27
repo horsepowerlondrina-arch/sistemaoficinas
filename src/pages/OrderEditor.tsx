@@ -514,7 +514,6 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
                     />
                     )}
                     {showCustomerVehicleOptions && (
-                    {showCustomerVehicleOptions && (
                       <div className="order-vehicle-cards full" role="group" aria-label="Veículos cadastrados do cliente">
                         {customerVehicles.map((item) => {
                           const selected = form.vehicle_id === item.id;
