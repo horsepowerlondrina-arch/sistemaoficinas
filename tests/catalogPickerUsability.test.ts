@@ -32,3 +32,18 @@ test("serviço terceirizado exige custo informado antes da inclusão direta", ()
   assert.equal(canAddRepairServiceImmediately({ ...base, cost: 8000 }), true);
   assert.equal(canAddRepairServiceImmediately({ ...base, cost: 8000, hasCategory: false }), false);
 });
+
+import {
+  shouldAutoSelectCatalogVehicle,
+  serviceDropdownStateAfterAdd,
+} from "../shared/catalogPickerUsability";
+
+test("seleção automática do veículo exige correspondência única confiável", () => {
+  assert.equal(shouldAutoSelectCatalogVehicle({ status: "matched", model: { id: "model-1" } }), true);
+  assert.equal(shouldAutoSelectCatalogVehicle({ status: "needs_confirmation", model: { id: "model-1" } }), false);
+  assert.equal(shouldAutoSelectCatalogVehicle({ status: "matched" }), false);
+});
+
+test("após incluir serviço a lista permanece fechada sem opção ativa", () => {
+  assert.deepEqual(serviceDropdownStateAfterAdd(), { open: false, activeIndex: -1 });
+});

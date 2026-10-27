@@ -26,3 +26,17 @@ export function canAddRepairServiceImmediately(input: {
   if (input.pricingMode === "price") return input.price > 0;
   return input.minutes > 0 && input.hourlyRate > 0;
 }
+
+export function shouldAutoSelectCatalogVehicle(match: {
+  status?: string;
+  model?: unknown;
+}): boolean {
+  return match.status === "matched" && !!match.model;
+}
+
+export function serviceDropdownStateAfterAdd(): {
+  open: false;
+  activeIndex: -1;
+} {
+  return { open: false, activeIndex: -1 };
+}

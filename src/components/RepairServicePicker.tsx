@@ -6,7 +6,7 @@ import { money, type Entity } from "../lib/types";
 import { Field, Modal, PageHeading } from "./ui";
 import { NumericInput } from "./NumericInput";
 import { shouldLoadRepairServiceSearch, shouldShowVehicleCatalog, shouldShowWorkshopServices } from "../../shared/repairCatalogVisibility";
-import { canAddRepairServiceImmediately, initialCatalogOptionIndex, nextCatalogOptionIndex } from "../../shared/catalogPickerUsability";
+import { canAddRepairServiceImmediately, initialCatalogOptionIndex, nextCatalogOptionIndex, serviceDropdownStateAfterAdd, shouldAutoSelectCatalogVehicle } from "../../shared/catalogPickerUsability";
 
 type Info = { enabled: boolean; catalog_status:"active"|"not_contracted"|"expired"|"revoked"|"not_installed"; categories: Entity[]; service_markup_bps: number };
 const catalogStatusMessage:Record<Exclude<Info["catalog_status"],"active">,string>={
@@ -355,7 +355,7 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
     send("/repair-services/identify-model", { vehicle }, "POST").then((result: any) => {
       if (!active) return;
       setLinkStatus(result.status || "not_identified");
-      if (result.status === "matched" && result.model) {
+      if (shouldAutoSelectCatalogVehicle(result) && result.model) {
         const row = result.model as Entity;
         setBrand({ id: row.brand_id, name: row.brand }); setBrandQuery(String(row.brand || ""));
         setModelSearch(String(row.name || "")); setBrandOpen(false); setModelOpen(false);
