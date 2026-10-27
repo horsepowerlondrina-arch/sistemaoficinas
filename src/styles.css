@@ -4711,19 +4711,19 @@ body { padding-top: 36px; }
 .order-filter-panel .report-actions { margin: 5px 0 0; }
 .order-filter-panel .report-actions .button { min-height: 34px; padding: 7px 11px; font-size: 11px; }
 .order-list-view { min-width: 0; }
-.order-table-scroll { margin: 0 10px; }
+.order-table-scroll { width: auto; margin: 0 10px; }
 .order-list-table {
   width: 100%;
   min-width: 820px;
   table-layout: fixed;
   white-space: normal;
 }
-.order-list-table .order-col-identity { width: 27%; }
+.order-list-table .order-col-identity { width: 24%; }
 .order-list-table .order-col-vehicle { width: 20%; }
-.order-list-table .order-col-date { width: 13%; }
+.order-list-table .order-col-date { width: 12%; }
 .order-list-table .order-col-due { width: 17%; }
 .order-list-table .order-col-status { width: 12%; }
-.order-list-table .order-col-total { width: 11%; }
+.order-list-table .order-col-total { width: 15%; }
 .order-list-table-no-value .order-col-identity { width: 30%; }
 .order-list-table-no-value .order-col-vehicle { width: 22%; }
 .order-list-table-no-value .order-col-date { width: 14%; }
@@ -4731,17 +4731,19 @@ body { padding-top: 36px; }
 .order-list-table-no-value .order-col-status { width: 16%; }
 .order-list-table th,
 .order-list-table td {
-  padding: 9px 11px;
-  font-size: 11px;
+  padding: 10px 9px;
   white-space: normal;
+  line-height: 1.35;
   vertical-align: middle;
 }
-.order-list-table th { padding-top: 9px; padding-bottom: 9px; }
+.order-list-table th { padding-top: 9px; padding-bottom: 9px; font-size: 13px; }
+.order-list-table td { font-size: 15px; }
 .order-sort-button {
   display: inline-flex;
   align-items: center;
   justify-content: flex-start;
   gap: 4px;
+  max-width: 100%;
   padding: 2px 0;
   border: 0;
   background: transparent;
@@ -4749,7 +4751,7 @@ body { padding-top: 36px; }
   font-size: inherit;
   font-weight: 600;
   text-align: inherit;
-  white-space: nowrap;
+  white-space: normal;
 }
 .order-sort-button > span { display: inline-flex; color: #a1a6af; }
 .order-list-table th[aria-sort="ascending"] .order-sort-button > span,
@@ -4769,7 +4771,8 @@ body { padding-top: 36px; }
   border: 0;
   background: transparent;
   color: #373b44;
-  font-size: 11px;
+  font-size: 15px;
+  line-height: 1.3;
   font-weight: 650;
   text-align: left;
   white-space: normal;
@@ -4777,14 +4780,14 @@ body { padding-top: 36px; }
 .order-list-identity .cell-link span { font-weight: 500; }
 .order-list-identity small {
   max-width: 230px;
-  margin-top: 2px;
+  margin-top: 3px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 9px;
-  line-height: 1.4;
+  font-size: 13px;
+  line-height: 1.3;
 }
-.order-list-table .vehicle-cell { align-items: flex-start; gap: 6px; font-size: 11px; }
+.order-list-table .vehicle-cell { align-items: flex-start; gap: 6px; font-size: 15px; line-height: 1.3; }
 .order-list-table .vehicle-cell svg { margin-top: 2px; flex: 0 0 auto; color: #8b929e; }
 .order-list-table .vehicle-cell > div { min-width: 0; }
 .order-list-table .vehicle-cell > div > span {
@@ -4793,9 +4796,9 @@ body { padding-top: 36px; }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.order-list-table .vehicle-cell .plate { font-size: 10px; line-height: 1.4; }
-.order-list-table .date-cell { font-size: 11px; }
-.order-list-table .money { font-size: 11px; font-weight: 650; }
+.order-list-table .vehicle-cell .plate { font-size: 13px; line-height: 1.3; }
+.order-list-table .date-cell { font-size: 15px; }
+.order-list-table .money { font-size: 15px; font-weight: 650; white-space: nowrap; }
 .order-due-cell.overdue {
   background: #fffafa;
   box-shadow: inset 2px 0 #dfb2b2;
