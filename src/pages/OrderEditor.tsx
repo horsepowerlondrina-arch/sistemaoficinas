@@ -3,7 +3,7 @@ import { RepairServicePicker, ServiceExecutionFields } from '../components/Repai
 import { CapturePanel } from "../components/CapturePanel";
 import { CatalogPicker } from "../components/CatalogPicker";
 import { CustomerPicker } from "../components/CustomerPicker";
-import { orderVehiclesForCustomer, selectOrderCustomer, selectOrderVehicleFromCard } from "../../shared/orderEntryIdentity";
+import { canShowCustomerVehicleOptions, orderVehiclesForCustomer, selectOrderCustomer, selectOrderVehicleFromCard } from "../../shared/orderEntryIdentity";
 import { validNewCustomerPhone } from "../../shared/customerIdentity";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
@@ -126,6 +126,7 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
   const [quickCreate, setQuickCreate] = useState<"vehicles" | "catalog" | null>(
     null,
   );
+  const [editingLinkedVehicle, setEditingLinkedVehicle] = useState(false);
   const [editingProduct, setEditingProduct] = useState<{
     itemId: string;
     record: Entity;
@@ -155,7 +156,10 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
   }, [discountMode, discountPercent, subtotal]);
   const customer = data.customers.find((c) => c.id === form.customer_id);
   const vehicle = data.vehicles.find((v) => v.id === form.vehicle_id);
-  const customerVehicles = orderVehiclesForCustomer(data.vehicles, form.customer_id, form.vehicle_id);
+  const customerVehicles = order
+    ? []
+    : orderVehiclesForCustomer(data.vehicles, form.customer_id, form.vehicle_id);
+  const showCustomerVehicleOptions = canShowCustomerVehicleOptions(!!order, form.customer_id, !!locked);
   const add = () => {
     const item = data.catalog.find((c) => c.id === pick);
     if (!item) return;
@@ -438,14 +442,14 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
                         setForm((f) => ({
                           ...f,
                           customer_id: "",
-                          vehicle_id: "",
+                          vehicle_id: order?.vehicle_id || "",
                           guest_name: name,
                           guest_plate: lookupPlate || f.guest_plate,
                           guest_vehicle: f.guest_vehicle || [lookedUp.brand, lookedUp.model].filter(Boolean).join(" "),
                         }));
                       }}
                       onSelect={(selected) => {
-                        const customerSelection = selectOrderCustomer(selected.id);
+                        const customerSelection = selectOrderCustomer(selected.id, order?.vehicle_id || "");
                         setCustomerName(selected.name);
                         setCustomerPhone(selected.phone || "");
                         setForm((f) => ({
@@ -457,6 +461,11 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
                         }));
                       }}
                     />
+                    {order?.vehicle_id ? (
+                      <Field label="Placa do veículo vinculado">
+                        <input readOnly value={vehicle?.plate || lookupPlate || "Não informado"} />
+                      </Field>
+                    ) : (
                     <PlateField
                       value={lookupPlate}
                       disabled={!!locked}
@@ -503,7 +512,9 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
                         }
                       }}
                     />
-                    {form.customer_id && (
+                    )}
+                    {showCustomerVehicleOptions && (
+                    {showCustomerVehicleOptions && (
                       <div className="order-vehicle-cards full" role="group" aria-label="Veículos cadastrados do cliente">
                         {customerVehicles.map((item) => {
                           const selected = form.vehicle_id === item.id;
@@ -536,10 +547,16 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
                         {!customerVehicles.length && <p className="muted">Este cliente ainda não tem veículos cadastrados.</p>}
                       </div>
                     )}
-                    {!locked && form.customer_id && (
+                    {showCustomerVehicleOptions && (
                       <button type="button" className="text-button full" onClick={() => setQuickCreate("vehicles")}>
                         <Plus size={14} />
                         + Novo veículo
+                      </button>
+                    )}
+                    {order?.vehicle_id && vehicle && !locked && (
+                      <button type="button" className="button full" onClick={() => setEditingLinkedVehicle(true)}>
+                        <Pencil size={15} />
+                        Editar veículo vinculado
                       </button>
                     )}
                     <Field label={"Marca do veículo" + (form.status !== "quote" || !!lookupPlate ? " *" : "")}>
@@ -1056,6 +1073,33 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
                   },
                 ],
               }));
+            }
+          }}
+        />
+      )}
+      {editingLinkedVehicle && vehicle && order?.vehicle_id && (
+        <RegisterModal
+          kind="vehicles"
+          record={vehicle}
+          onClose={() => setEditingLinkedVehicle(false)}
+          onSaved={(recordId, values) => {
+            setLookedUp({ ...vehicle, ...values, id: recordId });
+            setLookupPlate(String(values.plate || ""));
+            setServiceModelId(String(values.service_model_id || ""));
+            setServiceModelTouched(false);
+            const ownerId = String(values.customer_id || vehicle.customer_id);
+            const owner = data.customers.find((item) => item.id === ownerId);
+            setForm((current) => ({
+              ...current,
+              customer_id: ownerId,
+              vehicle_id: order.vehicle_id,
+              guest_name: "",
+              guest_plate: "",
+              guest_vehicle: "",
+            }));
+            if (owner) {
+              setCustomerName(owner.name);
+              setCustomerPhone(owner.phone || "");
             }
           }}
         />
