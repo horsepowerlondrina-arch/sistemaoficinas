@@ -698,6 +698,7 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
       )}
       {shouldShowWorkshopServices(mode, vehicleOnly) && <Field label="Buscar serviço">
         <input
+          ref={serviceInputRef}
           value={search}
           onChange={(e) => {
             setSearch(e.target.value);
