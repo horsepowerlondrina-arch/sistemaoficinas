@@ -6,6 +6,7 @@ import { money, type Entity } from "../lib/types";
 import { Field, Modal, PageHeading } from "./ui";
 import { NumericInput } from "./NumericInput";
 import { shouldLoadRepairServiceSearch, shouldShowVehicleCatalog, shouldShowWorkshopServices } from "../../shared/repairCatalogVisibility";
+import { canAddRepairServiceImmediately, initialCatalogOptionIndex, nextCatalogOptionIndex } from "../../shared/catalogPickerUsability";
 
 type Info = { enabled: boolean; catalog_status:"active"|"not_contracted"|"expired"|"revoked"|"not_installed"; categories: Entity[]; service_markup_bps: number };
 const catalogStatusMessage:Record<Exclude<Info["catalog_status"],"active">,string>={
@@ -377,6 +378,11 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
       setModelSearch(String(v.name || "")); setBrandOpen(false); setModelOpen(false); setAutoBrandPending(false); setLinkStatus("linked");
       send("/repair-services/identify-model", { vehicle: { ...vehicle, service_model_id: modelId } }, "POST").then((result: any) => { if (active) setLinkStatus(result.status || "linked"); }).catch(() => {});
       setPorte(v.porte_id || ""); setCommercialCategory(v.commercial_category_id || ""); setError("");
+      setSearch(""); setOffset(0);
+      if (!vehicleOnly) {
+        setServiceOpen(true);
+        window.setTimeout(() => serviceInputRef.current?.focus(), 0);
+      }
     }).catch((e) => {
       if (!active) return;
       const message = String(e?.message || e);
@@ -395,7 +401,7 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
     const timer = setTimeout(() => {
       const params = new URLSearchParams({ q: brandQuery, offset: String(brandOffset) });
       api<{ items: Entity[]; has_more: boolean }>("/repair-services/brands?" + params).then((v) => {
-        if (!active) return; setBrandOptions(v.items); setBrandMore(v.has_more); setBrandActiveIndex(-1);
+        if (!active) return; setBrandOptions(v.items); setBrandMore(v.has_more); setBrandActiveIndex(initialCatalogOptionIndex(v.items.length));
         if (autoBrandPending && normalizeCatalogValue(brandQuery) === normalizeCatalogValue(String(vehicle?.brand || ""))) {
           const exact = v.items.filter((item) => normalizeCatalogValue(String(item.name)) === normalizeCatalogValue(brandQuery));
           if (exact.length === 1) {
@@ -415,7 +421,7 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
     const timer = setTimeout(() => {
       const params = new URLSearchParams({ brand_id: String(brand.id), q: modelSearch, fipe: String(vehicle?.fipe_code || ""), preferred: String(vehicle?.model || vehicle?.fipe_model || ""), year: String(vehicle?.year || ""), offset: String(modelOffset) });
       api<{ items: Entity[]; has_more: boolean }>("/repair-services/models?" + params).then((v) => {
-        if (!active) return; setModels(v.items); setMoreModels(v.has_more); setModelActiveIndex(-1);
+        if (!active) return; setModels(v.items); setMoreModels(v.has_more); setModelActiveIndex(initialCatalogOptionIndex(v.items.length));
       }).catch((e) => active && setError(e.message)).finally(() => active && setModelsLoading(false));
     }, 250);
     return () => { active = false; clearTimeout(timer); };
@@ -428,12 +434,82 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
       const params = new URLSearchParams({ q: search, offset: String(offset) });
       if (commercialCategory) params.set("category_id", commercialCategory);
       api(mode === "catalog" ? `/repair-services/models/${modelId}/services?${params}` : `/workshop-services?${params}`)
-        .then((v) => { if (active) { setRows(v.items); setMore(v.has_more); } })
+        .then((v) => { if (active) { setRows(v.items); setMore(v.has_more); setServiceActiveIndex(initialCatalogOptionIndex(v.items.length)); } })
         .catch((e) => active && setError(e.message)).finally(() => active && setLoading(false));
     }, 250);
     return () => { active = false; clearTimeout(timer); };
   }, [mode, modelId, commercialCategory, search, offset, revision, serviceOpen, vehicleOnly, linkStatus]);
   const rate = Number(info?.categories.find((p) => p.id === commercialCategory)?.hourly_rate || 0);
+  async function addService(
+    row: Entity,
+    values: { execution?: string; cost?: number; minutes?: number; price?: number; inputMode?: string; commercialCategoryId?: string; porteId?: string } = {},
+  ) {
+    if (!onAdd) return false;
+    const categoryId = values.commercialCategoryId ?? row.commercial_category_id ?? commercialCategory;
+    const executionValue = values.execution ?? String(row.execution || "internal");
+    const costValue = values.cost ?? Number(row.cost || 0);
+    const minutesValue = values.minutes ?? Number(row.minutes || 0);
+    const priceValue = values.price ?? Number(row.price || 0);
+    const pricingMode = values.inputMode ?? String(row.pricing_mode || "time");
+    const hourlyRate = Number(info?.categories.find((category) => category.id === categoryId)?.hourly_rate || 0);
+    if (!canAddRepairServiceImmediately({
+      execution: executionValue,
+      cost: costValue,
+      minutes: minutesValue,
+      hourlyRate,
+      price: priceValue,
+      pricingMode,
+      hasCategory: !!categoryId,
+    })) return false;
+    setAdding(true);
+    setError("");
+    try {
+      const selection = {
+        ...(mode === "catalog"
+          ? { repair_service_id: row.service_id, repair_model_id: modelId }
+          : { workshop_service_id: row.id }),
+        ...(values.porteId ?? porte ? { porte_id: values.porteId ?? porte } : {}),
+        ...(categoryId ? { commercial_category_id: categoryId } : {}),
+        service_execution: executionValue,
+        service_cost: costValue,
+        ...(minutesValue > 0 ? { service_minutes: minutesValue } : {}),
+        ...(pricingMode === "price" && priceValue > 0 ? { manual_price: priceValue } : {}),
+      };
+      const preview = await send("/repair-services/preview", selection);
+      onAdd({
+        ...preview,
+        ...selection,
+        id: crypto.randomUUID(),
+        quantity: 1,
+        professional_id: "",
+        duration_seconds: preview.minutes * 60,
+        service_details: preview,
+      });
+      setSelected(null);
+      setSearch("");
+      setOffset(0);
+      setServiceActiveIndex(0);
+      setServiceOpen(true);
+      setBrandOpen(false);
+      setModelOpen(false);
+      window.setTimeout(() => serviceInputRef.current?.focus(), 0);
+      return true;
+    } catch (e) {
+      setError((e as Error).message);
+      return false;
+    } finally {
+      setAdding(false);
+    }
+  }
+  const readyToAdd = selected ? canAddRepairServiceImmediately({
+    execution,
+    cost,
+    minutes,
+    hourlyRate: rate,
+    price,
+    pricingMode: inputMode,
+    hasCategory: !!commercialCategory,
+  }) : false;
   function closeDropdowns() { setBrandOpen(false); setModelOpen(false); setServiceOpen(false); }
   function openBrandDropdown() {
     if (brandLocked) return;
@@ -454,10 +530,23 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
     if (mode === "catalog" && linkStatus === "mismatch") return;
     setSelected(row);
     if (mode === "catalog") { setSearch(String(row.name || "")); closeDropdowns(); }
+    const categoryId = String(row.commercial_category_id || commercialCategory);
+    const nextExecution = String(row.execution || "internal");
+    const nextCost = Number(row.cost || 0);
+    const nextMinutes = Number(row.minutes || 0);
+    const nextPrice = Number(row.price || 0);
+    const nextInputMode = String(row.pricing_mode || "time");
     if (row.commercial_category_id) setCommercialCategory(row.commercial_category_id);
-    setExecution(row.execution || "internal"); setCost(Number(row.cost || 0)); setMinutes(Number(row.minutes || 0));
-    setPrice(Number(row.price || 0)); setInputMode("time"); setError("");
-    // Keep the selected service visible; refocusing this input would fire onFocus and reopen the list.
+    setExecution(nextExecution); setCost(nextCost); setMinutes(nextMinutes);
+    setPrice(nextPrice); setInputMode(nextInputMode); setError("");
+    if (onAdd) void addService(row, {
+      execution: nextExecution,
+      cost: nextCost,
+      minutes: nextMinutes,
+      price: nextPrice,
+      inputMode: nextInputMode,
+      commercialCategoryId: categoryId,
+    });
   }
   function chooseBrand(row: Entity) {
     setBrand(row); setBrandQuery(String(row.name)); setBrandOptions([]); setBrandActiveIndex(-1);
@@ -486,23 +575,24 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
     setBrandOpen(false); setModelOpen(false); setServiceOpen(false);
     setPorte(row.porte_id || ""); setCommercialCategory(row.commercial_category_id || ""); setLinkStatus("linked"); onModelChange(row.id);
     setSearch(""); setOffset(0); setSelected(null); setError("");
-    window.setTimeout(() => serviceInputRef.current?.focus(), 0);
+    if (!vehicleOnly) setServiceOpen(true);
+    window.setTimeout(() => { if (!vehicleOnly) serviceInputRef.current?.focus(); }, 0);
   }
   function brandKeyDown(event: KeyboardEvent<HTMLInputElement>) {
-    if (event.key === "ArrowDown") { event.preventDefault(); openBrandDropdown(); setBrandActiveIndex((i) => Math.min(i < 0 ? 0 : i + 1, Math.max(brandOptions.length - 1, 0))); }
-    else if (event.key === "ArrowUp") { event.preventDefault(); setBrandActiveIndex((i) => Math.max(i - 1, 0)); }
+    if (event.key === "ArrowDown") { event.preventDefault(); openBrandDropdown(); setBrandActiveIndex((i) => nextCatalogOptionIndex(i, brandOptions.length, 1)); }
+    else if (event.key === "ArrowUp") { event.preventDefault(); setBrandActiveIndex((i) => nextCatalogOptionIndex(i, brandOptions.length, -1)); }
     else if (event.key === "Enter" && brandOpen) { const exact = brandOptions.filter((x) => normalizeCatalogValue(String(x.name)) === normalizeCatalogValue(brandQuery)); const row = brandOptions[brandActiveIndex] || (exact.length === 1 ? exact[0] : null); if (row) { event.preventDefault(); chooseBrand(row); } }
     else if (event.key === "Escape") setBrandOpen(false);
   }
   function modelKeyDown(event: KeyboardEvent<HTMLInputElement>) {
-    if (event.key === "ArrowDown") { event.preventDefault(); openModelDropdown(); setModelActiveIndex((i) => Math.min(i < 0 ? 0 : i + 1, Math.max(models.length - 1, 0))); }
-    else if (event.key === "ArrowUp") { event.preventDefault(); setModelActiveIndex((i) => Math.max(i - 1, 0)); }
+    if (event.key === "ArrowDown") { event.preventDefault(); openModelDropdown(); setModelActiveIndex((i) => nextCatalogOptionIndex(i, models.length, 1)); }
+    else if (event.key === "ArrowUp") { event.preventDefault(); setModelActiveIndex((i) => nextCatalogOptionIndex(i, models.length, -1)); }
     else if (event.key === "Enter" && modelOpen) { const exact = models.filter((x) => normalizeCatalogValue(String(x.name)) === normalizeCatalogValue(modelSearch)); const row = models[modelActiveIndex] || (exact.length === 1 ? exact[0] : null); if (row) { event.preventDefault(); chooseModel(row); } }
     else if (event.key === "Escape") setModelOpen(false);
   }
   function serviceKeyDown(event: KeyboardEvent<HTMLInputElement>) {
-    if (event.key === "ArrowDown") { event.preventDefault(); openServiceDropdown(); setServiceActiveIndex((i) => Math.min(i < 0 ? 0 : i + 1, Math.max(rows.length - 1, 0))); }
-    else if (event.key === "ArrowUp") { event.preventDefault(); setServiceActiveIndex((i) => Math.max(i - 1, 0)); }
+    if (event.key === "ArrowDown") { event.preventDefault(); openServiceDropdown(); setServiceActiveIndex((i) => nextCatalogOptionIndex(i, rows.length, 1)); }
+    else if (event.key === "ArrowUp") { event.preventDefault(); setServiceActiveIndex((i) => nextCatalogOptionIndex(i, rows.length, -1)); }
     else if (event.key === "Enter" && serviceOpen) { const exact = rows.filter((x) => normalizeCatalogValue(String(x.name)) === normalizeCatalogValue(search)); const row = rows[serviceActiveIndex] || (exact.length === 1 ? exact[0] : null); if (row) { event.preventDefault(); choose(row); } }
     else if (event.key === "Escape") setServiceOpen(false);
   }
@@ -569,7 +659,7 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
           </Field>
           {!vehicleOnly && <Field label="Serviço" full>
             <div className="catalog-combobox-control">
-              <input ref={serviceInputRef} role="combobox" aria-autocomplete="list" aria-expanded={serviceOpen} aria-controls={dropdownId + "-services"} aria-activedescendant={serviceOpen && serviceActiveIndex >= 0 ? dropdownId + "-service-" + serviceActiveIndex : undefined} autoComplete="off" value={search} disabled={!modelId || (mode === "catalog" && linkStatus === "mismatch")} onFocus={openServiceDropdown} onChange={(e) => { setSearch(e.target.value); setOffset(0); setSelected(null); setServiceOpen(true); setBrandOpen(false); setModelOpen(false); }} onKeyDown={serviceKeyDown} placeholder="Digite uma palavra do serviço" />
+              <input ref={serviceInputRef} role="combobox" aria-autocomplete="list" aria-expanded={serviceOpen} aria-controls={dropdownId + "-services"} aria-activedescendant={serviceOpen && serviceActiveIndex >= 0 ? dropdownId + "-service-" + serviceActiveIndex : undefined} autoComplete="off" value={search} disabled={!modelId || (mode === "catalog" && linkStatus === "mismatch")} onFocus={openServiceDropdown} onChange={(e) => { setSearch(e.target.value); setOffset(0); setServiceActiveIndex(-1); setSelected(null); setServiceOpen(true); setBrandOpen(false); setModelOpen(false); }} onKeyDown={serviceKeyDown} placeholder="Digite uma palavra do serviço" />
               <button type="button" aria-label={serviceOpen ? "Fechar serviços" : "Abrir serviços"} aria-haspopup="listbox" aria-expanded={serviceOpen} disabled={!modelId || (mode === "catalog" && linkStatus === "mismatch")} onClick={toggleServiceDropdown}>▾</button>
             </div>
           </Field>}
@@ -608,6 +698,7 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
       )}
       {shouldShowWorkshopServices(mode, vehicleOnly) && <Field label="Buscar serviço">
         <input
+          ref={serviceInputRef}
           value={search}
           onChange={(e) => {
             setSearch(e.target.value);
@@ -625,6 +716,16 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
         <p className="form-error" role="alert">
           {error}
         </p>
+      )}
+      {selected && !onAdd && (
+        <section className="repair-selection" aria-live="polite">
+          <h4>{selected.name}</h4>
+          <p>
+            {execution === "outsourced"
+              ? `Terceirizado · Custo: ${money(cost)} · Preço sugerido: ${money(Number(selected.price || price))}`
+              : `Interno · ${minutes > 0 ? formatCatalogMinutes(minutes) : "Tempo não informado"} · ${money(rate > 0 && minutes > 0 ? Math.round((minutes * rate) / 60) : Number(selected.price || price))}`}
+          </p>
+        </section>
       )}
       {shouldShowWorkshopServices(mode, vehicleOnly) && <div className="repair-results" aria-busy={loading}>
         {loading ? (
@@ -683,7 +784,7 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
         </div>
       </>}
       {selected && onAdd && (
-        <div className="repair-selection">
+        <div className="repair-selection" aria-live="polite">
           <h4>{selected.name}</h4>
           <div className="form-grid">
             {execution === "outsourced" ? (
@@ -699,7 +800,7 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
                 />
               </Field>
             ) : (
-              Number(selected.minutes) === 0 && (
+              (Number(selected.minutes) === 0 || rate <= 0) && (
                 <>
                   <Field label="Informar por">
                     <select
@@ -740,46 +841,16 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
           <button
             type="button"
             className="button primary"
-            disabled={adding || loading || !commercialCategory || (execution === "internal" && rate <= 0)}
-            onClick={async () => {
-              setAdding(true);
-              setError("");
-              try {
-                const selection = {
-                  ...(mode === "catalog"
-                    ? {
-                        repair_service_id: selected.service_id,
-                        repair_model_id: modelId,
-                      }
-                    : { workshop_service_id: selected.id }),
-                  ...(porte ? { porte_id: porte } : {}),
-                  ...(commercialCategory ? { commercial_category_id: commercialCategory } : {}),
-                  service_execution: execution,
-                  service_cost: cost,
-                  ...(minutes > 0 ? { service_minutes: minutes } : {}),
-                  ...(inputMode === "price" ? { manual_price: price } : {}),
-                };
-                const preview = await send(
-                  "/repair-services/preview",
-                  selection,
-                );
-                onAdd({
-                  ...preview,
-                  ...selection,
-                  id: crypto.randomUUID(),
-                  quantity: 1,
-                  professional_id: "",
-                  duration_seconds: preview.minutes * 60,
-                  service_details: preview,
-                });
-                setSelected(null);
-                if (mode === "catalog") { setSearch(""); setOffset(0); setServiceOpen(true); setBrandOpen(false); setModelOpen(false); serviceInputRef.current?.focus(); }
-              } catch (e) {
-                setError((e as Error).message);
-              } finally {
-                setAdding(false);
-              }
-            }}
+            disabled={adding || loading || !readyToAdd}
+            onClick={() => { void addService(selected!, {
+              execution,
+              cost,
+              minutes,
+              price,
+              inputMode,
+              commercialCategoryId: commercialCategory,
+              porteId: porte,
+            }); }}
           >
             Adicionar serviço
           </button>
