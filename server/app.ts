@@ -973,16 +973,21 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
         .all(res.locals.context.tenantId),
     );
   });
-  app.post("/api/orders/:id/share", async (req, res) =>
+  app.post("/api/orders/:id/share", async (_req, res) => {
+    const ctx: Context = res.locals.context;
+    const record = String(res.req.params.id);
     res.json({
-      ...(await createShare(db, res.locals.context, String(req.params.id), z.object({revision:z.number().int().positive().optional()}).parse(req.body).revision)),
+      ...(await createShare(db, ctx, record)),
       public_origin: process.env.PUBLIC_ORIGIN || "",
-    }),
-  );
+    });
+  });
   app.post("/api/orders/:id/revoke-share", async (req, res) => {
     const ctx: Context = res.locals.context;
-    await scoped(db, "orders", ctx.tenantId, String(req.params.id));
-    await invalidateOrderShares(db, ctx.tenantId, String(req.params.id));
+    const record = String(req.params.id);
+    await scoped(db, "orders", ctx.tenantId, record);
+    await transaction(db, async () => {
+      await invalidateOrderShares(db, ctx, record);
+    });
     res.json({ ok: true });
   });
   const lookupLimits = new Map<string, { count: number; until: number }>();
@@ -1217,7 +1222,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
       await db
         .prepare("UPDATE orders SET notes=? WHERE tenant_id=? AND id=?")
         .run(notes, ctx.tenantId, record);
-      await invalidateOrderShares(db, ctx.tenantId, record);
+      await invalidateOrderShares(db, ctx, record);
       await audit(db, ctx, "order.notes_updated", record);
     });
     res.json({ ok: true });
@@ -1373,6 +1378,17 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
         }
         const recordId = record || id();
         const fields = Object.keys(input);
+        const vehicleSnapshotChanged =
+          table === "vehicles" &&
+          !!old &&
+          ["plate", "brand", "model", "year", "color", "km", "chassis"].some(
+            (field) => String(old[field] ?? "") !== String(input[field] ?? ""),
+          );
+        const linkedOrders = vehicleSnapshotChanged
+          ? await db
+              .prepare("SELECT id FROM orders WHERE tenant_id=? AND vehicle_id=?")
+              .all(ctx.tenantId, recordId)
+          : [];
         if (old)
           await db
             .prepare(
@@ -1391,6 +1407,9 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
         if (table === "vehicles" && input.service_model_id && input.service_model_id !== old?.service_model_id) {
           const confirmed = Object.prototype.hasOwnProperty.call(req.body, "service_model_id") && !!req.body.service_model_id;
           await audit(db, ctx, confirmed ? "vehicles.catalog_link_confirmed" : "vehicles.catalog_link_auto", recordId);
+        }
+        for (const linkedOrder of linkedOrders) {
+          await invalidateOrderShares(db, ctx, String(linkedOrder.id));
         }
         await audit(
           db,
@@ -1421,8 +1440,19 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
     res.set("Cache-Control","no-store").json(await readArchivedDocument(db,res.locals.context,String(req.params.id)));
   });
   app.post("/api/documents/:kind/:id",async(req,res)=>{
-    const kind=z.enum(["order","checklist"]).parse(req.params.kind),body=z.object({new_revision:z.boolean().default(false)}).parse(req.body);
-    res.json(await issueDocument(db,res.locals.context,kind,String(req.params.id),body.new_revision));
+    const kind=z.enum(["order","checklist"]).parse(req.params.kind);
+    const body=z.object({
+      new_revision:z.boolean().default(false),
+      current_order:z.boolean().default(false),
+    }).parse(req.body);
+    res.json(await issueDocument(
+      db,
+      res.locals.context,
+      kind,
+      String(req.params.id),
+      body.new_revision,
+      body.current_order,
+    ));
   });
 
   app.get("/api/workshop-profile", async (_req,res) => {
