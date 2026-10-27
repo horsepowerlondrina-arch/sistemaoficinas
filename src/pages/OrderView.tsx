@@ -6,6 +6,7 @@ import { send } from "../lib/api";
 import { money, dateLabel, statusLabel } from "../lib/types";
 import { displayStatus } from "../lib/workflow";
 import { PageHeading, Badge, Empty, Modal, Field } from "../components/ui";
+import { ShareOrder } from "../components/ShareOrder";
 export function OrderView() {
   const { id } = useParams();
   const { data, session, refresh, notify } = useApp();
@@ -100,10 +101,18 @@ export function OrderView() {
             </button>
           )}
           {admin && (
+            <ShareOrder
+              order={order}
+              shopName={session.tenant.name}
+              customerPhone={customer?.phone}
+            />
+          )}
+          {admin && (
             <button className="button" onClick={() => setStatusPicker(true)}>
               Alterar status
             </button>
           )}
+          <IssuedDocumentActions includeShare={false} />
           {admin && editable && (
             <button
               className="button"
@@ -129,7 +138,6 @@ export function OrderView() {
               {order.payment_status === "paid" ? "Ver recebimento" : "Receber OS"}
             </button>
           )}
-          <IssuedDocumentActions />
         </div>
       </div>
       {error && (
