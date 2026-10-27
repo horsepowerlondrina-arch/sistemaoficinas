@@ -3,6 +3,7 @@ import { RepairServicePicker, ServiceExecutionFields } from '../components/Repai
 import { CapturePanel } from "../components/CapturePanel";
 import { CatalogPicker } from "../components/CatalogPicker";
 import { CustomerPicker } from "../components/CustomerPicker";
+import { orderVehiclesForCustomer, selectOrderCustomer, selectOrderVehicleFromCard } from "../../shared/orderEntryIdentity";
 import { validNewCustomerPhone } from "../../shared/customerIdentity";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
@@ -95,7 +96,7 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
   const [lookupPlate, setLookupPlate] = useState(
     order?.plate || order?.guest_plate || "",
   );
-  const [identityReady, setIdentityReady] = useState(!!order);
+
   const [customerName, setCustomerName] = useState(
     data.customers.find((c) => c.id === order?.customer_id)?.name ||
       order?.guest_name ||
@@ -104,7 +105,8 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
   const [customerPhone, setCustomerPhone] = useState(
     data.customers.find((c) => c.id === order?.customer_id)?.phone || "",
   );
-  const [lookedUp, setLookedUp] = useState<Record<string, any>>({});
+  const initialVehicle = data.vehicles.find((v) => v.id === order?.vehicle_id);
+  const [lookedUp, setLookedUp] = useState<Record<string, any>>(initialVehicle || {});
   const [tab, setTab] = useState(initialCapture && order ? "items" : "details");
   const [itemKind, setItemKind] = useState("product");
   const [serviceModelId,setServiceModelId]=useState(data.vehicles.find(v=>v.id===order?.vehicle_id)?.service_model_id||'');
@@ -153,6 +155,7 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
   }, [discountMode, discountPercent, subtotal]);
   const customer = data.customers.find((c) => c.id === form.customer_id);
   const vehicle = data.vehicles.find((v) => v.id === form.vehicle_id);
+  const customerVehicles = orderVehiclesForCustomer(data.vehicles, form.customer_id, form.vehicle_id);
   const add = () => {
     const item = data.catalog.find((c) => c.id === pick);
     if (!item) return;
@@ -186,11 +189,6 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
       form.items.map((i, n) => (n === index ? { ...i, [key]: value } : i)),
     );
   const orderInput = () => {
-    if (!identityReady) {
-      throw new Error(
-        "Consulte a placa ou escolha continuar sem informar a placa.",
-      );
-    }
     const name = customerName.trim();
     let newCustomer;
     if (!form.customer_id && name) {
@@ -363,7 +361,7 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
           description={
             order
               ? `${order.customer_name} · ${order.brand} ${order.model} · ${order.plate}`
-              : "Comece pela placa ou continue sem informar. Depois, complete os dados do atendimento."
+              : "Comece pela pesquisa do cliente ou pela placa. Cliente e placa podem ficar em branco no orçamento."
           }
           actions={
             <>
@@ -375,7 +373,7 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
               {!locked && (
                 <button
                   className="button primary"
-                  disabled={busy || !identityReady}
+                  disabled={busy}
                   onClick={save}
                 >
                   <Save size={17} />
@@ -398,7 +396,6 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
             </button>
             <button
               className={tab === "items" ? "active" : ""}
-              disabled={!identityReady}
               onClick={() => setTab("items")}
             >
               <Wrench size={16} />
@@ -406,7 +403,6 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
             </button>
             <button
               className={tab === "notes" ? "active" : ""}
-              disabled={!identityReady}
               onClick={() => setTab("notes")}
             >
               Observações
@@ -416,444 +412,181 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
             <fieldset disabled={!!locked || busy}>
               {tab === "details" ? (
                 <>
-                  <div className="checklist-first-question">
-                    <span>1</span>
-                    <div>
-                      <strong>Qual é a placa do veículo?</strong>
-                      <small>
-                        Verificamos se o veículo e o cliente já estão
-                        cadastrados.
-                      </small>
+                  {!order && (
+                    <Field label="Status inicial da OS" full>
+                      <select value={form.status} onChange={(e) => set("status", e.target.value)}>
+                        <option value="quote">Orçamento</option>
+                        <option value="open">Aberta (já aprovada)</option>
+                      </select>
+                    </Field>
+                  )}
+                  {form.status === "quote" && (
+                    <div className="info-box full">
+                      No status Orçamento, cliente e veículo podem ficar sem vínculo. Selecione um cartão para vincular um veículo cadastrado.
                     </div>
-                  </div>
-                  <PlateField
-                    value={lookupPlate}
-                    disabled={!!locked}
-                    onChange={(plate) => {
-                      setLookupPlate(plate);
-                      setCustomerName("");
-                      setCustomerPhone("");
-                      setIdentityReady(false);
-                      setLookedUp({ plate });
-                      setError("");
-                      setForm((f) => ({
-                        ...f,
-                        customer_id: "",
-                        vehicle_id: "",
-                        guest_plate: plate,
-                        guest_vehicle: "",
-                        km: 0,
-                      }));
-                    }}
-                    onFound={(r) => {
-                      if (r.selectionOnly) {
-                        setLookedUp(current => ({ ...current, ...fipeFields(r.vehicle) }));
-                        return;
-                      }
-                      setError("");
-                      if (r.source === "local" && r.vehicle) {
-                        setLookedUp(r.vehicle);
-                        setServiceModelId(String(r.vehicle.service_model_id || ""));
-                        const owner = data.customers.find(
-                          (c) => c.id === r.vehicle!.customer_id,
-                        );
-                        if (!r.vehicle.active || !owner?.active) {
-                          setError(
-                            "O veículo ou cliente encontrado está inativo. Reative-o no cadastro.",
-                          );
-                          return;
-                        }
-                        setForm((f) => ({
-                          ...f,
-                          customer_id: r.vehicle!.customer_id,
-                          vehicle_id: r.vehicle!.id,
-                          km: r.vehicle!.km,
-                          guest_name: "",
-                          guest_plate: "",
-                          guest_vehicle: "",
-                        }));
-                        setCustomerName(owner.name);
-                        setCustomerPhone(owner.phone || "");
-                      } else {
-                        setCustomerName("");
-                        setCustomerPhone("");
-                        setLookedUp(r.vehicle || { plate: lookupPlate });
+                  )}
+                  <h3 className="form-section-title full"><UserRound size={18} />Cliente e veículo</h3>
+                  <div className="form-grid order-identity-grid">
+                    <CustomerPicker
+                      customers={data.customers}
+                      value={customerName}
+                      selectedId={form.customer_id}
+                      disabled={!!locked}
+                      onChange={(name) => {
+                        setCustomerName(name);
+                        if (form.customer_id) setLookedUp(vehicle || lookedUp);
                         setForm((f) => ({
                           ...f,
                           customer_id: "",
                           vehicle_id: "",
-                          km: 0,
-                          guest_plate: r.vehicle?.plate || lookupPlate,
-                          guest_vehicle: [r.vehicle?.brand, r.vehicle?.model]
-                            .filter(Boolean)
-                            .join(" "),
+                          guest_name: name,
+                          guest_plate: lookupPlate || f.guest_plate,
+                          guest_vehicle: f.guest_vehicle || [lookedUp.brand, lookedUp.model].filter(Boolean).join(" "),
                         }));
-                      }
-                      setIdentityReady(true);
-                    }}
-                  />
-                  {!locked && !identityReady && (
-                    <div className="heading-actions">
-                      <button
-                        type="button"
-                        className="button"
-                        onClick={() => {
-                          setLookupPlate("");
-                          setCustomerName("");
-                          setCustomerPhone("");
-                          setLookedUp({});
+                      }}
+                      onSelect={(selected) => {
+                        const customerSelection = selectOrderCustomer(selected.id);
+                        setCustomerName(selected.name);
+                        setCustomerPhone(selected.phone || "");
+                        setForm((f) => ({
+                          ...f,
+                          ...customerSelection,
+                          guest_name: "",
+                          guest_plate: lookupPlate || f.guest_plate,
+                          guest_vehicle: f.guest_vehicle || [lookedUp.brand, lookedUp.model].filter(Boolean).join(" "),
+                        }));
+                      }}
+                    />
+                    <PlateField
+                      value={lookupPlate}
+                      disabled={!!locked}
+                      onChange={(plate) => {
+                        setLookupPlate(plate);
+                        setLookedUp((current) => ({ ...current, plate }));
+                        setError("");
+                        setForm((f) => ({ ...f, vehicle_id: "", guest_plate: plate }));
+                      }}
+                      onFound={(result) => {
+                        if (result.selectionOnly) {
+                          setLookedUp((current) => ({ ...current, ...fipeFields(result.vehicle) }));
+                          return;
+                        }
+                        setError("");
+                        if (result.source === "local" && result.vehicle) {
+                          setLookedUp(result.vehicle);
+                          setServiceModelId(String(result.vehicle.service_model_id || ""));
+                          const owner = data.customers.find((c) => c.id === result.vehicle!.customer_id);
+                          if (!result.vehicle.active || !owner?.active) {
+                            setError("O veículo ou cliente encontrado está inativo. Reative-o no cadastro.");
+                            return;
+                          }
                           setForm((f) => ({
                             ...f,
-                            customer_id: "",
-                            vehicle_id: "",
+                            customer_id: result.vehicle!.customer_id,
+                            vehicle_id: result.vehicle!.id,
+                            km: result.vehicle!.km,
+                            guest_name: "",
                             guest_plate: "",
                             guest_vehicle: "",
-                            km: 0,
                           }));
-                          setIdentityReady(true);
-                          setError("");
-                        }}
-                      >
-                        Continuar sem informar a placa
-                      </button>
-                      {/^[A-Z]{3}\d[A-Z0-9]\d{2}$/.test(lookupPlate) && (
-                        <button
-                          type="button"
-                          className="text-button"
-                          onClick={() => {
-                            const local = data.vehicles.find(
-                              (v) =>
-                                String(v.plate)
-                                  .toUpperCase()
-                                  .replace(/[^A-Z0-9]/g, "") === lookupPlate,
-                            );
-                            if (local) {
-                              const owner = data.customers.find(
-                                (c) => c.id === local.customer_id,
-                              );
-                              if (!local.active || !owner?.active) {
-                                setError(
-                                  "O veículo ou cliente encontrado está inativo. Reative-o no cadastro.",
-                                );
-                                return;
-                              }
-                              setForm((f) => ({
-                                ...f,
-                                customer_id: local.customer_id,
-                                vehicle_id: local.id,
-                                km: local.km,
-                                guest_name: "",
-                                guest_plate: "",
-                                guest_vehicle: "",
-                              }));
-                              setCustomerName(owner.name);
-                              setCustomerPhone(owner.phone || "");
-                            }
-                            setIdentityReady(true);
-                            setError("");
-                          }}
-                        >
-                          Informar os dados manualmente
-                        </button>
-                      )}
-                    </div>
-                  )}
-                  {identityReady && (
-                    <>
-                      {!order && <Field label="Status inicial da OS" full>
-                        <select value={form.status} onChange={e => set("status", e.target.value)}>
-                          <option value="quote">Orçamento</option>
-                          <option value="open">Aberta (já aprovada)</option>
-                        </select>
-                      </Field>}
-                      {form.status === "quote" && (
-                        <div className="info-box">
-                          {!form.vehicle_id && lookupPlate
-                            ? "Ao salvar, o veículo será cadastrado e vinculado ao cliente informado. Confira os dados abaixo."
-                            : "No status Orçamento, a OS pode ser salva sem cliente. Vincule cliente e veículo antes de aprovar."}
-                        </div>
-                      )}
-                      <h3 className="form-section-title">
-                        <UserRound size={18} />
-                        Dados do cliente
-                      </h3>
-                      <div className="form-grid">
-                        <CustomerPicker
-                          customers={data.customers}
-                          value={customerName}
-                          selectedId={form.customer_id}
-                          disabled={!!locked}
-                          onChange={(name) => {
-                            setCustomerName(name);
-                            if (form.customer_id) {
-                              setCustomerPhone("");
-                              setLookedUp(vehicle || lookedUp);
-                            }
-                            setForm((f) => ({
-                              ...f,
-                              customer_id: "",
-                              vehicle_id: "",
-                              guest_name: name,
-                              guest_plate: lookupPlate,
-                              guest_vehicle:
-                                f.guest_vehicle ||
-                                [vehicle?.brand, vehicle?.model]
-                                  .filter(Boolean)
-                                  .join(" "),
-                              km: form.customer_id ? 0 : f.km,
-                            }));
-                          }}
-                          onSelect={(selected) => {
-                            setCustomerName(selected.name);
-                            setCustomerPhone(selected.phone || "");
-                            if (selected.id !== form.customer_id) {
-                              const registered = data.vehicles.find(
-                                (v) =>
-                                  v.active &&
-                                  v.customer_id === selected.id &&
-                                  String(v.plate)
-                                    .toUpperCase()
-                                    .replace(/[^A-Z0-9]/g, "") === lookupPlate,
-                              );
-                              setLookedUp(registered || vehicle || lookedUp);
-                              setForm((f) => ({
-                                ...f,
-                                customer_id: selected.id,
-                                vehicle_id: registered?.id || "",
-                                guest_name: "",
-                                guest_plate: registered ? "" : lookupPlate,
-                                guest_vehicle: registered
-                                  ? ""
-                                  : f.guest_vehicle,
-                                km: registered?.km || 0,
-                              }));
-                            }
-                          }}
-                        />
-                        <Field
-                          label={
-                            !form.customer_id && customerName.trim()
-                              ? "Telefone / celular *"
-                              : "Telefone / celular"
-                          }
-                          full
-                        >
-                          <input
-                            type="tel"
-                            autoComplete="tel"
-                            maxLength={60}
-                            value={customerPhone}
-                            readOnly={!!form.customer_id}
-                            required={
-                              !form.customer_id && !!customerName.trim()
-                            }
-                            placeholder="(43) 99999-9999"
-                            onChange={(e) => setCustomerPhone(e.target.value)}
-                          />
-                        </Field>
-                        {!form.customer_id && customerName.trim() && (
-                          <p className="muted full">
-                            O cliente será cadastrado ao salvar o atendimento.
-                          </p>
-                        )}
-                      </div>
-                      <h3 className="form-section-title">
-                        <CarFront size={18} />
-                        Veículo e entrada
-                      </h3>
-                      <div className="form-grid">
-                        {form.customer_id && (
-                          <Field
-                            label={
-                              form.status === "quote"
-                                ? "Veículo cadastrado (opcional)"
-                                : "Veículo do cliente *"
-                            }
-                            full
-                          >
-                            <select
-                              disabled={!form.customer_id || !!locked}
-                              value={form.vehicle_id}
-                              onChange={(e) => {
-                                const v = data.vehicles.find(
-                                  (v) => v.id === e.target.value,
-                                );
-                                setLookupPlate(v?.plate || lookupPlate);
-                                setLookedUp(v || { plate: lookupPlate });
+                          setCustomerName(owner.name);
+                          setCustomerPhone(owner.phone || "");
+                        } else {
+                          const description = [result.vehicle?.brand, result.vehicle?.model].filter(Boolean).join(" ");
+                          setLookedUp(result.vehicle || { ...lookedUp, plate: lookupPlate });
+                          setForm((f) => ({
+                            ...f,
+                            vehicle_id: "",
+                            guest_plate: result.vehicle?.plate || lookupPlate,
+                            guest_vehicle: description || f.guest_vehicle,
+                          }));
+                        }
+                      }}
+                    />
+                    {form.customer_id && (
+                      <div className="order-vehicle-cards full" role="group" aria-label="Veículos cadastrados do cliente">
+                        {customerVehicles.map((item) => {
+                          const selected = form.vehicle_id === item.id;
+                          return (
+                            <button
+                              key={item.id}
+                              type="button"
+                              className={selected ? "order-vehicle-card selected" : "order-vehicle-card"}
+                              aria-pressed={selected}
+                              onClick={() => {
+                                const choice = selectOrderVehicleFromCard(item);
+                                setLookupPlate(choice.plate);
+                                setLookedUp(item);
                                 setForm((f) => ({
                                   ...f,
-                                  vehicle_id: e.target.value,
-                                  guest_plate: v ? "" : lookupPlate,
-                                  guest_vehicle: v ? "" : f.guest_vehicle,
-                                  km: v?.km || 0,
+                                  vehicle_id: choice.vehicle_id,
+                                  guest_plate: "",
+                                  guest_vehicle: "",
+                                  km: choice.km,
                                 }));
+                                setError("");
                               }}
                             >
-                              <option value="">Selecione o veículo</option>
-                              {data.vehicles
-                                .filter(
-                                  (v) =>
-                                    (v.customer_id === form.customer_id || (order && order.customer_id === form.customer_id && v.id === order.vehicle_id)) &&
-                                    (v.active || v.id === form.vehicle_id),
-                                )
-                                .map((v) => (
-                                  <option key={v.id} value={v.id}>
-                                    {v.plate} · {v.brand} {v.model}
-                                  </option>
-                                ))}
-                            </select>
-                          </Field>
-                        )}
-                        {form.status === "quote" &&
-                          !form.vehicle_id &&
-                          !lookupPlate && (
-                            <Field label="Veículo (opcional)" full>
-                              <input
-                                value={form.guest_vehicle}
-                                onChange={(e) =>
-                                  set("guest_vehicle", e.target.value)
-                                }
-                              />
-                            </Field>
-                          )}
-                        {!form.vehicle_id &&
-                          (form.status !== "quote" || !!lookupPlate) && (
-                            <>
-                              <p className="muted full">
-                                Confira e complete os dados. O veículo será
-                                cadastrado ao salvar o atendimento e ficará
-                                vinculado ao cliente informado.
-                              </p>
-                              {form.guest_vehicle &&
-                                !lookedUp.brand &&
-                                !lookedUp.model && (
-                                  <p className="muted full">
-                                    Veículo informado: {form.guest_vehicle}
-                                  </p>
-                                )}
-                              <Field label="Marca do veículo *">
-                                <input
-                                  maxLength={150}
-                                  value={lookedUp.brand || ""}
-                                  onChange={(e) =>
-                                    setLookedUp((v) => ({
-                                      ...v,
-                                      brand: e.target.value,
-                                    }))
-                                  }
-                                />
-                              </Field>
-                              <Field label="Modelo do veículo *">
-                                <input
-                                  maxLength={150}
-                                  value={lookedUp.model || ""}
-                                  onChange={(e) =>
-                                    setLookedUp((v) => ({
-                                      ...v,
-                                      model: e.target.value,
-                                    }))
-                                  }
-                                />
-                              </Field>
-                              <Field label="Ano do veículo *">
-                                <NumericInput
-                                  type="number"
-                                  min={1900}
-                                  max={2100}
-                                  value={lookedUp.year || ""}
-                                  onChange={(e) =>
-                                    setLookedUp((v) => ({
-                                      ...v,
-                                      year: e.target.value
-                                        ? Number(e.target.value)
-                                        : "",
-                                    }))
-                                  }
-                                />
-                              </Field>
-                              <Field label="Cor do veículo">
-                                <input
-                                  maxLength={200}
-                                  value={lookedUp.color || ""}
-                                  onChange={(e) =>
-                                    setLookedUp((v) => ({
-                                      ...v,
-                                      color: e.target.value,
-                                    }))
-                                  }
-                                />
-                              </Field>
-                              <Field label="Chassi (se disponível)" full>
-                                <input
-                                  maxLength={500}
-                                  value={lookedUp.chassis || ""}
-                                  onChange={(e) =>
-                                    setLookedUp((v) => ({
-                                      ...v,
-                                      chassis: e.target.value,
-                                    }))
-                                  }
-                                />
-                              </Field>
-                            </>
-                          )}
-                        {!locked && form.customer_id && (
-                          <button
-                            type="button"
-                            className="text-button full"
-                            onClick={() => setQuickCreate("vehicles")}
-                          >
-                            <Plus size={14} />
-                            Cadastrar veículo deste cliente
-                          </button>
-                        )}
-                        <Field label="Quilometragem">
-                          <NumericInput
-                            type="number"
-                            min="0"
-                            value={form.km}
-                            onChange={(e) => set("km", Number(e.target.value))}
-                          />
-                        </Field>
-                        <Field label="Data de entrada">
-                          <input
-                            type="date"
-                            value={form.entered_on}
-                            onChange={(e) => set("entered_on", e.target.value)}
-                          />
-                        </Field>
-                        <Field label="Previsão de entrega">
-                          <input
-                            type="date"
-                            value={form.due_on}
-                            min={form.entered_on}
-                            onChange={(e) => set("due_on", e.target.value)}
-                          />
-                        </Field>
-                        <Field label="Relato do cliente / problema" full>
-                          <textarea
-                            rows={4}
-                            maxLength={500}
-                            placeholder="Descreva o que precisa ser verificado no veículo..."
-                            value={form.problem}
-                            onChange={(e) => set("problem", e.target.value)}
-                          />
-                        </Field>
+                              <span className="order-vehicle-plate">{item.plate || "Sem placa"}</span>
+                              <strong>{item.brand} {item.model}</strong>
+                              <small>{item.year || "Ano não informado"} · {Number(item.km || 0).toLocaleString("pt-BR")} km</small>
+                            </button>
+                          );
+                        })}
+                        {!customerVehicles.length && <p className="muted">Este cliente ainda não tem veículos cadastrados.</p>}
                       </div>
-                      {!locked && (
-                        <button
-                          type="button"
-                          className="button next-step"
-                          onClick={() => setTab("items")}
-                        >
-                          Adicionar produtos e serviços
-                          <ArrowRight size={16} />
-                        </button>
-                      )}
-                    </>
+                    )}
+                    {!locked && form.customer_id && (
+                      <button type="button" className="text-button full" onClick={() => setQuickCreate("vehicles")}>
+                        <Plus size={14} />
+                        + Novo veículo
+                      </button>
+                    )}
+                    <Field label="Marca do veículo">
+                      <input maxLength={150} readOnly={!!form.vehicle_id} value={lookedUp.brand || ""} onChange={(e) => setLookedUp((current) => ({ ...current, brand: e.target.value }))} />
+                    </Field>
+                    <Field label="Modelo do veículo">
+                      <input maxLength={150} readOnly={!!form.vehicle_id} value={lookedUp.model || ""} onChange={(e) => setLookedUp((current) => ({ ...current, model: e.target.value }))} />
+                    </Field>
+                    <Field label="Ano fabricação/modelo">
+                      <NumericInput type="number" min={1900} max={2100} disabled={!!form.vehicle_id} value={lookedUp.year || ""} onChange={(e) => setLookedUp((current) => ({ ...current, year: e.target.value ? Number(e.target.value) : "" }))} />
+                    </Field>
+                    <Field label="Quilometragem">
+                      <NumericInput type="number" min="0" value={form.km} onChange={(e) => set("km", Number(e.target.value))} />
+                    </Field>
+                    <Field label={!form.customer_id && customerName.trim() ? "Telefone / WhatsApp *" : "Telefone / WhatsApp"}>
+                      <input type="tel" autoComplete="tel" maxLength={60} value={customerPhone} readOnly={!!form.customer_id} required={!form.customer_id && !!customerName.trim()} placeholder="(43) 99999-9999" onChange={(e) => setCustomerPhone(e.target.value)} />
+                    </Field>
+                    {form.status === "quote" && !lookupPlate && !form.vehicle_id && (
+                      <Field label="Descrição do veículo (opcional)" full>
+                        <input maxLength={200} value={form.guest_vehicle} onChange={(e) => set("guest_vehicle", e.target.value)} />
+                      </Field>
+                    )}
+                    <Field label="Cor do veículo">
+                      <input maxLength={200} disabled={!!form.vehicle_id} value={lookedUp.color || ""} onChange={(e) => setLookedUp((current) => ({ ...current, color: e.target.value }))} />
+                    </Field>
+                    <Field label="Chassi (se disponível)" full>
+                      <input maxLength={500} disabled={!!form.vehicle_id} value={lookedUp.chassis || ""} onChange={(e) => setLookedUp((current) => ({ ...current, chassis: e.target.value }))} />
+                    </Field>
+                    {!form.customer_id && customerName.trim() && <p className="muted full">O cliente será cadastrado ao salvar o atendimento.</p>}
+                    <Field label="Data de entrada">
+                      <input type="date" value={form.entered_on} onChange={(e) => set("entered_on", e.target.value)} />
+                    </Field>
+                    <Field label="Previsão de entrega">
+                      <input type="date" value={form.due_on} min={form.entered_on} onChange={(e) => set("due_on", e.target.value)} />
+                    </Field>
+                    <Field label="Relato do cliente / problema" full>
+                      <textarea rows={4} maxLength={500} placeholder="Descreva o que precisa ser verificado no veículo..." value={form.problem} onChange={(e) => set("problem", e.target.value)} />
+                    </Field>
+                  </div>
+                  {!locked && (
+                    <button type="button" className="button next-step" onClick={() => setTab("items")}>
+                      Adicionar produtos e serviços
+                      <ArrowRight size={16} />
+                    </button>
                   )}
                 </>
-              ) : tab === "items" ? (
+              )
                 <>
                   {!locked && (
                     <div className="capture-actions">
@@ -1322,16 +1055,6 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
                     professional_id: "",
                   },
                 ],
-              }));
-            } else {
-              setLookupPlate(values.plate || lookupPlate);
-              setLookedUp(values);
-              setForm((f) => ({
-                ...f,
-                vehicle_id: recordId,
-                guest_plate: "",
-                guest_vehicle: "",
-                km: Number(values.km) || 0,
               }));
             }
           }}
