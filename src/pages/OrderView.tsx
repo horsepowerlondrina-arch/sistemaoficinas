@@ -84,12 +84,14 @@ export function OrderView() {
       >
         ← Voltar à lista
       </button>
-      <PageHeading
-        eyebrow="ORDEM DE SERVIÇO"
-        title="Detalhes da OS"
-        description="Dados do atendimento e do veículo"
-        actions={
-          <div className="no-print action-row order-view-action-row">
+      <div className="order-view-header">
+        <PageHeading
+          eyebrow="ORDEM DE SERVIÇO"
+          title="Detalhes da OS"
+          description="Dados do atendimento e do veículo"
+        />
+        <div className="no-print order-view-toolbar">
+          <div className="action-row order-view-os-actions" aria-label="Ações da OS">
             {admin && (
               <button
                 className="button"
@@ -103,7 +105,6 @@ export function OrderView() {
                 Alterar status
               </button>
             )}
-
             {admin && editable && (
               <button
                 className="button"
@@ -126,15 +127,15 @@ export function OrderView() {
                 className="button primary"
                 onClick={() => navigate(`/ordens/${id}/receber`)}
               >
-                {order.payment_status === "paid"
-                  ? "Ver recebimento"
-                  : "Receber OS"}
+                {order.payment_status === "paid" ? "Ver recebimento" : "Receber OS"}
               </button>
             )}
+          </div>
+          <div className="action-row order-view-document-actions" aria-label="Documentos e revisões">
             <IssuedDocumentActions />
           </div>
-        }
-      />
+        </div>
+      </div>
       {error && (
         <div className="error-box" role="alert">
           {error}
