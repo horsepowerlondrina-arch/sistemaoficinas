@@ -102,7 +102,7 @@ export function OrderTable({ orders }: { orders: Order[] }) {
         </button>
       </div>
       <div className="table-scroll order-table-scroll order-desktop-list">
-        <table className="order-list-table">
+        <table className={isAdmin ? "order-list-table" : "order-list-table order-list-table-no-value"}>
           <colgroup>
             <col className="order-col-identity" />
             <col className="order-col-vehicle" />
