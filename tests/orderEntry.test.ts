@@ -60,6 +60,7 @@ test("new quote and OS open directly with customer and plate fields in order", (
     const html = render(path);
     assert.doesNotMatch(html, /Continuar sem informar a placa/);
     assert.doesNotMatch(html, /Qual é a placa do veículo/);
+    assert.doesNotMatch(html, /No status Orçamento, cliente e veículo podem ficar sem vínculo/);
     const fields = [
       "Nome do cliente",
       "Placa",
