@@ -1370,6 +1370,54 @@ td strong {
   grid-template-columns: 1fr 1fr;
   gap: 19px 17px;
 }
+
+.order-identity-grid .customer-picker-field {
+  grid-column: auto;
+}
+.order-vehicle-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: 10px;
+}
+.order-vehicle-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  width: 100%;
+  min-height: 104px;
+  padding: 13px 15px;
+  border: 1px solid var(--border, #dedede);
+  border-radius: 9px;
+  background: var(--surface, #fff);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.order-vehicle-card:hover,
+.order-vehicle-card:focus-visible {
+  border-color: var(--accent, #d9534f);
+  outline: none;
+  box-shadow: 0 0 0 2px rgb(217 83 79 / 14%);
+}
+.order-vehicle-card.selected {
+  border-color: var(--accent, #d9534f);
+  background: #fff8f8;
+  box-shadow: inset 0 0 0 1px var(--accent, #d9534f);
+}
+.order-vehicle-plate {
+  color: var(--accent, #bd343b);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .05em;
+}
+.order-vehicle-card strong {
+  font-size: 14px;
+}
+.order-vehicle-card small {
+  color: var(--muted, #6b7280);
+  font-size: 12px;
+}
 .full {
   grid-column: 1/-1;
 }
