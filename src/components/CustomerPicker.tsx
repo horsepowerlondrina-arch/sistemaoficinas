@@ -35,7 +35,7 @@ export function CustomerPicker({
   };
   return (
     <div
-      className="field full"
+      className="field customer-picker-field"
       onBlur={(e) => {
         if (!e.currentTarget.contains(e.relatedTarget)) setOpen(false);
       }}
