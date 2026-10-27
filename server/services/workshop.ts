@@ -110,14 +110,19 @@ export async function applyVehicleCatalogBackfill(db: DB, ctx: Context, limit = 
 
 export async function invalidateOrderShares(
   db: DB,
-  tenantId: string,
+  ctx: Context,
   orderId: string,
 ) {
-  await db
+  const result = await db
     .prepare(
       "UPDATE public_shares SET revoked=1 WHERE tenant_id=? AND order_id=? AND revoked=0",
     )
-    .run(tenantId, orderId);
+    .run(ctx.tenantId, orderId);
+  const revoked = Number(result.changes);
+  if (revoked > 0) {
+    await audit(db, ctx, "order.share_links_revoked", orderId);
+  }
+  return revoked;
 }
 export async function listOrders(db: DB, tenant: string): Promise<Row[]> {
   const rows = await db
@@ -497,7 +502,7 @@ export async function saveOrder(
           item.cost,
           item.service_snapshot || '',
         );
-    if (changed) await invalidateOrderShares(db, ctx.tenantId, orderId);
+    if (changed) await invalidateOrderShares(db, ctx, orderId);
     await audit(
       db,
       ctx,
@@ -675,7 +680,7 @@ export async function transitionOrder(
         ctx.tenantId,
         record,
       );
-    await invalidateOrderShares(db, ctx.tenantId, record);
+    await invalidateOrderShares(db, ctx, record);
     await audit(
       db,
       ctx,
