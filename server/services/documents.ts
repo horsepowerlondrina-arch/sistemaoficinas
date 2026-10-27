@@ -53,8 +53,17 @@ export async function readArchivedDocument(db:DB,ctx:Context,id:string){
  if(createHash("sha256").update(String(row.payload)).digest("hex")!==row.digest)throw new Error("Integridade do documento histórico inválida.");
  return {archive:{id:row.id,kind:row.kind,entity_id:row.entity_id,revision:row.revision,issued_at:row.issued_at,archived_at:row.archived_at},document:JSON.parse(row.payload)};
 }
-export async function issueDocument(db:DB,ctx:Context,kind:DocumentKind,id:string,newRevision=false){
- if(newRevision)requireAdmin(ctx);
+export async function issueDocument(
+ db:DB,
+ ctx:Context,
+ kind:DocumentKind,
+ id:string,
+ newRevision=false,
+ currentOrderRefresh=false,
+){
+ if(currentOrderRefresh && (kind!=="order" || !newRevision))
+  throw Object.assign(new Error("A emissão atual só se aplica a uma nova revisão de OS."),{status:400});
+ if(newRevision && !currentOrderRefresh)requireAdmin(ctx);
  return transaction(db,async()=>{
   const entity=await source(db,ctx,kind,id);
   const history=await documentHistory(db,ctx,kind,id);
