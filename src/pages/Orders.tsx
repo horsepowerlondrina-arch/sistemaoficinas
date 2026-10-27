@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Plus, Download } from "lucide-react";
+import { Plus, Download, Filter, ChevronDown } from "lucide-react";
 import { useApp } from "../lib/context";
 import { money, statusLabel } from "../lib/types";
 import { PageHeading, SearchBox } from "../components/ui";
@@ -50,6 +50,10 @@ export function Orders() {
   const [exporting, setExporting] = useState(false);
   const rows = selectReportOrders(data.orders, filters, data, search, session.role === "owner");
   const financialRows = rows.filter((o) => o.status !== "quote");
+  const appliedFiltersCount =
+    Number(filters.statuses.length > 0) +
+    Number(!!filters.from || !!filters.to) +
+    Number(filters.basis !== "opening");
   const results = showReport ? financialRows.map((o) => orderResult(o, data)) : [];
   const exportExcel = async () => {
     setExporting(true);
@@ -87,6 +91,15 @@ export function Orders() {
         <div className="table-toolbar">
           <SearchBox value={search} onChange={setSearch} placeholder="Buscar cliente, placa ou número..." />
         </div>
+        <details className="order-filter-panel">
+          <summary>
+            <span className="order-filter-summary-label">
+              <Filter size={16} />
+              Filtros da consulta
+              <small>{appliedFiltersCount} {appliedFiltersCount === 1 ? "filtro aplicado" : "filtros aplicados"}</small>
+            </span>
+            <ChevronDown size={17} aria-hidden="true" />
+          </summary>
           <form
             className="order-report-filters"
             onSubmit={(e) => {
@@ -217,6 +230,7 @@ export function Orders() {
               </p>
             )}
           </form>
+        </details>
         <p className="muted">No status Orçamento, a OS pode ser criada sem cliente. Para aprovar, informe cliente e veículo. OS no status Orçamento ficam fora do relatório financeiro e podem ser impressas no detalhe da OS.</p>
         <OrderTable orders={rows} />
         <div className="panel-foot">
