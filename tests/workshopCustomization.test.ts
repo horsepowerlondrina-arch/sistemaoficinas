@@ -49,7 +49,7 @@ test("office settings and immutable revisions stay tenant scoped; old and re-sha
   assert.notEqual(renewed.path,firstShare.path);
   assert.equal((await readShare(db,firstToken))!.shop.name,"Oficina A Inicial");
   assert.equal(renewed.document.shop.name,"Oficina A Atualizada");
-  assert.equal(renewed.document.order.items[0].price,7000);
+  assert.equal(renewed.document.items[0].price,7000);
   assert.equal((await readDocument(db,ownerA,"order","o",1)).order.items[0].name,"Revisão");
   assert.equal((await readDocument(db,ownerA,"order","o",2)).order.items[0].name,"Serviço alterado");
   await assert.rejects(()=>readDocument(db,ownerB,"order","o",1));
