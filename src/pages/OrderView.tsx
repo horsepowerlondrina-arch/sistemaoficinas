@@ -89,7 +89,7 @@ export function OrderView() {
         title="Detalhes da OS"
         description="Dados do atendimento e do veículo"
         actions={
-          <div className="no-print action-row">
+          <div className="no-print action-row order-view-action-row">
             {admin && (
               <button
                 className="button"
