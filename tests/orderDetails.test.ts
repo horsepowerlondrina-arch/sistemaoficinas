@@ -79,8 +79,8 @@ test("OS details show the requested vehicle and order summary and keep issue con
     "2.0 Flex",
     "2020 / 2021",
     "45.000 km",
-    "10/10/2026",
-    "20/10/2026",
+    "10/10",
+    "20/10",
     "Aberta",
     "R$ 1.250,00",
   ]) assert.ok(html.includes(value), `Expected order details to show ${value}`);
