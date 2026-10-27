@@ -4647,3 +4647,224 @@ body { padding-top: 36px; }
   .vehicle-review-row { grid-template-columns:minmax(0,1fr); align-items:start; }
   .vehicle-review-pagination { flex-wrap:wrap; }
 }
+
+/* OS-002 — compact order list and responsive filters */
+.order-filter-panel {
+  margin: 0 16px 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: #fff;
+}
+.order-filter-panel > summary {
+  min-height: 42px;
+  padding: 9px 13px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  list-style: none;
+  color: #424751;
+  font-size: 12px;
+  font-weight: 650;
+}
+.order-filter-panel > summary::-webkit-details-marker { display: none; }
+.order-filter-summary-label {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.order-filter-summary-label > svg { color: #848b96; flex-shrink: 0; }
+.order-filter-summary-label small {
+  display: inline;
+  margin-left: 4px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 450;
+}
+.order-filter-panel[open] > summary {
+  border-bottom: 1px solid var(--border);
+}
+.order-filter-panel[open] > summary > svg { transform: rotate(180deg); }
+.order-filter-panel .order-report-filters {
+  padding: 12px 16px 14px;
+  border: 0;
+}
+.order-filter-panel .report-filter-dates {
+  align-items: end;
+  gap: 10px;
+}
+.order-filter-panel .report-filter-dates .field {
+  min-width: 150px;
+  max-width: 220px;
+  gap: 5px;
+}
+.order-filter-panel .report-filter-dates .field:first-child { min-width: 190px; }
+.order-filter-panel .report-statuses {
+  padding: 7px 0;
+  gap: 8px 16px;
+}
+.order-filter-panel .report-statuses legend { padding-top: 6px; font-size: 11px; }
+.order-filter-panel .report-statuses label { font-size: 11px; }
+.order-filter-panel .report-statuses input { min-height: 0; }
+.order-filter-panel .report-actions { margin: 5px 0 0; }
+.order-filter-panel .report-actions .button { min-height: 34px; padding: 7px 11px; font-size: 11px; }
+.order-list-view { min-width: 0; }
+.order-table-scroll { margin: 0 10px; }
+.order-list-table {
+  width: 100%;
+  min-width: 820px;
+  table-layout: fixed;
+  white-space: normal;
+}
+.order-list-table .order-col-identity { width: 25%; }
+.order-list-table .order-col-vehicle { width: 18%; }
+.order-list-table .order-col-date { width: 13%; }
+.order-list-table .order-col-due { width: 17%; }
+.order-list-table .order-col-status { width: 16%; }
+.order-list-table .order-col-total { width: 11%; }
+.order-list-table th,
+.order-list-table td {
+  padding: 9px 11px;
+  font-size: 11px;
+  white-space: normal;
+  vertical-align: middle;
+}
+.order-list-table th { padding-top: 9px; padding-bottom: 9px; }
+.order-sort-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 4px;
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: inherit;
+  font-weight: 600;
+  text-align: inherit;
+  white-space: nowrap;
+}
+.order-sort-button > span { display: inline-flex; color: #a1a6af; }
+.order-list-table th[aria-sort="ascending"] .order-sort-button > span,
+.order-list-table th[aria-sort="descending"] .order-sort-button > span { color: var(--red); }
+.order-list-row { cursor: pointer; }
+.order-list-row:hover { background: #fafbfc; }
+.order-list-row:focus-visible {
+  outline: 2px solid #e3293580;
+  outline-offset: -2px;
+}
+.order-list-identity { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.order-list-identity > div { min-width: 0; }
+.order-list-identity .avatar { width: 29px; height: 29px; flex: 0 0 29px; font-size: 9px; }
+.order-list-identity .cell-link {
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #373b44;
+  font-size: 11px;
+  font-weight: 650;
+  text-align: left;
+  white-space: normal;
+}
+.order-list-identity .cell-link span { font-weight: 500; }
+.order-list-identity small {
+  max-width: 230px;
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 9px;
+  line-height: 1.4;
+}
+.order-list-table .vehicle-cell { align-items: flex-start; gap: 6px; font-size: 11px; }
+.order-list-table .vehicle-cell svg { margin-top: 2px; flex: 0 0 auto; color: #8b929e; }
+.order-list-table .vehicle-cell > div { min-width: 0; }
+.order-list-table .vehicle-cell > div > span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.order-list-table .vehicle-cell .plate { font-size: 10px; line-height: 1.4; }
+.order-list-table .date-cell { font-size: 11px; }
+.order-list-table .money { font-size: 11px; font-weight: 650; }
+.order-due-cell.overdue {
+  background: #fffafa;
+  box-shadow: inset 2px 0 #dfb2b2;
+  color: #8f4848;
+}
+.order-overdue-label {
+  margin-top: 2px;
+  color: #a75a5a;
+  font-size: 9px;
+  line-height: 1.2;
+}
+.order-mobile-sort,
+.orders-mobile-list { display: none; }
+@media (max-width: 760px) {
+  .order-filter-panel { margin: 0 12px 10px; }
+  .order-filter-panel .order-report-filters { padding: 10px 12px 12px; }
+  .order-filter-panel .report-filter-dates { display: grid; grid-template-columns: 1fr; gap: 8px; }
+  .order-filter-panel .report-filter-dates .field,
+  .order-filter-panel .report-filter-dates .field:first-child { min-width: 0; max-width: none; }
+  .order-filter-panel .report-statuses { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px 12px; }
+  .order-filter-panel .report-statuses legend { grid-column: 1 / -1; }
+  .order-filter-panel .report-actions > button { flex: 1; }
+  .order-mobile-sort {
+    display: flex;
+    align-items: end;
+    gap: 8px;
+    padding: 0 14px 10px;
+  }
+  .order-mobile-sort label { display: grid; flex: 1; min-width: 0; gap: 3px; }
+  .order-mobile-sort label > span { color: var(--muted); font-size: 10px; }
+  .order-mobile-sort select { min-height: 36px; padding: 7px 9px; font-size: 12px; }
+  .order-sort-direction { min-height: 36px; padding: 6px 9px; font-size: 10px; }
+  .order-desktop-list { display: none; }
+  .orders-mobile-list { display: grid; gap: 9px; padding: 0 12px; }
+  .order-mobile-card {
+    min-width: 0;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background: #fff;
+    box-shadow: var(--shadow);
+    cursor: pointer;
+  }
+  .order-mobile-card:focus-visible { outline: 3px solid #e3293545; outline-offset: 2px; }
+  .order-mobile-card.overdue { border-color: #ead2d2; }
+  .order-mobile-card-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .order-mobile-card-heading > strong { min-width: 0; font-size: 12px; line-height: 1.5; }
+  .order-mobile-card-heading .badge { flex-shrink: 0; font-size: 9px; }
+  .order-mobile-vehicle {
+    display: flex;
+    align-items: flex-start;
+    gap: 7px;
+    margin-top: 9px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .order-mobile-vehicle > svg { flex-shrink: 0; margin-top: 1px; color: #858c98; }
+  .order-mobile-vehicle small { margin-top: 1px; font-size: 10px; }
+  .order-mobile-meta {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+    margin: 11px 0 0;
+    padding-top: 9px;
+    border-top: 1px solid #f0f1f4;
+  }
+  .order-mobile-meta > div { min-width: 0; }
+  .order-mobile-meta dt { color: var(--muted); font-size: 9px; }
+  .order-mobile-meta dd { display: flex; align-items: baseline; gap: 5px; margin: 2px 0 0; font-size: 11px; font-weight: 600; }
+  .order-mobile-due.overdue dd { color: #995555; }
+  .order-mobile-due.overdue dd small { display: inline; color: #a75a5a; font-size: 9px; }
+}
