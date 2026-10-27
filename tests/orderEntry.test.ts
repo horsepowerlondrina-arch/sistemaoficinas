@@ -55,16 +55,29 @@ function render(path: string, order?: Record<string, unknown>) {
     ),
   );
 }
-test("new quote and OS begin with plate choice before customer fields or saving", () => {
+test("new quote and OS open directly with customer and plate fields in order", () => {
   for (const path of ["/ordens/nova?status=quote", "/ordens/nova"]) {
     const html = render(path);
-    assert.match(html, /Qual é a placa do veículo/);
-    assert.match(html, /Continuar sem informar a placa/);
-    assert.doesNotMatch(html, /Dados do cliente/);
-    assert.match(
-      html,
-      /<button[^>]*disabled=""[^>]*>[^<]*<svg[\s\S]*?Salvar atendimento/,
-    );
+    assert.doesNotMatch(html, /Continuar sem informar a placa/);
+    assert.doesNotMatch(html, /Qual é a placa do veículo/);
+    const fields = [
+      "Nome do cliente",
+      "Placa",
+      "Marca do veículo",
+      "Modelo do veículo",
+      "Ano fabricação/modelo",
+      "Quilometragem",
+      "Telefone / WhatsApp",
+    ];
+    let previousIndex = -1;
+    for (const field of fields) {
+      const index = html.indexOf(field);
+      assert.ok(index > previousIndex, `Expected ${field} in requested order`);
+      previousIndex = index;
+    }
+    assert.match(html, /Salvar atendimento/);
+    assert.match(html, /class="button primary">/);
+    assert.doesNotMatch(html, /class="button primary" disabled=/);
   }
 });
 test("editing a linked quote shows its registered customer without a duplicate guest name", () => {
@@ -127,12 +140,12 @@ test("a guest quote preserves optional name and vehicle with a single plate inpu
     items: [],
   });
   assert.match(html, /value="Nome completo avulso"/);
-  assert.match(html, /Telefone \/ celular \*/);
+  assert.match(html, /Telefone \/ WhatsApp \*/);
   assert.match(html, /O cliente será cadastrado ao salvar/);
-  assert.match(html, /Veículo informado: Veículo avulso/);
+  assert.match(html, /value="DEF4G56"/);
   assert.match(html, /Marca do veículo \*/);
   assert.match(html, /Modelo do veículo \*/);
-  assert.match(html, /Ano do veículo \*/);
+  assert.match(html, /Ano fabricação\/modelo \*/);
   assert.match(html, /Cor do veículo/);
   assert.match(html, /Chassi \(se disponível\)/);
   assert.equal((html.match(/value="DEF4G56"/g) || []).length, 1);
