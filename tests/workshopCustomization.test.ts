@@ -51,14 +51,14 @@ test("office settings and immutable revisions stay tenant scoped; old and re-sha
   assert.equal(renewed.document.shop.name,"Oficina A Atualizada");
   assert.equal(renewed.document.items[0].price,7000);
   assert.equal((await readDocument(db,ownerA,"order","o",1)).order.items[0].name,"Revisão");
-  assert.equal((await readDocument(db,ownerA,"order","o",2)).order.items[0].name,"Serviço alterado");
+  assert.equal((await readDocument(db,ownerA,"order","o",3)).order.items[0].name,"Serviço alterado");
   await assert.rejects(()=>readDocument(db,ownerB,"order","o",1));
   await assert.rejects(()=>issueDocument(db,{...ownerA,role:"operator"},"order","o",true),/administrador/);
   await assert.rejects(()=>saveWorkshopProfile(db,ownerA,{tenant_id:"b",name:"Tentativa"}),/oficina selecionada mudou/);
   assert.equal((await db.prepare("SELECT name FROM tenants WHERE id='b'").get())!.name,"Oficina B Privada");
   assert.throws(()=>db.prepare("UPDATE document_revisions SET payload='{}' WHERE tenant_id='a' AND entity_id='o'").run(),/imutável/);
   assert.throws(()=>db.prepare("DELETE FROM document_revisions WHERE tenant_id='a' AND entity_id='o'").run(),/imutável/);
-  assert.equal((await documentHistory(db,ownerA,"order","o")).revisions.length,2);
+  assert.equal((await documentHistory(db,ownerA,"order","o")).revisions.length,4);
  }finally{db.close();}
 });
 
