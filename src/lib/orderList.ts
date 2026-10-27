@@ -70,12 +70,12 @@ export function isOrderOverdue(
   )
     return false;
   const dueDate = String(order.due_on || "").slice(0, 10);
-  return /^\\d{4}-\\d{2}-\\d{2}$/.test(dueDate) && !!workshopToday && dueDate < workshopToday;
+  return /^\d{4}-\d{2}-\d{2}$/.test(dueDate) && !!workshopToday && dueDate < workshopToday;
 }
 
 export function orderListDateLabel(day: string) {
   const value = String(day || "").slice(0, 10);
-  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(value)) return "—";
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return "—";
   const [year, month, date] = value.split("-").map(Number);
   return new Intl.DateTimeFormat("pt-BR", {
     timeZone: "UTC",
