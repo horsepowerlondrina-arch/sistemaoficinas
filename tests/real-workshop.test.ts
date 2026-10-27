@@ -75,14 +75,19 @@ test("Public shares allow only selected data, expire, revoke and isolate tenants
     async () => await createShare(db, { ...ctx, tenantId: "b" }, "o"),
   );
   const s2 = await createShare(db, ctx, "o");
-  assert.equal(s2.path, s.path);
-  assert.equal(s2.reused, true);
+  assert.notEqual(s2.path, s.path);
+  assert.equal(s2.reused, false);
   assert.ok(await readShare(db, token));
+  const token2 = s2.path.split("/").pop()!;
+  assert.equal((await readShare(db, token2))!.customer, "José da Silva Santos");
+  assert.equal((await readShare(db, token))!.customer, "Cliente Nome Completo");
 
   await transitionOrder(db, ctx, "o", "cancelled");
   assert.equal(await readShare(db, token), null);
+  assert.equal(await readShare(db, token2), null);
   const s3 = await createShare(db, ctx, "o");
   assert.notEqual(s3.path, s.path);
+  assert.notEqual(s3.path, s2.path);
   assert.equal(s3.reused, false);
   const t2 = s3.path.split("/").pop()!;
   db.prepare("UPDATE public_shares SET expires_at=0 WHERE token_hash=?").run(
