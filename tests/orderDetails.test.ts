@@ -91,11 +91,11 @@ test("OS details show the requested vehicle and order summary and keep issue con
   assert.ok(title >= 0 && title < actionsStart, "The title stays independent from the action row");
   const actionLabels = [
     "Checklist de entrada",
+    "WhatsApp",
     "Alterar status",
+    "Imprimir PDF",
     "Editar atendimento",
     "Iniciar execução",
-    "Imprimir PDF",
-    "WhatsApp",
   ];
   const positions = actionLabels.map((label) => html.indexOf(label));
   assert.ok(positions.every((position) => position > actionsStart));
@@ -104,10 +104,17 @@ test("OS details show the requested vehicle and order summary and keep issue con
 
   const quoteHtml = renderOrder(baseOrder({ status: "quote" }));
   const quoteActionsStart = quoteHtml.indexOf('class="no-print order-view-toolbar"');
-  const approve = quoteHtml.indexOf("Aprovar OS");
-  const print = quoteHtml.indexOf("Imprimir PDF");
-  const share = quoteHtml.indexOf("WhatsApp");
-  assert.ok(approve > quoteActionsStart && approve < print && print < share);
+  const quoteLabels = [
+    "Checklist de entrada",
+    "WhatsApp",
+    "Alterar status",
+    "Imprimir PDF",
+    "Editar atendimento",
+    "Aprovar OS",
+  ];
+  const quotePositions = quoteLabels.map((label) => quoteHtml.indexOf(label));
+  assert.ok(quotePositions.every((position) => position > quoteActionsStart));
+  assert.deepEqual(quotePositions, [...quotePositions].sort((a, b) => a - b));
   assert.doesNotMatch(quoteHtml, /Reimprimir revisão|Emitir e imprimir|Emitir nova revisão com dados atuais|Revisão \\d/);
 });
 
