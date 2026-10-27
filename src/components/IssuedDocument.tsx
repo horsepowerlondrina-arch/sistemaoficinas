@@ -87,7 +87,7 @@ export function IssuedDocumentProvider({ kind, id, currentOnly = false, children
   );
 }
 
-export function IssuedDocumentActions() {
+export function IssuedDocumentActions({ includeShare = true }: { includeShare?: boolean } = {}) {
   const { kind, id, admin, history, payload, error, busy, setPayload, setError, setBusy, issue, currentOnly, setPrinting } = useIssuedDocument();
   const { data, session } = useApp();
   const endpoint = "/documents/" + kind + "/" + id;
@@ -135,7 +135,7 @@ export function IssuedDocumentActions() {
           </button>
         )}
       </div>
-      {kind === "order" && admin && order && (currentOnly || payload) && (
+      {includeShare && kind === "order" && admin && order && (currentOnly || payload) && (
         <ShareOrder
           key={id}
           shopName={session.tenant.name}
