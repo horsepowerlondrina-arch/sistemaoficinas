@@ -308,6 +308,7 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
     [more, setMore] = useState(false), [loading, setLoading] = useState(false), [revision, setRevision] = useState(0);
   const pickerRef = useRef<HTMLElement | null>(null), dropdownRef = useRef<HTMLDivElement | null>(null);
   const brandInputRef = useRef<HTMLInputElement | null>(null), modelInputRef = useRef<HTMLInputElement | null>(null), serviceInputRef = useRef<HTMLInputElement | null>(null);
+  const suppressServiceFocusOpen = useRef(false);
   const dropdownId = useId().replace(/:/g, "");
   const [dropdownPosition, setDropdownPosition] = useState<{ left: number; top: number; width: number; maxHeight: number } | null>(null);
   const openKind = brandOpen ? "brand" : modelOpen ? "vehicle" : serviceOpen ? "service" : null;
@@ -488,11 +489,16 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
       setSelected(null);
       setSearch("");
       setOffset(0);
-      setServiceActiveIndex(0);
-      setServiceOpen(true);
+      const nextServiceDropdown = serviceDropdownStateAfterAdd();
+      setServiceActiveIndex(nextServiceDropdown.activeIndex);
+      setServiceOpen(nextServiceDropdown.open);
       setBrandOpen(false);
       setModelOpen(false);
-      window.setTimeout(() => serviceInputRef.current?.focus(), 0);
+      suppressServiceFocusOpen.current = true;
+      window.setTimeout(() => {
+        serviceInputRef.current?.focus();
+        window.setTimeout(() => { suppressServiceFocusOpen.current = false; }, 0);
+      }, 0);
       return true;
     } catch (e) {
       setError((e as Error).message);
@@ -553,7 +559,11 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
     setAutoBrandPending(false); setModelSearch(""); setModels([]); setModelOffset(0); setMoreModels(false);
     setModelActiveIndex(-1); setBrandOpen(false); setModelOpen(true); setServiceOpen(false);
     setPorte(""); setCommercialCategory(""); onModelChange(""); setSearch(""); setSelected(null);
-    setOffset(0); setError(""); modelInputRef.current?.focus();
+    setOffset(0); setError("");
+    window.setTimeout(() => {
+      modelInputRef.current?.focus();
+      setModelOpen(true);
+    }, 0);
   }
   function editBrand(value: string) {
     if (brandLocked) return;
@@ -576,7 +586,11 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
     setPorte(row.porte_id || ""); setCommercialCategory(row.commercial_category_id || ""); setLinkStatus("linked"); onModelChange(row.id);
     setSearch(""); setOffset(0); setSelected(null); setError("");
     if (!vehicleOnly) setServiceOpen(true);
-    window.setTimeout(() => { if (!vehicleOnly) serviceInputRef.current?.focus(); }, 0);
+    window.setTimeout(() => {
+      if (vehicleOnly) return;
+      serviceInputRef.current?.focus();
+      setServiceOpen(true);
+    }, 0);
   }
   function brandKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (event.key === "ArrowDown") { event.preventDefault(); openBrandDropdown(); setBrandActiveIndex((i) => nextCatalogOptionIndex(i, brandOptions.length, 1)); }
@@ -659,7 +673,7 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
           </Field>
           {!vehicleOnly && <Field label="Serviço" full>
             <div className="catalog-combobox-control">
-              <input ref={serviceInputRef} role="combobox" aria-autocomplete="list" aria-expanded={serviceOpen} aria-controls={dropdownId + "-services"} aria-activedescendant={serviceOpen && serviceActiveIndex >= 0 ? dropdownId + "-service-" + serviceActiveIndex : undefined} autoComplete="off" value={search} disabled={!modelId || (mode === "catalog" && linkStatus === "mismatch")} onFocus={openServiceDropdown} onChange={(e) => { setSearch(e.target.value); setOffset(0); setServiceActiveIndex(-1); setSelected(null); setServiceOpen(true); setBrandOpen(false); setModelOpen(false); }} onKeyDown={serviceKeyDown} placeholder="Digite uma palavra do serviço" />
+              <input ref={serviceInputRef} role="combobox" aria-autocomplete="list" aria-expanded={serviceOpen} aria-controls={dropdownId + "-services"} aria-activedescendant={serviceOpen && serviceActiveIndex >= 0 ? dropdownId + "-service-" + serviceActiveIndex : undefined} autoComplete="off" value={search} disabled={!modelId || (mode === "catalog" && linkStatus === "mismatch")} onFocus={() => { if (suppressServiceFocusOpen.current) { suppressServiceFocusOpen.current = false; return; } openServiceDropdown(); }} onClick={openServiceDropdown} onChange={(e) => { suppressServiceFocusOpen.current = false; setSearch(e.target.value); setOffset(0); setServiceActiveIndex(-1); setSelected(null); setServiceOpen(true); setBrandOpen(false); setModelOpen(false); }} onKeyDown={serviceKeyDown} placeholder="Digite uma palavra do serviço" />
               <button type="button" aria-label={serviceOpen ? "Fechar serviços" : "Abrir serviços"} aria-haspopup="listbox" aria-expanded={serviceOpen} disabled={!modelId || (mode === "catalog" && linkStatus === "mismatch")} onClick={toggleServiceDropdown}>▾</button>
             </div>
           </Field>}
