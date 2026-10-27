@@ -586,7 +586,7 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
                     </button>
                   )}
                 </>
-              )
+              ) : tab === "items" ? (
                 <>
                   {!locked && (
                     <div className="capture-actions">
