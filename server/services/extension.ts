@@ -535,7 +535,7 @@ export async function importCapture(db: DB, token: string, input: unknown) {
   if(process.env.APP_ENV==='development' && v.source==='tempario')throw new Error('Os serviços agora são adicionados pelo catálogo de tempos ou pelo módulo Serviços da oficina.');
   return transaction(db, async () => {
     const s = await activeCaptureSession(db, token);
-    const ctx = {
+    const ctx: Context = {
       tenantId: String(s.tenant_id),
       userId: String(s.user_id),
       role: "owner",
