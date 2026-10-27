@@ -73,7 +73,7 @@ export function OrderView() {
     }
   }
   return (
-    <IssuedDocumentProvider key={id} kind="order" id={id!}>
+    <IssuedDocumentProvider key={id} kind="order" id={id!} currentOnly>
       <>
       <div className="no-print">
       <button
@@ -90,50 +90,46 @@ export function OrderView() {
           title="Detalhes da OS"
           description="Dados do atendimento e do veículo"
         />
-        <div className="no-print order-view-toolbar">
-          <div className="action-row order-view-os-actions" aria-label="Ações da OS">
-            {admin && (
-              <button
-                className="button"
-                onClick={() => navigate(`/checklists?order=${id}`)}
-              >
-                Checklist de entrada
-              </button>
-            )}
-            {admin && (
-              <button className="button" onClick={() => setStatusPicker(true)}>
-                Alterar status
-              </button>
-            )}
-            {admin && editable && (
-              <button
-                className="button"
-                onClick={() => navigate(`/ordens/${id}/editar`)}
-              >
-                Editar atendimento
-              </button>
-            )}
-            {action && (admin || ["working", "ready"].includes(action[0])) && (
-              <button
-                className="button primary"
-                disabled={busy}
-                onClick={() => setConfirm(action[0])}
-              >
-                {action[1]}
-              </button>
-            )}
-            {admin && order.status === "completed" && order.receivable_id && (
-              <button
-                className="button primary"
-                onClick={() => navigate(`/ordens/${id}/receber`)}
-              >
-                {order.payment_status === "paid" ? "Ver recebimento" : "Receber OS"}
-              </button>
-            )}
-          </div>
-          <div className="action-row order-view-document-actions" aria-label="Documentos e revisões">
-            <IssuedDocumentActions />
-          </div>
+        <div className="no-print order-view-toolbar" aria-label="Ações da ordem de serviço">
+          {admin && (
+            <button
+              className="button"
+              onClick={() => navigate(`/checklists?order=${id}`)}
+            >
+              Checklist de entrada
+            </button>
+          )}
+          {admin && (
+            <button className="button" onClick={() => setStatusPicker(true)}>
+              Alterar status
+            </button>
+          )}
+          {admin && editable && (
+            <button
+              className="button"
+              onClick={() => navigate(`/ordens/${id}/editar`)}
+            >
+              Editar atendimento
+            </button>
+          )}
+          {action && (admin || ["working", "ready"].includes(action[0])) && (
+            <button
+              className="button primary"
+              disabled={busy}
+              onClick={() => setConfirm(action[0])}
+            >
+              {action[1]}
+            </button>
+          )}
+          {admin && order.status === "completed" && order.receivable_id && (
+            <button
+              className="button primary"
+              onClick={() => navigate(`/ordens/${id}/receber`)}
+            >
+              {order.payment_status === "paid" ? "Ver recebimento" : "Receber OS"}
+            </button>
+          )}
+          <IssuedDocumentActions />
         </div>
       </div>
       {error && (
