@@ -50,14 +50,12 @@ export async function previewReceivableDiscount(
   return { subtotal: state.subtotal, discount: state.discount, total: state.total };
 }
 
-export async function updateReceivableDiscount(
+async function persistReceivableDiscount(
   db: DB,
   ctx: Context,
   record: string,
   input: ReceiptDiscountInput,
 ) {
-  requireAdmin(ctx);
-  return transaction(db, async () => {
     const state = await receiptDiscountState(db, ctx, record, input);
     const { receivable, order, subtotal, discount, total } = state;
     const previousDiscount = Number(order.discount || 0);
@@ -99,7 +97,16 @@ export async function updateReceivableDiscount(
       payment_plan_reset: hadPaymentPlan,
     });
     return { changed: true, subtotal, discount, total, payment_plan_reset: hadPaymentPlan };
-  });
+}
+
+export async function updateReceivableDiscount(
+  db: DB,
+  ctx: Context,
+  record: string,
+  input: ReceiptDiscountInput,
+) {
+  requireAdmin(ctx);
+  return transaction(db, () => persistReceivableDiscount(db, ctx, record, input));
 }
 
 export async function configurePlan(
@@ -107,9 +114,11 @@ export async function configurePlan(
   ctx: Context,
   record: string,
   input: PaymentInput | MixedPaymentInput,
+  discount?: ReceiptDiscountInput,
 ) {
   requireAdmin(ctx);
   return await transaction(db, async () => {
+    if (discount) await persistReceivableDiscount(db, ctx, record, discount);
     const r = await scoped(db, "receivables", ctx.tenantId, record);
     if (
       r.status === "paid" ||

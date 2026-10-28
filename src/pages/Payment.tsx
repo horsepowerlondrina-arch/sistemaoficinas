@@ -41,8 +41,7 @@ export function Payment() {
     0,
   );
   const [discountMode, setDiscountMode] = useState<"money" | "percent">("money");
-  const [discountValue, setDiscountValue] = useState(0);
-  const [discountSaving, setDiscountSaving] = useState(false);
+  const [discountValue, setDiscountValue] = useState(() => Number(order?.discount || 0) / 100);
   const discountInputValue = Math.round(Math.max(0, Number(discountValue) || 0) * 100);
   const discountAmount = Math.min(
     orderSubtotal,
@@ -52,8 +51,6 @@ export function Payment() {
   );
   const discountedTotal = orderSubtotal - discountAmount;
   const discountChoice = { mode: discountMode, value: discountInputValue };
-  const discountChanged = !!order &&
-    (discountAmount !== Number(order.discount || 0) || discountedTotal !== Number(order.total || 0));
   const hasRegisteredPayment = !!original && (
     original.status === "paid" ||
     data.installments.some((part) => part.receivable_id === original.id && part.status === "paid")
@@ -68,6 +65,26 @@ export function Payment() {
       setDiscountValue(Number(order.discount || 0) / 100);
     }
   }, [id, order?.discount]);
+
+  useEffect(() => {
+    if (!original?.plan_configured) return;
+    const firstDueOn = data.installments
+      .filter((part) => part.receivable_id === original.id)
+      .map((part) => part.due_on)
+      .sort()[0];
+    const interest = Math.round((Number(original.amount) * Number(original.interest_bps || 0)) / 10000);
+    setMixed(original.method === "Misto");
+    setForm((current) => ({
+      ...current,
+      method: original.method === "Misto" ? current.method : original.method,
+      installments: Number(original.installment_count || 1),
+      card_fee_bps: Number(original.card_fee_bps || 0),
+      interest_bps: Number(original.interest_bps || 0),
+      first_due_on: firstDueOn || original.due_on || current.first_due_on,
+      sale_on: original.card_sale_on || current.sale_on,
+      pass_card_fee: Number(original.gross_total || 0) > Number(original.amount || 0) + interest,
+    }));
+  }, [id, original?.plan_configured]);
 
   useEffect(() => {
     if (!r) return;
@@ -111,6 +128,25 @@ export function Payment() {
   const parts = data.installments
     .filter((p) => p.receivable_id === r.id)
     .sort((a, b) => a.sequence - b.sequence);
+  const existingMixedPayments = original?.method === "Misto"
+    ? [...new Set(parts.map((part) => part.method))].map((method) => {
+        const methodParts = parts.filter((part) => part.method === method);
+        const principal = methodParts.reduce((sum, part) => sum + Number(part.principal || 0), 0);
+        const gross = methodParts.reduce((sum, part) => sum + Number(part.gross || 0), 0);
+        const fee = methodParts.reduce((sum, part) => sum + Number(part.fee || 0), 0);
+        const interest = methodParts.reduce((sum, part) => sum + Number(part.interest || 0), 0);
+        return {
+          method,
+          amount: principal,
+          installments: methodParts.length,
+          card_fee_bps: method.startsWith("Cartão") && gross > 0 ? Math.round((fee * 10000) / gross) : 0,
+          interest_bps: principal > 0 ? Math.round((interest * 10000) / principal) : 0,
+          first_due_on: methodParts.map((part) => part.due_on).sort()[0] || today(),
+          sale_on: original.card_sale_on || today(),
+          pass_card_fee: methodParts.some((part) => Number(part.gross) > Number(part.principal) + Number(part.interest)),
+        };
+      })
+    : undefined;
   const credit = r.plan_configured ? parts.some(p=>p.method==="Cartão de crédito") : form.method === "Cartão de crédito";
   const saleOn = r.card_sale_on || form.sale_on;
   const settlementOn = nextBankingDay(saleOn || today());
@@ -143,6 +179,23 @@ export function Payment() {
             : 0,
       ),
     );
+  const updateDiscountValue = (value: number, mode = discountMode) => {
+    setDiscountValue(value);
+    const nextDiscount = Math.min(
+      orderSubtotal,
+      mode === "percent"
+        ? Math.round((orderSubtotal * Math.round(Math.max(0, value) * 100)) / 10000)
+        : Math.round(Math.max(0, value) * 100),
+    );
+    if (
+      original?.plan_configured &&
+      !hasRegisteredPayment &&
+      nextDiscount !== Number(order?.discount || 0)
+    ) {
+      setMixed(original.method === "Misto");
+      setEditingPlan(true);
+    }
+  };
   return (
     <>
       <button className="back-link" onClick={() => navigate(`/ordens/${id}`)}>
@@ -153,29 +206,25 @@ export function Payment() {
         title={`Receber OS #${r.order_number}`}
         description={r.customer_name}
       />
+      <section className="panel work-order-section receipt-panel">
+        {error && <div className="error-box" role="alert">{error}</div>}
       {order && (
-        <section className="panel work-order-section receipt-discount">
-          <h2>Desconto no recebimento</h2>
-          <div className="payment-summary">
-            <div><span>Subtotal da OS</span><strong>{money(orderSubtotal)}</strong></div>
-            <div><span>Desconto aplicado</span><strong>{money(discountAmount)}</strong></div>
-            <div><span>Total atualizado</span><strong>{money(discountedTotal)}</strong></div>
-          </div>
+        <div className="receipt-section">
+          <h2>Desconto</h2>
           <div className="form-grid">
             <Field label="Tipo de desconto">
               <select
                 value={discountMode}
-                disabled={discountSaving || hasRegisteredPayment}
+                disabled={busy || hasRegisteredPayment}
                 onChange={(event) => {
                   const mode = event.target.value as "money" | "percent";
+                  const value = mode === "percent"
+                    ? orderSubtotal > 0
+                      ? Number(((discountAmount / orderSubtotal) * 100).toFixed(2))
+                      : 0
+                    : discountAmount / 100;
                   setDiscountMode(mode);
-                  setDiscountValue(
-                    mode === "percent"
-                      ? orderSubtotal > 0
-                        ? Number(((discountAmount / orderSubtotal) * 100).toFixed(2))
-                        : 0
-                      : discountAmount / 100,
-                  );
+                  updateDiscountValue(value, mode);
                 }}
               >
                 <option value="money">Em dinheiro (R$)</option>
@@ -189,16 +238,11 @@ export function Payment() {
                 max={discountMode === "percent" ? 100 : orderSubtotal / 100}
                 step="0.01"
                 value={discountValue}
-                disabled={discountSaving || hasRegisteredPayment}
-                onChange={(event) => setDiscountValue(Math.max(0, Number(event.target.value) || 0))}
+                disabled={busy || hasRegisteredPayment}
+                onChange={(event) => updateDiscountValue(Math.max(0, Number(event.target.value) || 0))}
               />
             </Field>
           </div>
-          {original?.plan_configured && !hasRegisteredPayment && (
-            <p className="muted">
-              Ao aplicar o desconto, as condições de pagamento ainda não recebidas serão recalculadas.
-            </p>
-          )}
           {hasRegisteredPayment && (
             <p className="muted" role="status">
               O desconto fica bloqueado após um recebimento confirmado para preservar os valores já registrados.
@@ -207,61 +251,14 @@ export function Payment() {
           {discountedTotal === 0 && (
             <p className="muted" role="status">A OS ficará sem saldo a receber.</p>
           )}
-          <button
-            className="button primary"
-            disabled={discountSaving || hasRegisteredPayment || !discountChanged}
-            onClick={async () => {
-              if (!original) return;
-              setDiscountSaving(true);
-              setError("");
-              try {
-                const result = await send(`/receivables/${original.id}/discount`, discountChoice);
-                await refresh();
-                setMixed(false);
-                setEditingPlan(false);
-                setPreview(null);
-                notify(result.changed ? "Desconto aplicado e totais atualizados." : "O desconto já estava aplicado.");
-              } catch (cause) {
-                setError((cause as Error).message);
-              } finally {
-                setDiscountSaving(false);
-              }
-            }}
-          >
-            {discountSaving ? "Aplicando..." : "Aplicar desconto"}
-          </button>
-        </section>
-      )}
-      {error && (
-        <div className="error-box" role="alert">
-          {error}
         </div>
       )}
-      {discountChanged && (
-        <p className="muted" role="status">
-          Aplique o desconto antes de configurar ou confirmar pagamentos.
-        </p>
-      )}
-      {discountedTotal > 0 && !r.plan_configured && <label className="checkbox-label"><input type="checkbox" checked={mixed} disabled={discountChanged} onChange={e=>{setMixed(e.target.checked);setError('');}}/>Dividir entre formas de pagamento</label>}
-      {discountedTotal > 0 && !discountChanged && !!original?.plan_configured && !parts.some(p=>p.status==='paid') && !editingPlan && <button className="button" onClick={()=>{setMixed(true);setEditingPlan(true);}}>Alterar condições de pagamento</button>}
+      {discountedTotal > 0 && !!original?.plan_configured && !parts.some(p=>p.status==='paid') && !editingPlan && <div className="receipt-section"><h2>Forma de pagamento</h2><p>{r.method} · {Number(r.installment_count || 1)} parcela(s)</p><button className="button" onClick={()=>{setMixed(original.method === "Misto");setEditingPlan(true);}}>Alterar condições de pagamento</button></div>}
       {discountedTotal > 0 && editingPlan && <button className="button" onClick={()=>{setEditingPlan(false);setError('');}}>Cancelar alteração das condições</button>}
-      {discountedTotal > 0 && !discountChanged && !r.plan_configured && mixed && <MixedPaymentPlan receivable={r} onSaved={()=>setEditingPlan(false)} />}
+      {discountedTotal > 0 && mixed && (!r.plan_configured || editingPlan) && <MixedPaymentPlan receivable={{...r,amount:discountedTotal}} discount={discountChoice} subtotal={orderSubtotal} discountAmount={discountAmount} initialPayments={existingMixedPayments} onSaved={()=>{setEditingPlan(false);setMixed(false);}} />}
       {discountedTotal > 0 && !r.plan_configured && !mixed && (
-        <section className="panel work-order-section">
-          <h2>Condições de pagamento</h2>
-          {card && (
-            <label className="import-note">
-              <input
-                type="checkbox"
-                checked={form.pass_card_fee}
-                onChange={(e) =>
-                  setForm({ ...form, pass_card_fee: e.target.checked })
-                }
-              />{" "}
-              Repassar a taxa do cartão ao cliente, preservando o líquido da
-              oficina
-            </label>
-          )}
+        <div className="receipt-section">
+          <h2>Forma de pagamento</h2>
           <div className="form-grid">
             <Field label="Forma de pagamento">
               <select
@@ -273,6 +270,10 @@ export function Payment() {
                 ))}
               </select>
             </Field>
+          </div>
+          <label className="checkbox-label receipt-split-option"><input type="checkbox" checked={mixed} onChange={e=>{setMixed(e.target.checked);setError('');}}/>Dividir entre formas de pagamento</label>
+          <h2 className="receipt-subheading">Parcelas e vencimento</h2>
+          <div className="form-grid">
             <Field label="Parcelas">
               <NumericInput
                 type="number"
@@ -298,9 +299,6 @@ export function Payment() {
                 }
               />
             </Field>
-            {credit && <Field label="Data da venda no cartão">
-              <input type="date" value={form.sale_on} max={today()} required onChange={(e) => setForm({...form,sale_on:e.target.value})} />
-            </Field>}
             <Field label="Primeiro vencimento">
               <input
                 type="date"
@@ -310,13 +308,19 @@ export function Payment() {
                 }
               />
             </Field>
-            <Field label="Taxa da operadora — custo da oficina (%)">
+            {credit && <Field label="Data da venda no cartão">
+              <input type="date" value={form.sale_on} max={today()} required onChange={(e) => setForm({...form,sale_on:e.target.value})} />
+            </Field>}
+          </div>
+          {card && <h2 className="receipt-subheading">Taxas do cartão</h2>}
+          {!card && form.installments > 1 && <h2 className="receipt-subheading">Juros do parcelamento</h2>}
+          {(card || form.installments > 1) && <div className="form-grid">
+            {card && <Field label="Taxa da operadora — custo da oficina (%)">
               <NumericInput
                 type="number"
                 min={0}
                 max={100}
                 step="0.01"
-                disabled={!card}
                 value={form.card_fee_bps / 100}
                 onChange={(e) =>
                   setForm({
@@ -325,8 +329,8 @@ export function Payment() {
                   })
                 }
               />
-            </Field>
-            <Field label="Juros totais do parcelamento — cliente (%)">
+            </Field>}
+            {form.installments > 1 && <Field label="Juros totais do parcelamento — cliente (%)">
               <NumericInput
                 type="number"
                 min={0}
@@ -341,35 +345,56 @@ export function Payment() {
                   })
                 }
               />
-            </Field>
-          </div>
-          <p className="muted">
+            </Field>}
+            {card && <label className="checkbox-label receipt-pass-fee"><input type="checkbox" checked={form.pass_card_fee} onChange={(e) => setForm({ ...form, pass_card_fee: e.target.checked })} />Repassar taxa ao cliente</label>}
+          </div>}
+          {(card || form.installments > 1) && <p className="muted">
             Os juros são aplicados uma vez sobre o valor da OS. A taxa da
             operadora é descontada do total cobrado do cliente.
-          </p>
-        </section>
+          </p>}
+          <h2 className="receipt-subheading">Resumo do recebimento</h2>
+          <div className="payment-summary receipt-financial-summary">
+            <div><span>Subtotal</span><strong>{money(orderSubtotal)}</strong></div>
+            <div><span>Desconto</span><strong>{money(discountAmount)}</strong></div>
+            <div><span>Taxa repassada</span><strong>{money(Number(preview?.surcharge || 0))}</strong></div>
+            <div><span>Total a receber</span><strong>{money(Number(preview?.gross || discountedTotal))}</strong></div>
+            <div><span>Taxa da oficina</span><strong>{money(Number(preview?.fee || 0))}</strong></div>
+            <div><span>Líquido da oficina</span><strong>{money(Number(preview?.net || discountedTotal))}</strong></div>
+          </div>
+          <button className="button primary" disabled={busy || !preview || discountedTotal <= 0} onClick={async () => {
+            setBusy(true); setError("");
+            try {
+              await send(`/receivables/${r.id}/plan`, { ...form, discount: discountChoice });
+              await refresh(); setEditingPlan(false);
+              notify(credit ? "Condições salvas. Confirme o recebimento total do cartão." : "Condições salvas. Confirme as parcelas conforme receber.");
+            } catch (e) { setError((e as Error).message); }
+            finally { setBusy(false); }
+          }}>Salvar condições de pagamento</button>
+        </div>
       )}
-      {discountedTotal > 0 && !discountChanged && plan && (!mixed || !!r.plan_configured) && (
-        <section className="panel work-order-section">
+      {discountedTotal > 0 && r.plan_configured && plan && (
+        <div className="receipt-section">
           <h2>Resumo do recebimento</h2>
-          <div className="payment-summary">
+          <div className="payment-summary receipt-financial-summary">
             {[
-              ["Valor da OS", plan.base],
-              [r.method === "Misto" ? "Juros e repasse ao cliente" : "Juros do cliente", r.method === "Misto" ? r.gross_total-r.amount : plan.interest],
-              ["Repasse do cartão", r.method === "Misto" ? 0 : plan.surcharge || 0],
-              ["Total do cliente", plan.gross],
+              ["Subtotal", orderSubtotal || Number(plan.base) + Number(order?.discount || 0)],
+              ["Desconto", Number(order?.discount || 0)],
+              ["Taxa repassada", r.method === "Misto" ? parts.reduce((sum, part) => sum + Math.max(0, Number(part.gross) - Number(part.principal) - Number(part.interest)), 0) : plan.surcharge || 0],
+              ["Total a receber", plan.gross],
+              ["Juros do parcelamento", r.method === "Misto" ? parts.reduce((sum, part) => sum + Number(part.interest || 0), 0) : plan.interest],
               ["Taxa da oficina", plan.fee],
               ["Líquido da oficina", plan.net],
-            ].filter(([label]) => r.method !== "Misto" || label !== "Repasse do cartão").map(([label, value]) => (
+            ].map(([label, value]) => (
               <div key={String(label)}>
                 <span>{label}</span>
                 <strong>{money(Number(value))}</strong>
               </div>
             ))}
           </div>
-        </section>
+        </div>
       )}
-      {discountedTotal > 0 && !discountChanged && (!mixed || !!r.plan_configured) && <section className="panel work-order-section">
+      </section>
+      {discountedTotal > 0 && (!mixed || !!r.plan_configured) && <section className="panel work-order-section">
         <h2>
           {r.status === "paid"
             ? "Recebimento concluído"
@@ -440,30 +465,6 @@ export function Payment() {
             </tbody>
           </table>
         </div>
-        {!r.plan_configured && (
-          <button
-            className="button primary"
-            disabled={busy || !preview || discountChanged}
-            onClick={async () => {
-              setBusy(true);
-              setError("");
-              try {
-                await send(`/receivables/${r.id}/plan`, form);
-                await refresh();
-                setEditingPlan(false);
-                notify(
-                  credit ? "Condições salvas. Confirme o recebimento total do cartão." : "Condições salvas. Confirme as parcelas conforme receber.",
-                );
-              } catch (e) {
-                setError((e as Error).message);
-              } finally {
-                setBusy(false);
-              }
-            }}
-          >
-            Salvar condições de pagamento
-          </button>
-        )}
       </section>}
       {discountedTotal <= 0 && (
         <section className="panel work-order-section">
