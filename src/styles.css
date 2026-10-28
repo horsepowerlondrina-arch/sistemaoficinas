@@ -5126,3 +5126,20 @@ body { padding-top: 36px; }
     align-self: start;
   }
 }
+
+/* OS-007 — separate receipt actions from the totals and align them to the right. */
+.receipt-plan-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 30px;
+}
+.receipt-plan-actions > .button {
+  flex: 0 0 auto;
+  width: auto;
+}
+@media (max-width: 520px) {
+  .receipt-plan-actions > .button {
+    max-width: 100%;
+    white-space: normal;
+  }
+}

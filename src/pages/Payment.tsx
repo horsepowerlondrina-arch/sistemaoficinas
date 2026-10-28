@@ -361,18 +361,20 @@ export function Payment() {
             <div><span>Taxa da oficina</span><strong>{money(Number(preview?.fee || 0))}</strong></div>
             <div><span>Líquido da oficina</span><strong>{money(Number(preview?.net || discountedTotal))}</strong></div>
           </div>
-          <button className="button primary" disabled={busy || !preview || discountedTotal <= 0} onClick={async () => {
-            setBusy(true); setError("");
-            try {
-              await send(`/receivables/${r.id}/plan`, { ...form, discount: discountChoice });
-              await refresh(); setEditingPlan(false);
-              notify(credit ? "Condições salvas. Confirme o recebimento total do cartão." : "Condições salvas. Confirme as parcelas conforme receber.");
-            } catch (e) { setError((e as Error).message); }
-            finally { setBusy(false); }
-          }}>Salvar condições de pagamento</button>
+          <div className="receipt-plan-actions">
+            <button className="button primary" disabled={busy || !preview || discountedTotal <= 0} onClick={async () => {
+              setBusy(true); setError("");
+              try {
+                await send(`/receivables/${r.id}/plan`, { ...form, discount: discountChoice });
+                await refresh(); setEditingPlan(false);
+                notify(credit ? "Condições salvas. Confirme o recebimento total do cartão." : "Condições salvas. Confirme as parcelas conforme receber.");
+              } catch (e) { setError((e as Error).message); }
+              finally { setBusy(false); }
+            }}>Salvar condições de pagamento</button>
+          </div>
         </div>
       )}
-      {discountedTotal > 0 && r.plan_configured && plan && (
+      {discountedTotal > 0 && !!r.plan_configured && plan && (
         <div className="receipt-section">
           <h2>Resumo do recebimento</h2>
           <div className="payment-summary receipt-financial-summary">
