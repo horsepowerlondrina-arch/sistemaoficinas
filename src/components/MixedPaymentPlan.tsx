@@ -311,31 +311,33 @@ export function MixedPaymentPlan({
           </div>
         </>
       )}
-      <button
-        className="button primary"
-        disabled={busy || !preview}
-        onClick={async () => {
-          setBusy(true);
-          setError("");
-          try {
-            await send(`/receivables/${receivable.id}/plan`, {
-              payments: parts.map(({ key, ...p }) => p),
-              discount,
-            });
-            await refresh();
-          onSaved?.();
-            notify(
-              "Condições salvas. Confirme cada recebimento e sua conta de destino.",
-            );
-          } catch (e) {
-            setError((e as Error).message);
-          } finally {
-            setBusy(false);
-          }
-        }}
-      >
-        {busy ? "Salvando..." : "Salvar divisão do pagamento"}
-      </button>
+      <div className="receipt-plan-actions">
+        <button
+          className="button primary"
+          disabled={busy || !preview}
+          onClick={async () => {
+            setBusy(true);
+            setError("");
+            try {
+              await send(`/receivables/${receivable.id}/plan`, {
+                payments: parts.map(({ key, ...p }) => p),
+                discount,
+              });
+              await refresh();
+              onSaved?.();
+              notify(
+                "Condições salvas. Confirme cada recebimento e sua conta de destino.",
+              );
+            } catch (e) {
+              setError((e as Error).message);
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          {busy ? "Salvando..." : "Salvar divisão do pagamento"}
+        </button>
+      </div>
     </div>
   );
 }
