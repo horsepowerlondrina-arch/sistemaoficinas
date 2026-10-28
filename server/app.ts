@@ -189,11 +189,14 @@ const paymentSchema = z.object({
   first_due_on: date,
   sale_on: date.optional(),
 });
-const receiptPlanSchema = z.union([paymentSchema,z.object({payments:z.array(paymentSchema.extend({amount:integer.refine(v=>v>0,"Informe o valor desta forma de pagamento.")})).min(1).max(6)})]);
 const receiptDiscountSchema = z.object({
   mode: z.enum(["money", "percent"]),
   value: integer,
 });
+const receiptPlanSchema = z.union([paymentSchema,z.object({payments:z.array(paymentSchema.extend({amount:integer.refine(v=>v>0,"Informe o valor desta forma de pagamento.")})).min(1).max(6)})]);
+const receiptPlanRequestSchema = receiptPlanSchema.and(
+  z.object({ discount: receiptDiscountSchema.optional() }),
+);
 function requestSecuritySettings(req: express.Request) {
   const loginEmail = req.path === "/login" && typeof req.body?.email === "string"
     ? req.body.email.trim().toLowerCase()
@@ -1280,16 +1283,18 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
       ),
     );
   });
-  app.post("/api/receivables/:id/plan", async (req, res) =>
+  app.post("/api/receivables/:id/plan", async (req, res) => {
+    const { discount, ...plan } = receiptPlanRequestSchema.parse(req.body);
     res.json(
       await configurePlan(
         db,
         res.locals.context,
         String(req.params.id),
-        receiptPlanSchema.parse(req.body),
+        plan,
+        discount,
       ),
-    ),
-  );
+    );
+  });
   app.post("/api/receivables/:id/settle-credit", async (req, res) => {
     res.json(await settleCredit(db,res.locals.context,String(req.params.id),
       z.string().min(1).optional().parse(req.body.account_id),

@@ -5052,3 +5052,77 @@ body { padding-top: 36px; }
 .order-view-toolbar > .capture-actions .button {
   align-self: center;
 }
+
+/* OS-007 — unify receiving settings, align card controls and financial totals. */
+.receipt-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.receipt-section {
+  padding: 20px 0;
+}
+.receipt-section + .receipt-section {
+  border-top: 1px solid var(--border);
+}
+.receipt-panel .receipt-section h2 {
+  margin-bottom: 16px;
+}
+.receipt-panel .receipt-subheading {
+  margin: 20px 0 12px;
+  font-size: 15px;
+  letter-spacing: -0.2px;
+}
+.receipt-panel .receipt-financial-summary {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 145px), 1fr));
+  gap: 16px;
+}
+.receipt-panel .receipt-financial-summary span {
+  margin-bottom: 6px;
+}
+.receipt-panel .receipt-financial-summary strong {
+  font-size: 18px;
+}
+.receipt-panel .receipt-split-option {
+  margin-top: 14px;
+}
+.receipt-panel .receipt-pass-fee {
+  display: flex;
+  align-items: center;
+  align-self: end;
+  gap: 10px;
+  min-height: 46px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 14px;
+}
+.receipt-panel .receipt-pass-fee input {
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  min-height: 18px;
+  margin: 0;
+}
+.receipt-mixed-content {
+  padding-top: 4px;
+}
+.receipt-mixed-content .receipt-subheading {
+  margin-top: 18px;
+}
+.receipt-mixed-content .receipt-pass-fee {
+  margin: 8px 0;
+  width: fit-content;
+}
+.receipt-saved-plan p {
+  margin: 0 0 14px;
+}
+@media (max-width: 800px) {
+  .receipt-panel .receipt-financial-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .receipt-panel .receipt-pass-fee {
+    align-self: start;
+  }
+}

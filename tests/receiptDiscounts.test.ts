@@ -118,6 +118,33 @@ test("discount cannot rewrite a confirmed installment or duplicate the cash entr
   }
 });
 
+test("saving a payment plan persists its discount atomically before creating installments", async () => {
+  const db = fixture();
+  try {
+    const plan = await configurePlan(db, ctx, "r", terms, {
+      mode: "percent",
+      value: 1250,
+    });
+    assert.equal(plan.base, 61250);
+    assert.equal(db.prepare("SELECT discount,total FROM orders WHERE tenant_id='a' AND id='o'").get()!.discount, 8750);
+    assert.equal(db.prepare("SELECT amount,plan_configured FROM receivables WHERE tenant_id='a' AND id='r'").get()!.amount, 61250);
+    assert.equal(db.prepare("SELECT SUM(principal) total FROM payment_installments WHERE tenant_id='a' AND receivable_id='r'").get()!.total, 61250);
+
+    await assert.rejects(
+      configurePlan(db, ctx, "r", { ...terms, method: "Forma inválida" }, {
+        mode: "money",
+        value: 1000,
+      }),
+      /Forma de pagamento inválida/,
+    );
+    assert.equal(db.prepare("SELECT discount,total FROM orders WHERE tenant_id='a' AND id='o'").get()!.discount, 8750);
+    assert.equal(db.prepare("SELECT amount,plan_configured FROM receivables WHERE tenant_id='a' AND id='r'").get()!.amount, 61250);
+    assert.equal(db.prepare("SELECT COUNT(*) n FROM payment_installments WHERE tenant_id='a' AND receivable_id='r'").get()!.n, 1);
+  } finally {
+    db.close();
+  }
+});
+
 test("receipt API previews the discounted amount without writing and persists it with tenant scope", async () => {
   const db = fixture();
   db.prepare("INSERT INTO sessions VALUES(?,?,?,?)").run(digest("owner"), "u", "a", Date.now() + 60000);
@@ -135,12 +162,14 @@ test("receipt API previews the discounted amount without writing and persists it
     assert.equal(preview.status, 200);
     assert.equal((await preview.json()).base, 61250);
     assert.equal(db.prepare("SELECT amount FROM receivables WHERE id='r'").get()!.amount, 70000);
-    const updated = await post("/discount", { mode: "percent", value: 1250 });
-    assert.equal(updated.status, 200);
-    assert.equal((await updated.json()).total, 61250);
-    const savedPlan = await post("/plan", terms);
+    const savedPlan = await post("/plan", {
+      ...terms,
+      discount: { mode: "percent", value: 1250 },
+    });
     assert.equal(savedPlan.status, 200);
-    await savedPlan.text();
+    assert.equal((await savedPlan.json()).base, 61250);
+    assert.equal(db.prepare("SELECT discount FROM orders WHERE id='o'").get()!.discount, 8750);
+    assert.equal(db.prepare("SELECT amount FROM receivables WHERE id='r'").get()!.amount, 61250);
     assert.equal(db.prepare("SELECT SUM(principal) total FROM payment_installments WHERE tenant_id='a' AND receivable_id='r'").get()!.total, 61250);
   } finally {
     server.closeAllConnections();

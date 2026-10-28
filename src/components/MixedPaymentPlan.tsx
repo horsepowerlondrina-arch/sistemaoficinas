@@ -35,18 +35,45 @@ const fresh = (method: string, amount: number): Part => ({
   sale_on: today(),
   pass_card_fee: false,
 });
-export function MixedPaymentPlan({ receivable, onSaved }: { receivable: Entity; onSaved?: () => void }) {
+export function MixedPaymentPlan({
+  receivable,
+  discount,
+  subtotal,
+  discountAmount,
+  initialPayments,
+  onSaved,
+}: {
+  receivable: Entity;
+  discount?: { mode: "money" | "percent"; value: number };
+  subtotal?: number;
+  discountAmount?: number;
+  initialPayments?: Omit<Part, "key">[];
+  onSaved?: () => void;
+}) {
   const { data, refresh, notify } = useApp();
-  const [parts, setParts] = useState<Part[]>(() => [
-    fresh("Pix", receivable.amount),
-    fresh("Dinheiro", 0),
-  ]);
+  const [parts, setParts] = useState<Part[]>(() => initialPayments?.length
+    ? initialPayments.map((part) => ({ ...part, key: crypto.randomUUID() }))
+    : [fresh("Pix", receivable.amount), fresh("Dinheiro", 0)]);
   const [preview, setPreview] = useState<Entity | null>(null),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
   const total = parts.reduce((s, p) => s + p.amount, 0);
   const change = (key: string, patch: Partial<Part>) =>
     setParts((old) => old.map((p) => (p.key === key ? { ...p, ...patch } : p)));
+  useEffect(() => {
+    setParts((current) => {
+      const currentTotal = current.reduce((sum, part) => sum + part.amount, 0);
+      if (!currentTotal || currentTotal === receivable.amount) return current;
+      let allocated = 0;
+      return current.map((part, index) => {
+        const amount = index === current.length - 1
+          ? receivable.amount - allocated
+          : Math.round((receivable.amount * part.amount) / currentTotal);
+        allocated += amount;
+        return { ...part, amount };
+      });
+    });
+  }, [receivable.amount]);
   useEffect(() => {
     let current = true;
     setPreview(null);
@@ -57,6 +84,7 @@ export function MixedPaymentPlan({ receivable, onSaved }: { receivable: Entity; 
     const timer = setTimeout(() => {
       send(`/receivables/${receivable.id}/preview`, {
         payments: parts.map(({ key, ...p }) => p),
+        discount,
       })
         .then((p) => {
           if (current) {
@@ -72,10 +100,10 @@ export function MixedPaymentPlan({ receivable, onSaved }: { receivable: Entity; 
       current = false;
       clearTimeout(timer);
     };
-  }, [parts, receivable.id, receivable.amount, total]);
+  }, [parts, receivable.id, receivable.amount, total, discount?.mode, discount?.value]);
   return (
-    <section className="panel work-order-section">
-      <h2>Dividir o pagamento</h2>
+    <div className="receipt-mixed-content">
+      <h3 className="receipt-subheading">Pagamento dividido</h3>
       <p>
         Informe o valor da OS destinado a cada forma. As taxas e os juros são
         calculados separadamente.
@@ -129,6 +157,9 @@ export function MixedPaymentPlan({ receivable, onSaved }: { receivable: Entity; 
                   }
                 />
               </Field>
+            </div>
+            <h4 className="receipt-subheading">Parcelas e vencimento</h4>
+            <div className="form-grid">
               <Field label="Parcelas">
                 <NumericInput
                   min={1}
@@ -168,6 +199,14 @@ export function MixedPaymentPlan({ receivable, onSaved }: { receivable: Entity; 
                   />
                 </Field>
               )}
+            </div>
+            {(p.method.startsWith("Cartão") || p.installments > 1) && (
+              <h4 className="receipt-subheading">
+                {p.method.startsWith("Cartão") ? "Taxas do cartão" : "Juros do parcelamento"}
+              </h4>
+            )}
+            {(p.method.startsWith("Cartão") || p.installments > 1) && (
+              <div className="form-grid">
               {p.method.startsWith("Cartão") && (
                 <Field label="Taxa da operadora (%)">
                   <NumericInput
@@ -198,9 +237,10 @@ export function MixedPaymentPlan({ receivable, onSaved }: { receivable: Entity; 
                   />
                 </Field>
               )}
-            </div>
+              </div>
+            )}
             {p.method.startsWith("Cartão") && (
-              <label className="checkbox-label">
+              <label className="checkbox-label receipt-pass-fee">
                 <input
                   type="checkbox"
                   checked={p.pass_card_fee}
@@ -249,7 +289,7 @@ export function MixedPaymentPlan({ receivable, onSaved }: { receivable: Entity; 
         </button>
       </fieldset>
       <p>
-        Valor da OS: <strong>{money(receivable.amount)}</strong> · Distribuído:{" "}
+        Total do pagamento: <strong>{money(receivable.amount)}</strong> · Distribuído:{" "}
         <strong>{money(total)}</strong> · Falta distribuir:{" "}
         <strong>{money(receivable.amount - total)}</strong>
       </p>
@@ -259,11 +299,17 @@ export function MixedPaymentPlan({ receivable, onSaved }: { receivable: Entity; 
         </p>
       )}
       {preview && (
-        <p>
-          Total do cliente: <strong>{money(preview.gross)}</strong> · Taxas:{" "}
-          {money(preview.fee)} · Líquido da oficina:{" "}
-          <strong>{money(preview.net)}</strong>
-        </p>
+        <>
+          <h3 className="receipt-subheading">Resumo do recebimento</h3>
+          <div className="payment-summary receipt-financial-summary">
+            <div><span>Subtotal</span><strong>{money(Number(subtotal ?? receivable.amount))}</strong></div>
+            <div><span>Desconto</span><strong>{money(Number(discountAmount || 0))}</strong></div>
+            <div><span>Taxa repassada</span><strong>{money(Number(preview.surcharge || 0))}</strong></div>
+            <div><span>Total a receber</span><strong>{money(preview.gross)}</strong></div>
+            <div><span>Taxa da oficina</span><strong>{money(preview.fee)}</strong></div>
+            <div><span>Líquido da oficina</span><strong>{money(preview.net)}</strong></div>
+          </div>
+        </>
       )}
       <button
         className="button primary"
@@ -274,6 +320,7 @@ export function MixedPaymentPlan({ receivable, onSaved }: { receivable: Entity; 
           try {
             await send(`/receivables/${receivable.id}/plan`, {
               payments: parts.map(({ key, ...p }) => p),
+              discount,
             });
             await refresh();
           onSaved?.();
@@ -289,6 +336,6 @@ export function MixedPaymentPlan({ receivable, onSaved }: { receivable: Entity; 
       >
         {busy ? "Salvando..." : "Salvar divisão do pagamento"}
       </button>
-    </section>
+    </div>
   );
 }
