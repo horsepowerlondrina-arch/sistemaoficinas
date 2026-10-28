@@ -74,6 +74,46 @@ test("capture connection uses the registered vehicle or a normalized guest plate
     db.close();
   }
 });
+test("expired Sky capture can reconnect, retry a pending item once and keep cleanup tenant-scoped", async () => {
+  const db = fixture();
+  try {
+    const batchId = randomUUID();
+    const first = await beginCapture(db, ctx, "o", "session", 0, batchId);
+    const pendingItem = { ...product(), capture_id: randomUUID() };
+    db.prepare("UPDATE capture_sessions SET expires_at=? WHERE token_hash=?")
+      .run(Date.now() - 1000, digest(first.token));
+    await assert.rejects(importCapture(db, first.token, pendingItem), /expirada/);
+
+    db.exec(`INSERT INTO users VALUES('user-b','Test B','test-b@example.com','unused');
+      INSERT INTO memberships VALUES('user-b','b','owner');`);
+    db.prepare("INSERT INTO sessions VALUES(?,?,?,?)").run(
+      digest("session-b"), "user-b", "b", Date.now() + 3600000,
+    );
+    db.prepare(`INSERT INTO capture_sessions(token_hash,tenant_id,user_id,session_hash,order_id,expires_at,batch_id,freight_total)
+      VALUES(?,?,?,?,?,?,?,0)`).run(
+      digest("expired-session-b"), "b", "user-b", digest("session-b"), "other",
+      Date.now() - 2000, randomUUID(),
+    );
+
+    const reconnected = await beginCapture(db, ctx, "o", "session", 0, batchId);
+    assert.notEqual(reconnected.token, first.token);
+    await assert.rejects(importCapture(db, first.token, pendingItem), /expirada/);
+    assert.equal(
+      Number(db.prepare("SELECT count(*) n FROM capture_sessions WHERE tenant_id='b'").get()!.n),
+      1,
+      "reconnecting in one workshop must not delete another workshop's expired session",
+    );
+
+    assert.equal((await importCapture(db, reconnected.token, pendingItem)).duplicate, false);
+    assert.equal((await importCapture(db, reconnected.token, pendingItem)).duplicate, true);
+    assert.equal((await captureState(db, ctx, "o")).staged_items.length, 1);
+    assert.equal(Number(db.prepare("SELECT count(*) n FROM order_items WHERE order_id='o'").get()!.n), 0);
+    await finishCapture(db, ctx, "o");
+    assert.equal(Number(db.prepare("SELECT count(*) n FROM order_items WHERE order_id='o'").get()!.n), 1);
+  } finally {
+    db.close();
+  }
+});
 test("Sky freight defaults to one purchase total and is redistributed proportionally", async () => {
   const db = fixture();
   try {

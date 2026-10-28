@@ -39,23 +39,39 @@ async function activeCaptureSession(db: DB, token: string) {
       new Error("Conecte a extensão novamente no orçamento."),
       { status: 401 },
     );
-  const s = await db
+  const capture = await db
     .prepare(
-      `SELECT c.* FROM capture_sessions c JOIN sessions s ON s.token_hash=c.session_hash AND s.user_id=c.user_id AND s.tenant_id=c.tenant_id
-      JOIN memberships m ON m.user_id=c.user_id AND m.tenant_id=c.tenant_id
-      WHERE c.token_hash=? AND c.expires_at>? AND s.expires_at>? AND m.role='owner'`,
+      "SELECT * FROM capture_sessions WHERE token_hash=? AND expires_at>?",
     )
-    .get(digest(token), Date.now(), Date.now());
-  if (!s)
+    .get(digest(token), Date.now());
+  if (!capture)
     throw Object.assign(
       new Error("Conexão expirada. Abra o orçamento e conecte novamente."),
       { status: 401 },
     );
-  await db.setRequestIdentity?.(String(s.tenant_id), String(s.user_id));
-  const accessState = await db.getTenantAccessState?.(String(s.tenant_id)) || "legacy";
+  // The extension request has no workshop cookie. First resolve its narrowly
+  // scoped capture token, then establish the tenant/user context before reading
+  // sessions and memberships protected by RLS.
+  await db.setRequestIdentity?.(String(capture.tenant_id), String(capture.user_id));
+  const session = await db
+    .prepare(
+      "SELECT token_hash FROM sessions WHERE token_hash=? AND user_id=? AND tenant_id=? AND expires_at>?",
+    )
+    .get(capture.session_hash, capture.user_id, capture.tenant_id, Date.now());
+  const membership = await db
+    .prepare(
+      "SELECT role FROM memberships WHERE user_id=? AND tenant_id=?",
+    )
+    .get(capture.user_id, capture.tenant_id);
+  if (!session || membership?.role !== "owner")
+    throw Object.assign(
+      new Error("Conexão expirada. Abra o orçamento e conecte novamente."),
+      { status: 401 },
+    );
+  const accessState = await db.getTenantAccessState?.(String(capture.tenant_id)) || "legacy";
   if (["pending_verification", "read_only", "blocked", "archived"].includes(accessState))
     throw Object.assign(new Error("A oficina não permite operações pela extensão no estado atual."), { status: 403 });
-  return s;
+  return capture;
 }
 
 async function redistributeSkyFreight(
@@ -199,7 +215,7 @@ export async function beginCapture(
     const token = randomBytes(32).toString("hex");
     await db
       .prepare(
-        "DELETE FROM capture_sessions WHERE tenant_id=? AND order_id=? OR expires_at<?",
+        "DELETE FROM capture_sessions WHERE tenant_id=? AND (order_id=? OR expires_at<?)",
       )
       .run(ctx.tenantId, orderId, Date.now());
     await db
