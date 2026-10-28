@@ -70,7 +70,7 @@ export function Registers({ kind }: { kind: Kind }) {
   const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [batchOpen, setBatchOpen] = useState(false);
   const [vehicleReviewOpen, setVehicleReviewOpen] = useState(false);
-  const [capture, setCapture] = useState<"sky" | "tempario" | null>(null);
+  const [capture, setCapture] = useState<"sky" | null>(null);
   const Icon = c.icon;
   const rows = data[kind].filter(
     (r) =>

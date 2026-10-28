@@ -4,7 +4,6 @@ const appOrigins = new Set([
 ]);
 const sources = {
   "https://cliente.skypecas.com.br": "sky",
-  "https://sistema.tempar.io": "tempario",
 };
 const ready = Promise.all([
   chrome.storage.local.setAccessLevel({ accessLevel: "TRUSTED_CONTEXTS" }),
@@ -165,15 +164,6 @@ async function handle(msg, sender) {
       connectionId: target.connectionId,
       expires: target.expires,
     };
-  }
-  if (msg.type === "HP_OPEN_TEMPARIO" && isPopup) {
-    const { target } = await chrome.storage.session.get("target");
-    if (!target || target.expires <= Date.now())
-      throw new Error(
-        "Conecte a extensão na OS antes de abrir o Tempario.",
-      );
-    await chrome.tabs.create({ url: "https://sistema.tempar.io/" });
-    return { ok: true };
   }
   if (msg.type === "HP_DISCONNECT" && (isApp || isPopup)) {
     const { target } = await chrome.storage.session.get("target");

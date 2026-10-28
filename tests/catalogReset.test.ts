@@ -25,6 +25,7 @@ function fixture() {
     INSERT INTO order_items(id,tenant_id,order_id,catalog_id,professional_id,kind,name,quantity,price,cost) VALUES('i1','a','order','service',NULL,'service','Troca de óleo histórica',1,10000,0),('i2','a','order','product',NULL,'product','Filtro histórico',2,2000,1000);
     INSERT INTO service_aliases VALUES('a','troca oleo','Troca de óleo','service');
     INSERT INTO external_catalog_links VALUES('a','tempario','troca oleo','service');`);
+  db.prepare("INSERT INTO service_times(id,tenant_id,catalog_id,capture_id,source,service_name,make,model,vehicle_year,engine,duration_seconds,source_price) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)").run("history","a","service","history-capture","Tempario","Serviço histórico","Fiat","Uno","2015","",1800,12000);
   db.prepare("INSERT INTO sessions VALUES(?,?,?,?)").run(
     digest("session"),
     "u",
@@ -35,10 +36,12 @@ function fixture() {
 }
 const capture = () => ({
   capture_id: randomUUID(),
-  source: "tempario",
-  name: "Troca de óleo",
-  price: 12000,
-  duration_seconds: 1800,
+  source: "sky",
+  name: "Filtro de óleo novo",
+  code: "F1",
+  brand: "Marca",
+  cost: 1500,
+  quantity: 1,
 });
 test("reset hides the old catalog, preserves documents and stock, isolates tenants and is safe to repeat", async () => {
   const db = fixture();
@@ -75,7 +78,8 @@ test("reset hides the old catalog, preserves documents and stock, isolates tenan
       )
       .get()!;
     assert.notEqual(imported.id, "service");
-    assert.equal(imported.price, 12000);
+    assert.equal(imported.kind, "product");
+    assert.equal(imported.cost, 1500);
     assert.equal(imported.active, 1);
     await importCapture(db, current.token, {
       capture_id: randomUUID(),
@@ -85,16 +89,9 @@ test("reset hides the old catalog, preserves documents and stock, isolates tenan
       brand: "Marca",
       cost: 1500,
     });
-    assert.equal(
-      db.prepare("SELECT COUNT(*) n FROM service_times").get()!.n,
-      0,
-    );
+    assert.equal(db.prepare("SELECT COUNT(*) n FROM service_times").get()!.n, 1);
     await finishCapture(db, ctx, "fresh");
-    assert.equal(
-      db.prepare("SELECT duration_seconds FROM service_times").get()!
-        .duration_seconds,
-      1800,
-    );
+    assert.equal(db.prepare("SELECT duration_seconds FROM service_times").get()!.duration_seconds, 1800);
     assert.equal((await enableExtensionCatalog(db, ctx)).changed, false);
     assert.equal(
       db
@@ -102,7 +99,7 @@ test("reset hides the old catalog, preserves documents and stock, isolates tenan
           "SELECT COUNT(*) n FROM catalog WHERE tenant_id='a' AND archived_at IS NULL",
         )
         .get()!.n,
-      2,
+      1,
     );
     assert.equal(
       db.prepare("SELECT COUNT(*) n FROM service_times").get()!.n,
@@ -136,7 +133,7 @@ test("archived items remain editable in their original quote but cannot be added
     db.close();
   }
 });
-test("HTTP preserva histórico e recusa cadastro e edição de serviços pelo módulo de produtos", async () => {
+test("HTTP preserva histórico, remove a API antiga de tempos e mantém Sky Peças", async () => {
   const db = fixture();
   const token = await beginCapture(db, ctx, "fresh", "session");
   await importCapture(db, token.token, capture());
@@ -164,10 +161,7 @@ test("HTTP preserva histórico e recusa cadastro e edição de serviços pelo m�
     assert.equal(workspace.catalog_mode, "extension");
     assert.equal(workspace.catalog.length, 0);
     assert.equal(workspace.orders.length, 2);
-    assert.deepEqual(
-      await (await fetch(base + "/service-times", { headers })).json(),
-      [],
-    );
+    assert.equal((await fetch(base + "/service-times", { headers })).status, 404);
     let r = await fetch(base + "/catalog", {
       method: "POST",
       headers,
@@ -182,10 +176,7 @@ test("HTTP preserva histórico e recusa cadastro e edição de serviços pelo m�
     assert.equal(r.status, 400);
     const connection = await beginCapture(db, ctx, "order", "session");
     await importCapture(db, connection.token, capture());
-    assert.equal(
-      (await (await fetch(base + "/service-times", { headers })).json()).length,
-      0,
-    );
+    assert.equal(db.prepare("SELECT COUNT(*) n FROM service_times").get()!.n, 1);
     await finishCapture(db, ctx, "order");
     assert.equal(
       db.prepare("SELECT duration_seconds FROM service_times").get()!
@@ -208,10 +199,7 @@ test("HTTP preserva histórico e recusa cadastro e edição de serviços pelo m�
         .length,
       1,
     );
-    assert.equal(
-      (await (await fetch(base + "/service-times", { headers })).json()).length,
-      1,
-    );
+    assert.equal((await fetch(base + "/service-times", { headers })).status, 404);
   } finally {
     await new Promise<void>((resolve) => app.close(() => resolve()));
     db.close();

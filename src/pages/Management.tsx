@@ -701,24 +701,36 @@ export function Settings() {
             </section>
             <section className="panel settings-card">
               <Download size={23} />
-              <h2>Extensão Horse Power para Chrome</h2>
+              <h2>Extensão Horse Power — versão comercial</h2>
               <p>
-                Envie peças do Sky e serviços do Tempario ao catálogo, orçamento
-                ou OS. Instale pela Chrome Web Store. As versões publicadas na
-                loja recebem atualizações pelo Chrome.
+                A extensão existente continua disponível na Chrome Web Store e mantém identidade, dados e conexões próprios. A extensão de teste do Sistema Oficinas é separada e não a substitui.
               </p>
-              <a
-                className="button primary"
-                href="https://chromewebstore.google.com/detail/ddmnjpmldgnjefjkachlpicngaphlobf"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
+              <a className="button" href="https://chromewebstore.google.com/detail/ddmnjpmldgnjefjkachlpicngaphlobf" target="_blank" rel="noopener noreferrer">
                 <Download size={16} />
-                Instalar pela Chrome Web Store
+                Abrir Chrome Web Store
               </a>
-              <p>Pacote 1.4.1: fluxo de OS e painéis que abrem minimizados, com ícones para minimizar e restaurar. A atualização automática depende da publicação dessa versão na loja.</p>
-              <a className="button" href="/downloads/horse-power-conector.zip" download>Baixar pacote 1.4.1 (.zip)</a>
             </section>
+            {window.location.hostname === "sistema-oficinas-homologacao.vercel.app" && (
+              <section className="panel settings-card">
+                <Download size={23} />
+                <h2>Extensão de teste INT-015</h2>
+                <p>
+                  Capture peças do Sky Peças e revise os itens antes de concluir a captura. Esta versão de teste conecta somente à homologação.
+                </p>
+                <a className="button primary" href="/downloads/sistema-oficinas-test-extension.zip" download>
+                  <Download size={16} />
+                  Baixar extensão de teste (.zip)
+                </a>
+                <ol>
+                  <li>Extraia o ZIP em uma pasta permanente.</li>
+                  <li>Abra <code>chrome://extensions</code> e ative o modo desenvolvedor.</li>
+                  <li>Clique em “Carregar sem compactação” e selecione a pasta extraída.</li>
+                </ol>
+                <p className="muted">
+                  A extensão tem nome, armazenamento e conexão próprios e pode ficar instalada ao lado da extensão Horse Power da Chrome Web Store. Não substitua nem remova a versão comercial.
+                </p>
+              </section>
+            )}
             <section className="panel settings-card full">
               <Layers3 size={23} />
               <h2>Evolução dos módulos</h2>

@@ -49,6 +49,15 @@ jobs:
       - run: npx tsc --noEmit
       - run: npm run build
       - run: npm test
+      - name: Verify Chrome extension test package
+        run: node --test tests/extension-panel.test.mjs tests/test-extension-package.test.mjs
+      - name: Upload manual test extension
+        uses: actions/upload-artifact@v4
+        with:
+          name: sistema-oficinas-test-extension
+          path: public/downloads/sistema-oficinas-test-extension.zip
+          if-no-files-found: error
+          retention-days: 30
       - name: PostgreSQL integration suite
         run: npm run test:postgres
 

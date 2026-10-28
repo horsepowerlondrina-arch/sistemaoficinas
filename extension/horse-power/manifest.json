@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Horse Power · Conector",
   "version": "1.4.1",
-  "description": "Envie peças do Sky e serviços do Tempario ao catálogo e à OS da Horse Power.",
+  "description": "Envie peças do Sky Peças ao catálogo e aos orçamentos da Horse Power.",
   "permissions": [
     "storage"
   ],
@@ -31,21 +31,7 @@
       ],
       "run_at": "document_idle"
     },
-    {
-      "matches": [
-        "https://sistema.tempar.io/*"
-      ],
-      "js": [
-        "transport.js",
-        "tempario.js",
-        "tempario-plate.js"
-      ],
-      "css": [
-        "capture.css"
-      ],
-      "run_at": "document_idle"
-    },
-    {
+{
       "matches": [
         "https://horse-power.vercel.app/*",
         "https://oficinahorsepower.com.br/*"

@@ -12,3 +12,14 @@ Logo Horse Power
 *.xlsx
 HorsePower_Orcamento_v3_7_3
 extension
+!extension/
+!extension/horse-power/
+!extension/horse-power/manifest.json
+!extension/horse-power/background.js
+!extension/horse-power/bridge.js
+!extension/horse-power/capture.css
+!extension/horse-power/popup.html
+!extension/horse-power/popup.js
+!extension/horse-power/sky-plate.js
+!extension/horse-power/sky.js
+!extension/horse-power/transport.js

@@ -88,10 +88,8 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
     "capturar",
   );
   const [savedId, setSavedId] = useState<string | undefined>(order?.id);
-  const [captureSource, setCaptureSource] = useState<"sky" | "tempario" | null>(
-    initialCapture === "sky" || initialCapture === "tempario"
-      ? initialCapture
-      : null,
+  const [captureSource, setCaptureSource] = useState<"sky" | null>(
+    initialCapture === "sky" ? "sky" : null,
   );
   const [lookupPlate, setLookupPlate] = useState(
     order?.plate || order?.guest_plate || "",
@@ -265,7 +263,7 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
       setBusy(false);
     }
   };
-  const startCapture = async (source: "sky" | "tempario") => {
+  const startCapture = async (source: "sky") => {
     setBusy(true);
     setError("");
     try {

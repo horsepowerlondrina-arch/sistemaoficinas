@@ -74,11 +74,7 @@ const sky = {
   tab: { id: 2 },
 };
 const popup = { url: "chrome-extension://" + "a".repeat(32) + "/popup.html" };
-const tempario = {
-  url: "https://sistema.tempar.io/time-search",
-  frameId: 0,
-  tab: { id: 3 },
-};
+const retiredSite = { url: "https://sistema.tempar.io/time-search", frameId: 0, tab: { id: 3 } };
 const connect = {
   type: "HP_CONNECT",
   target: {
@@ -90,10 +86,10 @@ const connect = {
     batch_id: "11111111-1111-4111-8111-111111111111",
   },
 };
-test("Sky, Tempario and the popup receive the active plate without credentials", async () => {
+test("Sky and popup receive safe plate context while removed origins are rejected", async () => {
   const w = worker();
   await w.send(connect, app);
-  const vehicle = await w.send({ type: "HP_VEHICLE" }, tempario);
+  const vehicle = await w.send({ type: "HP_VEHICLE" }, sky);
   assert.equal(vehicle.plate, "ABC1D23");
   assert.equal(vehicle.number, 123);
   assert.equal(vehicle.connected, true);
@@ -101,26 +97,16 @@ test("Sky, Tempario and the popup receive the active plate without credentials",
   assert.ok(vehicle.expires > Date.now());
   assert.equal(vehicle.token, undefined);
   assert.equal(vehicle.origin, undefined);
-  const skyVehicle = await w.send({ type: "HP_VEHICLE" }, sky);
-  assert.equal(skyVehicle.plate, "ABC1D23");
-  assert.equal(skyVehicle.number, 123);
-  assert.equal(skyVehicle.token, undefined);
-  assert.equal(skyVehicle.origin, undefined);
   assert.equal((await w.send({ type: "HP_STATUS" }, sky)).plate, undefined);
-  for (const sender of [
-    app,
-    { ...sky, frameId: 1 },
-    { ...tempario, frameId: 1 },
-    { ...tempario, url: "https://evil.example" },
-  ])
+  for (const sender of [app, { ...sky, frameId: 1 }, retiredSite])
     assert.equal((await w.send({ type: "HP_VEHICLE" }, sender)).ok, false);
   assert.equal((await w.send({ type: "HP_VEHICLE" }, popup)).plate, "ABC1D23");
   assert.equal(w.local.data.plate, undefined);
   w.session.data.target.expires = Date.now() - 1;
-  const expired = await w.send({ type: "HP_VEHICLE" }, tempario);
+  const expired = await w.send({ type: "HP_VEHICLE" }, sky);
   assert.equal(expired.connected, false);
   assert.equal(expired.plate, undefined);
-  assert.equal((await w.send({ type: "HP_OPEN_TEMPARIO" }, popup)).ok, false);
+  assert.equal((await w.send({ type: "HP_STATUS" }, retiredSite)).ok, false);
 });
 test("Sky can change purchase freight during an active connection", async () => {
   const w = worker();
@@ -141,33 +127,19 @@ test("Sky can change purchase freight during an active connection", async () => 
   assert.equal(changed.origin, undefined);
 });
 
-test("reconnection updates the plate and popup opens Tempario without data in its URL", async () => {
+test("reconnection updates the plate and keeps the removed supplier unauthorized", async () => {
   const w = worker();
   await w.send(connect, app);
-  const old = await w.send({ type: "HP_VEHICLE" }, tempario);
-  await w.send(
-    { ...connect, target: { ...connect.target, plate: "DEF2345" } },
-    app,
-  );
-  const current = await w.send({ type: "HP_VEHICLE" }, tempario);
+  const old = await w.send({ type: "HP_VEHICLE" }, sky);
+  await w.send({ ...connect, target: { ...connect.target, plate: "DEF2345" } }, app);
+  const current = await w.send({ type: "HP_VEHICLE" }, sky);
   assert.equal(current.plate, "DEF2345");
   assert.notEqual(current.connectionId, old.connectionId);
-  assert.equal((await w.send({ type: "HP_OPEN_TEMPARIO" }, popup)).ok, true);
-  assert.equal(w.tabs[0].url, "https://sistema.tempar.io/");
-  assert.equal(
-    (await w.send({ type: "HP_OPEN_TEMPARIO" }, tempario)).ok,
-    false,
-  );
+  assert.equal((await w.send({ type: "HP_STATUS" }, retiredSite)).ok, false);
   await w.send({ type: "HP_DISCONNECT", orderId: "o" }, app);
-  assert.equal(
-    (await w.send({ type: "HP_VEHICLE" }, tempario)).plate,
-    undefined,
-  );
-  await w.send(
-    { ...connect, target: { ...connect.target, plate: "SEM PLACA" } },
-    app,
-  );
-  assert.equal((await w.send({ type: "HP_VEHICLE" }, tempario)).plate, "");
+  assert.equal((await w.send({ type: "HP_VEHICLE" }, sky)).plate, undefined);
+  await w.send({ ...connect, target: { ...connect.target, plate: "SEM PLACA" } }, app);
+  assert.equal((await w.send({ type: "HP_VEHICLE" }, sky)).plate, "");
 });
 test("worker only accepts app pairing, keeps token away from status, and sends captures to authenticated destination", async () => {
   const w = worker();
@@ -179,7 +151,7 @@ test("worker only accepts app pairing, keeps token away from status, and sends c
   await w.send(
     {
       type: "HP_CAPTURE",
-      item: { capture_id: randomUUID(), source: "tempario", name: "Peça" },
+      item: { capture_id: randomUUID(), source: "tampered", name: "Peça" },
     },
     sky,
   );
@@ -237,23 +209,6 @@ test("worker preserves pending IDs for retry, refuses changing active target and
   assert.equal((await w.send({ type: "HP_RETRY" }, popup)).ok, true);
   assert.equal(w.local.data.pending.length, 0);
   assert.equal(JSON.parse(w.calls[1].body).capture_id, capture_id);
-});
-test("Tempario parser preserves minutes and decimal hours", () => {
-  const src = readFileSync("extension/horse-power/tempario.js", "utf8");
-  const scope: any = {};
-  runInNewContext(
-    src.slice(src.search(/const norm\s*=/), src.indexOf("function vehicle()")) +
-      ";this.parseHours=hrs;this.parseMoney=money;",
-    scope,
-  );
-  for (const [input, hours] of [
-    ["25min", 25 / 60],
-    ["1h30m", 1.5],
-    ["0,6h", 0.6],
-    ["3h", 3],
-  ])
-    assert.equal(scope.parseHours(input), hours);
-  assert.equal(scope.parseMoney("R$ 1.234,56"), 1234.56);
 });
 test("Sky parser rejects ambiguous fallback prices instead of guessing the larger value", () => {
   const src = readFileSync("extension/horse-power/sky.js", "utf8");
@@ -347,10 +302,11 @@ test("discard pending revokes the original target, disconnects and permits anoth
   assert.equal(w.calls.at(-1).headers.Authorization, "Bearer " + connect.target.token);
   assert.equal(w.local.data.pending.length, 0);
   assert.equal(w.session.data.target, undefined);
-  for (const sender of [sky, tempario, popup]) {
+  for (const sender of [sky, popup]) {
     assert.equal((await w.send({ type: "HP_STATUS" }, sender)).connected, false);
     assert.equal((await w.send({ type: "HP_VEHICLE" }, sender)).connected, false);
   }
+  assert.equal((await w.send({ type: "HP_STATUS" }, retiredSite)).ok, false);
   assert.equal((await w.send({ ...connect, target: { ...connect.target, orderId: "next" } }, app)).ok, true);
 });
 
@@ -360,7 +316,7 @@ test("minimizing and restoring panels preserves content and sends no connection 
   runInNewContext(readFileSync("extension/horse-power/transport.js", "utf8"), {
     window, chrome: {}, document: { createElement: () => { const b = { setAttribute() {} }; buttons.push(b); return b; } },
   });
-  for (const source of ["sky", "tempario"]) {
+  for (const source of ["sky"]) {
     let minimized = false;
     const children: any[] = [{ freight: 1750, plate: "ABC1D23" }];
     const panel = { classList: { add: () => { minimized = true; }, contains: () => minimized, toggle: () => { minimized = !minimized; } }, appendChild: (b: any) => children.push(b) };

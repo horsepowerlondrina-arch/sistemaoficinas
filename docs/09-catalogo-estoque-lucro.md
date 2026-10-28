@@ -3,7 +3,7 @@
 Atualização de 04/10/2026.
 
 - Produtos e serviços podem ser cadastrados manualmente no catálogo e sem sair da edição de orçamento/OS. O catálogo antigo arquivado continua oculto; nenhum item histórico foi reativado.
-- Conector 1.3 envia Sky e Tempario ao catálogo diretamente ou a um orçamento/OS em andamento. OS finalizadas/canceladas recusam capturas. A placa continua sendo enviada quando há veículo no atendimento.
+- A extensão de teste INT-015 envia peças do Sky Peças ao catálogo ou a um orçamento/OS em andamento. OS finalizadas/canceladas recusam capturas. A placa continua sendo enviada quando há veículo no atendimento.
 - Importar não cria saldo físico. Estoque permite novo produto, entrada com quantidade/custo/frete/venda e importação do Sky. Entradas usam identificador de requisição para evitar duplicação em reenvios.
 - Clientes e veículos estão reunidos em Cadastros. A aba Tempos foi removida; referências de tempo continuam armazenadas junto às capturas.
 
@@ -33,4 +33,4 @@ Financeiro > Lucro das peças considera OS finalizadas no período, descontos pr
 
 49 testes locais aprovados, incluindo limites das faixas, ganho mínimo, frete, isolamento de oficinas, reenvios, estoque e preservação dos custos históricos. Compilação aprovada. Conferência visual local do cadastro de peça e entrada de estoque; verificação PostgreSQL com oficina temporária. Segurança Supabase sem apontamentos.
 
-Para a nova captura direta, atualizar o Conector para 1.3 e recarregar as abas Horse Power/Sky/Tempario. A captura em páginas reais dos fornecedores depende da extensão atualizada instalada no navegador.
+Para testar a captura direta, instale a extensão de teste INT-015 pelo modo desenvolvedor do Chrome e recarregue o Sky Peças. 

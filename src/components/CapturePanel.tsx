@@ -15,7 +15,7 @@ export function CapturePanel({
 }: {
   orderId?: string;
   catalog?: boolean;
-  source: "sky" | "tempario";
+  source: "sky";
   onClose: (items: Entity[], committed: boolean) => Promise<void>;
 }) {
   const { data } = useApp();
@@ -37,8 +37,6 @@ export function CapturePanel({
   const [expires, setExpires] = useState(0);
   const [freight, setFreight] = useState(1750);
   const [freightBusy, setFreightBusy] = useState(false);
-  const [plate, setPlate] = useState("");
-  const [plateAutofill, setPlateAutofill] = useState(false);
   useEffect(() => {
     let current = true;
     async function load() {
@@ -76,14 +74,14 @@ export function CapturePanel({
       const extension = await extensionMessage("HP_STATUS");
       if (catalog && !extension.catalogCapture)
         throw new Error(
-          "Atualize o Conector Horse Power para a versão 1.3 e recarregue a página.",
+          "Atualize a extensão de teste INT-015 e recarregue a página.",
         );
       const target = await send(
         catalog
           ? `/catalog-capture/${targetId}/start`
           : `/orders/${targetId}/capture-session`,
         {
-          freight_total: source === "sky" ? freight : 0,
+          freight_total: freight,
           batch_id: batchId,
         },
       );
@@ -91,10 +89,8 @@ export function CapturePanel({
         target: { ...target, orderId: targetId },
       });
       setNumber(target.number);
-      setPlate(target.plate);
       if (source === "sky" && Number.isInteger(target.freight_total))
         setFreight(target.freight_total);
-      setPlateAutofill(extension.plateAutofill === true);
       setExpires(Date.now() + target.expires_minutes * 60000);
       setConnected(true);
     } catch (e) {
@@ -153,18 +149,10 @@ export function CapturePanel({
   async function syncStagedItemsBeforeComplete() {
     if (catalog) return;
     for (const item of [...stagedItems]) {
-      const patch =
-        item.capture_source === "sky"
-          ? { quantity: Math.max(0, Math.round(Number(item.quantity || 0))) }
-          : {
-              duration_seconds: Math.max(
-                60,
-                Math.round(Number(item.duration_seconds || 60)),
-              ),
-            };
+      if (item.capture_source !== "sky") continue;
       await send(
         `/orders/${targetId}/capture-items/${item.capture_receipt || item.id}`,
-        patch,
+        { quantity: Math.max(0, Math.round(Number(item.quantity || 0))) },
         "PATCH",
       );
     }
@@ -214,21 +202,19 @@ export function CapturePanel({
   return (
     <Modal
       title={
-        source === "sky"
-          ? "Adicionar produto do Sky Peças"
-          : "Adicionar serviço do Tempario"
+        "Adicionar produto do Sky Peças"
       }
       description={
         catalog
           ? "Envie itens ao catálogo sem precisar abrir um orçamento. Depois, confirme as entradas físicas no estoque."
-          : "Os itens capturados ficam em espera. Ajuste quantidade ou tempo e só envie ao atendimento ao clicar em Concluir captura."
+          : "Os itens capturados ficam em espera. Ajuste a quantidade e só envie ao atendimento ao clicar em Concluir captura."
       }
       onClose={() => void discard()}
     >
       <div className="modal-body capture-panel">
         <p>
           {connected
-            ? `Conectado ${catalog ? "ao catálogo" : `ao atendimento #${number}`}. Vá ao fornecedor e clique em HP • Enviar no item desejado.`
+            ? `Conectado ${catalog ? "ao catálogo" : `ao atendimento #${number}`}. Vá ao fornecedor e clique em S.O. Teste • Enviar no item desejado.`
             : "Conecte a extensão para definir esta tela como destino dos envios."}
         </p>
         {connected && (
@@ -284,57 +270,30 @@ export function CapturePanel({
             <a
               className="button"
               href={
-                source === "sky"
-                  ? "https://cliente.skypecas.com.br/"
-                  : "https://sistema.tempar.io/"
+                "https://cliente.skypecas.com.br/"
               }
               target="_blank"
               rel="noreferrer"
             >
-              Abrir {source === "sky" ? "Sky Peças" : "Tempario"}
+              Abrir Sky Peças
             </a>
           )}
         </div>
-        {connected && !catalog && source === "tempario" && (
-          <p className="muted">
-            {!plateAutofill ? (
-              <>
-                Para enviar a placa automaticamente,{" "}
-                <a href="https://chromewebstore.google.com/detail/ddmnjpmldgnjefjkachlpicngaphlobf" target="_blank" rel="noopener noreferrer">
-                  instale a versão da loja
-                </a>{" "}
-                e recarregue as páginas. Se você usava o ZIP, remova a versão manual antes de instalar pela loja.
-              </>
-            ) : plate ? (
-              <>
-                Placa <strong>{plate}</strong>: será preenchida automaticamente
-                no Tempario, inclusive se a aba já estiver aberta. Depois,
-                clique em consultar no Tempario.
-              </>
-            ) : (
-              "Este orçamento ainda não tem uma placa válida. Conclua a captura, informe o veículo no orçamento e abra novamente para enviar a placa."
-            )}
-          </p>
-        )}
-        {!connected && (
+        {!connected && window.location.hostname === "sistema-oficinas-homologacao.vercel.app" && (
           <details>
-            <summary>Como instalar a extensão</summary>
+            <summary>Instalar extensão de teste INT-015</summary>
             <ol>
-              <li>
-                Se você instalou pelo ZIP, remova a versão manual no menu
-                Extensões → Gerenciar extensões do Chrome.
-              </li>
-              <li>
-                <a href="https://chromewebstore.google.com/detail/ddmnjpmldgnjefjkachlpicngaphlobf" target="_blank" rel="noopener noreferrer">
-                  Abra o Horse Power na Chrome Web Store
-                </a>.
-              </li>
-              <li>Clique em Usar no Chrome e confirme Adicionar extensão.</li>
-              <li>
-                Recarregue o sistema, Sky Peças e Tempario e conecte a captura
-                novamente.
-              </li>
+              <li>Baixe e extraia o pacote de teste em uma pasta permanente.</li>
+              <li>Abra <code>chrome://extensions</code> e ative o modo desenvolvedor.</li>
+              <li>Clique em “Carregar sem compactação” e selecione a pasta extraída.</li>
+              <li>No Sky Peças, use o botão “S.O. Teste • Enviar” para enviar à homologação.</li>
             </ol>
+            <p className="muted">
+              Esta extensão tem nome, armazenamento e conexão separados. Ela funciona somente com a homologação e pode permanecer instalada junto à extensão Horse Power da Chrome Web Store. Não remova a versão comercial.
+            </p>
+            <a className="button" href="/downloads/sistema-oficinas-test-extension.zip" download>
+              Baixar extensão de teste INT-015 (.zip)
+            </a>
           </details>
         )}
         {error && (
@@ -355,8 +314,8 @@ export function CapturePanel({
                 <small>
                   {i.capture_source === "sky"
                     ? "Sky Peças"
-                    : i.capture_source === "tempario"
-                      ? "Tempario"
+                    : i.capture_source
+                      ? "Captura anterior"
                       : "Catálogo"}
                 </small>
               {i.capture_source === "sky" && <label className="capture-inline-field">
@@ -408,44 +367,6 @@ export function CapturePanel({
                     }}
                   />
                 </label>
-              ) : !catalog && i.capture_source === "tempario" ? (
-                <label className="capture-inline-field">
-                  <span>Tempo (min)</span>
-                  <NumericInput
-                    type="number"
-                    min="1"
-                    max="60000"
-                    step="1"
-                    value={Math.round(Number(i.duration_seconds || 60) / 60)}
-                    onFocus={() => {
-                      editingCapture.current = i.id;
-                    }}
-                    onChange={(e) => {
-                      const seconds = Math.max(
-                        60,
-                        Math.round(Number(e.target.value || 1) * 60),
-                      );
-                      setStagedItems((current) =>
-                        current.map((row) =>
-                          row.id === i.id
-                            ? { ...row, duration_seconds: seconds }
-                            : row,
-                        ),
-                      );
-                    }}
-                    onBlur={() =>
-                      void updateCapturedItem(i, {
-                        duration_seconds: Number(
-                          stagedItems.find((row) => row.id === i.id)
-                            ?.duration_seconds ?? i.duration_seconds,
-                        ),
-                      })
-                    }
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") e.currentTarget.blur();
-                    }}
-                  />
-                </label>
               ) : null}
               <span className="capture-item-value">
                 <b>{money(i.price * (i.quantity || 1))}</b>
@@ -470,9 +391,7 @@ export function CapturePanel({
           ))}
         </div>
         <p className="muted">
-          {source === "sky"
-            ? "O custo do Sky, o frete rateado e o preço sugerido ficam prontos para revisão antes da conclusão. A disponibilidade do fornecedor não representa o estoque da oficina."
-            : "No Tempario, a quantidade permanece 1. Ao ajustar o tempo, o valor do serviço acompanha proporcionalmente a relação valor/tempo capturada."}
+          {"O custo do Sky Peças, o frete rateado e o preço sugerido ficam prontos para revisão antes da conclusão. A disponibilidade do fornecedor não representa o estoque da oficina."}
         </p>
       </div>
       <div className="modal-footer">

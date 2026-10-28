@@ -39,36 +39,23 @@ try {
     .run(order, tenant);
   const target = await beginCapture(db, ctx, order, sessionToken);
   assert.equal(target.plate, "");
-  const service = {
-    capture_id: randomUUID(),
-    source: "tempario",
-    name: "Serviço teste integração",
-    duration_seconds: 1500,
-    price: 12345,
-    vehicle: { model: "Modelo de teste", year: "2020" },
+  const part = {
+    capture_id: randomUUID(), source: "sky", name: "Peça teste integração A",
+    code: "TEST-A", brand: "Marca teste", cost: 10000, quantity: 2,
   };
   const results = await Promise.all([
-    importCapture(db, target.token, service),
-    importCapture(db, target.token, service),
+    importCapture(db, target.token, part),
+    importCapture(db, target.token, part),
   ]);
   assert.equal(results.filter((r) => r.duplicate).length, 1);
   await importCapture(db, target.token, {
-    capture_id: randomUUID(),
-    source: "sky",
-    name: "Peça teste integração",
-    code: "TEST",
-    brand: "TEST",
-    cost: 10000,
-    quantity: 2,
+    capture_id: randomUUID(), source: "sky", name: "Peça teste integração B",
+    code: "TEST-B", brand: "Marca teste", cost: 10000, quantity: 1,
   });
-  const rows = await db
-    .prepare("SELECT duration_seconds FROM service_times WHERE tenant_id=?")
-    .all(tenant);
-  assert.equal(rows.length, 1);
-  assert.equal(rows[0].duration_seconds, 1500);
+  assert.equal((await db.prepare("SELECT COUNT(*) n FROM service_times WHERE tenant_id=?").get(tenant))?.n, 0);
   const state = await finishCapture(db, ctx, order);
   assert.equal(state.items.length, 2);
-  assert.equal(state.total, 42345);
+  assert.equal(state.total, 45000);
   // Verify published authenticated endpoints using only an isolated test tenant.
   if (process.env.VERIFY_ORIGIN) {
     assert.equal((await enableExtensionCatalog(db, ctx)).archived, 2);
@@ -116,15 +103,21 @@ try {
         Authorization: "Bearer " + token,
       },
       body: JSON.stringify({
-        ...service,
+        ...part,
         capture_id: randomUUID(),
-        name: "Segundo serviço teste integração",
+        name: "Peça teste API",
+        code: "TEST-C",
+        quantity: 1,
       }),
     });
     assert.equal(r.status, 200, await r.text());
-    const times = await fetch(base + "/api/service-times", { headers });
-    assert.equal(times.status, 200);
-    assert.equal((await times.json()).length, 1);
+    assert.equal((await fetch(base + "/api/service-times", { headers })).status, 404);
+    const removedSource = await fetch(base + "/api/extension/import", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Origin: "chrome-extension://" + "a".repeat(32), Authorization: "Bearer " + token },
+      body: JSON.stringify({ capture_id: randomUUID(), source: "tempario", name: "Serviço removido" }),
+    });
+    assert.equal(removedSource.status, 400);
     const refreshed = await (
       await fetch(base + "/api/workspace", { headers })
     ).json();
@@ -202,7 +195,7 @@ try {
     assert.equal(latest.parts_pricing.rules.length, 7);
   }
   console.log(
-    "Extensão verificada no PostgreSQL: gravação, tempos, preços, duplicações e encerramento.",
+    "Extensão verificada no PostgreSQL: Sky Peças, preços, frete, duplicações e encerramento.",
   );
 } finally {
   for (const table of [
