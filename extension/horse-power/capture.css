@@ -92,96 +92,12 @@
 #hp-sky-toast.show {
   opacity: 1;
 }
-.hp-tempario-btn {
-  background: #c8202c !important;
-  color: #fff !important;
-  border: 0 !important;
-  border-radius: 6px !important;
-  padding: 5px 8px !important;
-  margin: 0 6px !important;
-  font:
-    700 11px Arial,
-    sans-serif !important;
-  cursor: pointer !important;
-  display: inline-block !important;
-  vertical-align: middle !important;
-  width: auto !important;
-  min-width: 0 !important;
-  max-width: 110px !important;
-  white-space: nowrap !important;
-}
-.hp-tempario-btn.hp-added {
-  background: #166534 !important;
-}
-#hp-tempario-float {
-  position: fixed;
-  right: 18px;
-  bottom: 18px;
-  z-index: 2147483646;
-  background: #fff;
-  border: 1px solid #cbd5e1;
-  border-radius: 10px;
-  box-shadow: 0 5px 18px rgba(0, 0, 0, 0.18);
-  padding: 9px 10px;
-  font:
-    12px Arial,
-    sans-serif;
-  color: #17212b;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  max-width: min(420px, calc(100vw - 56px));
-}
-#hp-tempario-plate {
-  display: grid;
-  gap: 7px;
-  width: 100%;
-  border-top: 1px solid #eee;
-  padding-top: 9px;
-  line-height: 1.4;
-}
-#hp-tempario-plate button:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-#hp-tempario-float button {
-  background: #c8202c;
-  color: #fff;
-  border: 0;
-  border-radius: 6px;
-  padding: 7px 9px;
-  font-weight: 700;
-  cursor: pointer;
-}
-#hp-tempario-toast {
-  position: fixed;
-  right: 18px;
-  bottom: 76px;
-  z-index: 2147483647;
-  background: #166534;
-  color: #fff;
-  border-radius: 8px;
-  padding: 9px 12px;
-  font:
-    700 12px Arial,
-    sans-serif;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
-  opacity: 0;
-  transition: 0.2s;
-  pointer-events: none;
-}
-#hp-tempario-toast.show {
-  opacity: 1;
-}
+#hp-sky-float.hp-minimized > :not(strong):not(.hp-panel-toggle) { display: none !important; }
 
-#hp-sky-float.hp-minimized > :not(strong):not(.hp-panel-toggle),
-#hp-tempario-float.hp-minimized > :not(strong):not(.hp-panel-toggle) { display: none !important; }
-
-#hp-sky-float .hp-panel-toggle, #hp-tempario-float .hp-panel-toggle {
+#hp-sky-float .hp-panel-toggle {
   display: inline-flex; align-items: center; justify-content: center;
   width: 32px; height: 32px; padding: 6px; flex: 0 0 32px;
 }
-#hp-sky-float .hp-panel-toggle:focus-visible, #hp-tempario-float .hp-panel-toggle:focus-visible {
+#hp-sky-float .hp-panel-toggle:focus-visible {
   outline: 2px solid #17212b; outline-offset: 2px;
 }

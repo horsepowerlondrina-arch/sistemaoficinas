@@ -5,14 +5,13 @@ import { type DB, transaction } from "../db/database.js";
 import { digest, type Context } from "../auth/session.js";
 import { requireAdmin } from "./payments.js";
 import { audit, id, invalidateOrderShares, scoped } from "./workshop.js";
-import { serviceNameKey } from "./serviceCatalog.js";
 import { workshopPrice } from "./partsPricing.js";
 import { allocateFreight } from "../../shared/freight.js";
 const txt = z.string().trim().max(300).default("");
 export const captureSchema = z
   .object({
     capture_id: z.string().uuid(),
-    source: z.enum(["sky", "tempario"]),
+    source: z.literal("sky"),
     name: z.string().trim().min(3).max(300),
     code: txt,
     brand: txt,
@@ -21,7 +20,6 @@ export const captureSchema = z
     quantity: z.number().int().min(1).max(1000).default(1),
     cost: z.number().int().min(0).max(100000000).default(0),
     price: z.number().int().min(0).max(100000000).default(0),
-    duration_seconds: z.number().int().min(1).max(3600000).optional(),
     vehicle: z
       .object({ plate: txt, make: txt, model: txt, year: txt, engine: txt })
       .default({ plate: "", make: "", model: "", year: "", engine: "" }),
@@ -31,14 +29,6 @@ export const captureSchema = z
       ctx.addIssue({
         code: "custom",
         message: "Confira o código e o custo da peça.",
-      });
-    if (
-      v.source === "tempario" &&
-      (!v.duration_seconds || !v.price || v.quantity !== 1)
-    )
-      ctx.addIssue({
-        code: "custom",
-        message: "Confira o tempo e o valor do serviço.",
       });
   });
 export { legacyPrice as suggestedPrice } from "./partsPricing.js";
@@ -298,7 +288,6 @@ export async function updateStagedCaptureItem(
   const v = z
     .object({
       quantity: z.number().int().min(0).max(1000).optional(),
-      duration_seconds: z.number().int().min(60).max(3600000).optional(),
       remove: z.boolean().optional(),
     })
     .parse(input);
@@ -313,18 +302,14 @@ export async function updateStagedCaptureItem(
     if (!capture) return captureState(db, ctx, orderId);
 
     if (v.remove || (capture.source === "sky" && v.quantity === 0)) {
-      if (capture.source === "tempario")
-        await db
-          .prepare(
-            "DELETE FROM service_times WHERE tenant_id=? AND capture_id=?",
-          )
-          .run(ctx.tenantId, capture.capture_id);
       await db
         .prepare(
           "DELETE FROM external_captures WHERE tenant_id=? AND order_id=? AND id=? AND batch_id=? AND item_id IS NULL",
         )
         .run(ctx.tenantId, orderId, captureId, session.batch_id);
-    } else if (capture.source === "sky") {
+    } else {
+      if (capture.source !== "sky")
+        throw new Error("Esta captura antiga só pode ser removida.");
       if (v.quantity === undefined)
         throw new Error("Informe a quantidade da peça.");
       await db
@@ -332,38 +317,6 @@ export async function updateStagedCaptureItem(
           "UPDATE external_captures SET source_quantity=? WHERE tenant_id=? AND order_id=? AND id=? AND batch_id=? AND item_id IS NULL",
         )
         .run(v.quantity, ctx.tenantId, orderId, captureId, session.batch_id);
-    } else {
-      if (v.duration_seconds === undefined)
-        throw new Error("Informe o tempo do serviço.");
-      const oldDuration = Math.max(1, Number(capture.duration_seconds || 1));
-      const newPrice = Math.max(
-        0,
-        Math.round(
-          (Number(capture.source_price || 0) * v.duration_seconds) / oldDuration,
-        ),
-      );
-      await db
-        .prepare(
-          "UPDATE external_captures SET duration_seconds=?,source_price=? WHERE tenant_id=? AND order_id=? AND id=? AND batch_id=? AND item_id IS NULL",
-        )
-        .run(
-          v.duration_seconds,
-          newPrice,
-          ctx.tenantId,
-          orderId,
-          captureId,
-          session.batch_id,
-        );
-      await db
-        .prepare(
-          "UPDATE service_times SET duration_seconds=?,source_price=? WHERE tenant_id=? AND capture_id=?",
-        )
-        .run(
-          v.duration_seconds,
-          newPrice,
-          ctx.tenantId,
-          capture.capture_id,
-        );
     }
 
     await redistributeSkyFreight(db, ctx, session);
@@ -381,17 +334,6 @@ export async function discardCapture(db: DB, ctx: Context, orderId: string) {
       )
       .get(ctx.tenantId, orderId);
     if (session?.batch_id) {
-      const captures = await db
-        .prepare(
-          "SELECT capture_id FROM external_captures WHERE tenant_id=? AND order_id=? AND batch_id=? AND item_id IS NULL",
-        )
-        .all(ctx.tenantId, orderId, session.batch_id);
-      for (const capture of captures)
-        await db
-          .prepare(
-            "DELETE FROM service_times WHERE tenant_id=? AND capture_id=?",
-          )
-          .run(ctx.tenantId, capture.capture_id);
       await db
         .prepare(
           "DELETE FROM external_captures WHERE tenant_id=? AND order_id=? AND batch_id=? AND item_id IS NULL",
@@ -478,32 +420,6 @@ export async function finishCapture(db: DB, ctx: Context, orderId: string) {
             "UPDATE external_captures SET item_id=? WHERE tenant_id=? AND id=?",
           )
           .run(itemId, ctx.tenantId, capture.id);
-        if (capture.source === "tempario") {
-          const [make = "", model = "", vehicleYear = "", engine = ""] =
-            String(capture.vehicle_label || "").split(" · ");
-          await db
-            .prepare(
-              `INSERT INTO service_times(id,tenant_id,catalog_id,capture_id,source,service_name,make,model,vehicle_year,engine,duration_seconds,source_price)
-               VALUES(?,?,?,?,?,?,?,?,?,?,?,?)
-               ON CONFLICT(tenant_id,capture_id) DO UPDATE SET
-                 duration_seconds=excluded.duration_seconds,
-                 source_price=excluded.source_price`,
-            )
-            .run(
-              id(),
-              ctx.tenantId,
-              capture.catalog_id,
-              capture.capture_id,
-              "Tempario",
-              capture.name,
-              make,
-              model,
-              vehicleYear,
-              engine,
-              capture.duration_seconds,
-              capture.source_price,
-            );
-        }
       }
       const subtotal = Number(
         (
@@ -532,7 +448,6 @@ export async function finishCapture(db: DB, ctx: Context, orderId: string) {
 }
 export async function importCapture(db: DB, token: string, input: unknown) {
   const v = captureSchema.parse(input);
-  if(process.env.APP_ENV==='development' && v.source==='tempario')throw new Error('Os serviços agora são adicionados pelo catálogo de tempos ou pelo módulo Serviços da oficina.');
   return transaction(db, async () => {
     const s = await activeCaptureSession(db, token);
     const ctx: Context = {
@@ -583,10 +498,7 @@ export async function importCapture(db: DB, token: string, input: unknown) {
       throw new Error(
         "A placa capturada pertence a outro veículo. Confira o orçamento de destino.",
       );
-    const key =
-      v.source === "sky"
-        ? `${v.code.toUpperCase()}|${v.brand.toUpperCase()}`
-        : serviceNameKey(v.name);
+    const key = `${v.code.toUpperCase()}|${v.brand.toUpperCase()}`;
     if (!key) throw new Error("Identificação do item inválida.");
     const linked = await db
       .prepare(
@@ -599,22 +511,6 @@ export async function importCapture(db: DB, token: string, input: unknown) {
     if (catalog?.merged_into)
       catalog = await scoped(db, "catalog", ctx.tenantId, catalog.merged_into);
     if (catalog?.archived_at) catalog = undefined;
-    if (!catalog && v.source === "tempario") {
-      const alias = await db
-        .prepare(
-          "SELECT a.catalog_id FROM service_aliases a JOIN catalog c ON c.id=a.catalog_id AND c.tenant_id=a.tenant_id WHERE a.tenant_id=? AND a.alias_key=? AND c.archived_at IS NULL",
-        )
-        .get(ctx.tenantId, key);
-      catalog = alias
-        ? await scoped(db, "catalog", ctx.tenantId, alias.catalog_id)
-        : (
-            await db
-              .prepare(
-                "SELECT * FROM catalog WHERE tenant_id=? AND kind='service' AND merged_into IS NULL AND archived_at IS NULL",
-              )
-              .all(ctx.tenantId)
-          ).find((c) => serviceNameKey(c.name) === key);
-    }
     if (catalog && !catalog.active)
       throw new Error(
         "Este item está inativo no catálogo. Reative-o antes de importar.",
@@ -622,10 +518,7 @@ export async function importCapture(db: DB, token: string, input: unknown) {
     const landedCost = v.cost;
     if (landedCost > 100000000)
       throw new Error("Custo com frete acima do limite.");
-    const price =
-      v.source === "sky"
-        ? await workshopPrice(db, ctx.tenantId, landedCost)
-        : v.price;
+    const price = await workshopPrice(db, ctx.tenantId, landedCost);
     if (!catalog) {
       const catalogId = id();
       await db
@@ -635,13 +528,13 @@ export async function importCapture(db: DB, token: string, input: unknown) {
         .run(
           catalogId,
           ctx.tenantId,
-          v.source === "sky" ? "product" : "service",
+          "product",
           v.name,
           `EXT-${catalogId.slice(0, 12)}`,
-          v.source === "sky" ? "" : "Tempario",
+          "",
           landedCost,
           price,
-          v.source === "sky" ? 1 : 0,
+          1,
         );
       catalog = await scoped(db, "catalog", ctx.tenantId, catalogId);
     }
@@ -728,7 +621,7 @@ export async function importCapture(db: DB, token: string, input: unknown) {
         v.source,
         key,
         hash,
-        v.duration_seconds ?? null,
+        null,
         v.cost,
         price,
         label,
@@ -737,25 +630,6 @@ export async function importCapture(db: DB, token: string, input: unknown) {
         v.quantity,
         0,
       );
-    if (v.source === "tempario" && !order)
-      await db
-        .prepare(
-          "INSERT INTO service_times(id,tenant_id,catalog_id,capture_id,source,service_name,make,model,vehicle_year,engine,duration_seconds,source_price) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
-        )
-        .run(
-          id(),
-          ctx.tenantId,
-          catalog.id,
-          v.capture_id,
-          "Tempario",
-          v.name,
-          v.vehicle.make,
-          v.vehicle.model,
-          v.vehicle.year,
-          v.vehicle.engine,
-          v.duration_seconds,
-          v.price,
-        );
     if (v.source === "sky")
       await redistributeSkyFreight(db, ctx, s);
     await audit(db, ctx, "extension.imported", order?.id || s.catalog_target);

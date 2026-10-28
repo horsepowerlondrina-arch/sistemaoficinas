@@ -19,21 +19,12 @@ import { saveOrder } from "../server/services/workshop";
 import { createShare, readShare } from "../server/services/sharing";
 import { createApp } from "../server/app";
 const ctx = { tenantId: "a", userId: "u", role: "owner" };
-test("Zod v4 preserves blank vehicle defaults for captures without vehicle metadata", () => {
+test("extension capture accepts Sky and rejects removed external sources", () => {
   const parsed = captureSchema.parse({
-    capture_id: randomUUID(),
-    source: "tempario",
-    name: "Serviço fictício",
-    price: 1000,
-    duration_seconds: 600,
+    capture_id: randomUUID(), source: "sky", name: "Peça fictícia", code: "CF1", brand: "Marca teste", cost: 1000,
   });
-  assert.deepEqual(parsed.vehicle, {
-    plate: "",
-    make: "",
-    model: "",
-    year: "",
-    engine: "",
-  });
+  assert.deepEqual(parsed.vehicle, { plate: "", make: "", model: "", year: "", engine: "" });
+  assert.throws(() => captureSchema.parse({ capture_id: randomUUID(), source: "tempario", name: "Serviço removido" }));
 });
 function fixture() {
   const db = createDatabase(":memory:");
@@ -47,14 +38,6 @@ INSERT INTO orders(id,tenant_id,number,kind,status,guest_plate,entered_on,due_on
   );
   return db;
 }
-const service = () => ({
-  capture_id: randomUUID(),
-  source: "tempario",
-  name: "Troca da correia dentada",
-  price: 12345,
-  duration_seconds: 1500,
-  vehicle: { plate: "ABC1D23", make: "Fiat", model: "Uno", year: "2015" },
-});
 const product = () => ({
   capture_id: randomUUID(),
   source: "sky",
@@ -211,39 +194,8 @@ test("staged Sky items can change quantity, use zero to remove and only enter th
   }
 });
 
-test("staged Tempario services edit time instead of quantity and recalculate the captured total proportionally", async () => {
-  const db = fixture();
-  try {
-    const started = await beginCapture(db, ctx, "o", "session", 0);
-    await importCapture(db, started.token, service());
-    let state = await captureState(db, ctx, "o");
-    assert.equal(state.items.length, 0);
-    assert.equal(state.staged_items.length, 1);
-    const capture = state.staged_items[0];
-    assert.equal(capture.duration_seconds, 1500);
-    assert.equal(capture.price, 12345);
 
-    state = await updateStagedCaptureItem(db, ctx, "o", capture.id, {
-      duration_seconds: 1800,
-    });
-    assert.equal(state.staged_items[0].duration_seconds, 1800);
-    assert.equal(state.staged_items[0].price, 14814);
-    assert.equal(db.prepare("SELECT count(*) n FROM order_items").get()!.n, 0);
-
-    const completed = await finishCapture(db, ctx, "o");
-    const saved = completed.items.find((i: any) => i.kind === "service");
-    assert.ok(saved);
-    assert.equal(saved.duration_seconds, 1800);
-    assert.equal(saved.price, 14814);
-    const time = db.prepare("SELECT * FROM service_times").get();
-    assert.equal(time!.duration_seconds, 1800);
-    assert.equal(time!.source_price, 14814);
-  } finally {
-    db.close();
-  }
-});
-
-test("discarding a capture leaves the order untouched and removes staged Sky and Tempario items", async () => {
+test("discarding a Sky capture leaves the order untouched", async () => {
   const db = fixture();
   try {
     const started = await beginCapture(db, ctx, "o", "session", 0);
@@ -252,7 +204,6 @@ test("discarding a capture leaves the order untouched and removes staged Sky and
       capture_id: randomUUID(),
       quantity: 4,
     });
-    await importCapture(db, started.token, service());
     assert.equal((await captureState(db, ctx, "o")).staged_items.length, 2);
     const discarded = await discardCapture(db, ctx, "o");
     assert.equal(discarded.staged_items.length, 0);
@@ -262,87 +213,37 @@ test("discarding a capture leaves the order untouched and removes staged Sky and
       db.prepare("SELECT count(*) n FROM external_captures").get()!.n,
       0,
     );
-    assert.equal(
-      db.prepare("SELECT count(*) n FROM service_times").get()!.n,
-      0,
-    );
+    assert.equal(db.prepare("SELECT count(*) n FROM service_times").get()!.n, 0);
   } finally {
     db.close();
   }
 });
 
-test("capture saves quote, catalog and vehicle-specific times atomically; retries and duplicate clicks do not duplicate", async () => {
+test("Sky capture stays staged until explicit confirmation and duplicate clicks do not duplicate", async () => {
   const db = fixture();
   try {
     const { token } = await beginCapture(db, ctx, "o", "session", 0);
-    const item = service();
-    const results = await Promise.all([
-      importCapture(db, token, item),
-      importCapture(db, token, item),
-    ]);
+    const item = { ...product(), quantity: 2 };
+    const results = await Promise.all([importCapture(db, token, item), importCapture(db, token, item)]);
     assert.equal(results.filter((r) => r.duplicate).length, 1);
-    await importCapture(db, token, { ...item, capture_id: randomUUID() });
-    assert.equal(
-      db.prepare("SELECT count(*) n FROM service_times").get()!.n,
-      0,
-    );
     assert.equal(db.prepare("SELECT count(*) n FROM order_items").get()!.n, 0);
-    const part = product();
-    await importCapture(db, token, part);
-    assert.equal(
-      db.prepare("SELECT total FROM orders WHERE id=?").get("o")!.total,
-      0,
-    );
-    assert.equal(
-      db.prepare("SELECT stock FROM catalog WHERE kind='product'").get()!.stock,
-      0,
-    );
+    assert.equal(db.prepare("SELECT count(*) n FROM service_times").get()!.n, 0);
     const state = await finishCapture(db, ctx, "o");
-    assert.equal(state.items.length, 2);
-    assert.equal(
-      db.prepare("SELECT total FROM orders WHERE id=?").get("o")!.total,
-      42345,
-    );
-    assert.equal(
-      db.prepare("SELECT count(*) n FROM service_times").get()!.n,
-      1,
-    );
-    assert.equal(
-      db.prepare("SELECT duration_seconds FROM service_times").get()!
-        .duration_seconds,
-      1500,
-    );
-    await saveOrder(
-      db,
-      ctx,
-      {
-        status: "quote",
-        guest_plate: "ABC1D23",
-        entered_on: "2026-10-03",
-        due_on: "2026-10-03",
-        km: 0,
-        discount: 0,
-        problem: "",
-        notes: "",
-        items: state.items,
-      },
-      "o",
-    );
-    assert.equal(
-      db.prepare("SELECT cost FROM order_items WHERE kind='product'").get()!
-        .cost,
-      10000,
-    );
+    assert.equal(state.items.length, 1);
+    assert.equal(state.items[0].kind, "product");
+    assert.equal(state.items[0].quantity, 2);
+    assert.equal(db.prepare("SELECT total FROM orders WHERE id=?").get("o")!.total, state.items[0].price * 2);
+    assert.equal(db.prepare("SELECT stock FROM catalog WHERE kind='product'").get()!.stock, 0);
+    await saveOrder(db, ctx, { status: "quote", guest_plate: "ABC1D23", entered_on: "2026-10-03", due_on: "2026-10-03", km: 0, discount: 0, problem: "", notes: "", items: state.items }, "o");
+    assert.equal(db.prepare("SELECT cost FROM order_items WHERE kind='product'").get()!.cost, 10000);
     const share = await createShare(db, ctx, "o");
     const publicData = await readShare(db, share.path.split("/").pop()!);
     assert.ok(!JSON.stringify(publicData).includes("duration_seconds"));
     assert.ok(!JSON.stringify(publicData).includes("cost"));
     await assert.rejects(importCapture(db, token, product()), /expirada/);
-  } finally {
-    db.close();
-  }
+  } finally { db.close(); }
 });
-test("capture rejects foreign tenants, mechanics, mismatched vehicles, revoked sessions and closed quotes", async () => {
+test("capture rejects foreign tenants/, mechanics, mismatched vehicles, revoked sessions and closed quotes", async () => {
   const db = fixture();
   try {
     await assert.rejects(
@@ -351,12 +252,12 @@ test("capture rejects foreign tenants, mechanics, mismatched vehicles, revoked s
     await assert.rejects(beginCapture(db, ctx, "other", "session"));
     const { token } = await beginCapture(db, ctx, "o", "session");
     await assert.rejects(
-      importCapture(db, token, { ...service(), vehicle: { plate: "ZZZ9Z99" } }),
+      importCapture(db, token, { ...product(), vehicle: { plate: "ZZZ9Z99" } }),
       /outro veículo/,
     );
     assert.equal(db.prepare("SELECT count(*) n FROM catalog").get()!.n, 0);
-    await assert.rejects(importCapture(db, "invalid", service()));
-    const item = service();
+    await assert.rejects(importCapture(db, "invalid", product()));
+    const item = product();
     await importCapture(db, token, item);
     await assert.rejects(
       importCapture(db, token, { ...item, price: 999 }),
@@ -368,38 +269,6 @@ test("capture rejects foreign tenants, mechanics, mismatched vehicles, revoked s
       "UPDATE orders SET status='quote' WHERE id='o'; DELETE FROM sessions",
     );
     await assert.rejects(importCapture(db, token, product()), /expirada/);
-  } finally {
-    db.close();
-  }
-});
-test("services reuse normalized names and aliases, preserve catalog prices and keep each vehicle time", async () => {
-  const db = fixture();
-  try {
-    db.exec(
-      "INSERT INTO catalog(id,tenant_id,kind,name,sku,cost,price) VALUES('s','a','service','Troca correia dentada','S1',0,9000)",
-    );
-    const a = await beginCapture(db, ctx, "o", "session");
-    await importCapture(db, a.token, service());
-    await finishCapture(db, ctx, "o");
-    assert.equal(db.prepare("SELECT count(*) n FROM catalog").get()!.n, 1);
-    assert.equal(
-      db.prepare("SELECT price FROM catalog WHERE id='s'").get()!.price,
-      9000,
-    );
-    db.exec(
-      "INSERT INTO orders(id,tenant_id,number,kind,status,guest_plate,entered_on,due_on,km,total) VALUES('o2','a',2,'quote','quote','','2026-10-03','2026-10-03',0,0)",
-    );
-    const b = await beginCapture(db, ctx, "o2", "session");
-    await importCapture(db, b.token, {
-      ...service(),
-      duration_seconds: 5400,
-      vehicle: { model: "Palio", year: "2018" },
-    });
-    await finishCapture(db, ctx, "o2");
-    assert.equal(
-      db.prepare("SELECT count(*) n FROM service_times").get()!.n,
-      2,
-    );
   } finally {
     db.close();
   }
@@ -423,10 +292,16 @@ test("extension bearer endpoint works without cookies, requires scoped token and
           Authorization: auth,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(service()),
+        body: JSON.stringify(product()),
       });
       assert.equal(r.status, expected, await r.text());
     }
+    const removed = await fetch(base + "/api/extension/import", {
+      method: "POST",
+      headers: { Origin: "chrome-extension://" + "a".repeat(32), Authorization: "Bearer " + token, "Content-Type": "application/json" },
+      body: JSON.stringify({ capture_id: randomUUID(), source: "tempario", name: "Serviço removido" }),
+    });
+    assert.equal(removed.status, 400);
     const r = await fetch(base + "/api/orders/o/capture-session", {
       method: "POST",
       headers: {

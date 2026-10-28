@@ -973,19 +973,6 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
       ),
     ),
   );
-  app.get("/api/service-times", async (_req, res) => {
-    if (res.locals.context.role !== "owner") {
-      res.status(403).json({ error: "Acesso restrito ao administrador." });
-      return;
-    }
-    res.json(
-      await db
-        .prepare(
-          "SELECT t.*,c.name catalog_name FROM service_times t JOIN catalog c ON c.id=t.catalog_id AND c.tenant_id=t.tenant_id WHERE t.tenant_id=? AND c.archived_at IS NULL ORDER BY t.captured_at DESC LIMIT 2000",
-        )
-        .all(res.locals.context.tenantId),
-    );
-  });
   app.post("/api/orders/:id/share", async (req, res) => {
     const ctx: Context = res.locals.context;
     const record = String(req.params.id);

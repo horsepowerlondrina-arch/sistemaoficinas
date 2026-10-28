@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently -k \"tsx watch server/index.ts\" \"vite --host 127.0.0.1\"",
-    "build": "tsc --noEmit && vite build && node scripts/prepare-public-site.mjs",
+    "build": "tsc --noEmit && node scripts/package-test-extension.mjs && vite build && node scripts/prepare-public-site.mjs",
     "start": "tsx server/index.ts",
     "dev:admin": "tsx watch server/platformAdminIndex.ts",
     "admin:bootstrap": "tsx scripts/platform-admin-bootstrap.ts",

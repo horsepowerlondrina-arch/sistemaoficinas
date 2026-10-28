@@ -1,8 +1,6 @@
 name: Publicar extensão Horse Power
 on:
-  push:
-    branches: [main]
-    paths: [extension/horse-power/manifest.json, public/downloads/horse-power-conector.zip, .github/workflows/publish-extension.yml]
+  # Publishing the commercial Chrome Web Store extension is manual only.
   workflow_dispatch:
 permissions:
   contents: read

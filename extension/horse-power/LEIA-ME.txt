@@ -1,68 +1,14 @@
-HORSE POWER · CONECTOR 1.4.1
+EXTENSÃO — FONTE DO CONECTOR HORSE POWER (SOMENTE SKY PEÇAS)
 
-1. Extraia este ZIP em uma pasta permanente.
-2. No Chrome, abra chrome://extensions e ative o Modo do desenvolvedor.
-3. Clique em Carregar sem compactação e selecione esta pasta.
-4. Desative a extensão antiga para não duplicar os botões dos fornecedores.
-5. Recarregue Horse Power, Sky Peças e Tempario.
+Esta pasta contém a fonte da integração Sky Peças mantida neste repositório.
+Ela não é o pacote da Chrome Web Store e não deve ser publicada automaticamente.
+O pacote INT-015 para testes é gerado separadamente em
+public/downloads/sistema-oficinas-test-extension.zip.
 
-COMO USAR
-- Acesse https://horse-power.vercel.app e entre como administrador.
-- Abra uma OS em elaboração, entre em Editar > Produtos e serviços.
-- Clique em Adicionar produto · Sky Peças ou Adicionar serviço · Tempario.
-  A OS e as alterações atuais serão salvos antes de conectar.
-- Clique em Conectar extensão. A conexão identifica a OS de destino.
-- No Sky Peças e no Tempario, a placa da OS é preenchida automaticamente
-  quando a consulta por placa estiver aberta. O conector não dispara a consulta:
-  confira a placa e use o botão de busca do próprio fornecedor.
-- Você também pode abrir o ícone da extensão > Abrir Tempario com a placa.
-- Se editar a placa manualmente no Sky Peças ou Tempario, o conector preserva
-  sua edição. Use Preencher placa para reaplicar a placa da OS.
-- Abra o fornecedor, entre na sua conta e clique em HP • Enviar em cada item.
-- Cada envio é salvo na OS e no catálogo da Horse Power. Os tempos do
-  Tempario são guardados com marca, modelo e ano disponíveis na captura.
-- Volte à OS e clique em Concluir captura. Confira preços e quantidades.
-- Produtos e serviços também podem ser cadastrados manualmente no catálogo e no atendimento.
-- Os tempos capturados continuam guardados para reutilização; a aba separada foi removida.
+A extensão de teste usa identidade e armazenamento próprios, conecta somente ao
+Sistema Oficinas em homologação e pode ficar instalada junto à extensão comercial
+Horse Power. No Sky Peças, escolha o botão identificado como “S.O. Teste • Enviar”
+para testar o Sistema Oficinas; conexões e itens pendentes são independentes.
 
-CONEXÃO E ENVIO
-A conexão dura até 30 minutos e deixa de funcionar ao sair da conta, encerrar
-ou cancelar/aprovar a OS. Somente um destino fica ativo na extensão.
-O token fica na memória da sessão do Chrome, não contém sua senha e só autoriza
-adicionar itens à OS escolhida. O banco nunca é acessado pela extensão.
-Se houver falha, abra o ícone da extensão e use Tentar envios pendentes.
-Depois de reconectar a mesma OS, os pendentes podem ser reenviados.
-Ao trocar de OS, pendentes antigos não são enviados ao novo destino.
-
-PREÇOS E TEMPOS
-Peças recebem a sugestão da extensão original: acréscimos de 80%, 60%, 50%,
-45%, 40%, 35% ou 30% por faixa de custo, com mínimos nas primeiras faixas.
-O frete do Sky começa em R$ 17,50 por compra e pode ser alterado a qualquer momento,
-inclusive no painel flutuante do Sky. O total é dividido proporcionalmente pelo custo
-das peças enviadas na mesma captura e os custos/preços já enviados são recalculados.
-Serviços preservam o valor total exibido no Tempario e guardam a duração em segundos.
-As capturas não alteram automaticamente preços já existentes no catálogo.
-Cliques repetidos no mesmo item não multiplicam a quantidade; edite-a na OS.
-Estoque Sky é disponibilidade do fornecedor, não entrada de estoque na oficina.
-Para finalizar uma OS com produtos, registre primeiro a entrada física no estoque.
-Custos internos e tempos não são enviados na página pública do cliente.
-
-Os botões leem as telas dos fornecedores; alterações nesses sites podem exigir
-atualização do conector. A conta do fornecedor precisa estar conectada.
-
-PARA ATUALIZAR
-Substitua os arquivos da pasta instalada pelos deste ZIP, clique em Recarregar
-no cartão do Conector Horse Power em chrome://extensions e recarregue as abas
-Horse Power, Sky Peças e Tempario. Conecte novamente a OS.
-
-NOVIDADES 1.3
-- Importe diretamente em Produtos e serviços ou Estoque, sem OS.
-- OS em orçamento e em andamento também recebem itens.
-- No Sky, o frete padrão é R$ 17,50 por compra e pode ser alterado durante a captura.
-- Custo + frete seguem as faixas e ganhos mínimos em Configurações > Lucro das peças.
-- Importar não aumenta o estoque físico. Confirme quantidade, custo e venda em Entrada em estoque.
-- Atualize a extensão em chrome://extensions e recarregue as abas do sistema e dos fornecedores.
-
-1.4.0: captura do departamento e aplicação explícita do produto no Sky Peças. A categoria sugerida pode ser ajustada na Horse Power. Não infere compatibilidade a partir da placa da OS.
-
-1.4.1: fluxo unificado de OS, painéis inicialmente minimizados e controles com ícones. Minimizar preserva a conexão e os envios.
+Consulte o README incluído no ZIP para instalar pelo modo desenvolvedor do Chrome.
+Não desinstale nem substitua a extensão publicada na Chrome Web Store.

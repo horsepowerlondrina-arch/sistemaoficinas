@@ -9,9 +9,8 @@ async function load() {
   document.getElementById("plate").textContent = vehicle.connected
     ? vehicle.plate
       ? "Placa da OS: " + vehicle.plate
-      : "Destino sem placa. Selecione o veículo no Tempario."
+      : "Destino sem placa. Associe um veículo ao orçamento se desejar enviar a placa."
     : "";
-  document.getElementById("tempario").disabled = !vehicle.connected;
   document.getElementById("status").textContent =
     (s.connected
       ? "Conectado: " + (s.label || `OS #${s.number}`)
@@ -22,7 +21,6 @@ async function load() {
 }
 for (const [id, type] of [
   ["open", "HP_OPEN"],
-  ["tempario", "HP_OPEN_TEMPARIO"],
   ["retry", "HP_RETRY"],
   ["clear", "HP_CLEAR_PENDING"],
 ])
