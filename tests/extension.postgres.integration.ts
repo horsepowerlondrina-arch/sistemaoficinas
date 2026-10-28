@@ -55,6 +55,8 @@ test("PostgreSQL RLS permits a renewed Sky token to import once after expiry", a
   async function installRuntimePolicies() {
     policiesInstalled = true;
     await admin.query("DROP POLICY IF EXISTS backend_access ON horse_power.memberships");
+    await admin.query("DROP POLICY IF EXISTS membership_self ON horse_power.memberships");
+    await admin.query("DROP POLICY IF EXISTS membership_platform_admin_transfer_owner ON horse_power.memberships");
     await admin.query("DROP POLICY IF EXISTS backend_access ON horse_power.sessions");
     await admin.query("DROP POLICY IF EXISTS backend_access ON horse_power.capture_sessions");
     await admin.query(`CREATE POLICY membership_self ON horse_power.memberships FOR SELECT TO hp_local_app
@@ -79,9 +81,15 @@ test("PostgreSQL RLS permits a renewed Sky token to import once after expiry", a
 
   async function restoreLocalPolicies() {
     await admin.query("DROP POLICY IF EXISTS membership_self ON horse_power.memberships");
+    await admin.query("DROP POLICY IF EXISTS membership_platform_admin_transfer_owner ON horse_power.memberships");
     await admin.query("DROP POLICY IF EXISTS session_select ON horse_power.sessions");
     await admin.query("DROP POLICY IF EXISTS capture_session_scope ON horse_power.capture_sessions");
-    await admin.query("CREATE POLICY backend_access ON horse_power.memberships FOR ALL TO hp_local_app USING (true) WITH CHECK (true)");
+    await admin.query(`CREATE POLICY membership_self ON horse_power.memberships FOR SELECT TO hp_local_app
+      USING (user_id = NULLIF(current_setting('app.user_id', true), ''))`);
+    await admin.query(`CREATE POLICY membership_platform_admin_transfer_owner ON horse_power.memberships FOR SELECT TO hp_local_app
+      USING (role = 'owner'
+        AND tenant_id = NULLIF(current_setting('app.tenant_id', true), '')
+        AND current_setting('app.platform_admin_transfer', true) = 'on')`);
     await admin.query("CREATE POLICY backend_access ON horse_power.sessions FOR ALL TO hp_local_app USING (true) WITH CHECK (true)");
     await admin.query("CREATE POLICY backend_access ON horse_power.capture_sessions FOR ALL TO hp_local_app USING (true) WITH CHECK (true)");
     policiesInstalled = false;
