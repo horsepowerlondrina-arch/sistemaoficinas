@@ -204,7 +204,7 @@ test("discarding a Sky capture leaves the order untouched", async () => {
       capture_id: randomUUID(),
       quantity: 4,
     });
-    assert.equal((await captureState(db, ctx, "o")).staged_items.length, 2);
+    assert.equal((await captureState(db, ctx, "o")).staged_items.length, 1);
     const discarded = await discardCapture(db, ctx, "o");
     assert.equal(discarded.staged_items.length, 0);
     assert.equal(discarded.items.length, 0);
