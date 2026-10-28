@@ -4,6 +4,7 @@ import { send } from "../lib/api";
 import { money, today, type Entity } from "../lib/types";
 import { Field } from "./ui";
 import { NumericInput } from "./NumericInput";
+import { selectPaymentMethod } from "../../shared/paymentMethod";
 const methods = [
   "Pix",
   "Dinheiro",
@@ -92,18 +93,18 @@ export function MixedPaymentPlan({ receivable, onSaved }: { receivable: Entity; 
                   value={p.method}
                   onChange={(e) => {
                     const method = e.target.value;
-                    change(p.key, {
-                      method,
-                      installments: 1,
-                      interest_bps: 0,
-                      pass_card_fee: method.startsWith("Cartão"),
-                      card_fee_bps:
+                    change(
+                      p.key,
+                      selectPaymentMethod(
+                        p,
+                        method,
                         method === "Cartão de crédito"
                           ? data.payment_settings?.credit_fee_bps || 0
                           : method === "Cartão de débito"
                             ? data.payment_settings?.debit_fee_bps || 0
                             : 0,
-                    });
+                      ),
+                    );
                   }}
                 >
                   {methods

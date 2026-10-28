@@ -60,7 +60,13 @@ import {
   transitionOrder,
 } from "./services/workshop.js";
 import { statuses } from "./domain/orders.js";
-import { configurePlan, settleInstallment, settleCredit } from "./services/payments.js";
+import {
+  configurePlan,
+  settleInstallment,
+  settleCredit,
+  previewReceivableDiscount,
+  updateReceivableDiscount,
+} from "./services/payments.js";
 import {
   cashControl,
   saveCashAccount,
@@ -184,6 +190,10 @@ const paymentSchema = z.object({
   sale_on: date.optional(),
 });
 const receiptPlanSchema = z.union([paymentSchema,z.object({payments:z.array(paymentSchema.extend({amount:integer.refine(v=>v>0,"Informe o valor desta forma de pagamento.")})).min(1).max(6)})]);
+const receiptDiscountSchema = z.object({
+  mode: z.enum(["money", "percent"]),
+  value: integer,
+});
 function requestSecuritySettings(req: express.Request) {
   const loginEmail = req.path === "/login" && typeof req.body?.email === "string"
     ? req.body.email.trim().toLowerCase()
@@ -1254,7 +1264,21 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
       res.locals.context.tenantId,
       String(req.params.id),
     );
-    res.json(calculatePaymentPlan(r.amount, receiptPlanSchema.parse(req.body)));
+    const discount = receiptDiscountSchema.optional().parse(req.body?.discount);
+    const amount = discount
+      ? (await previewReceivableDiscount(db, res.locals.context, String(req.params.id), discount)).total
+      : Number(r.amount);
+    res.json(calculatePaymentPlan(amount, receiptPlanSchema.parse(req.body)));
+  });
+  app.post("/api/receivables/:id/discount", async (req, res) => {
+    res.json(
+      await updateReceivableDiscount(
+        db,
+        res.locals.context,
+        String(req.params.id),
+        receiptDiscountSchema.parse(req.body),
+      ),
+    );
   });
   app.post("/api/receivables/:id/plan", async (req, res) =>
     res.json(

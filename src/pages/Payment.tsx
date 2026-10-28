@@ -1,4 +1,5 @@
 import { nextBankingDay } from "../../shared/bankingDays";
+import { selectPaymentMethod } from "../../shared/paymentMethod";
 import { NumericInput } from "../components/NumericInput";
 import { MixedPaymentPlan } from "../components/MixedPaymentPlan";
 import { useEffect, useState } from "react";
@@ -34,16 +35,52 @@ export function Payment() {
   const [accountId, setAccountId] = useState("");
   const [mixed, setMixed] = useState(false);
   const cashAccounts = (data.cash_accounts || []).filter((a) => a.active);
+  const order = data.orders?.find((item) => item.id === id);
+  const orderSubtotal = (order?.items || []).reduce(
+    (sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0),
+    0,
+  );
+  const [discountMode, setDiscountMode] = useState<"money" | "percent">("money");
+  const [discountValue, setDiscountValue] = useState(0);
+  const [discountSaving, setDiscountSaving] = useState(false);
+  const discountInputValue = Math.round(Math.max(0, Number(discountValue) || 0) * 100);
+  const discountAmount = Math.min(
+    orderSubtotal,
+    discountMode === "percent"
+      ? Math.round((orderSubtotal * discountInputValue) / 10000)
+      : discountInputValue,
+  );
+  const discountedTotal = orderSubtotal - discountAmount;
+  const discountChoice = { mode: discountMode, value: discountInputValue };
+  const discountChanged = !!order &&
+    (discountAmount !== Number(order.discount || 0) || discountedTotal !== Number(order.total || 0));
+  const hasRegisteredPayment = !!original && (
+    original.status === "paid" ||
+    data.installments.some((part) => part.receivable_id === original.id && part.status === "paid")
+  );
   const [preview, setPreview] = useState<Entity | null>(null),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
     [confirm, setConfirm] = useState<Entity | null>(null);
   useEffect(() => {
-    if (!r || r.plan_configured || mixed) return;
+    if (order) {
+      setDiscountMode("money");
+      setDiscountValue(Number(order.discount || 0) / 100);
+    }
+  }, [id, order?.discount]);
+
+  useEffect(() => {
+    if (!r) return;
+    if (discountedTotal <= 0) {
+      setPreview(null);
+      setError("");
+      return;
+    }
+    if (r.plan_configured || mixed) return;
     let current = true;
     setPreview(null);
     const timer = setTimeout(() => {
-      send(`/receivables/${r.id}/preview`, form)
+      send(`/receivables/${r.id}/preview`, { ...form, discount: discountChoice })
         .then((p) => {
           if (current) {
             setPreview(p);
@@ -58,7 +95,7 @@ export function Payment() {
       current = false;
       clearTimeout(timer);
     };
-  }, [r?.id, r?.plan_configured, form, mixed, editingPlan]);
+  }, [r?.id, r?.plan_configured, form, mixed, editingPlan, discountMode, discountInputValue, discountedTotal]);
   if (!r)
     return (
       <Empty
@@ -95,19 +132,17 @@ export function Payment() {
   const card = form.method.startsWith("Cartão"),
     canSplit = ["Cartão de crédito", "Boleto"].includes(form.method);
   const changeMethod = (method: string) =>
-    setForm((f) => ({
-      ...f,
-      method,
-      pass_card_fee: method.startsWith("Cartão"),
-      installments: 1,
-      interest_bps: 0,
-      card_fee_bps:
+    setForm((current) =>
+      selectPaymentMethod(
+        current,
+        method,
         method === "Cartão de crédito"
           ? data.payment_settings?.credit_fee_bps || 0
           : method === "Cartão de débito"
             ? data.payment_settings?.debit_fee_bps || 0
             : 0,
-    }));
+      ),
+    );
   return (
     <>
       <button className="back-link" onClick={() => navigate(`/ordens/${id}`)}>
@@ -118,16 +153,100 @@ export function Payment() {
         title={`Receber OS #${r.order_number}`}
         description={r.customer_name}
       />
+      {order && (
+        <section className="panel work-order-section receipt-discount">
+          <h2>Desconto no recebimento</h2>
+          <div className="payment-summary">
+            <div><span>Subtotal da OS</span><strong>{money(orderSubtotal)}</strong></div>
+            <div><span>Desconto aplicado</span><strong>{money(discountAmount)}</strong></div>
+            <div><span>Total atualizado</span><strong>{money(discountedTotal)}</strong></div>
+          </div>
+          <div className="form-grid">
+            <Field label="Tipo de desconto">
+              <select
+                value={discountMode}
+                disabled={discountSaving || hasRegisteredPayment}
+                onChange={(event) => {
+                  const mode = event.target.value as "money" | "percent";
+                  setDiscountMode(mode);
+                  setDiscountValue(
+                    mode === "percent"
+                      ? orderSubtotal > 0
+                        ? Number(((discountAmount / orderSubtotal) * 100).toFixed(2))
+                        : 0
+                      : discountAmount / 100,
+                  );
+                }}
+              >
+                <option value="money">Em dinheiro (R$)</option>
+                <option value="percent">Percentual (%)</option>
+              </select>
+            </Field>
+            <Field label={discountMode === "percent" ? "Desconto (%)" : "Desconto (R$)"}>
+              <NumericInput
+                type="number"
+                min={0}
+                max={discountMode === "percent" ? 100 : orderSubtotal / 100}
+                step="0.01"
+                value={discountValue}
+                disabled={discountSaving || hasRegisteredPayment}
+                onChange={(event) => setDiscountValue(Math.max(0, Number(event.target.value) || 0))}
+              />
+            </Field>
+          </div>
+          {original?.plan_configured && !hasRegisteredPayment && (
+            <p className="muted">
+              Ao aplicar o desconto, as condições de pagamento ainda não recebidas serão recalculadas.
+            </p>
+          )}
+          {hasRegisteredPayment && (
+            <p className="muted" role="status">
+              O desconto fica bloqueado após um recebimento confirmado para preservar os valores já registrados.
+            </p>
+          )}
+          {discountedTotal === 0 && (
+            <p className="muted" role="status">A OS ficará sem saldo a receber.</p>
+          )}
+          <button
+            className="button primary"
+            disabled={discountSaving || hasRegisteredPayment || !discountChanged}
+            onClick={async () => {
+              if (!original) return;
+              setDiscountSaving(true);
+              setError("");
+              try {
+                const result = await send(`/receivables/${original.id}/discount`, discountChoice);
+                await refresh();
+                setMixed(false);
+                setEditingPlan(false);
+                setPreview(null);
+                notify(result.changed ? "Desconto aplicado e totais atualizados." : "O desconto já estava aplicado.");
+              } catch (cause) {
+                setError((cause as Error).message);
+              } finally {
+                setDiscountSaving(false);
+              }
+            }}
+          >
+            {discountSaving ? "Aplicando..." : "Aplicar desconto"}
+          </button>
+        </section>
+      )}
       {error && (
         <div className="error-box" role="alert">
           {error}
         </div>
       )}
-      {!r.plan_configured && <label className="checkbox-label"><input type="checkbox" checked={mixed} onChange={e=>{setMixed(e.target.checked);setError('');}}/>Dividir entre formas de pagamento</label>}
-      {!!original?.plan_configured && !parts.some(p=>p.status==='paid') && !editingPlan && <button className="button" onClick={()=>{setMixed(true);setEditingPlan(true);}}>Alterar condições de pagamento</button>}
-      {editingPlan && <button className="button" onClick={()=>{setEditingPlan(false);setError('');}}>Cancelar alteração das condições</button>}
-      {!r.plan_configured && mixed && <MixedPaymentPlan receivable={r} onSaved={()=>setEditingPlan(false)} />}
-      {!r.plan_configured && !mixed && (
+      {discountChanged && (
+        <p className="muted" role="status">
+          Aplique o desconto antes de configurar ou confirmar pagamentos.
+        </p>
+      )}
+      {discountedTotal > 0 && !r.plan_configured && <label className="checkbox-label"><input type="checkbox" checked={mixed} disabled={discountChanged} onChange={e=>{setMixed(e.target.checked);setError('');}}/>Dividir entre formas de pagamento</label>}
+      {discountedTotal > 0 && !discountChanged && !!original?.plan_configured && !parts.some(p=>p.status==='paid') && !editingPlan && <button className="button" onClick={()=>{setMixed(true);setEditingPlan(true);}}>Alterar condições de pagamento</button>}
+      {discountedTotal > 0 && editingPlan && <button className="button" onClick={()=>{setEditingPlan(false);setError('');}}>Cancelar alteração das condições</button>}
+      {discountedTotal > 0 && !discountChanged && !r.plan_configured && mixed && <MixedPaymentPlan receivable={r} onSaved={()=>setEditingPlan(false)} />}
+      {discountedTotal > 0 && !r.plan_configured && !mixed && (
         <section className="panel work-order-section">
           <h2>Condições de pagamento</h2>
           {card && (
@@ -230,7 +349,7 @@ export function Payment() {
           </p>
         </section>
       )}
-      {plan && (!mixed || !!r.plan_configured) && (
+      {discountedTotal > 0 && !discountChanged && plan && (!mixed || !!r.plan_configured) && (
         <section className="panel work-order-section">
           <h2>Resumo do recebimento</h2>
           <div className="payment-summary">
@@ -250,7 +369,7 @@ export function Payment() {
           </div>
         </section>
       )}
-      {(!mixed || !!r.plan_configured) && <section className="panel work-order-section">
+      {discountedTotal > 0 && !discountChanged && (!mixed || !!r.plan_configured) && <section className="panel work-order-section">
         <h2>
           {r.status === "paid"
             ? "Recebimento concluído"
@@ -324,7 +443,7 @@ export function Payment() {
         {!r.plan_configured && (
           <button
             className="button primary"
-            disabled={busy || !preview}
+            disabled={busy || !preview || discountChanged}
             onClick={async () => {
               setBusy(true);
               setError("");
@@ -346,6 +465,12 @@ export function Payment() {
           </button>
         )}
       </section>}
+      {discountedTotal <= 0 && (
+        <section className="panel work-order-section">
+          <h2>Recebimento</h2>
+          <p className="muted">Não há saldo a receber enquanto o total da OS permanecer zerado.</p>
+        </section>
+      )}
       {confirm && (
         <Modal
           title={confirm.is_credit ? "Confirmar recebimento total do cartão?" : `Confirmar recebimento de ${confirm.method}?`}
