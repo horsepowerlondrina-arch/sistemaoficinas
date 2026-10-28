@@ -1,7 +1,8 @@
 import { transaction, type DB } from "../db/database.js";
 import type { Context } from "../auth/session.js";
 import { calculatePaymentPlan, type PaymentInput, type MixedPaymentInput } from "../domain/payments.js";
-import { id, scoped, audit } from "./workshop.js";
+import { calculateDiscountAmount } from "../domain/orders.js";
+import { id, scoped, audit, invalidateOrderShares } from "./workshop.js";
 import { cashAccount, cashToday, recordCash } from "./cashControl.js";
 import { nextBankingDay } from "../../shared/bankingDays.js";
 export function requireAdmin(ctx: Context) {
@@ -10,6 +11,97 @@ export function requireAdmin(ctx: Context) {
       status: 403,
     });
 }
+export type ReceiptDiscountInput = { mode: "money" | "percent"; value: number };
+
+async function receiptDiscountState(
+  db: DB,
+  ctx: Context,
+  record: string,
+  input: ReceiptDiscountInput,
+) {
+  const receivable = await scoped(db, "receivables", ctx.tenantId, record);
+  const order = await scoped(db, "orders", ctx.tenantId, String(receivable.order_id));
+  if (order.status !== "completed")
+    throw new Error("O desconto só pode ser ajustado na tela de recebimento de uma OS finalizada.");
+  const row = await db
+    .prepare("SELECT COALESCE(SUM(quantity * price), 0) subtotal FROM order_items WHERE tenant_id=? AND order_id=?")
+    .get(ctx.tenantId, order.id);
+  const subtotal = Number(row?.subtotal || 0);
+  if (!Number.isSafeInteger(subtotal) || subtotal !== Number(order.total) + Number(order.discount || 0))
+    throw new Error("Os itens e o total da OS estão inconsistentes. Revise o atendimento antes de aplicar o desconto.");
+  const discount = calculateDiscountAmount(subtotal, input.mode, input.value);
+  return {
+    receivable,
+    order,
+    subtotal,
+    discount,
+    total: subtotal - discount,
+  };
+}
+
+export async function previewReceivableDiscount(
+  db: DB,
+  ctx: Context,
+  record: string,
+  input: ReceiptDiscountInput,
+) {
+  requireAdmin(ctx);
+  const state = await receiptDiscountState(db, ctx, record, input);
+  return { subtotal: state.subtotal, discount: state.discount, total: state.total };
+}
+
+export async function updateReceivableDiscount(
+  db: DB,
+  ctx: Context,
+  record: string,
+  input: ReceiptDiscountInput,
+) {
+  requireAdmin(ctx);
+  return transaction(db, async () => {
+    const state = await receiptDiscountState(db, ctx, record, input);
+    const { receivable, order, subtotal, discount, total } = state;
+    const previousDiscount = Number(order.discount || 0);
+    if (discount === previousDiscount && total === Number(order.total))
+      return { changed: false, subtotal, discount, total };
+
+    const paidInstallment = await db
+      .prepare("SELECT 1 yes FROM payment_installments WHERE tenant_id=? AND receivable_id=? AND status='paid' LIMIT 1")
+      .get(ctx.tenantId, record);
+    const cashEntry = await db
+      .prepare("SELECT 1 yes FROM cash_entries WHERE tenant_id=? AND receivable_id=? LIMIT 1")
+      .get(ctx.tenantId, record);
+    if (receivable.status === "paid" || paidInstallment || cashEntry)
+      throw new Error("O desconto não pode ser alterado após um recebimento confirmado. Os valores já recebidos foram preservados.");
+
+    const hadPaymentPlan = !!Number(receivable.plan_configured || 0) || !!(await db
+      .prepare("SELECT 1 yes FROM payment_installments WHERE tenant_id=? AND receivable_id=? LIMIT 1")
+      .get(ctx.tenantId, record));
+    if (hadPaymentPlan) {
+      await db
+        .prepare("DELETE FROM payment_installments WHERE tenant_id=? AND receivable_id=? AND status='open'")
+        .run(ctx.tenantId, record);
+    }
+    await db
+      .prepare("UPDATE orders SET discount=?,total=? WHERE tenant_id=? AND id=?")
+      .run(discount, total, ctx.tenantId, order.id);
+    await db
+      .prepare("UPDATE receivables SET amount=?,status='open',paid_at=NULL,plan_configured=0,installment_count=1,card_fee_bps=0,interest_bps=0,gross_total=?,fee_total=0,net_total=?,method='',card_sale_on='' WHERE tenant_id=? AND id=?")
+      .run(total, total, total, ctx.tenantId, record);
+    if (discount !== previousDiscount || total !== Number(order.total))
+      await invalidateOrderShares(db, ctx, String(order.id));
+    await audit(db, ctx, "payment.discount_updated", String(order.id), {
+      mode: input.mode,
+      value: input.value,
+      previous_discount: previousDiscount,
+      discount,
+      previous_total: Number(order.total),
+      total,
+      payment_plan_reset: hadPaymentPlan,
+    });
+    return { changed: true, subtotal, discount, total, payment_plan_reset: hadPaymentPlan };
+  });
+}
+
 export async function configurePlan(
   db: DB,
   ctx: Context,

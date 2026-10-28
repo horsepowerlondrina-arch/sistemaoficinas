@@ -5037,3 +5037,18 @@ body { padding-top: 36px; }
     flex-wrap: wrap;
   }
 }
+
+
+/* OS-007 — keep PDF and state-dependent actions on a shared responsive alignment. */
+.order-view-toolbar > .button,
+.order-view-toolbar > .capture-actions {
+  align-self: center;
+}
+.order-view-toolbar > .capture-actions {
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+}
+.order-view-toolbar > .capture-actions .button {
+  align-self: center;
+}
