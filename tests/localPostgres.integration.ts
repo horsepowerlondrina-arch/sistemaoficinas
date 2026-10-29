@@ -291,8 +291,10 @@ test("PostgreSQL local: autenticação, oficinas, transações e RLS do catálog
     assert.equal(persistedLink.service_model_id,sample.id);
 
     const priorLookupTokens = process.env.FIPEPLACA_TOKENS_JSON;
+    const priorLookupAllowlist = process.env.FIPEPLACA_ALLOWED_TENANT_IDS;
     try {
       process.env.FIPEPLACA_TOKENS_JSON = JSON.stringify({ "local-a": "synthetic-ci-token" });
+      process.env.FIPEPLACA_ALLOWED_TENANT_IDS = "local-a";
       const platePreview = {
         source: "external",
         vehicle: { plate: "QAZ1C23", brand: "Marca Atualizada", model: "Modelo Atualizado", year: 2021, color: "Preto", fipe_code: "", fipe_model: "", fipe_year_id: "" },
@@ -409,6 +411,8 @@ test("PostgreSQL local: autenticação, oficinas, transações e RLS do catálog
     } finally {
       if(priorLookupTokens===undefined) delete process.env.FIPEPLACA_TOKENS_JSON;
       else process.env.FIPEPLACA_TOKENS_JSON=priorLookupTokens;
+      if(priorLookupAllowlist===undefined) delete process.env.FIPEPLACA_ALLOWED_TENANT_IDS;
+      else process.env.FIPEPLACA_ALLOWED_TENANT_IDS=priorLookupAllowlist;
     }
 
     assert.equal((await request("/api/tenant",sessions[0],{tenant_id:"local-b"})).status,403);

@@ -3,7 +3,6 @@
   "framework": "vite",
   "env": {
     "APP_ENV": "development",
-    "ENABLE_PAID_VEHICLE_LOOKUP": "false",
     "EXPECTED_DATABASE_PROJECT": "vnclahdnirqlcbamodqy",
     "APP_ORIGIN": "https://sistema-oficinas-homologacao.vercel.app",
     "APP_ORIGINS": "https://sistema-oficinas-homologacao.vercel.app",
