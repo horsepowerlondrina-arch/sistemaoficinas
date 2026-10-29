@@ -4,6 +4,7 @@ export const workshopModuleKeys = [
   "checklists",
   "customers_vehicles",
   "catalog",
+  "technical_catalog",
   "professionals",
   "suppliers",
   "inventory",
@@ -20,6 +21,7 @@ export const workshopModuleLabels: Record<WorkshopModuleKey, string> = {
   checklists: "Checklists",
   customers_vehicles: "Clientes e veículos",
   catalog: "Produtos e serviços da oficina",
+  technical_catalog: "Catálogo Técnico de Tempos",
   professionals: "Profissionais",
   suppliers: "Fornecedores",
   inventory: "Estoque",
@@ -59,9 +61,12 @@ export function moduleForApiRequest(path: string, method = "GET"): WorkshopModul
     const kind = p.split("/")[2];
     return kind === "checklist" ? ["checklists"] : ["orders"];
   }
+  if (p === "/repair-services/access" || p === "/repair-services/config") return [];
+  if (p === "/repair-services/rates") return ["settings"];
+  if (/^\/vehicles\/catalog-(?:review|backfill\/(?:preview|apply))$/.test(p)) return ["customers_vehicles", "technical_catalog"];
   if (/^\/(?:customers|vehicles)(?:\/|$)/.test(p)) return ["customers_vehicles"];
   if (/^\/catalog-capture(?:\/|$)/.test(p)) return ["inventory","catalog"];
-  if (/^\/repair-services(?:\/|$)/.test(p)) return ["catalog"];
+  if (/^\/repair-services(?:\/|$)/.test(p)) return ["technical_catalog"];
   if (/^\/(?:catalog|product-categories|catalog-batch|workshop-services)(?:\/|$)/.test(p)) return ["catalog"];
   if (/^\/professionals(?:\/|$)/.test(p)) return ["professionals"];
   if (/^\/suppliers(?:\/|$)/.test(p)) return ["suppliers"];
