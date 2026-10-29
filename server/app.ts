@@ -34,6 +34,7 @@ import {
 import express from "express";
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
+import { normalizeVehicleModelLink, serviceModelIdSchema } from "./services/vehicleModelLink.js";
 import { resolve } from "node:path";
 import type { DB } from "./db/database.js";
 import { transaction } from "./db/database.js";
@@ -123,7 +124,7 @@ const schemas = {
     color: text,
     km: integer,
     chassis: text,
-    service_model_id: z.string().uuid().nullable().optional(),
+    service_model_id: serviceModelIdSchema,
     active: z.number().int().min(0).max(1).default(1),
   }),
   catalog: z.object({
@@ -1332,6 +1333,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
     const handler = async (req: express.Request, res: express.Response) => {
       const ctx: Context = res.locals.context;
       const input: Record<string, any> = schemas[table].parse(req.body);
+      if (table === "vehicles") normalizeVehicleModelLink(input);
       const record = req.params.id ? String(req.params.id) : undefined;
       const savedId = await transaction(db, async () => {
         const old = record

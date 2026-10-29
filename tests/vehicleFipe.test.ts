@@ -17,6 +17,7 @@ import {
 } from "../server/services/checklists";
 import { vehicleFipeFields } from "../server/services/vehicleFipeFields";
 import { z } from "zod";
+import { normalizeVehicleModelLink, serviceModelIdSchema } from "../server/services/vehicleModelLink";
 const candidate: FipeCandidate = {
   codigoFipe: "001235-1",
   modelo: "Modelo 1.0",
@@ -265,4 +266,23 @@ test("consulta explícita de veículo já cadastrado reutiliza cache e só gera 
     else process.env.FIPEPLACA_ALLOWED_TENANT_IDS = priorAllowlist;
     db.close();
   }
+});
+
+test("vínculo de modelo trata string vazia legada como ausente e mantém null explícito", () => {
+  const modelId = "d6fa2a0d-947c-4f02-b8d6-c1f3af8e79b2";
+  assert.equal(serviceModelIdSchema.parse(""), undefined);
+  assert.equal(serviceModelIdSchema.parse(null), null);
+  assert.equal(serviceModelIdSchema.parse(modelId), modelId);
+  assert.throws(() => serviceModelIdSchema.parse("modelo-invalido"));
+
+  const legacy = normalizeVehicleModelLink({
+    service_model_id: serviceModelIdSchema.parse(""),
+  });
+  assert.equal(Object.hasOwn(legacy, "service_model_id"), false);
+
+  const explicitClear = normalizeVehicleModelLink({
+    service_model_id: serviceModelIdSchema.parse(null),
+  });
+  assert.equal(Object.hasOwn(explicitClear, "service_model_id"), true);
+  assert.equal(explicitClear.service_model_id, null);
 });
