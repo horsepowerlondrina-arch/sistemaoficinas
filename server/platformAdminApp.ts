@@ -11,7 +11,7 @@ import { hashPassword } from "./auth/session.js";
 import { isTestAdminPasswordOnlyLoginAllowed } from "./platformAdminMfa.js";
 import { catalogHomologationProjectId } from "./catalogHomologation.js";
 import { workshopRegistrationSchema, workshopStatusChangeSchema, canManuallyTransitionWorkshop, effectiveWorkshopStatus, workshopStatuses } from "./services/platformWorkshops.js";
-import { newWorkshopActivationId, newWorkshopActivationToken, sendWorkshopActivationEmail, workshopActivationTtlHours } from "./services/workshopActivation.js";
+import { newWorkshopActivationId, newWorkshopActivationToken, sendWorkshopActivationEmail, workshopActivationTtlHours, workshopActivationUrl } from "./services/workshopActivation.js";
 import { createPlatformAdminDataTransferRoutes } from "./platformAdminDataTransferRoutes.js";
 import type { PlatformAdminDataTransfer } from "./services/platformAdminDataTransfer.js";
 
@@ -89,7 +89,7 @@ type PreparedWorkshopInvitation = {
   token: string;
   expiresAt: Date;
   workshop: { name: string; responsible_email: string };
-} | { status: 404 | 409 | 429 };
+} | { status: 404 } | { status: 409 } | { status: 429 };
 
 async function prepareWorkshopInvitation(
   pool: Pool, tenantId: string, actor: AdminContext,
