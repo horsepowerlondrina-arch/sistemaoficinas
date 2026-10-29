@@ -4604,6 +4604,8 @@ body { padding-top: 36px; }
 .repair-result {display:grid;gap:6px;min-width:0;}
 .repair-result > .button,.button.repair-result {display:grid;text-align:left;white-space:normal;justify-items:start;overflow-wrap:anywhere;padding:12px;}
 .repair-result small {display:block;color:var(--muted,#64748b);font-weight:400;}
+.workshop-services-filter-row > .button,
+.service-category-create > .button {align-self:flex-end;flex:0 0 auto;height:40px;min-height:40px;}
 .repair-model,.repair-model-search,.repair-selection {padding:16px;border:1px solid #e2e8f0;border-radius:10px;display:grid;gap:10px;min-width:0;}
 .repair-picker .capture-actions {flex-wrap:wrap;}
 .repair-picker label:has(> input[type=checkbox]) {display:flex;gap:8px;align-items:center;}
