@@ -451,6 +451,43 @@ export function createPlatformAdminApp(pool: Pool, encryptionKey: string, transf
       : undefined;
     res.json({ ...rows.rows[0], ...(catalogAccess ? { catalog_access:catalogAccess } : {}), ...(invitations.get(tenantId) || { invitation_status:"none", invitation_expires_at:null, invitation_sent_at:null }) });
   });
+  app.get("/admin-api/workshops/:id/entitlements", requireSession, requirePermission("workshops:read"), async (req,res) => {
+    try {
+      const result = await pool.query("SELECT platform_admin.workshop_entitlement_status($1) AS entitlements", [String(req.params.id)]);
+      res.json(result.rows[0]?.entitlements || {});
+    } catch (error) {
+      if ((error as {code?:string}).code === "P0002") { res.status(404).json({error:"Oficina não encontrada."}); return; }
+      throw error;
+    }
+  });
+  app.put("/admin-api/workshops/:id/entitlements", requireSession, requirePermission("workshops:manage"), async (req,res) => {
+    const input = z.object({
+      module_overrides: z.record(z.string(),z.boolean()),
+      max_users: z.number().int().min(1).max(10000).nullable(),
+      trial_days: z.number().int().min(1).max(90).nullable(),
+      reason: z.string().trim().min(10).max(500),
+    }).strict().safeParse(req.body);
+    if (!input.success) { res.status(400).json({error:"Confira as permissões, limites e justificativa informados."}); return; }
+    const token = cookieValue(req);
+    if (!token) { res.status(401).json({error:"Entre no painel central."}); return; }
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      const result = await client.query(
+        "SELECT platform_admin.set_workshop_entitlements($1,$2,$3::jsonb,$4,$5,$6) AS entitlements",
+        [String(req.params.id),digestAdminToken(token),JSON.stringify(input.data.module_overrides),input.data.max_users,input.data.trial_days,input.data.reason],
+      );
+      await client.query("COMMIT");
+      res.json({ok:true,entitlements:result.rows[0]?.entitlements||{}});
+    } catch (error) {
+      await client.query("ROLLBACK").catch(()=>{});
+      const code=(error as {code?:string}).code;
+      if (code==="42501") { res.status(403).json({error:"Permissão administrativa insuficiente."}); return; }
+      if (code==="P0002") { res.status(404).json({error:"Oficina não encontrada."}); return; }
+      if (code==="22023") { res.status(400).json({error:"Permissões, limites ou justificativa inválidos."}); return; }
+      throw error;
+    } finally { client.release(); }
+  });
   app.patch("/admin-api/workshops/:id/catalog-access", requireSession, requirePermission("modules:manage"), async (req,res) => {
     const input=z.object({enabled:z.boolean(),valid_until:z.string().datetime().nullable().optional(),reason:z.string().trim().min(10).max(500)}).strict().safeParse(req.body);
     if(!input.success){res.status(400).json({error:"Informe a situação, validade e justificativa do módulo."});return;}

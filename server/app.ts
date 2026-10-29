@@ -37,6 +37,7 @@ import { z } from "zod";
 import { normalizeVehicleModelLink, serviceModelIdSchema } from "./services/vehicleModelLink.js";
 import { resolve } from "node:path";
 import type { DB } from "./db/database.js";
+import { defaultWorkshopModules, moduleForApiRequest, workspaceForModules } from "../shared/workshopModules.js";
 import { transaction } from "./db/database.js";
 import {
   auth,
@@ -426,6 +427,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
         )
         .all(ctx.userId),
       role: ctx.role,
+      modules: ctx.modules || defaultWorkshopModules,
     });
   });
   app.post("/api/logout", async (req, res) => {
@@ -452,10 +454,6 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
     res.json({ ok: true });
   });
   app.use("/api", (req, res, next) => {
-    if (req.path === "/admin-api" || req.path.startsWith("/admin-api/")) {
-      next();
-      return;
-    }
     if (
       res.locals.context.role === "owner" ||
       (/^\/documents\/order\/[^/]+$/.test(req.path) && ["GET","POST"].includes(req.method)) ||
@@ -468,14 +466,28 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
     }
     res.status(403).json({ error: "Esta área é exclusiva do administrador." });
   });
-  // Complete workshop transfers are available only through the separately authenticated central-admin API.
-  app.get("/api/workspace", async (_req, res) => {
-    const tenant = res.locals.context.tenantId;
-    if (res.locals.context.role !== "owner") {
-      res.json(await mechanicWorkspace(db, tenant));
+  app.use("/api", (req, res, next) => {
+    if (req.path === "/admin-api" || req.path.startsWith("/admin-api/")) { next(); return; }
+    const required = moduleForApiRequest(req.path);
+    if (required === null) { res.status(404).json({ error: "Rota indisponível." }); return; }
+    const modules = (res.locals.context as Context).modules || defaultWorkshopModules;
+    if (required.some((key) => modules[key] === false)) {
+      res.status(403).json({ error: "Esta funcionalidade não está habilitada para a oficina." });
       return;
     }
-    res.json({
+    next();
+  });
+  // Complete workshop transfers are available only through the separately authenticated central-admin API.
+  app.get("/api/workspace", async (_req, res) => {
+    const context: Context = res.locals.context;
+    const tenant = context.tenantId;
+    const modules = context.modules || defaultWorkshopModules;
+    if (context.role !== "owner") {
+      const workspace = await mechanicWorkspace(db, tenant);
+      res.json({ ...workspaceForModules(workspace as Record<string, unknown>, modules), modules });
+      return;
+    }
+    const workspace = {
       catalog_mode:
         (
           await db
@@ -538,7 +550,8 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
           "SELECT s.*,c.name product_name,u.name user_name FROM stock_movements s JOIN catalog c ON c.id=s.catalog_id AND c.tenant_id=s.tenant_id JOIN users u ON u.id=s.user_id WHERE s.tenant_id=? ORDER BY s.created_at DESC",
         )
         .all(tenant),
-    });
+    };
+    res.json({ ...workspaceForModules(workspace, modules), modules });
   });
   app.get("/api/checklists", async (_req, res) => {
     res.json(await listChecklists(db, res.locals.context));

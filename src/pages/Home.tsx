@@ -14,6 +14,7 @@ import {
   ArrowUpRight as Receive,
 } from "lucide-react";
 import { useApp } from "../lib/context";
+import { uiModuleForPath } from "../../shared/workshopModules";
 
 const sections = [
   {
@@ -109,9 +110,11 @@ export function Home() {
         <p>Escolha uma área para cuidar da sua oficina.</p>
       </header>
       {sections.map((section) => {
-        const items = section.items.filter(
-          (item) => admin || item.to === "/ordens",
-        );
+        const items = section.items.filter((item) => {
+          if (!admin && item.to !== "/ordens") return false;
+          const module = uiModuleForPath(item.to);
+          return !module || session.modules?.[module] !== false;
+        });
         if (!items.length) return null;
         return (
           <section

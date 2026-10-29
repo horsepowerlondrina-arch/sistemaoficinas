@@ -30,6 +30,7 @@ export interface DB {
   withTenantRead?<T>(tenant: string, callback: () => Promise<T>): Promise<T>;
   withTenantServiceRead?<T>(tenant: string, callback: () => Promise<T>): Promise<T>;
   getTenantAccessState?(tenant: string): Promise<string>;
+  getTenantModuleAccess?(tenant: string): Promise<Record<string, boolean>>;
   lockTenantMutations?(tenant: string): Promise<void>;
   prepare(sql: string): {
     get(...values: any[]): MaybePromise<Row | undefined>;

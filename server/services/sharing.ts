@@ -29,6 +29,8 @@ export async function readShare(db:DB,token:string):Promise<(PublicOrderDocument
  if(!link)return null;
  await db.setRequestIdentity?.(String(link.tenant_id), "public");
  const accessState=await db.getTenantAccessState?.(String(link.tenant_id))||"legacy";
+ const modules=await db.getTenantModuleAccess?.(String(link.tenant_id));
+ if(modules?.orders===false)return null;
  if(["pending_verification","blocked","archived"].includes(accessState))return null;
  await scoped(db,"orders",link.tenant_id,link.order_id);
  if(!link.document_revision)return{historical_unavailable:true,shop:workshopIdentity({name:"Identidade histórica não registrada"}),payment_summary:null};

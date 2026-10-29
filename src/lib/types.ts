@@ -21,6 +21,7 @@ export type Order = Entity & {
   items: Entity[];
 };
 export interface Workspace {
+  modules?: Record<string, boolean>;
   parts_pricing?: {
     mode: "legacy" | "markup" | "margin";
     rate_bps: number;
@@ -53,6 +54,7 @@ export interface Session {
   tenant: Entity;
   tenants: Entity[];
   role: string;
+  modules?: Record<string, boolean>;
 }
 export const money = (value: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(

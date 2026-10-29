@@ -7,7 +7,8 @@ import {
 import type { DB } from "../db/database.js";
 import { tenantAccessDecision } from "./tenantAccess.js";
 import type { Request, Response, NextFunction } from "express";
-export type Context = { userId: string; tenantId: string; role: string };
+import { defaultWorkshopModules } from "../../shared/workshopModules.js";
+export type Context = { userId: string; tenantId: string; role: string; modules?: Record<string, boolean> };
 export function hashPassword(password: string) {
   const salt = randomBytes(16).toString("hex");
   return `${salt}:${scryptSync(password, salt, 64).toString("hex")}`;
@@ -77,7 +78,8 @@ export function auth(db: DB) {
       res.status(403).json({ error: "Esta oficina está em modo somente leitura." });
       return;
     }
-    res.locals.context = { ...session, role: membership.role };
+    const modules = await db.getTenantModuleAccess?.(String(session.tenantId)) || { ...defaultWorkshopModules };
+    res.locals.context = { ...session, role: membership.role, modules };
     next();
   };
 }
