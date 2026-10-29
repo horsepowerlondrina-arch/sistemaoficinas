@@ -742,3 +742,74 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
     </>
   );
 }
+
+export function ServiceExecutionFields({
+  item,
+  onChange,
+}: {
+  item: Entity;
+  onChange: (updates: Record<string, any>) => void;
+}) {
+  const detail = item.service_details || {};
+  if (detail.service_type === "private") {
+    return <small className="muted">Serviço próprio · O preço desta OS/orçamento pode ser alterado sem mudar o cadastro.</small>;
+  }
+  const execution = item.service_execution || detail.execution || "internal";
+  const cost = Number(item.service_cost ?? item.cost ?? 0),
+    markup = Number(detail.markup_bps ?? 3000),
+    minutes = Number(item.service_minutes ?? detail.minutes ?? 0),
+    rate = Number(detail.hourly_rate || 0);
+  function update(mode: string, value: number) {
+    onChange({
+      service_execution: mode,
+      service_cost: mode === "internal" ? 0 : value,
+      cost: mode === "internal" ? 0 : value,
+      price:
+        mode === "outsourced"
+          ? Math.round((value * (10000 + markup)) / 10000)
+          : rate > 0 && minutes > 0
+            ? Math.round((minutes * rate) / 60)
+            : item.price,
+    });
+  }
+  return (
+    <>
+      {execution === "outsourced" && (
+        <Field label="Custo do terceiro (R$)">
+          <NumericInput
+            type="number"
+            min="0"
+            step="0.01"
+            value={cost / 100}
+            onChange={(e) =>
+              update(execution, Math.round(Number(e.target.value) * 100))
+            }
+          />
+        </Field>
+      )}
+      {execution === "internal" && !detail.minutes && (
+        <Field label="Tempo nesta OS (minutos)">
+          <NumericInput
+            type="number"
+            min="0"
+            step="0.01"
+            value={minutes}
+            onChange={(e) =>
+              onChange({
+                service_minutes: Number(e.target.value),
+                price:
+                  rate > 0
+                    ? Math.round((Number(e.target.value) * rate) / 60)
+                    : item.price,
+              })
+            }
+          />
+        </Field>
+      )}
+      <small className="muted">
+        {minutes} min · Hora utilizada: {money(rate)} · Ajustes de custo e preço
+        valem somente para esta OS.
+      </small>
+    </>
+  );
+}
