@@ -589,3 +589,32 @@ test("nova inclusão técnica exige revisar vínculo de veículo divergente", as
     assert.equal(f.db.prepare("SELECT service_model_id FROM vehicles WHERE tenant_id='a' AND id='v'").get()!.service_model_id, f.model);
   } finally { f.db.close(); }
 });
+
+test("revisão separa cadastro completo, incompleto, inconsistente e correspondência ambígua sem escrever", async () => {
+  const f = fixture();
+  try {
+    f.db.prepare("UPDATE vehicles SET brand='Marca',model='Modelo 2',year=2020,fipe_code='' WHERE tenant_id='a' AND id='v'").run();
+    f.db.prepare("INSERT INTO vehicles(id,tenant_id,customer_id,plate,brand,model,year) VALUES('incomplete','a','c','ABC1D24','','Modelo 2',2020)").run();
+    f.db.prepare("INSERT INTO vehicles(id,tenant_id,customer_id,plate,brand,model,year) VALUES('invalid-plate','a','c','ABC123','Marca','Modelo 2',2020)").run();
+    f.db.prepare("INSERT INTO vehicles(id,tenant_id,customer_id,plate,brand,model,year,fipe_code) VALUES('ambiguous','a','c','ABC1D25','Marca','Modelo','2020','123456-7')").run();
+    f.db.prepare("INSERT INTO vehicles(id,tenant_id,customer_id,plate,brand,model,year,fipe_code) VALUES('fipe-conflict','a','c','ABC1D27','Marca','Modelo 2',2020,'999999-9')").run();
+    f.db.prepare("INSERT INTO vehicles(id,tenant_id,customer_id,plate,brand,model,year,service_model_id) VALUES('mismatched-link','a','c','ABC1D26','Outra','Modelo 1',2020,?)").run(f.model);
+
+    const page = await previewVehicleCatalogReview(f.db, ctx, { limit: 50 });
+    assert.equal(page.dry_run, true);
+    const byId = new Map(page.items.map((item) => [String(item.vehicle.id), item]));
+    assert.equal(byId.get("v")?.data_quality, "complete");
+    assert.equal(byId.get("v")?.catalog_status, "matched");
+    assert.equal(byId.get("incomplete")?.data_quality, "incomplete");
+    assert.equal(byId.get("incomplete")?.catalog_status, "not_evaluated");
+    assert.equal(byId.get("invalid-plate")?.data_quality, "inconsistent");
+    assert.equal(byId.get("ambiguous")?.data_quality, "complete");
+    assert.equal(byId.get("ambiguous")?.catalog_status, "ambiguous");
+    assert.equal(byId.get("fipe-conflict")?.data_quality, "inconsistent");
+    assert.equal(byId.get("fipe-conflict")?.catalog_status, "inconsistent");
+    assert.equal(byId.get("mismatched-link")?.data_quality, "inconsistent");
+    assert.equal(byId.get("mismatched-link")?.catalog_status, "inconsistent");
+    assert.equal(f.db.prepare("SELECT service_model_id FROM vehicles WHERE tenant_id='a' AND id='v'").get()?.service_model_id, "");
+    assert.equal(f.db.prepare("SELECT count(*) n FROM orders WHERE tenant_id='a'").get()!.n, 0);
+  } finally { f.db.close(); }
+});
