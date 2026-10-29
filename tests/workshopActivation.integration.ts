@@ -146,7 +146,7 @@ test("PostgreSQL: convites de ativação, teste grátis, idempotência e isolame
     assert.equal(manualBadOrigin.status,403);
     const manualResponse = await post(`/admin-api/workshops/${manualWorkshop.tenantId}/manual-activation-link`,
       {identity_verified:true,verification_method:"in_person"}, manageSessionToken);
-    assert.equal(manualResponse.status,200);
+    assert.equal(manualResponse.status,200,`manual invite request failed${lastQueryError ? `: ${lastQueryError.code || ""} ${lastQueryError.message || ""}` : ""}`);
     const manualBody = await manualResponse.json() as {activation_url:string;invitation_expires_at:string};
     const manualUrl = new URL(manualBody.activation_url);
     const manualToken = manualUrl.hash.slice(1);
