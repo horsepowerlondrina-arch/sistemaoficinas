@@ -99,178 +99,128 @@ export function LaborRates() {
     </section>
   );
 }
-function ServiceForm({
-  info,
+export function WorkshopServiceForm({
   initial,
-  porteId,
-  commercialCategoryId,
   onClose,
   onSaved,
 }: {
-  info: Info;
   initial?: Entity;
-  porteId: string;
-  commercialCategoryId: string;
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (service: Entity) => void;
 }) {
   const [form, setForm] = useState({
-    name: initial?.name || "",
-    execution: initial?.execution || "internal",
-    commercial_category_id: initial?.commercial_category_id || commercialCategoryId || "",
-    pricing_mode: initial?.pricing_mode || "time",
-    minutes: Number(initial?.minutes || 0),
+    name: String(initial?.name || ""),
+    description: String(initial?.description || ""),
     price: Number(initial?.price || 0),
-    cost: Number(initial?.cost || 0),
+    cost: initial && initial.cost_known !== 0 ? Number(initial.cost || 0) : null as number | null,
   });
-  const [error, setError] = useState(""),
-    [busy, setBusy] = useState(false);
-  const rate = Number(
-    info.categories.find((p) => p.id === form.commercial_category_id)?.hourly_rate || 0,
-  );
-  const set = (key: string, value: any) =>
-    setForm((f) => ({ ...f, [key]: value }));
-  const calculatedPrice =
-    form.execution === "outsourced"
-      ? Math.round((form.cost * (10000 + info.service_markup_bps)) / 10000)
-      : form.pricing_mode === "time"
-        ? Math.round((form.minutes * rate) / 60)
-        : form.price;
-  const calculatedMinutes =
-    form.pricing_mode === "price" && rate > 0
-      ? Math.round(((form.price * 60) / rate) * 10000) / 10000
-      : form.minutes;
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
   return (
     <Modal
-      title={
-        initial ? "Editar serviço da oficina" : "Cadastrar serviço da oficina"
-      }
-      description="O serviço pertence somente a esta oficina e usa o porte escolhido."
+      title={initial ? "Editar serviço próprio" : "Cadastrar serviço próprio"}
+      description="Serviço particular desta oficina. O valor cadastrado será sugerido em cada orçamento e OS."
       onClose={onClose}
     >
       <div className="modal-body">
         <div className="form-grid">
           <Field label="Nome do serviço" full>
-            <input
-              value={form.name}
-              maxLength={300}
-              onChange={(e) => set("name", e.target.value)}
-            />
+            <input value={form.name} maxLength={300} onChange={(e) => setForm((v) => ({ ...v, name: e.target.value }))} />
           </Field>
-          <Field label="Execução">
-            <select
-              value={form.execution}
-              onChange={(e) => set("execution", e.target.value)}
-            >
-              <option value="internal">Interno</option>
-              <option value="outsourced">Terceirizado</option>
-            </select>
+          <Field label="Descrição (opcional)" full>
+            <textarea value={form.description} maxLength={1000} rows={3} onChange={(e) => setForm((v) => ({ ...v, description: e.target.value }))} />
           </Field>
-          <Field label="Porte">
-            <select
-              value={form.commercial_category_id}
-              onChange={(e) => set("commercial_category_id", e.target.value)}
-            >
-              <option value="">Selecione o porte</option>
-              {info.categories.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
+          <Field label="Valor de venda (R$)">
+            <input type="number" min="0.01" step="0.01" value={form.price / 100} onChange={(e) => setForm((v) => ({ ...v, price: Math.round(Number(e.target.value) * 100) }))} />
           </Field>
-          {form.execution === "internal" ? (
-            <>
-              <Field label="Informar por">
-                <select
-                  value={form.pricing_mode}
-                  onChange={(e) => set("pricing_mode", e.target.value)}
-                >
-                  <option value="time">Tempo em minutos</option>
-                  <option value="price">Preço de venda</option>
-                </select>
-              </Field>
-              {form.pricing_mode === "time" ? (
-                <Field label="Tempo (minutos)">
-                  <NumericInput
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={form.minutes}
-                    onChange={(e) => set("minutes", Number(e.target.value))}
-                  />
-                </Field>
-              ) : (
-                <Field label="Preço de venda (R$)">
-                  <NumericInput
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={form.price / 100}
-                    onChange={(e) =>
-                      set("price", Math.round(Number(e.target.value) * 100))
-                    }
-                  />
-                </Field>
-              )}
-              <p className="field full">
-                {rate > 0
-                  ? `${calculatedMinutes.toLocaleString("pt-BR")} min · ${money(calculatedPrice)} · Hora: ${money(rate)}`
-                  : "Configure o valor da hora deste porte antes de salvar."}
-              </p>
-            </>
-          ) : (
-            <>
-              <Field label="Custo do terceiro (R$)">
-                <NumericInput
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={form.cost / 100}
-                  onChange={(e) =>
-                    set("cost", Math.round(Number(e.target.value) * 100))
-                  }
-                />
-              </Field>
-              <p>
-                Preço sugerido: {money(calculatedPrice)} · Acréscimo{" "}
-                {info.service_markup_bps / 100}%
-              </p>
-            </>
-          )}
+          <Field label="Custo interno (R$, opcional)">
+            <input type="number" min="0" step="0.01" value={form.cost === null ? "" : form.cost / 100} onChange={(e) => setForm((v) => ({ ...v, cost: e.target.value === "" ? null : Math.round(Number(e.target.value) * 100) }))} />
+          </Field>
         </div>
-        {error && (
-          <p className="form-error" role="alert">
-            {error}
-          </p>
-        )}
-        <button
-          type="button"
-          className="button primary"
-        disabled={busy || !form.commercial_category_id || (form.execution === "internal" && rate <= 0)}
-          onClick={async () => {
-            setBusy(true);
-            setError("");
-            try {
-              await send(
-                initial
-                  ? `/workshop-services/${initial.id}`
-                  : "/workshop-services",
-                form,
-                initial ? "PUT" : "POST",
-              );
-              onSaved();
-            } catch (e) {
-              setError((e as Error).message);
-            } finally {
-              setBusy(false);
-            }
-          }}
-        >
-          Salvar serviço
-        </button>
+        {error && <p className="form-error" role="alert">{error}</p>}
+        <div className="capture-actions">
+          <button type="button" className="button" onClick={onClose} disabled={busy}>Cancelar</button>
+          <button
+            type="button"
+            className="button primary"
+            disabled={busy || form.name.trim().length < 2 || !Number.isSafeInteger(form.price) || form.price < 1}
+            onClick={async () => {
+              setBusy(true); setError("");
+              try {
+                const result = await send(
+                  initial ? `/workshop-services/${initial.id}` : "/workshop-services",
+                  { service_type: "private", name: form.name, description: form.description, price: form.price, ...(form.cost === null ? {} : { cost: form.cost }) },
+                  initial ? "PUT" : "POST",
+                ) as { id?: string };
+                onSaved({ ...initial, ...form, id: initial?.id || result.id, cost: form.cost ?? 0, cost_known: form.cost === null ? 0 : 1, active: 1, service_type: "private" } as Entity);
+              } catch (e) {
+                setError((e as Error).message);
+              } finally { setBusy(false); }
+            }}
+          >
+            Salvar serviço
+          </button>
+        </div>
       </div>
     </Modal>
+  );
+}
+export function WorkshopServices() {
+  const [rows, setRows] = useState<Entity[]>([]);
+  const [query, setQuery] = useState("");
+  const [status, setStatus] = useState<"active" | "inactive" | "all">("active");
+  const [editing, setEditing] = useState<Entity | null | undefined>(undefined);
+  const [error, setError] = useState("");
+  const [revision, setRevision] = useState(0);
+  const [loading, setLoading] = useState(false);
+  useEffect(() => {
+    let active = true;
+    const timer = window.setTimeout(() => {
+      setLoading(true); setError("");
+      const params = new URLSearchParams({ q: query, status });
+      api<{ items: Entity[] }>("/workshop-services?" + params)
+        .then((result) => active && setRows(result.items))
+        .catch((e) => active && setError(e.message))
+        .finally(() => active && setLoading(false));
+    }, 200);
+    return () => { active = false; window.clearTimeout(timer); };
+  }, [query, status, revision]);
+  const refresh = () => setRevision((value) => value + 1);
+  return (
+    <>
+      <PageHeading title="Serviços Próprios" eyebrow="CADASTROS" description="Cadastre os serviços particulares desta oficina, separados do Catálogo Técnico." />
+      <section className="panel work-order-section">
+        <div className="capture-actions">
+          <Field label="Pesquisar serviços">
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Nome do serviço" />
+          </Field>
+          <Field label="Situação">
+            <select value={status} onChange={(e) => setStatus(e.target.value as typeof status)}>
+              <option value="active">Ativos</option><option value="inactive">Inativos</option><option value="all">Todos</option>
+            </select>
+          </Field>
+          <button type="button" className="button primary" onClick={() => setEditing(null)}>Novo serviço próprio</button>
+        </div>
+        {error && <p className="form-error" role="alert">{error}</p>}
+        {loading ? <p role="status">Buscando serviços…</p> : rows.length ? (
+          <div className="repair-results">
+            {rows.map((row) => (
+              <div className="repair-result" key={row.id}>
+                <div><strong>{row.name}</strong>{row.description ? <small>{row.description}</small> : null}<small>Venda: {money(Number(row.price || 0))} · Custo interno: {row.cost_known === 0 ? "não informado" : money(Number(row.cost || 0))}</small></div>
+                <div className="capture-actions">
+                  <button type="button" className="text-button" onClick={() => setEditing(row)}>Editar</button>
+                  <button type="button" className="text-button" onClick={async () => {
+                    try { await send(`/workshop-services/${row.id}/status`, { active: !row.active }, "PATCH"); refresh(); }
+                    catch (e) { setError((e as Error).message); }
+                  }}>{row.active ? "Inativar" : "Reativar"}</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : <p>Nenhum serviço encontrado.</p>}
+      </section>
+      {editing !== undefined && <WorkshopServiceForm initial={editing || undefined} onClose={() => setEditing(undefined)} onSaved={() => { setEditing(undefined); refresh(); }} />}
+    </>
   );
 }
 const normalizeCatalogValue = (value: string) => value.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase().trim();
@@ -431,7 +381,7 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
     setLoading(true);
     const timer = setTimeout(() => {
       const params = new URLSearchParams({ q: search, offset: String(offset) });
-      if (commercialCategory) params.set("category_id", commercialCategory);
+      if (mode === "catalog" && commercialCategory) params.set("category_id", commercialCategory);
       api(mode === "catalog" ? `/repair-services/models/${modelId}/services?${params}` : `/workshop-services?${params}`)
         .then((v) => { if (active) { setRows(v.items); setMore(v.has_more); setServiceActiveIndex(initialCatalogOptionIndex(v.items.length)); } })
         .catch((e) => active && setError(e.message)).finally(() => active && setLoading(false));
@@ -451,15 +401,11 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
     const priceValue = values.price ?? Number(row.price || 0);
     const pricingMode = values.inputMode ?? String(row.pricing_mode || "time");
     const hourlyRate = Number(info?.categories.find((category) => category.id === categoryId)?.hourly_rate || 0);
-    if (!canAddRepairServiceImmediately({
-      execution: executionValue,
-      cost: costValue,
-      minutes: minutesValue,
-      hourlyRate,
-      price: priceValue,
-      pricingMode,
-      hasCategory: !!categoryId,
+    if (mode === "catalog" && !canAddRepairServiceImmediately({
+      execution: executionValue, cost: costValue, minutes: minutesValue,
+      hourlyRate, price: priceValue, pricingMode, hasCategory: !!categoryId,
     })) return false;
+    if (mode === "manual" && (!Number.isSafeInteger(priceValue) || priceValue < 1)) return false;
     setAdding(true);
     setError("");
     try {
@@ -472,7 +418,7 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
         service_execution: executionValue,
         service_cost: costValue,
         ...(minutesValue > 0 ? { service_minutes: minutesValue } : {}),
-        ...(pricingMode === "price" && priceValue > 0 ? { manual_price: priceValue } : {}),
+        ...(mode === "manual" || (pricingMode === "price" && priceValue > 0) ? { manual_price: priceValue } : {}),
       };
       const preview = await send("/repair-services/preview", selection);
       onAdd({
@@ -505,15 +451,12 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
       setAdding(false);
     }
   }
-  const readyToAdd = selected ? canAddRepairServiceImmediately({
-    execution,
-    cost,
-    minutes,
-    hourlyRate: rate,
-    price,
-    pricingMode: inputMode,
-    hasCategory: !!commercialCategory,
-  }) : false;
+  const readyToAdd = selected ? mode === "manual"
+    ? Number.isSafeInteger(price) && price >= 1
+    : canAddRepairServiceImmediately({
+        execution, cost, minutes, hourlyRate: rate, price,
+        pricingMode: inputMode, hasCategory: !!commercialCategory,
+      }) : false;
   function closeDropdowns() { setBrandOpen(false); setModelOpen(false); setServiceOpen(false); }
   function openBrandDropdown() {
     if (brandLocked) return;
@@ -524,7 +467,7 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
     setBrandOpen(false); setModelOpen(true); setServiceOpen(false);
   }
   function openServiceDropdown() {
-    if (!modelId || (mode === "catalog" && linkStatus === "mismatch")) return;
+    if ((mode === "catalog" && !modelId) || (mode === "catalog" && linkStatus === "mismatch")) return;
     setBrandOpen(false); setModelOpen(false); setServiceOpen(true);
   }
   function toggleBrandDropdown() { if (brandOpen) setBrandOpen(false); else openBrandDropdown(); }
@@ -543,13 +486,9 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
     if (row.commercial_category_id) setCommercialCategory(row.commercial_category_id);
     setExecution(nextExecution); setCost(nextCost); setMinutes(nextMinutes);
     setPrice(nextPrice); setInputMode(nextInputMode); setError("");
-    if (onAdd) void addService(row, {
-      execution: nextExecution,
-      cost: nextCost,
-      minutes: nextMinutes,
-      price: nextPrice,
-      inputMode: nextInputMode,
-      commercialCategoryId: categoryId,
+    if (onAdd && mode === "catalog") void addService(row, {
+      execution: nextExecution, cost: nextCost, minutes: nextMinutes,
+      price: nextPrice, inputMode: nextInputMode, commercialCategoryId: categoryId,
     });
   }
   function chooseBrand(row: Entity) {
@@ -649,8 +588,8 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
     <>
       <section className="repair-picker" ref={pickerRef}>
       {!vehicleOnly && <div className="tabs">
-        <button type="button" className={mode === "catalog" ? "active" : ""} disabled={!info?.enabled} onClick={() => { closeDropdowns(); setSelected(null); setMode("catalog"); setOffset(0); }}>Catálogo de tempos</button>
-        <button type="button" className={mode === "manual" ? "active" : ""} onClick={() => { closeDropdowns(); setSelected(null); setMode("manual"); setOffset(0); }}>Serviços da oficina</button>
+        <button type="button" className={mode === "catalog" ? "active" : ""} disabled={!info?.enabled} onClick={() => { closeDropdowns(); setSelected(null); setMode("catalog"); setOffset(0); }}>Catálogo Técnico</button>
+        <button type="button" className={mode === "manual" ? "active" : ""} onClick={() => { closeDropdowns(); setSelected(null); setMode("manual"); setOffset(0); }}>Serviços Próprios</button>
       </div>}
       {!vehicleOnly && !info?.enabled && info && <p role="status">{info.catalog_status === "active" ? "Não foi possível consultar o Catálogo Técnico agora." : catalogStatusMessage[info.catalog_status]} Seus serviços particulares continuam disponíveis.</p>}
       {vehicleOnly && !info && <p className="muted" role="status">Verificando acesso ao Catálogo Técnico…</p>}
@@ -682,48 +621,14 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
        </>}
       {shouldShowWorkshopServices(mode, vehicleOnly) && (
         <>
-          <Field label="Porte do serviço">
-            <select
-              value={commercialCategory}
-              onChange={(e) => {
-                setCommercialCategory(e.target.value);
-                setOffset(0);
-              }}
-            >
-              <option value="">Selecione o porte</option>
-              {info?.categories.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
+          <div className="capture-actions">
+            <button type="button" className="button" onClick={() => setEditing(null)}>Cadastrar serviço próprio</button>
+          </div>
+          <Field label="Pesquisar serviços próprios">
+            <input ref={serviceInputRef} value={search} onChange={(e) => { setSearch(e.target.value); setOffset(0); setSelected(null); }} placeholder="Digite o nome do serviço" />
           </Field>
-          <button
-            type="button"
-            className="button"
-            disabled={!info}
-            onClick={() => setEditing(null)}
-          >
-            Cadastrar serviço da oficina
-          </button>
         </>
       )}
-      {shouldShowWorkshopServices(mode, vehicleOnly) && <Field label="Buscar serviço">
-        <input
-          ref={serviceInputRef}
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setOffset(0);
-          }}
-          placeholder="Nome do serviço"
-        />
-      </Field>}
-      {!vehicleOnly && <p className="muted">
-        {commercialCategory ? `Hora do porte: ${money(rate)}. ` : ""}
-        {commercialCategory && rate <= 0 ? "Tarifa não configurada. " : ""}
-        <Link to="/configuracoes?aba=servicos">Configurar valores da hora</Link>
-      </p>}
       {error && (
         <p className="form-error" role="alert">
           {error}
@@ -751,9 +656,8 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
                 onClick={() => choose(row)}
               >
                 <strong>{row.name}</strong>
-                <small>
-                  {`${row.execution === "outsourced" ? "Terceirizado" : "Interno"} · ${row.porte_name || "Todos os portes"}`}
-                </small>
+                <small>{mode === "manual" ? money(Number(row.price || 0)) : (row.execution === "outsourced" ? "Terceirizado" : "Interno") + " · " + (row.porte_name || "Todos os portes")}</small>
+                {mode === "manual" && row.description ? <small>{row.description}</small> : null}
               </button>
               {shouldShowWorkshopServices(mode, vehicleOnly) && (
                 <div className="capture-actions">
@@ -798,174 +702,43 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
       {selected && onAdd && (
         <div className="repair-selection" aria-live="polite">
           <h4>{selected.name}</h4>
-          <div className="form-grid">
-            {execution === "outsourced" ? (
-              <Field label="Custo do terceiro (R$)">
-                <NumericInput
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={cost / 100}
-                  onChange={(e) =>
-                    setCost(Math.round(Number(e.target.value) * 100))
-                  }
-                />
+          {mode === "manual" ? (
+            <>
+              {selected.description ? <p>{selected.description}</p> : null}
+              <Field label="Valor nesta OS/orçamento (R$)">
+                <NumericInput type="number" min="0.01" step="0.01" value={price / 100} onChange={(e) => setPrice(Math.round(Number(e.target.value) * 100))} />
               </Field>
-            ) : (
-              (Number(selected.minutes) === 0 || rate <= 0) && (
-                <>
-                  <Field label="Informar por">
-                    <select
-                      value={inputMode}
-                      onChange={(e) => setInputMode(e.target.value)}
-                    >
-                      <option value="time">Tempo</option>
-                      <option value="price">Preço</option>
-                    </select>
-                  </Field>
-                  {inputMode === "time" ? (
-                    <Field label="Tempo (minutos)">
-                      <NumericInput
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={minutes}
-                        onChange={(e) => setMinutes(Number(e.target.value))}
-                      />
-                    </Field>
-                  ) : (
-                    <Field label="Preço de venda (R$)">
-                      <NumericInput
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={price / 100}
-                        onChange={(e) =>
-                          setPrice(Math.round(Number(e.target.value) * 100))
-                        }
-                      />
-                    </Field>
-                  )}
+            </>
+          ) : (
+            <div className="form-grid">
+              {execution === "outsourced" ? (
+                <Field label="Custo do terceiro (R$)"><NumericInput type="number" min="0" step="0.01" value={cost / 100} onChange={(e) => setCost(Math.round(Number(e.target.value) * 100))} /></Field>
+              ) : (
+                (Number(selected.minutes) === 0 || rate <= 0) && <>
+                  <Field label="Informar por"><select value={inputMode} onChange={(e) => setInputMode(e.target.value)}><option value="time">Tempo</option><option value="price">Preço</option></select></Field>
+                  {inputMode === "time" ? <Field label="Tempo (minutos)"><NumericInput type="number" min="0" step="0.01" value={minutes} onChange={(e) => setMinutes(Number(e.target.value))} /></Field> : <Field label="Preço de venda (R$)"><NumericInput type="number" min="0" step="0.01" value={price / 100} onChange={(e) => setPrice(Math.round(Number(e.target.value) * 100))} /></Field>}
                 </>
-              )
-            )}
-          </div>
-          <button
-            type="button"
-            className="button primary"
-            disabled={adding || loading || !readyToAdd}
-            onClick={() => { void addService(selected!, {
-              execution,
-              cost,
-              minutes,
-              price,
-              inputMode,
-              commercialCategoryId: commercialCategory,
-              porteId: porte,
-            }); }}
-          >
+              )}
+            </div>
+          )}
+          <button type="button" className="button primary" disabled={adding || loading || !readyToAdd} onClick={() => { void addService(selected!, { execution, cost, minutes, price, inputMode, commercialCategoryId: commercialCategory, porteId: porte }); }}>
             Adicionar serviço
           </button>
         </div>
       )}
-      {!vehicleOnly && editing !== undefined && info && (
-        <ServiceForm
-          info={info}
-          initial={editing || undefined}
-          porteId={porte}
-          commercialCategoryId={commercialCategory}
-          onClose={() => setEditing(undefined)}
-          onSaved={() => {
-            setEditing(undefined);
-            setRevision((v) => v + 1);
-          }}
-        />
+      {!vehicleOnly && editing !== undefined && (
+        <WorkshopServiceForm initial={editing || undefined} onClose={() => setEditing(undefined)} onSaved={(service) => {
+          setEditing(undefined); setRevision((v) => v + 1);
+          if (onAdd) {
+            setMode("manual"); setSearch(String(service.name || "")); setSelected(service);
+            setExecution("internal"); setCost(Number(service.cost || 0)); setMinutes(0);
+            setPrice(Number(service.price || 0)); setInputMode("price"); setError("");
+          }
+        }} />
       )}
+
     </section>
       {dropdownContent}
-    </>
-  );
-}
-export function WorkshopServices() {
-  const [model, setModel] = useState("");
-  return (
-    <>
-      <PageHeading
-        title="Serviços"
-        eyebrow="CADASTROS"
-        description="Catálogo de tempos e serviços particulares da oficina."
-      />
-      <div className="panel work-order-section">
-        <RepairServicePicker modelId={model} onModelChange={setModel} />
-      </div>
-    </>
-  );
-}
-
-export function ServiceExecutionFields({
-  item,
-  onChange,
-}: {
-  item: Entity;
-  onChange: (updates: Record<string, any>) => void;
-}) {
-  const detail = item.service_details || {};
-  const execution = item.service_execution || detail.execution || "internal";
-  const cost = Number(item.service_cost ?? item.cost ?? 0),
-    markup = Number(detail.markup_bps ?? 3000),
-    minutes = Number(item.service_minutes ?? detail.minutes ?? 0),
-    rate = Number(detail.hourly_rate || 0);
-  function update(mode: string, value: number) {
-    onChange({
-      service_execution: mode,
-      service_cost: mode === "internal" ? 0 : value,
-      cost: mode === "internal" ? 0 : value,
-      price:
-        mode === "outsourced"
-          ? Math.round((value * (10000 + markup)) / 10000)
-          : rate > 0 && minutes > 0
-            ? Math.round((minutes * rate) / 60)
-            : item.price,
-    });
-  }
-  return (
-    <>
-      {execution === "outsourced" && (
-        <Field label="Custo do terceiro (R$)">
-          <NumericInput
-            type="number"
-            min="0"
-            step="0.01"
-            value={cost / 100}
-            onChange={(e) =>
-              update(execution, Math.round(Number(e.target.value) * 100))
-            }
-          />
-        </Field>
-      )}
-      {execution === "internal" && !detail.minutes && (
-        <Field label="Tempo nesta OS (minutos)">
-          <NumericInput
-            type="number"
-            min="0"
-            step="0.01"
-            value={minutes}
-            onChange={(e) =>
-              onChange({
-                service_minutes: Number(e.target.value),
-                price:
-                  rate > 0
-                    ? Math.round((Number(e.target.value) * rate) / 60)
-                    : item.price,
-              })
-            }
-          />
-        </Field>
-      )}
-      <small className="muted">
-        {minutes} min · Hora utilizada: {money(rate)} · Ajustes de custo e preço
-        valem somente para esta OS.
-      </small>
     </>
   );
 }
