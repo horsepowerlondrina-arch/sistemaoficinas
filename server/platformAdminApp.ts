@@ -170,7 +170,15 @@ function approvedActivationOrigin(req: Request) {
     process.env.APP_ORIGIN,
     ...(process.env.APP_ORIGINS || "").split(",").map(value => value.trim()),
   ].filter((value): value is string => Boolean(value)));
-  return allowed.has(origin) ? origin : null;
+  if (!allowed.has(origin)) return null;
+  try {
+    const parsed = new URL(origin);
+    if (parsed.origin !== origin || parsed.username || parsed.password
+      || (parsed.protocol !== "https:" && !["localhost", "127.0.0.1"].includes(parsed.hostname))) return null;
+  } catch {
+    return null;
+  }
+  return origin;
 }
 export function createPlatformAdminApp(pool: Pool, encryptionKey: string, transfer?: PlatformAdminDataTransfer) {
   const app = express(); app.disable("x-powered-by"); app.use(noCache); app.use(express.json({ limit: "32kb" }));
