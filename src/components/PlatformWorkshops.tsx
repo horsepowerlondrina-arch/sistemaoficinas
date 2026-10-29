@@ -194,7 +194,7 @@ export function PlatformWorkshops({ canManage, canManageModules, canTransfer, ca
   </section>;
 
   if (selected) return <div className="pa-workshop-detail">
-    <section className="pa-card"><div className="pa-section-title"><div><button className="pa-back-button" onClick={() => { setSelected(null); closeManualActivation(); }}><ArrowLeft size={15}/> Voltar à lista</button><h2>{selected.name}</h2><p>{selected.tenant_id}</p></div><span className={`pa-status ${selected.status === "trial" || selected.status === "active" ? "is-active" : ""}`}>{labels[selected.status]}</span></div>
+    <section className="pa-card"><div className="pa-section-title"><div><button className="pa-back-button" disabled={busy} onClick={() => { setSelected(null); closeManualActivation(); }}><ArrowLeft size={15}/> Voltar à lista</button><h2>{selected.name}</h2><p>{selected.tenant_id}</p></div><span className={`pa-status ${selected.status === "trial" || selected.status === "active" ? "is-active" : ""}`}>{labels[selected.status]}</span></div>
       {canManage && selected.source !== "legacy" && <button className="pa-quiet" disabled={busy} onClick={() => { setFields(toFields(selected)); setEditing(true); }}><ShieldCheck size={15}/> Editar dados</button>}
       <dl className="pa-workshop-data"><div><dt>Responsável</dt><dd>{selected.responsible_name || "Não informado"}</dd></div><div><dt>E-mail</dt><dd>{selected.responsible_email || "Não informado"}</dd></div><div><dt>Telefone</dt><dd>{selected.phone || "Não informado"}</dd></div><div><dt>CPF/CNPJ</dt><dd>{selected.document || "Não informado"}</dd></div><div><dt>Origem</dt><dd>{selected.source === "legacy" ? "Cadastro anterior" : "Painel administrativo"}</dd></div><div><dt>Cadastro</dt><dd>{localDate(selected.created_at)}</dd></div><div><dt>Convite</dt><dd>{invitationLabels[selected.invitation_status]}{selected.invitation_sent_at ? ` · ${localDate(selected.invitation_sent_at)}` : ""}{selected.invitation_expires_at && selected.invitation_status !== "used" ? ` · expira ${localDate(selected.invitation_expires_at)}` : ""}</dd></div><div><dt>E-mail confirmado</dt><dd>{localDate(selected.email_verified_at)}</dd></div><div><dt>Início do teste</dt><dd>{localDate(selected.trial_started_at)}</dd></div><div><dt>Fim do teste</dt><dd>{localDate(selected.trial_ends_at)}{selected.trial_days_remaining !== null && selected.trial_days_remaining !== undefined ? ` · ${selected.trial_days_remaining} dia(s) restantes` : ""}</dd></div><div><dt>Identificador</dt><dd>{selected.tenant_id}</dd></div></dl>
       {canManageModules && selected.catalog_access && <section className="pa-workshop-state-form" aria-labelledby="catalog-access-title">
@@ -216,7 +216,7 @@ export function PlatformWorkshops({ canManage, canManageModules, canTransfer, ca
     {canTransfer && selected && <section className="pa-card"><PlatformDataTransfer tenantId={selected.tenant_id} workshopName={selected.name} environmentLabel={environmentLabel} canRequestCritical={canRequestCritical} canApproveCritical={canApproveCritical} /></section>}
     {manualActivation && <div
       role="presentation"
-      onClick={event => { if (event.target === event.currentTarget) closeManualActivation(); }}
+      onClick={event => { if (!busy && event.target === event.currentTarget) closeManualActivation(); }}
       style={{ position:"fixed", inset:0, zIndex:1000, display:"grid", placeItems:"center", padding:16, background:"rgba(15,23,42,.55)" }}
     >
       <section
@@ -229,7 +229,7 @@ export function PlatformWorkshops({ canManage, canManageModules, canTransfer, ca
       >
         <div className="pa-section-title">
           <div><h2 id="manual-activation-title">{manualActivation.mode === "confirm" ? "Gerar link manual de ativação" : "Link de ativação — exibição única"}</h2></div>
-          <button type="button" className="pa-quiet" aria-label="Fechar e apagar o link da tela" onClick={closeManualActivation}><X size={16}/></button>
+          <button type="button" className="pa-quiet" aria-label="Fechar e apagar o link da tela" disabled={busy} onClick={closeManualActivation}><X size={16}/></button>
         </div>
         {manualActivation.mode === "confirm" ? <>
           <p>Antes de continuar, confirme que verificou fora do sistema a titularidade da oficina e a autorização de quem receberá o link. A pessoa que concluir o fluxo poderá criar o acesso do responsável cadastrado e iniciar o teste grátis.</p>
