@@ -11,6 +11,28 @@ test("PostgreSQL local: autenticação, oficinas, transações e RLS do catálog
   t.after(()=>db.close());
   const credentialsPath=process.env.LOCAL_TEST_CREDENTIALS_FILE || "data/local-credentials.json";
   const credentials=JSON.parse(readFileSync(credentialsPath,"utf8"));
+  await t.test("migração de serviços próprios preserva isolamento e impede nomes duplicados normalizados", async () => {
+    const { adminClient } = await import("../scripts/local-admin");
+    const admin = adminClient(); await admin.connect();
+    try {
+      const columns = await admin.query(`SELECT column_name FROM information_schema.columns
+        WHERE table_schema='horse_power' AND table_name='workshop_services'
+          AND column_name IN ('description','cost_known','service_type','name_key')`);
+      assert.deepEqual(columns.rows.map((row: any) => row.column_name).sort(), ["cost_known","description","name_key","service_type"]);
+      await admin.query("BEGIN");
+      const first = "00000000-0000-4000-8000-000000000101";
+      const second = "00000000-0000-4000-8000-000000000102";
+      const third = "00000000-0000-4000-8000-000000000103";
+      const insert = "INSERT INTO horse_power.workshop_services(id,tenant_id,name,name_key,description,service_type,execution,minutes,price,cost,cost_known,pricing_mode) VALUES($1,$2,$3,$4,'','private','internal',0,1000,0,0,'price')";
+      await admin.query(insert, [first,"local-a","Revisão elétrica","revisao eletrica"]);
+      await admin.query(insert, [second,"local-b","Revisao eletrica","revisao eletrica"]);
+      await assert.rejects(admin.query(insert, [third,"local-a","REVISÃO ELÉTRICA","revisao eletrica"]), { code: "23505" });
+      await admin.query("ROLLBACK");
+    } catch (error) {
+      await admin.query("ROLLBACK").catch(() => {});
+      throw error;
+    } finally { await admin.end(); }
+  });
   await t.test("migração PostgreSQL registra metadados de auditoria de veículos",async()=>{
     const {adminClient}=await import("../scripts/local-admin");
     const admin=adminClient(); await admin.connect();

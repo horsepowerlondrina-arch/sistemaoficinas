@@ -10,6 +10,7 @@ import {
   resolveService,
   saveWorkshopService,
   listWorkshopServices,
+  setWorkshopServiceActive,
   saveLaborRates,
   identifyVehicleModel,
   previewVehicleCatalogReview,
@@ -364,6 +365,74 @@ test("os quatro portes do próprio modelo escolhem as quatro tarifas sem tabela 
     f.db.prepare("UPDATE service_catalog.classifications SET name='SUV Médio' WHERE id=?").run(f.portes.pesado);
     await assert.rejects(resolveService(f.db, ctx, { repair_service_id: f.service, repair_model_id: f.model }), /quatro portes/);
   } finally { f.db.close(); }
+});
+
+test("serviço próprio simples não exige porte nem tempo, pesquisa sem acento e mantém custo opcional", async () => {
+  const f = fixture();
+  try {
+    const id = await saveWorkshopService(f.db, ctx, {
+      service_type: "private",
+      name: "Higienização de ar-condicionado",
+      description: "Limpeza completa do sistema.",
+      price: 7200,
+    });
+    const stored = f.db.prepare("SELECT * FROM workshop_services WHERE tenant_id=? AND id=?").get("a", id)!;
+    assert.equal(stored.commercial_category_id, null);
+    assert.equal(stored.minutes, 0);
+    assert.equal(stored.price, 7200);
+    assert.equal(stored.cost_known, 0);
+    assert.equal(stored.service_type, "private");
+    assert.equal(stored.description, "Limpeza completa do sistema.");
+    assert.equal((await listWorkshopServices(f.db, ctx, { q: "higienizacao" })).items[0].id, id);
+    assert.equal((await listWorkshopServices(f.db, { ...ctx, tenantId: "b" }, { status: "all" })).items.length, 0);
+    await assert.rejects(saveWorkshopService(f.db, ctx, {
+      service_type: "private", name: "  HIGIENIZACAO   DE AR-CONDICIONADO ", price: 7200,
+    }), /Já existe um serviço/);
+    const otherTenant = await saveWorkshopService(f.db, { ...ctx, tenantId: "b" }, {
+      service_type: "private", name: "Higienização de ar-condicionado", price: 7200,
+    });
+    assert.ok(otherTenant);
+    const preview = await resolveService(f.db, ctx, { workshop_service_id: id });
+    assert.equal(preview.price, 7200);
+    assert.equal(preview.minutes, 0);
+    assert.equal(preview.cost_known, false);
+    assert.equal((await resolveService(f.db, ctx, { workshop_service_id: id, manual_price: 8000 })).price, 8000);
+    await setWorkshopServiceActive(f.db, ctx, id, false);
+    assert.equal((await listWorkshopServices(f.db, ctx, {})).items.length, 0);
+    assert.equal((await listWorkshopServices(f.db, ctx, { status: "inactive" })).items[0].id, id);
+    await setWorkshopServiceActive(f.db, ctx, id, true);
+    assert.equal((await listWorkshopServices(f.db, ctx, {})).items[0].id, id);
+  } finally {
+    f.db.close();
+  }
+});
+test("snapshot de serviço próprio mantém nome, descrição, preço configurado e custo após edição do cadastro", async () => {
+  const f = fixture();
+  try {
+    const service = await saveWorkshopService(f.db, ctx, {
+      service_type: "private", name: "Limpeza de bicos", description: "Original", price: 6400, cost: 1200,
+    });
+    const orderId = await saveOrder(f.db, ctx, {
+      status: "quote", customer_id: "c", vehicle_id: "v", entered_on: "2026-10-25", due_on: "2026-10-25",
+      km: 0, discount: 0, notes: "", problem: "",
+      items: [{ id: randomUUID(), workshop_service_id: service, manual_price: 7000, price: 7000, quantity: 1 }],
+    });
+    const before = (await listOrders(f.db, "a")).find((o) => o.id === orderId)!.items[0];
+    assert.equal(before.service_details.name, "Limpeza de bicos");
+    assert.equal(before.service_details.description, "Original");
+    assert.equal(before.service_details.fixed_price, 6400);
+    assert.equal(before.service_details.cost_known, true);
+    await saveWorkshopService(f.db, ctx, {
+      service_type: "private", name: "Limpeza avançada", description: "Atualizada", price: 9900,
+    }, service);
+    const after = (await listOrders(f.db, "a")).find((o) => o.id === orderId)!.items[0];
+    assert.equal(after.service_details.name, before.service_details.name);
+    assert.equal(after.service_details.description, before.service_details.description);
+    assert.equal(after.service_details.fixed_price, before.service_details.fixed_price);
+    assert.equal(after.price, 7000);
+  } finally {
+    f.db.close();
+  }
 });
 
 test("serviço particular na OS usa sua tarifa apesar do porte legado em cache no veículo", async () => {

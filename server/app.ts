@@ -81,7 +81,7 @@ import { getWorkshopProfile, saveWorkshopProfile } from "./services/workshopProf
 import { calculatePaymentPlan, paymentMethods } from "./domain/payments.js";
 import { lookupVehicle, lookupVehicleExternal, normalizePlate, providerToken } from "./services/vehicleLookup.js";
 import { vehicleFipeFields } from "./services/vehicleFipeFields.js";
-import { serviceInfo, saveLaborRates, searchBrands, searchModels, repairModel, identifyVehicleModel, confirmVehicleModel, catalogAccessState, searchRepairServices, listWorkshopServices, saveWorkshopService, resolveService, serviceSelectionSchema, withTenantScope, previewVehicleCatalogReview } from './services/repairCatalog.js';
+import { serviceInfo, saveLaborRates, searchBrands, searchModels, repairModel, identifyVehicleModel, confirmVehicleModel, catalogAccessState, searchRepairServices, listWorkshopServices, saveWorkshopService, setWorkshopServiceActive, resolveService, serviceSelectionSchema, withTenantScope, previewVehicleCatalogReview } from './services/repairCatalog.js';
 const text = z.string().trim().max(500).default("");
 const name = z
   .string()
@@ -1171,6 +1171,11 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
   app.put('/api/workshop-services/:id',async(req,res)=>res.json({id:await transaction(db,async()=>{const key=await saveWorkshopService(db,res.locals.context,req.body,String(req.params.id));await audit(db,res.locals.context,'workshop_service.updated',key);return key;})}));
   app.delete('/api/workshop-services/:id',async(req,res)=>{
     await transaction(db,async()=>withTenantScope(db,res.locals.context,async()=>{await scoped(db,'workshop_services',res.locals.context.tenantId,String(req.params.id));await db.prepare('UPDATE workshop_services SET active=0 WHERE tenant_id=? AND id=?').run(res.locals.context.tenantId,String(req.params.id));await audit(db,res.locals.context,'workshop_service.removed',String(req.params.id));}));res.json({ok:true});
+  });
+  app.patch('/api/workshop-services/:id/status',async(req,res)=>{
+    const input=z.object({active:z.boolean()}).parse(req.body);
+    await transaction(db,async()=>{await setWorkshopServiceActive(db,res.locals.context,String(req.params.id),input.active);await audit(db,res.locals.context,input.active?'workshop_service.reactivated':'workshop_service.inactivated',String(req.params.id));});
+    res.json({ok:true});
   });
   app.post('/api/repair-services/preview',async(req,res)=>res.json(await resolveService(db,res.locals.context,req.body)));
   app.post('/api/repair-services/reprice',async(req,res)=>{
