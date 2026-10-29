@@ -31,8 +31,8 @@ test("PostgreSQL: permissões administrativas por oficina, limites, período de 
       [tenantId,"Oficina Fictícia Permissões",email,startedAt,endAt],
     );
     await client.query(
-      "INSERT INTO platform_admin.administrators(id,email,display_name,role,permissions,active,enrolled) " +
-      "VALUES($1,$2,'Admin Fictício','principal','[\"workshops:manage\"]'::jsonb,true,true)",
+      "INSERT INTO platform_admin.administrators(id,email,display_name,role,permissions,password_hash,totp_secret_ciphertext,active,enrolled) " +
+      "VALUES($1,$2,'Admin Fictício','principal','[\"workshops:manage\"]'::jsonb,'fixture-hash','fixture-totp-ciphertext',true,true)",
       [adminId,"admin-" + tenantId + "@example.test"],
     );
     await client.query("INSERT INTO platform_admin.sessions(token_hash,administrator_id,expires_at) VALUES($1,$2,now()+interval '1 hour')",[sessionHash,adminId]);
