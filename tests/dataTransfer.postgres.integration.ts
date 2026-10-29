@@ -247,7 +247,7 @@ test("PostgreSQL local: import repetido em outra oficina remapeia IDs globais se
   const targetOne = randomUUID(), userOne = randomUUID(), targetTwo = randomUUID(), userTwo = randomUUID();
   const sourceTenantId = randomUUID(), sourceUserId = randomUUID();
   const categoryId = randomUUID(), customerId = randomUUID(), vehicleId = randomUUID(), professionalId = randomUUID();
-  const catalogId = randomUUID(), orderId = randomUUID(), itemId = randomUUID(), receivableId = randomUUID();
+  const catalogId = randomUUID(), orderId = randomUUID(), itemId = randomUUID(), receivableId = randomUUID(), serviceTimeId = randomUUID();
   const installmentId = randomUUID(), cashEntryId = randomUUID(), revisionId = randomUUID();
   const sessionHash = randomUUID().replaceAll("-", "");
   const phrase = "frase-ficticia-colisao-ids-globais";
@@ -278,6 +278,7 @@ test("PostgreSQL local: import repetido em outra oficina remapeia IDs globais se
         vehicles: [{ id: vehicleId, tenant_id: sourceTenantId, customer_id: customerId, plate: "FIC1T23", brand: "Marca Fictícia", model: "Modelo Fictício", year: 2024, color: "", km: 1000, chassis: "", active: 1, service_model_id: "", service_porte_id: "" }],
         professionals: [{ id: professionalId, tenant_id: sourceTenantId, name: "Profissional Fictício", role: "Mecânico", phone: "", email: "", active: 1 }],
         catalog: [{ id: catalogId, tenant_id: sourceTenantId, kind: "product", name: "Produto Fictício", sku: "FICT-COLLISION-01", category: "Categoria Fictícia", cost: 5000, price: 8000, stock: 2, minimum_stock: 0, active: 1 }],
+        service_times: [{ id: serviceTimeId, tenant_id: sourceTenantId, catalog_id: catalogId, capture_id: "capture-time-fake-001", source: "fixture", service_name: "Serviço fictício", make: "Marca fictícia", model: "Modelo fictício", vehicle_year: "2024", engine: "1.0", duration_seconds: 3600, source_price: 8000, captured_at: "2026-10-21T10:00:00.000Z" }],
         orders: [{ id: orderId, tenant_id: sourceTenantId, number: 77, customer_id: customerId, vehicle_id: vehicleId, status: "completed", entered_on: "2026-10-20", due_on: "2026-10-21", completed_on: "2026-10-21", km: 1000, problem: "Serviço fictício", notes: "", discount: 0, total: 8000, created_at: "2026-10-20T10:00:00.000Z" }],
         order_items: [{ id: itemId, tenant_id: sourceTenantId, order_id: orderId, catalog_id: catalogId, professional_id: professionalId, kind: "product", name: "Produto Fictício", quantity: 1, price: 8000, cost: 5000 }],
         receivables: [{ id: receivableId, tenant_id: sourceTenantId, order_id: orderId, customer_id: customerId, description: "OS fictícia 77", amount: 8000, due_on: "2026-10-21", status: "paid", method: "Pix", paid_at: "2026-10-21T10:00:00.000Z", plan_configured: 1, installment_count: 1, card_fee_bps: 0, interest_bps: 0, gross_total: 8000, fee_total: 0, net_total: 8000 }],
@@ -302,6 +303,7 @@ test("PostgreSQL local: import repetido em outra oficina remapeia IDs globais se
       return {
         category: await db.prepare("SELECT id FROM product_categories WHERE tenant_id=? AND name_key=?").get(targetTwo,"categoria-ficticia"),
         catalog: await db.prepare("SELECT id FROM catalog WHERE tenant_id=?").get(targetTwo),
+        serviceTime: await db.prepare("SELECT id,catalog_id FROM service_times WHERE tenant_id=? AND capture_id=?").get(targetTwo,"capture-time-fake-001"),
         professional: await db.prepare("SELECT id FROM professionals WHERE tenant_id=?").get(targetTwo),
         customer: await db.prepare("SELECT id FROM customers WHERE tenant_id=? AND name=?").get(targetTwo,"Cliente Fictício"),
         vehicle: await db.prepare("SELECT id,customer_id FROM vehicles WHERE tenant_id=?").get(targetTwo),
@@ -323,11 +325,14 @@ test("PostgreSQL local: import repetido em outra oficina remapeia IDs globais se
     assert.notEqual(actual.installment?.id,installmentId);
     assert.notEqual(actual.entry?.id,cashEntryId);
     assert.notEqual(actual.document?.id,revisionId);
+    assert.notEqual(actual.serviceTime?.id,serviceTimeId);
     assert.equal(actual.vehicle?.customer_id,actual.customer?.id);
     assert.equal(actual.order?.customer_id,actual.customer?.id);
     assert.equal(actual.order?.vehicle_id,actual.vehicle?.id);
     assert.equal(actual.item?.order_id,actual.order?.id);
     assert.equal(actual.item?.catalog_id,actual.catalog?.id);
+    assert.equal(actual.serviceTime?.catalog_id,actual.catalog?.id);
+    assert.equal((await admin.query("SELECT catalog_id FROM horse_power.service_times WHERE tenant_id=$1 AND id=$2",[targetOne,serviceTimeId])).rows[0].catalog_id,catalogId);
     assert.equal(actual.item?.professional_id,actual.professional?.id);
     assert.equal(actual.receivable?.order_id,actual.order?.id);
     assert.equal(actual.receivable?.customer_id,actual.customer?.id);
