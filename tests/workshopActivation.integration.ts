@@ -67,7 +67,7 @@ test("PostgreSQL: convites de ativação, teste grátis, idempotência e isolame
         status text NOT NULL, email_verified_at timestamptz, trial_started_at timestamptz,
         trial_ends_at timestamptz, status_reason text NOT NULL DEFAULT '', updated_at timestamptz NOT NULL DEFAULT now());
       CREATE TABLE ${pa}.audit_events(
-        id text PRIMARY KEY, actor_administrator_id text, subject_tenant_id text,
+        id text PRIMARY KEY, actor_administrator_id text, subject_administrator_id text, subject_tenant_id text,
         actor_email text, action text NOT NULL, result text NOT NULL, technical_context jsonb NOT NULL DEFAULT '{}');
       CREATE TABLE ${hp}.users(id text PRIMARY KEY,name text NOT NULL,email text NOT NULL UNIQUE,password_hash text NOT NULL);
       CREATE TABLE ${hp}.memberships(user_id text NOT NULL,tenant_id text NOT NULL,role text NOT NULL,PRIMARY KEY(user_id,tenant_id));
