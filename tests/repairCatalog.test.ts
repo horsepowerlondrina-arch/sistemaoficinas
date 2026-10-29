@@ -618,3 +618,57 @@ test("revisão separa cadastro completo, incompleto, inconsistente e correspond�
     assert.equal(f.db.prepare("SELECT count(*) n FROM orders WHERE tenant_id='a'").get()!.n, 0);
   } finally { f.db.close(); }
 });
+
+test("prévia tolera ano zero, inválido, ausente e campos legados longos sem alterar veículos ou OS", async () => {
+  const f = fixture();
+  try {
+    f.db.prepare("UPDATE vehicles SET brand='Marca',model='Modelo 2',year=2020,fipe_code='' WHERE tenant_id='a' AND id='v'").run();
+    f.db.prepare("INSERT INTO vehicles(id,tenant_id,customer_id,plate,brand,model,year) VALUES('year-zero','a','c','ABC1D24','Marca','Modelo 2',0)").run();
+    f.db.prepare("INSERT INTO vehicles(id,tenant_id,customer_id,plate,brand,model,year) VALUES('year-old','a','c','ABC1D25','Marca','Modelo 2',1899)").run();
+    f.db.prepare("INSERT INTO vehicles(id,tenant_id,customer_id,plate,brand,model,year) VALUES('year-missing','a','c','ABC1D26','Marca','Modelo 2',0)").run();
+    f.db.prepare("INSERT INTO vehicles(id,tenant_id,customer_id,plate,brand,model,year) VALUES('long-model','a','c','ABC1D27','Marca',?,2020)").run("Modelo ".padEnd(301, "x"));
+    f.db.prepare("INSERT INTO vehicles(id,tenant_id,customer_id,plate,brand,model,year,fipe_model) VALUES('long-fipe-model','a','c','ABC1D28','Marca','Modelo 2',2020,?)").run("Modelo ".padEnd(301, "x"));
+
+    const originalVehicles = f.db.prepare("SELECT id,plate,brand,model,year,fipe_code,fipe_model,service_model_id FROM vehicles WHERE tenant_id='a' ORDER BY id").all();
+    const reviewDb = new Proxy(f.db, {
+      get(target, property) {
+        if (property === "prepare") {
+          return (sql: string) => {
+            const statement = target.prepare(sql);
+            if (!sql.includes("SELECT v.*,c.name customer_name")) return statement;
+            return {
+              all: async (...params: Parameters<typeof statement.all>) => {
+                const rows = await statement.all(...params);
+                return rows.map((row) => {
+                  if (row.id !== "year-missing") return row;
+                  const { year: _legacyYear, ...withoutYear } = row;
+                  return withoutYear;
+                });
+              },
+            } as unknown as ReturnType<typeof target.prepare>;
+          };
+        }
+        const value = Reflect.get(target, property, target);
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
+    const page = await previewVehicleCatalogReview(reviewDb, ctx, { limit: 50 });
+    assert.equal(page.dry_run, true);
+    assert.equal(page.total, 6);
+    assert.deepEqual(
+      f.db.prepare("SELECT id,plate,brand,model,year,fipe_code,fipe_model,service_model_id FROM vehicles WHERE tenant_id='a' ORDER BY id").all(),
+      originalVehicles,
+    );
+    const byId = new Map(page.items.map((item) => [String(item.vehicle.id), item]));
+    assert.equal(byId.get("v")?.data_quality, "complete");
+    assert.equal(byId.get("v")?.catalog_status, "matched");
+    assert.equal(byId.get("year-zero")?.data_quality, "incomplete");
+    assert.equal(byId.get("year-zero")?.catalog_status, "not_evaluated");
+    assert.equal(byId.get("year-old")?.data_quality, "inconsistent");
+    assert.equal(byId.get("year-missing")?.data_quality, "incomplete");
+    assert.equal(byId.get("long-model")?.data_quality, "inconsistent");
+    assert.equal(byId.get("long-fipe-model")?.data_quality, "inconsistent");
+    assert.equal(f.db.prepare("SELECT year FROM vehicles WHERE tenant_id='a' AND id='year-zero'").get()?.year, 0);
+    assert.equal(f.db.prepare("SELECT count(*) n FROM orders WHERE tenant_id='a'").get()!.n, 0);
+  } finally { f.db.close(); }
+});
