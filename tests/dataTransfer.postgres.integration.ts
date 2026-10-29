@@ -240,3 +240,130 @@ test("PostgreSQL local: importações concorrentes revalidam sob bloqueio e não
     await admin.end();
   }
 });
+test("PostgreSQL local: import repetido em outra oficina remapeia IDs globais sem quebrar vínculos", async (t) => {
+  const admin = adminClient();
+  await admin.connect();
+  const db = await createLocalDatabase();
+  const targetOne = randomUUID(), userOne = randomUUID(), targetTwo = randomUUID(), userTwo = randomUUID();
+  const sourceTenantId = randomUUID(), sourceUserId = randomUUID();
+  const categoryId = randomUUID(), customerId = randomUUID(), vehicleId = randomUUID(), professionalId = randomUUID();
+  const catalogId = randomUUID(), orderId = randomUUID(), itemId = randomUUID(), receivableId = randomUUID();
+  const installmentId = randomUUID(), cashEntryId = randomUUID(), revisionId = randomUUID();
+  const sessionHash = randomUUID().replaceAll("-", "");
+  const phrase = "frase-ficticia-colisao-ids-globais";
+  const snapshot = JSON.stringify({ workshop: "Oficina Fictícia Origem", order_id: orderId, total: 8000 });
+  const digest = createHash("sha256").update(snapshot).digest("hex");
+  let fixtureCreated = false;
+  const settings = (tenantId: string, userId: string) => ({
+    "app.tenant_id": tenantId, "app.user_id": userId, "app.session_hash": "",
+    "app.login_email": "", "app.login_key": "", "app.setup_hash": "",
+    "app.public_share_hash": "", "app.extension_hash": "",
+  });
+  try {
+    fixtureCreated = true;
+    for (const [tenantId,userId,label] of [[targetOne,userOne,"A"],[targetTwo,userTwo,"B"]] as const) {
+      await admin.query("INSERT INTO horse_power.tenants(id,name) VALUES($1,$2)", [tenantId, "Oficina Fictícia Colisão " + label]);
+      await admin.query("INSERT INTO horse_power.users(id,name,email,password_hash) VALUES($1,$2,$3,'fixture-preserved-hash')", [userId, "Proprietário Fictício " + label, `collision-${label}-${userId}@example.invalid`]);
+      await admin.query("INSERT INTO horse_power.memberships(user_id,tenant_id,role) VALUES($1,$2,'owner')", [userId,tenantId]);
+    }
+    await admin.query("INSERT INTO horse_power.sessions(token_hash,user_id,tenant_id,expires_at) VALUES($1,$2,$3,$4)", [sessionHash,userTwo,targetTwo,Date.now()+3600000]);
+    const file = sealTransferPackage(createTransferPayload("fixture-global-id-collision",
+      { id: sourceTenantId, name: "Oficina Fictícia Origem" },
+      {
+        tenant: { id: sourceTenantId, name: "Oficina Fictícia Origem" },
+        users: [{ id: sourceUserId, name: "Proprietário de origem fictício", email: "source-fake@example.invalid" }],
+        memberships: [{ user_id: sourceUserId, tenant_id: sourceTenantId, role: "owner" }],
+        product_categories: [{ id: categoryId, tenant_id: sourceTenantId, name: "Categoria Fictícia", name_key: "categoria-ficticia", active: 1 }],
+        customers: [{ id: customerId, tenant_id: sourceTenantId, name: "Cliente Fictício", phone: "", email: "", document: "", birthday: "", address: "", notes: "", active: 1, created_at: "2026-10-24T00:00:00.000Z" }],
+        vehicles: [{ id: vehicleId, tenant_id: sourceTenantId, customer_id: customerId, plate: "FIC1T23", brand: "Marca Fictícia", model: "Modelo Fictício", year: 2024, color: "", km: 1000, chassis: "", active: 1, service_model_id: "", service_porte_id: "" }],
+        professionals: [{ id: professionalId, tenant_id: sourceTenantId, name: "Profissional Fictício", role: "Mecânico", phone: "", email: "", active: 1 }],
+        catalog: [{ id: catalogId, tenant_id: sourceTenantId, kind: "product", name: "Produto Fictício", sku: "FICT-COLLISION-01", category: "Categoria Fictícia", cost: 5000, price: 8000, stock: 2, minimum_stock: 0, active: 1 }],
+        orders: [{ id: orderId, tenant_id: sourceTenantId, number: 77, customer_id: customerId, vehicle_id: vehicleId, status: "completed", entered_on: "2026-10-20", due_on: "2026-10-21", completed_on: "2026-10-21", km: 1000, problem: "Serviço fictício", notes: "", discount: 0, total: 8000, created_at: "2026-10-20T10:00:00.000Z" }],
+        order_items: [{ id: itemId, tenant_id: sourceTenantId, order_id: orderId, catalog_id: catalogId, professional_id: professionalId, kind: "product", name: "Produto Fictício", quantity: 1, price: 8000, cost: 5000 }],
+        receivables: [{ id: receivableId, tenant_id: sourceTenantId, order_id: orderId, customer_id: customerId, description: "OS fictícia 77", amount: 8000, due_on: "2026-10-21", status: "paid", method: "Pix", paid_at: "2026-10-21T10:00:00.000Z", plan_configured: 1, installment_count: 1, card_fee_bps: 0, interest_bps: 0, gross_total: 8000, fee_total: 0, net_total: 8000 }],
+        payment_installments: [{ id: installmentId, tenant_id: sourceTenantId, receivable_id: receivableId, sequence: 1, due_on: "2026-10-21", principal: 8000, interest: 0, gross: 8000, fee: 0, net: 8000, status: "paid", paid_at: "2026-10-21T10:00:00.000Z", method: "Pix" }],
+        cash_entries: [{ id: cashEntryId, tenant_id: sourceTenantId, receivable_id: receivableId, installment_id: installmentId, amount: 8000, gross_amount: 8000, fee_amount: 0, method: "Pix", created_at: "2026-10-21T10:00:00.000Z" }],
+        document_revisions: [{ id: revisionId, tenant_id: sourceTenantId, kind: "order", entity_id: orderId, revision: 1, issued_at: "2026-10-21T10:00:00.000Z", issued_by: sourceUserId, payload: snapshot, digest }],
+      }, "2026-10-24T12:00:00.000Z"), phrase);
+
+    const importInto = async (tenantId: string, userId: string, mode: "empty" | "merge" = "empty") =>
+      db.withRequestContext(settings(tenantId,userId), async () => {
+        await db.setRequestIdentity(tenantId,userId);
+        const preview = await previewWorkshopImport(db,tenantId,file,phrase,userId,mode);
+        assert.equal(preview.canImport,true,preview.issues.join("; "));
+        return { preview, result: await importWorkshopPackage(db,tenantId,file,phrase,preview.confirmationId,userId,mode) };
+      });
+
+    await importInto(targetOne,userOne);
+    const second = await importInto(targetTwo,userTwo);
+    assert.equal(second.result.counts.customers,1);
+    const actual = await db.withRequestContext(settings(targetTwo,userTwo), async () => {
+      await db.setRequestIdentity(targetTwo,userTwo);
+      return {
+        category: await db.prepare("SELECT id FROM product_categories WHERE tenant_id=? AND name_key=?").get(targetTwo,"categoria-ficticia"),
+        catalog: await db.prepare("SELECT id FROM catalog WHERE tenant_id=?").get(targetTwo),
+        professional: await db.prepare("SELECT id FROM professionals WHERE tenant_id=?").get(targetTwo),
+        customer: await db.prepare("SELECT id FROM customers WHERE tenant_id=? AND name=?").get(targetTwo,"Cliente Fictício"),
+        vehicle: await db.prepare("SELECT id,customer_id FROM vehicles WHERE tenant_id=?").get(targetTwo),
+        order: await db.prepare("SELECT id,customer_id,vehicle_id FROM orders WHERE tenant_id=?").get(targetTwo),
+        item: await db.prepare("SELECT id,order_id,catalog_id,professional_id,price FROM order_items WHERE tenant_id=?").get(targetTwo),
+        receivable: await db.prepare("SELECT id,order_id,customer_id,amount FROM receivables WHERE tenant_id=?").get(targetTwo),
+        installment: await db.prepare("SELECT id,receivable_id FROM payment_installments WHERE tenant_id=?").get(targetTwo),
+        entry: await db.prepare("SELECT id,receivable_id,installment_id,amount FROM cash_entries WHERE tenant_id=?").get(targetTwo),
+        document: await db.prepare("SELECT id,entity_id,issued_by,payload FROM document_revisions WHERE tenant_id=?").get(targetTwo),
+        tracking: await db.prepare("SELECT target_record_id FROM data_transfer_records WHERE tenant_id=? AND source_application=? AND source_tenant_id=? AND table_name='customers' AND source_record_id=?").get(targetTwo,"fixture-global-id-collision",sourceTenantId,customerId),
+      };
+    });
+    assert.notEqual(actual.category?.id,categoryId);
+    assert.notEqual(actual.customer?.id,customerId);
+    assert.notEqual(actual.vehicle?.id,vehicleId);
+    assert.notEqual(actual.order?.id,orderId);
+    assert.notEqual(actual.item?.id,itemId);
+    assert.notEqual(actual.receivable?.id,receivableId);
+    assert.notEqual(actual.installment?.id,installmentId);
+    assert.notEqual(actual.entry?.id,cashEntryId);
+    assert.notEqual(actual.document?.id,revisionId);
+    assert.equal(actual.vehicle?.customer_id,actual.customer?.id);
+    assert.equal(actual.order?.customer_id,actual.customer?.id);
+    assert.equal(actual.order?.vehicle_id,actual.vehicle?.id);
+    assert.equal(actual.item?.order_id,actual.order?.id);
+    assert.equal(actual.item?.catalog_id,actual.catalog?.id);
+    assert.equal(actual.item?.professional_id,actual.professional?.id);
+    assert.equal(actual.receivable?.order_id,actual.order?.id);
+    assert.equal(actual.receivable?.customer_id,actual.customer?.id);
+    assert.equal(actual.installment?.receivable_id,actual.receivable?.id);
+    assert.equal(actual.entry?.receivable_id,actual.receivable?.id);
+    assert.equal(actual.entry?.installment_id,actual.installment?.id);
+    assert.equal(actual.entry?.amount,8000);
+    assert.equal(actual.document?.entity_id,actual.order?.id);
+    assert.equal(actual.document?.issued_by,userTwo);
+    assert.equal(actual.document?.payload,snapshot);
+    assert.equal(actual.tracking?.target_record_id,actual.customer?.id);
+    assert.equal((await admin.query("SELECT password_hash FROM horse_power.users WHERE id=$1",[userTwo])).rows[0].password_hash,"fixture-preserved-hash");
+    assert.equal((await admin.query("SELECT token_hash FROM horse_power.sessions WHERE token_hash=$1 AND tenant_id=$2",[sessionHash,targetTwo])).rows[0].token_hash,sessionHash);
+
+    const repeated=await importInto(targetTwo,userTwo,"merge");
+    assert.equal(repeated.preview.entities.customers.equal,1);
+    assert.equal(repeated.preview.entities.orders.equal,1);
+    assert.equal(repeated.preview.entities.cash_entries.equal,1);
+    assert.equal(repeated.result.counts.customers,1);
+    assert.equal((await admin.query("SELECT count(*)::int AS count FROM horse_power.customers WHERE tenant_id=$1",[targetTwo])).rows[0].count,1);
+    assert.equal((await admin.query("SELECT sum(amount)::int AS total FROM horse_power.cash_entries WHERE tenant_id=$1",[targetTwo])).rows[0].total,8000);
+  } finally {
+    await db.close();
+    if (fixtureCreated) {
+      const tenantIds=[targetOne,targetTwo];
+      for (const table of ["data_transfer_archived_documents","document_revisions","checklist_photos","checklists","service_times","external_captures","external_catalog_links","service_merge_history","service_aliases","cash_movements","payables","cash_entries","payment_installments","receivables","stock_movements","stock_invoice_products","stock_invoices","order_items","orders","cash_accounts","payment_settings","card_rates","labor_commercial_rates","labor_rates","expense_templates","catalog","product_categories","suppliers","professionals","workshop_services","customers","data_transfer_records","data_transfer_backups","audit_events"]) {
+        for (const id of tenantIds) await admin.query(`DELETE FROM horse_power.${table} WHERE tenant_id=$1`,[id]).catch(()=>{});
+      }
+      for (const id of tenantIds) {
+        await admin.query("DELETE FROM horse_power.sessions WHERE tenant_id=$1",[id]).catch(()=>{});
+        await admin.query("DELETE FROM horse_power.memberships WHERE tenant_id=$1",[id]).catch(()=>{});
+      }
+      for (const id of [userOne,userTwo]) await admin.query("DELETE FROM horse_power.users WHERE id=$1",[id]).catch(()=>{});
+      for (const id of tenantIds) await admin.query("DELETE FROM horse_power.tenants WHERE id=$1",[id]).catch(()=>{});
+    }
+    await admin.end();
+  }
+  t.diagnostic("Collision fixture uses fictitious tenants and values; target rows retain no real-world data.");
+});

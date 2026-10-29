@@ -4,6 +4,7 @@ import { test } from "node:test";
 import type { DB, Row, TransactionalDB } from "../server/db/database.js";
 import { getWorkshopTransferBackup, importWorkshopPackage, previewWorkshopImport } from "../server/services/dataTransferImport.js";
 import { createTransferPayload, sealTransferPackage, TRANSFER_TABLES, transferFileSha256 } from "../shared/transferPackage.js";
+import { classifyPlatformAdminImportFailure } from "../server/platformAdminDataTransferRoutes.js";
 
 const phrase = "frase-ficticia-importacao-2026";
 const sourceTenant = "source-fake", targetTenant = "target-fake";
@@ -279,4 +280,19 @@ test("pacote novo transporta o vínculo de arquivamento e pacotes antigos sem es
   assert.equal(db.tables.data_transfer_archived_documents.length, 1);
   assert.equal(db.tables.data_transfer_archived_documents[0].tenant_id, targetTenant);
   assert.equal(db.tables.data_transfer_archived_documents[0].revision_id, revision.id);
+});
+
+test("ADM: falhas de importação são classificadas sem expor detalhes do banco", () => {
+  const unique = Object.assign(new Error("duplicate key value violates unique constraint product_categories_pkey"), {
+    code: "23505", constraint: "product_categories_pkey",
+  });
+  assert.deepEqual(classifyPlatformAdminImportFailure(unique), {
+    status: 409, code: "unique_conflict",
+    message: "Há um registro com identificador ou chave única conflitante. Nenhuma alteração foi mantida; revise a prévia e os conflitos.",
+  });
+  const relationship = Object.assign(new Error("foreign key value violates constraint"), { code: "23503" });
+  assert.equal(classifyPlatformAdminImportFailure(relationship).code, "relationship_conflict");
+  const stale = new Error("Os dados ou a prévia mudaram. Gere uma nova prévia antes de confirmar.");
+  assert.equal(classifyPlatformAdminImportFailure(stale).code, "stale_preview");
+  assert.doesNotMatch(classifyPlatformAdminImportFailure(unique).message, /product_categories|constraint|23505/);
 });

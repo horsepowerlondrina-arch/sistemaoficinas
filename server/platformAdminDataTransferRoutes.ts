@@ -12,6 +12,28 @@ type Actor = { id: string; email: string };
 type PermissionMiddleware = (permission: PlatformPermission) => RequestHandler;
 
 type VerificationFailure = { status: number; code: string; message: string };
+type ImportFailure = { status: number; code: string; message: string };
+export function classifyPlatformAdminImportFailure(error: unknown): ImportFailure {
+  const databaseCode = typeof error === "object" && error !== null && "code" in error
+    ? String((error as { code?: unknown }).code || "") : "";
+  const detail = error instanceof Error ? error.message : "";
+  if (/prévia.*mudou|gere uma nova prévia|dados.*mudaram/i.test(detail))
+    return { status: 409, code: "stale_preview", message: "Os dados mudaram desde a prévia. Gere uma nova prévia antes de confirmar." };
+  if (/aprovação.*(pendente|não corresponde|já foi utilizada)|segundo administrador/i.test(detail))
+    return { status: 409, code: "approval_required", message: "A aprovação administrativa necessária está ausente, pendente ou já foi utilizada." };
+  if (/proprietário autenticada|permissão|não autorizado/i.test(detail) || databaseCode === "42501")
+    return { status: 403, code: "authorization", message: "A conta administrativa não possui o contexto ou a autorização necessários para esta operação." };
+  if (databaseCode === "23505")
+    return { status: 409, code: "unique_conflict", message: "Há um registro com identificador ou chave única conflitante. Nenhuma alteração foi mantida; revise a prévia e os conflitos." };
+  if (databaseCode === "23503")
+    return { status: 409, code: "relationship_conflict", message: "O pacote contém vínculos que não puderam ser preservados. Nenhuma alteração foi mantida." };
+  if (/frase secreta|pacote.*inválido|versão.*pacote/i.test(detail))
+    return { status: 422, code: "invalid_package", message: "O pacote .hptx é inválido ou a frase secreta não confere. Confira o arquivo e tente gerar uma nova prévia." };
+  if (/^(08|25|53|57|58|XX)/.test(databaseCode))
+    return { status: 503, code: "database_unavailable", message: "O banco está temporariamente indisponível. Nenhuma alteração foi mantida; tente novamente após consultar o histórico." };
+  return { status: 500, code: "processing_failed", message: "Não foi possível processar a importação. Nenhuma alteração foi mantida; consulte o histórico e gere uma nova prévia antes de tentar novamente." };
+}
+
 function verificationFailure(error: unknown): VerificationFailure {
   if (error instanceof TransferVerificationError) {
     const known: Record<TransferVerificationFailureCode, VerificationFailure> = {
@@ -181,7 +203,7 @@ export function createPlatformAdminDataTransferRoutes(
       const action=input.data.mode==="replace"?"admin.data_transfer.replaced":input.data.mode==="merge"?"admin.data_transfer.merged":"admin.data_transfer.imported";
       await audit(actor,tenantId,action,"success",{mode:input.data.mode,package_sha256:packageSha,...(input.data.criticalRequestId?{critical_request_id:input.data.criticalRequestId}:{})});
       res.json(result);
-    } catch { if(importCommitted){res.status(503).json({error:"A transferência foi concluída, mas a auditoria final não foi confirmada. Consulte o histórico antes de tentar novamente."});return;} await audit(actor,tenantId,"admin.data_transfer.import_failed","failure",{mode:input.data.mode,package_sha256:packageSha}).catch(()=>{}); res.status(400).json({error:"Não foi possível concluir a importação. Confira a prévia e as permissões do pacote."}); }
+    } catch (error) { if(importCommitted){res.status(503).json({error:"A transferência foi concluída, mas a auditoria final não foi confirmada. Consulte o histórico antes de tentar novamente.",code:"audit_unavailable"});return;} const failure=classifyPlatformAdminImportFailure(error); await audit(actor,tenantId,"admin.data_transfer.import_failed","failure",{mode:input.data.mode,package_sha256:packageSha,reason:failure.code}).catch(()=>{}); res.status(failure.status).json({error:failure.message,code:failure.code}); }
   });
 
   return router;
