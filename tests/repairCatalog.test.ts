@@ -625,12 +625,34 @@ test("prévia tolera ano zero, inválido, ausente e campos legados longos sem al
     f.db.prepare("UPDATE vehicles SET brand='Marca',model='Modelo 2',year=2020,fipe_code='' WHERE tenant_id='a' AND id='v'").run();
     f.db.prepare("INSERT INTO vehicles(id,tenant_id,customer_id,plate,brand,model,year) VALUES('year-zero','a','c','ABC1D24','Marca','Modelo 2',0)").run();
     f.db.prepare("INSERT INTO vehicles(id,tenant_id,customer_id,plate,brand,model,year) VALUES('year-old','a','c','ABC1D25','Marca','Modelo 2',1899)").run();
-    f.db.prepare("INSERT INTO vehicles(id,tenant_id,customer_id,plate,brand,model) VALUES('year-missing','a','c','ABC1D26','Marca','Modelo 2')").run();
+    f.db.prepare("INSERT INTO vehicles(id,tenant_id,customer_id,plate,brand,model,year) VALUES('year-missing','a','c','ABC1D26','Marca','Modelo 2',0)").run();
     f.db.prepare("INSERT INTO vehicles(id,tenant_id,customer_id,plate,brand,model,year) VALUES('long-model','a','c','ABC1D27','Marca',?,2020)").run("Modelo ".padEnd(301, "x"));
     f.db.prepare("INSERT INTO vehicles(id,tenant_id,customer_id,plate,brand,model,year,fipe_model) VALUES('long-fipe-model','a','c','ABC1D28','Marca','Modelo 2',2020,?)").run("Modelo ".padEnd(301, "x"));
 
     const originalVehicles = f.db.prepare("SELECT id,plate,brand,model,year,fipe_code,fipe_model,service_model_id FROM vehicles WHERE tenant_id='a' ORDER BY id").all();
-    const page = await previewVehicleCatalogReview(f.db, ctx, { limit: 50 });
+    const reviewDb = new Proxy(f.db, {
+      get(target, property) {
+        if (property === "prepare") {
+          return (sql: string) => {
+            const statement = target.prepare(sql);
+            if (!sql.includes("SELECT v.*,c.name customer_name")) return statement;
+            return {
+              all: async (...params: unknown[]) => {
+                const rows = await statement.all(...params);
+                return rows.map((row) => {
+                  if (row.id !== "year-missing") return row;
+                  const { year: _legacyYear, ...withoutYear } = row;
+                  return withoutYear;
+                });
+              },
+            } as ReturnType<typeof target.prepare>;
+          };
+        }
+        const value = Reflect.get(target, property, target);
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
+    const page = await previewVehicleCatalogReview(reviewDb, ctx, { limit: 50 });
     assert.equal(page.dry_run, true);
     assert.equal(page.total, 6);
     assert.deepEqual(
