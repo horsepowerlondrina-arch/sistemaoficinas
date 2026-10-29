@@ -43,6 +43,7 @@ const linkedIdFields: Partial<Record<TransferTable, Record<string, TransferTable
   stock_invoices: { supplier_id: "suppliers" },
   stock_invoice_products: { catalog_id: "catalog", supplier_id: "suppliers" },
   stock_movements: { catalog_id: "catalog", order_id: "orders" },
+  service_times: { catalog_id: "catalog" },
   receivables: { order_id: "orders", customer_id: "customers" },
   payment_installments: { receivable_id: "receivables" },
   cash_entries: { receivable_id: "receivables", installment_id: "payment_installments" },
