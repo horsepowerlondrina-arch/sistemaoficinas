@@ -523,11 +523,11 @@ export async function saveWorkshopService(
       const costKnown = v.cost !== undefined;
       const cost = v.cost ?? 0;
       if (record) {
-        await db.prepare("UPDATE workshop_services SET name=?,description=?,execution='internal',commercial_category_id=NULL,minutes=0,price=?,cost=?,cost_known=?,pricing_mode='price' WHERE tenant_id=? AND id=?")
-          .run(v.name, v.description, v.price, cost, costKnown ? 1 : 0, ctx.tenantId, key);
+        await db.prepare("UPDATE workshop_services SET service_type='private',name=?,name_key=?,description=?,price=?,cost=?,cost_known=? WHERE tenant_id=? AND id=?")
+           .run(v.name, normalizedWorkshopServiceName(v.name), v.description, v.price, cost, costKnown ? 1 : 0, ctx.tenantId, key);
       } else {
-        await db.prepare("INSERT INTO workshop_services(id,tenant_id,name,description,execution,commercial_category_id,minutes,price,cost,cost_known,pricing_mode) VALUES(?,?,?,?,'internal',NULL,0,?,?,?,'price')")
-          .run(key, ctx.tenantId, v.name, v.description, v.price, cost, costKnown ? 1 : 0);
+        await db.prepare("INSERT INTO workshop_services(id,tenant_id,name,name_key,description,service_type,execution,commercial_category_id,minutes,price,cost,cost_known,pricing_mode) VALUES(?,?,?,?,?,'private','internal',NULL,0,?,?,?,'price')")
+           .run(key, ctx.tenantId, v.name, normalizedWorkshopServiceName(v.name), v.description, v.price, cost, costKnown ? 1 : 0);
       }
       return key;
     });
@@ -585,7 +585,7 @@ export async function saveWorkshopService(
   else
     await db
       .prepare(
-        "INSERT INTO workshop_services(id,tenant_id,name,description,execution,commercial_category_id,minutes,price,cost,cost_known,pricing_mode) VALUES(?,?,?,'',?,?,?,?,?,?,?)",
+        "INSERT INTO workshop_services(id,tenant_id,name,description,service_type,execution,commercial_category_id,minutes,price,cost,cost_known,pricing_mode) VALUES(?,?,?,'','legacy',?,?,?,?,?,?,?)",
       )
       .run(
         key,
@@ -675,7 +675,7 @@ export async function resolveService(
       name: service.name,
       description: service.description || "",
       porte_id: selected.porte_id || null,
-      service_type: service.commercial_category_id === null && service.pricing_mode === "price" && Number(service.minutes) === 0 ? "private" : "legacy",
+      service_type: service.service_type === "private" ? "private" : "legacy",
       cost_known: service.cost_known === undefined ? true : !!service.cost_known,
       commercial_category_id: service.commercial_category_id,
       commercial_category_name: service.commercial_category_id
