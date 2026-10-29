@@ -29,6 +29,6 @@ CREATE INDEX idx_workshop_services_private_category
 CREATE INDEX idx_workshop_service_categories_tenant_active
  ON workshop_service_categories(tenant_id,active,name);
 ALTER TABLE workshop_service_categories ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON workshop_service_categories FROM PUBLIC,anon,authenticated,service_role,horse_power_app;
-GRANT SELECT,INSERT,UPDATE,DELETE ON workshop_service_categories TO horse_power_app;
-CREATE POLICY backend_access ON workshop_service_categories FOR ALL TO horse_power_app USING(true) WITH CHECK(true);
+REVOKE ALL ON workshop_service_categories FROM PUBLIC,hp_local_app;
+GRANT SELECT,INSERT,UPDATE,DELETE ON workshop_service_categories TO hp_local_app;
+CREATE POLICY backend_access ON workshop_service_categories FOR ALL TO hp_local_app USING(true) WITH CHECK(true);
