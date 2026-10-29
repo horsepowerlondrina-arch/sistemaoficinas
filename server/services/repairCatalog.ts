@@ -216,7 +216,7 @@ const vehicleMatchInput = z.object({
 });
 export type VehicleCatalogMatchStatus = "linked" | "matched" | "needs_confirmation" | "not_identified" | "unavailable" | "mismatch";
 export type VehicleRecordQuality = "complete" | "incomplete" | "inconsistent";
-export type VehicleCatalogReviewStatus = "linked" | "matched" | "ambiguous" | "inconsistent" | "not_identified" | "unavailable" | "not_evaluated";
+export type VehicleCatalogReviewStatus = "linked" | "matched" | "ambiguous" | "inconsistent" | "plate_lookup" | "not_identified" | "unavailable" | "not_evaluated";
 const modelEngineTokens = (value: string) =>
   [...value.toLowerCase().matchAll(/\b(\d{1,2}(?:[.,]\d)?)\s*(mpfi|mfi|efi|mpi|tsi|tfsi|turbo|hdi|dci|cdti|tdi|16v|8v)?\b/g)]
     .map((match) => `${match[1].replace(",", ".")}${match[2] ? " " + match[2] : ""}`);
@@ -379,12 +379,14 @@ export async function previewVehicleCatalogReview(
         : match.status === "matched"
           ? "matched"
           : match.status === "needs_confirmation"
-            ? ("review_reason" in match && match.review_reason === "inconsistent") ? "inconsistent" : "ambiguous"
+            ? (("review_reason" in match && match.review_reason === "inconsistent") ? "inconsistent" : "ambiguous")
             : match.status === "mismatch"
               ? "inconsistent"
               : match.status === "unavailable"
                 ? "unavailable"
-                : "not_identified";
+                : match.status === "not_identified" && input.plateLookupEnabled && !vehicle.fipe_code
+                  ? "plate_lookup"
+                  : "not_identified";
     let status: string;
     if (incomplete) status = "incomplete";
     else if (match.status === "linked") status = "linked";
