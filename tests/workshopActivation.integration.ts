@@ -79,7 +79,7 @@ test("PostgreSQL: convites de ativação, teste grátis, idempotência e isolame
       .replaceAll("horse_power_app", "hp_local_app");
     await owner.query(migration);
     await owner.query(`GRANT SELECT ON ${pa}.administrators,${pa}.sessions TO hp_platform_admin_app;
-      GRANT SELECT,UPDATE ON ${pa}.workshops TO hp_platform_admin_app;
+      GRANT SELECT ON ${pa}.workshops TO hp_platform_admin_app;
       GRANT INSERT ON ${pa}.audit_events TO hp_platform_admin_app`);
 
     process.env.APP_ORIGINS = "http://127.0.0.1:5173";

@@ -101,8 +101,10 @@ async function prepareWorkshopInvitation(
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
+    // Serialize invitation creation without requiring UPDATE privilege on platform_admin.workshops.
+    await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [tenantId]);
     const found = await client.query(`SELECT name,responsible_email,source,status,email_verified_at,trial_started_at
-      FROM platform_admin.workshops WHERE tenant_id=$1 FOR UPDATE`, [tenantId]);
+      FROM platform_admin.workshops WHERE tenant_id=$1`, [tenantId]);
     const workshop = found.rows[0] as { name: string; responsible_email: string; source: string; status: string; email_verified_at: Date | null; trial_started_at: Date | null } | undefined;
     if (!workshop || workshop.source !== "admin") {
       await client.query("ROLLBACK");
