@@ -248,7 +248,7 @@ function WorkshopServiceCategories({ onClose, categories, onChanged }: { onClose
   const [busy, setBusy] = useState(false);
   return <Modal title="Categorias de serviços próprios" description="As categorias pertencem a esta oficina. Inativar preserva os vínculos existentes." onClose={onClose} wide>
     <div className="modal-body">
-      <div className="capture-actions"><Field label="Nova categoria"><input value={name} maxLength={100} onChange={(e) => setName(e.target.value)} /></Field>
+      <div className="capture-actions service-category-create"><Field label="Nova categoria"><input value={name} maxLength={100} onChange={(e) => setName(e.target.value)} /></Field>
         <button type="button" className="button primary" disabled={busy || name.trim().length < 2} onClick={async () => { setBusy(true); setError(""); try { await send("/workshop-service-categories", { name: name.trim() }); setName(""); onChanged(); } catch (e) { setError((e as Error).message); } finally { setBusy(false); } }}>Criar categoria</button>
       </div>
       {error && <p className="form-error" role="alert">{error}</p>}
@@ -298,7 +298,7 @@ export function WorkshopServices() {
   return <>
     <PageHeading title="Serviços Próprios" eyebrow="CADASTROS" description="Cadastre os serviços particulares desta oficina, separados do Catálogo Técnico." />
     <section className="panel work-order-section">
-      <div className="capture-actions">
+      <div className="capture-actions workshop-services-filter-row">
         <Field label="Pesquisar serviços"><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Descrição, referência ou categoria" /></Field>
         <Field label="Categoria"><select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}><option value="">Todas as categorias</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}{!category.active ? " (inativa)" : ""}</option>)}</select></Field>
         <Field label="Situação"><select value={status} onChange={(e) => setStatus(e.target.value as typeof status)}><option value="active">Ativos</option><option value="inactive">Inativos</option><option value="all">Todos</option></select></Field>
