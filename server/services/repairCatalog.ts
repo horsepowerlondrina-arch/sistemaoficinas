@@ -215,6 +215,8 @@ const vehicleMatchInput = z.object({
   service_model_id: z.string().trim().max(80).nullable().default("").transform((value) => value || ""),
 });
 export type VehicleCatalogMatchStatus = "linked" | "matched" | "needs_confirmation" | "not_identified" | "unavailable" | "mismatch";
+export type VehicleRecordQuality = "complete" | "incomplete" | "inconsistent";
+export type VehicleCatalogReviewStatus = "linked" | "matched" | "ambiguous" | "inconsistent" | "not_identified" | "unavailable" | "not_evaluated";
 const modelEngineTokens = (value: string) =>
   [...value.toLowerCase().matchAll(/\b(\d{1,2}(?:[.,]\d)?)\s*(mpfi|mfi|efi|mpi|tsi|tfsi|turbo|hdi|dci|cdti|tdi|16v|8v)?\b/g)]
     .map((match) => `${match[1].replace(",", ".")}${match[2] ? " " + match[2] : ""}`);
@@ -300,14 +302,19 @@ export async function identifyVehicleModel(db: DB, ctx: Context, input: unknown)
     const technical = compatible.filter((candidate) => technicallyCompatible(String(candidate.name || "")));
     if (technical.length === 1 && compatible.length === 1 && !hasAmbiguousTechnicalVariants && !candidateSetTruncated)
       return { status: "matched" as const, catalog_status: accessState, model: technical[0], candidates: technical };
-    return { status: "needs_confirmation" as const, catalog_status: accessState, model: null, candidates: sortByRelevance((technical.length ? technical : compatible.length ? compatible : candidates)).slice(0, 10) };
+    const review_reason = modelHints.length && compatible.length === 0
+      ? "inconsistent" as const
+      : compatible.length > 0 && technical.length === 0 && (variants.length > 0 || featureVariants.length > 0)
+        ? "inconsistent" as const
+        : "ambiguous" as const;
+    return { status: "needs_confirmation" as const, review_reason, catalog_status: accessState, model: null, candidates: sortByRelevance((technical.length ? technical : compatible.length ? compatible : candidates)).slice(0, 10) };
   }
   for (const hint of modelHints) {
     const exact = await queryCandidates(searchColumn("m.name") + "=?", [hint], "ORDER BY m.name,m.id");
     if (exact.length === 1 && !vehicle.fipe_code && !hasAmbiguousTechnicalVariants && !candidateSetTruncated && technicallyCompatible(String(exact[0].name || ""))) {
       return { status: "matched" as const, catalog_status: accessState, model: exact[0], candidates: exact };
     }
-    if (exact.length) return { status: "needs_confirmation" as const, catalog_status: accessState, model: null, candidates: sortByRelevance(exact).slice(0, 10) };
+    if (exact.length) return { status: "needs_confirmation" as const, review_reason: vehicle.fipe_code ? "inconsistent" as const : "ambiguous" as const, catalog_status: accessState, model: null, candidates: sortByRelevance(exact).slice(0, 10) };
   }
   const primary = modelHints[0];
   const tokens = primary.split(" ").filter(Boolean);
@@ -327,7 +334,7 @@ export async function identifyVehicleModel(db: DB, ctx: Context, input: unknown)
     const compatible = relevant.filter((candidate) => technicallyCompatible(String(candidate.name || "")));
     if (compatible.length === 1 && !vehicle.fipe_code && !hasAmbiguousTechnicalVariants && !candidateSetTruncated)
       return { status: "matched" as const, catalog_status: accessState, model: compatible[0], candidates: compatible };
-    return { status: "needs_confirmation" as const, catalog_status: accessState, model: null, candidates: (compatible.length ? compatible : relevant).slice(0, 10) };
+    return { status: "needs_confirmation" as const, review_reason: vehicle.fipe_code || !compatible.length ? "inconsistent" as const : "ambiguous" as const, catalog_status: accessState, model: null, candidates: (compatible.length ? compatible : relevant).slice(0, 10) };
   }
   return { status: "not_identified" as const, catalog_status: accessState, model: null, candidates: [] };
 }
@@ -348,9 +355,36 @@ export async function previewVehicleCatalogReview(
   const items = [];
   for (const vehicle of page.rows) {
     const incomplete = !String(vehicle.plate || "").trim() || !String(vehicle.brand || "").trim() || !String(vehicle.model || "").trim();
+    const normalizedPlate = String(vehicle.plate || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const fipeCode = String(vehicle.fipe_code || "").trim();
+    const validYear = vehicle.year === null || vehicle.year === undefined || String(vehicle.year).trim() === ""
+      ? true
+      : Number.isInteger(Number(vehicle.year)) && Number(vehicle.year) >= 1900 && Number(vehicle.year) <= 2100;
+    const inconsistentFields =
+      (!!normalizedPlate && !/^[A-Z]{3}\d[A-Z0-9]\d{2}$/.test(normalizedPlate)) ||
+      (!!fipeCode && !/^\d{6}-\d$/.test(fipeCode)) ||
+      !validYear;
     const match = incomplete
       ? { status: "not_identified", candidates: [] as Row[] }
       : await identifyVehicleModel(db, ctx, vehicle);
+    const data_quality: VehicleRecordQuality = incomplete
+      ? "incomplete"
+      : inconsistentFields || match.status === "mismatch" || ("review_reason" in match && match.review_reason === "inconsistent")
+        ? "inconsistent"
+        : "complete";
+    const catalog_status: VehicleCatalogReviewStatus = incomplete
+      ? "not_evaluated"
+      : match.status === "linked"
+        ? "linked"
+        : match.status === "matched"
+          ? "matched"
+          : match.status === "needs_confirmation"
+            ? ("review_reason" in match && match.review_reason === "inconsistent") ? "inconsistent" : "ambiguous"
+            : match.status === "mismatch"
+              ? "inconsistent"
+              : match.status === "unavailable"
+                ? "unavailable"
+                : "not_identified";
     let status: string;
     if (incomplete) status = "incomplete";
     else if (match.status === "linked") status = "linked";
@@ -359,7 +393,7 @@ export async function previewVehicleCatalogReview(
     else if (match.status === "unavailable") status = "unavailable";
     else if (match.status === "not_identified" && input.plateLookupEnabled && !vehicle.fipe_code) status = "plate_lookup";
     else status = "not_identified";
-    items.push({ vehicle, status, candidates: (match.candidates || []).slice(0, 5) });
+    items.push({ vehicle, status, data_quality, catalog_status, candidates: (match.candidates || []).slice(0, 5) });
   }
   return { items, total: page.total, limit, offset, has_more: offset + items.length < page.total, dry_run: true };
 }
