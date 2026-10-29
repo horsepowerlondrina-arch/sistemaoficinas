@@ -466,28 +466,77 @@ export async function listWorkshopServices(
     .object({
       q: z.string().trim().max(100).default(""),
       category_id: commercialCategorySchema.optional(),
+      private_category_id: uuid.optional(),
+      service_type: z.enum(["private", "legacy", "all"]).default("all"),
       status: z.enum(["active", "inactive", "all"]).default("active"),
       offset: z.coerce.number().int().min(0).max(10000).default(0),
     })
     .parse(query);
   const activeFilter = q.status === "all" ? null : q.status === "active" ? 1 : 0;
+  const search = `%${searchKey(q.q)}%`;
   const rows = await tenantRead(db, ctx, async () =>
     await db
       .prepare(
-        `SELECT s.*,p.name porte_name FROM workshop_services s LEFT JOIN labor_categories p ON p.id=s.commercial_category_id WHERE s.tenant_id=? AND (CAST(? AS INTEGER) IS NULL OR s.active=CAST(? AS INTEGER)) AND (CAST(? AS TEXT) IS NULL OR s.commercial_category_id=CAST(? AS TEXT)) AND ${searchColumn('s.name')} LIKE ? ORDER BY s.name,s.id LIMIT 51 OFFSET ?`,
+        `SELECT s.*,p.name porte_name,c.name category_name FROM workshop_services s LEFT JOIN labor_categories p ON p.id=s.commercial_category_id LEFT JOIN workshop_service_categories c ON c.id=s.category_id AND c.tenant_id=s.tenant_id WHERE s.tenant_id=? AND (?='all' OR s.service_type=?) AND (CAST(? AS INTEGER) IS NULL OR s.active=CAST(? AS INTEGER)) AND (CAST(? AS TEXT) IS NULL OR s.commercial_category_id=CAST(? AS TEXT)) AND (CAST(? AS TEXT) IS NULL OR s.category_id=CAST(? AS TEXT)) AND (${searchColumn("s.name")} LIKE ? OR ${searchColumn("s.reference")} LIKE ? OR ${searchColumn("coalesce(s.description,'')")} LIKE ? OR ${searchColumn("coalesce(c.name,'')")} LIKE ?) ORDER BY s.name,s.id LIMIT 51 OFFSET ?`,
       )
-      .all(ctx.tenantId, activeFilter, activeFilter, q.category_id || null, q.category_id || null, `%${searchKey(q.q)}%`, q.offset),
+      .all(ctx.tenantId, q.service_type, q.service_type, activeFilter, activeFilter, q.category_id || null, q.category_id || null, q.private_category_id || null, q.private_category_id || null, search, search, search, search, q.offset),
   );
   return { items: rows.slice(0, 50), has_more: rows.length > 50 };
 }
 function normalizedWorkshopServiceName(name: string) {
   return name.normalize("NFD").replace(/\p{Diacritic}/gu, "").replace(/\s+/g, " ").trim().toLocaleLowerCase("pt-BR");
 }
+function normalizedWorkshopServiceReference(reference: string) {
+  return reference.trim().toLocaleUpperCase("pt-BR");
+}
 async function assertUniqueWorkshopServiceName(db: DB, tenantId: string, name: string, record?: string) {
   const key = normalizedWorkshopServiceName(name);
   const rows = await db.prepare("SELECT id,name FROM workshop_services WHERE tenant_id=?").all(tenantId);
   if (rows.some((row) => row.id !== record && normalizedWorkshopServiceName(String(row.name)) === key))
     throw new Error("Já existe um serviço com esse nome nesta oficina. Localize e reative o cadastro existente.");
+}
+async function assertUniqueWorkshopServiceReference(db: DB, tenantId: string, reference: string, record?: string) {
+  const key = normalizedWorkshopServiceReference(reference);
+  const found = await db.prepare("SELECT id FROM workshop_services WHERE tenant_id=? AND upper(trim(reference))=?").get(tenantId, key);
+  if (found && found.id !== record) throw new Error("Já existe um serviço com essa referência nesta oficina.");
+}
+export async function listWorkshopServiceCategories(db: DB, ctx: Context, query: unknown) {
+  const q = z.object({
+    q: z.string().trim().max(100).default(""),
+    status: z.enum(["active", "inactive", "all"]).default("active"),
+    offset: z.coerce.number().int().min(0).max(10000).default(0),
+  }).parse(query);
+  const activeFilter = q.status === "all" ? null : q.status === "active" ? 1 : 0;
+  const rows = await tenantRead(db, ctx, async () => db.prepare(
+    `SELECT c.*,count(s.id) service_count FROM workshop_service_categories c LEFT JOIN workshop_services s ON s.tenant_id=c.tenant_id AND s.category_id=c.id WHERE c.tenant_id=? AND (CAST(? AS INTEGER) IS NULL OR c.active=CAST(? AS INTEGER)) AND ${searchColumn("c.name")} LIKE ? GROUP BY c.id ORDER BY c.name,c.id LIMIT 51 OFFSET ?`,
+  ).all(ctx.tenantId, activeFilter, activeFilter, `%${searchKey(q.q)}%`, q.offset));
+  return { items: rows.slice(0, 50), has_more: rows.length > 50 };
+}
+export async function saveWorkshopServiceCategory(db: DB, ctx: Context, body: unknown, record?: string) {
+  requireAdmin(ctx);
+  const v = z.object({ name: z.string().trim().min(2).max(100) }).parse(body);
+  const nameKey = normalizedWorkshopServiceName(v.name);
+  return tenantRead(db, ctx, async () => {
+    const duplicate = await db.prepare("SELECT id FROM workshop_service_categories WHERE tenant_id=? AND name_key=?").get(ctx.tenantId, nameKey);
+    if (duplicate && duplicate.id !== record) throw new Error("Já existe uma categoria com esse nome nesta oficina.");
+    if (record) {
+      const existing = await db.prepare("SELECT id FROM workshop_service_categories WHERE tenant_id=? AND id=?").get(ctx.tenantId, record);
+      if (!existing) throw new Error("Categoria não encontrada nesta oficina.");
+      await db.prepare("UPDATE workshop_service_categories SET name=?,name_key=? WHERE tenant_id=? AND id=?").run(v.name, nameKey, ctx.tenantId, record);
+      return record;
+    }
+    const id = randomUUID();
+    await db.prepare("INSERT INTO workshop_service_categories(id,tenant_id,name,name_key) VALUES(?,?,?,?)").run(id, ctx.tenantId, v.name, nameKey);
+    return id;
+  });
+}
+export async function setWorkshopServiceCategoryActive(db: DB, ctx: Context, record: string, active: boolean) {
+  requireAdmin(ctx);
+  return tenantRead(db, ctx, async () => {
+    const category = await db.prepare("SELECT id FROM workshop_service_categories WHERE tenant_id=? AND id=?").get(ctx.tenantId, record);
+    if (!category) throw new Error("Categoria não encontrada nesta oficina.");
+    await db.prepare("UPDATE workshop_service_categories SET active=? WHERE tenant_id=? AND id=?").run(active ? 1 : 0, ctx.tenantId, record);
+  });
 }
 export async function setWorkshopServiceActive(db: DB, ctx: Context, record: string, active: boolean) {
   requireAdmin(ctx);
@@ -508,28 +557,40 @@ export async function saveWorkshopService(
   const base = z.object({
     service_type: z.literal("private"),
     name: z.string().trim().min(2).max(300),
-    description: z.string().trim().max(1000).optional().default(""),
+    description: z.string().trim().max(1000).optional(),
+    reference: z.string().trim().min(1).max(40).optional(),
+    category_id: uuid.nullable().optional(),
     price: cents.min(1),
     cost: cents.optional(),
+    cost_known: z.boolean().optional(),
   }).safeParse(body);
   if (base.success) {
     const v = base.data;
     return tenantRead(db, ctx, async () => {
       const current = record
-        ? await db.prepare("SELECT id,name,active FROM workshop_services WHERE tenant_id=? AND id=?").get(ctx.tenantId, record)
+        ? await db.prepare("SELECT id,name,active,reference,category_id,description,cost,cost_known FROM workshop_services WHERE tenant_id=? AND id=?").get(ctx.tenantId, record)
         : null;
       if (record && !current) throw new Error("Serviço não encontrado nesta oficina.");
       if (!current || normalizedWorkshopServiceName(String(current.name)) !== normalizedWorkshopServiceName(v.name))
         await assertUniqueWorkshopServiceName(db, ctx.tenantId, v.name, record);
+      const reference = normalizedWorkshopServiceReference(v.reference ?? String(current?.reference || `SRV-${randomUUID().slice(0, 8)}`));
+      await assertUniqueWorkshopServiceReference(db, ctx.tenantId, reference, record);
+      const categoryId = v.category_id === undefined ? (current?.category_id ? String(current.category_id) : null) : v.category_id;
+      if (categoryId) {
+        const category = await db.prepare("SELECT id,active FROM workshop_service_categories WHERE tenant_id=? AND id=?").get(ctx.tenantId, categoryId);
+        if (!category) throw new Error("Categoria não encontrada nesta oficina.");
+        if (!category.active && current?.category_id !== categoryId) throw new Error("Não é possível vincular um serviço a uma categoria inativa.");
+      }
       const key = record || randomUUID();
-      const costKnown = v.cost !== undefined;
-      const cost = v.cost ?? 0;
+      const costKnown = v.cost_known ?? (v.cost !== undefined ? true : current ? !!current.cost_known : false);
+      const cost = v.cost ?? Number(current?.cost || 0);
+      const description = v.description ?? String(current?.description || "");
       if (record) {
-        await db.prepare("UPDATE workshop_services SET service_type='private',name=?,name_key=?,description=?,price=?,cost=?,cost_known=? WHERE tenant_id=? AND id=?")
-           .run(v.name, normalizedWorkshopServiceName(v.name), v.description, v.price, cost, costKnown ? 1 : 0, ctx.tenantId, key);
+        await db.prepare("UPDATE workshop_services SET service_type='private',name=?,name_key=?,reference=?,category_id=?,description=?,price=?,cost=?,cost_known=? WHERE tenant_id=? AND id=?")
+           .run(v.name, normalizedWorkshopServiceName(v.name), reference, categoryId, description, v.price, cost, costKnown ? 1 : 0, ctx.tenantId, key);
       } else {
-        await db.prepare("INSERT INTO workshop_services(id,tenant_id,name,name_key,description,service_type,execution,commercial_category_id,minutes,price,cost,cost_known,pricing_mode) VALUES(?,?,?,?,?,'private','internal',NULL,0,?,?,?,'price')")
-           .run(key, ctx.tenantId, v.name, normalizedWorkshopServiceName(v.name), v.description, v.price, cost, costKnown ? 1 : 0);
+        await db.prepare("INSERT INTO workshop_services(id,tenant_id,name,name_key,reference,category_id,description,service_type,execution,commercial_category_id,minutes,price,cost,cost_known,pricing_mode) VALUES(?,?,?,?,?,?,?,'private','internal',NULL,0,?,?,?,'price')")
+           .run(key, ctx.tenantId, v.name, normalizedWorkshopServiceName(v.name), reference, categoryId, description, v.price, cost, costKnown ? 1 : 0);
       }
       return key;
     });
@@ -584,10 +645,12 @@ export async function saveWorkshopService(
         ctx.tenantId,
         key,
       );
-  else
+  else {
+    const reference = `SRV-${randomUUID().slice(0, 8).toUpperCase()}`;
+    await assertUniqueWorkshopServiceReference(db, ctx.tenantId, reference);
     await db
       .prepare(
-        "INSERT INTO workshop_services(id,tenant_id,name,description,service_type,execution,commercial_category_id,minutes,price,cost,cost_known,pricing_mode) VALUES(?,?,?,'','legacy',?,?,?,?,?,?,?)",
+        "INSERT INTO workshop_services(id,tenant_id,name,description,service_type,execution,commercial_category_id,minutes,price,cost,cost_known,pricing_mode,reference) VALUES(?,?,?,'','legacy',?,?,?,?,?,?,?,?)",
       )
       .run(
         key,
@@ -600,7 +663,9 @@ export async function saveWorkshopService(
         v.cost,
         1,
         v.pricing_mode,
+        reference,
       );
+  }
   return key;
   });
 }

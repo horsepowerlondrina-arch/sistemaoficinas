@@ -166,11 +166,110 @@ export function WorkshopServiceForm({
     </Modal>
   );
 }
+function generatedWorkshopServiceReference() {
+  return `SRV-${crypto.randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase()}`;
+}
+function WorkshopServiceManagerForm({ initial, categories, onClose, onSaved, onCategoryCreated }: {
+  initial?: Entity;
+  categories: Entity[];
+  onClose: () => void;
+  onSaved: () => void;
+  onCategoryCreated: (category: Entity) => void;
+}) {
+  const [reference, setReference] = useState(String(initial?.reference || generatedWorkshopServiceReference()));
+  const [name, setName] = useState(String(initial?.name || ""));
+  const [categoryId, setCategoryId] = useState(String(initial?.category_id || ""));
+  const [categoryQuery, setCategoryQuery] = useState(String(initial?.category_name || ""));
+  const [cost, setCost] = useState(Number(initial?.cost || 0));
+  const [costKnown, setCostKnown] = useState(initial ? initial.cost_known !== 0 : true);
+  const [price, setPrice] = useState(Number(initial?.price || 0));
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [categoryBusy, setCategoryBusy] = useState(false);
+  const normalizedQuery = normalizeCatalogValue(categoryQuery);
+  const exactCategory = categories.find((row) => normalizeCatalogValue(String(row.name)) === normalizedQuery);
+  const categoryMatches = categories.filter((row) => row.active || row.id === categoryId)
+    .filter((row) => !normalizedQuery || normalizeCatalogValue(String(row.name)).includes(normalizedQuery)).slice(0, 8);
+  async function createCategory() {
+    const value = categoryQuery.trim();
+    if (value.length < 2) return;
+    setCategoryBusy(true); setError("");
+    try {
+      const result = await send("/workshop-service-categories", { name: value }) as { id: string };
+      const category = { id: result.id, name: value, active: 1 } as Entity;
+      onCategoryCreated(category); setCategoryId(category.id); setCategoryQuery(value);
+    } catch (e) { setError((e as Error).message); }
+    finally { setCategoryBusy(false); }
+  }
+  return <Modal title={initial ? "Editar serviço próprio" : "Cadastrar serviço próprio"} description="Serviço particular desta oficina." onClose={onClose}>
+    <div className="modal-body">
+      <div className="form-grid">
+        <Field label="Referência" full><input value={reference} maxLength={40} onChange={(e) => setReference(e.target.value)} /></Field>
+        <Field label="Descrição" full><input value={name} maxLength={300} onChange={(e) => setName(e.target.value)} /></Field>
+        <Field label="Categoria (opcional)" full>
+          <input value={categoryQuery} maxLength={100} autoComplete="off" placeholder="Pesquisar ou criar categoria" onChange={(e) => {
+            const value = e.target.value; setCategoryQuery(value);
+            const match = categories.find((row) => row.active && normalizeCatalogValue(String(row.name)) === normalizeCatalogValue(value));
+            setCategoryId(match ? String(match.id) : "");
+          }} />
+          {categoryQuery && categoryMatches.length > 0 && <div className="repair-results" role="listbox" aria-label="Categorias próprias">
+            {categoryMatches.map((row) => <button className="button" type="button" role="option" key={row.id} disabled={!row.active} onClick={() => { setCategoryId(String(row.id)); setCategoryQuery(String(row.name)); }}>
+              {row.name}{!row.active ? " · Inativa" : ""}
+            </button>)}
+          </div>}
+          {categoryQuery.trim().length >= 2 && !exactCategory && <button type="button" className="text-button" disabled={categoryBusy} onClick={() => void createCategory()}>{categoryBusy ? "Criando…" : `Criar categoria “${categoryQuery.trim()}”`}</button>}
+          {categoryId && <button type="button" className="text-button" onClick={() => { setCategoryId(""); setCategoryQuery(""); }}>Remover categoria</button>}
+        </Field>
+        <Field label="Custo do serviço/terceiros (R$)"><NumericInput type="number" min="0" step="0.01" value={cost / 100} onChange={(e) => { setCost(Math.round(Number(e.target.value) * 100)); setCostKnown(true); }} /></Field>
+        <Field label="Preço de venda (R$)"><NumericInput type="number" min="0.01" step="0.01" value={price / 100} onChange={(e) => setPrice(Math.round(Number(e.target.value) * 100))} /></Field>
+      </div>
+      {error && <p className="form-error" role="alert">{error}</p>}
+      <div className="capture-actions">
+        <button type="button" className="button" onClick={onClose} disabled={busy}>Cancelar</button>
+        <button type="button" className="button primary" disabled={busy || name.trim().length < 2 || !reference.trim() || !Number.isSafeInteger(cost) || cost < 0 || !Number.isSafeInteger(price) || price < 1} onClick={async () => {
+          setBusy(true); setError("");
+          try {
+            await send(initial ? `/workshop-services/${initial.id}` : "/workshop-services", {
+              service_type: "private", name: name.trim(), reference: reference.trim(), category_id: categoryId || null, price, cost, cost_known: costKnown,
+            }, initial ? "PUT" : "POST");
+            onSaved();
+          } catch (e) { setError((e as Error).message); }
+          finally { setBusy(false); }
+        }}>Salvar cadastro</button>
+      </div>
+    </div>
+  </Modal>;
+}
+function WorkshopServiceCategories({ onClose, categories, onChanged }: { onClose: () => void; categories: Entity[]; onChanged: () => void }) {
+  const [name, setName] = useState("");
+  const [editing, setEditing] = useState("");
+  const [draft, setDraft] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  return <Modal title="Categorias de serviços próprios" description="As categorias pertencem a esta oficina. Inativar preserva os vínculos existentes." onClose={onClose} wide>
+    <div className="modal-body">
+      <div className="capture-actions"><Field label="Nova categoria"><input value={name} maxLength={100} onChange={(e) => setName(e.target.value)} /></Field>
+        <button type="button" className="button primary" disabled={busy || name.trim().length < 2} onClick={async () => { setBusy(true); setError(""); try { await send("/workshop-service-categories", { name: name.trim() }); setName(""); onChanged(); } catch (e) { setError((e as Error).message); } finally { setBusy(false); } }}>Criar categoria</button>
+      </div>
+      {error && <p className="form-error" role="alert">{error}</p>}
+      <div className="repair-results">{categories.map((row) => <div className="repair-result" key={row.id}>
+        <div>{editing === row.id ? <input aria-label="Nome da categoria" value={draft} maxLength={100} onChange={(e) => setDraft(e.target.value)} /> : <><strong>{row.name}</strong><small>{Number(row.service_count || 0)} serviços vinculados · {row.active ? "Ativa" : "Inativa"}</small></>}</div>
+        <div className="capture-actions">{editing === row.id ? <><button type="button" className="text-button" disabled={busy} onClick={async () => { setBusy(true); setError(""); try { await send(`/workshop-service-categories/${row.id}`, { name: draft.trim() }, "PUT"); setEditing(""); onChanged(); } catch (e) { setError((e as Error).message); } finally { setBusy(false); } }}>Salvar</button><button type="button" className="text-button" onClick={() => setEditing("")}>Cancelar</button></> : <button type="button" className="text-button" onClick={() => { setEditing(String(row.id)); setDraft(String(row.name)); }}>Editar</button>}
+          <button type="button" className="text-button" disabled={busy} onClick={async () => { setBusy(true); setError(""); try { await send(`/workshop-service-categories/${row.id}/status`, { active: !row.active }, "PATCH"); onChanged(); } catch (e) { setError((e as Error).message); } finally { setBusy(false); } }}>{row.active ? "Inativar" : "Reativar"}</button>
+        </div>
+      </div>)}</div>
+      <div className="capture-actions"><button type="button" className="button" onClick={onClose}>Fechar</button></div>
+    </div>
+  </Modal>;
+}
 export function WorkshopServices() {
   const [rows, setRows] = useState<Entity[]>([]);
+  const [categories, setCategories] = useState<Entity[]>([]);
   const [query, setQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
   const [status, setStatus] = useState<"active" | "inactive" | "all">("active");
   const [editing, setEditing] = useState<Entity | null | undefined>(undefined);
+  const [manageCategories, setManageCategories] = useState(false);
   const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -178,51 +277,43 @@ export function WorkshopServices() {
     let active = true;
     const timer = window.setTimeout(() => {
       setLoading(true); setError("");
-      const params = new URLSearchParams({ q: query, status });
+      const params = new URLSearchParams({ q: query, status, service_type: "private" });
+      if (categoryFilter) params.set("private_category_id", categoryFilter);
       api<{ items: Entity[] }>("/workshop-services?" + params)
         .then((result) => active && setRows(result.items))
         .catch((e) => active && setError(e.message))
         .finally(() => active && setLoading(false));
     }, 200);
     return () => { active = false; window.clearTimeout(timer); };
-  }, [query, status, revision]);
+  }, [query, categoryFilter, status, revision]);
+  useEffect(() => {
+    let active = true;
+    api<{ items: Entity[] }>("/workshop-service-categories?status=all")
+      .then((result) => active && setCategories(result.items))
+      .catch((e) => active && setError(e.message));
+    return () => { active = false; };
+  }, [revision]);
   const refresh = () => setRevision((value) => value + 1);
-  return (
-    <>
-      <PageHeading title="Serviços Próprios" eyebrow="CADASTROS" description="Cadastre os serviços particulares desta oficina, separados do Catálogo Técnico." />
-      <section className="panel work-order-section">
-        <div className="capture-actions">
-          <Field label="Pesquisar serviços">
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Nome do serviço" />
-          </Field>
-          <Field label="Situação">
-            <select value={status} onChange={(e) => setStatus(e.target.value as typeof status)}>
-              <option value="active">Ativos</option><option value="inactive">Inativos</option><option value="all">Todos</option>
-            </select>
-          </Field>
-          <button type="button" className="button primary" onClick={() => setEditing(null)}>Novo serviço próprio</button>
-        </div>
-        {error && <p className="form-error" role="alert">{error}</p>}
-        {loading ? <p role="status">Buscando serviços…</p> : rows.length ? (
-          <div className="repair-results">
-            {rows.map((row) => (
-              <div className="repair-result" key={row.id}>
-                <div><strong>{row.name}</strong>{row.description ? <small>{row.description}</small> : null}<small>Venda: {money(Number(row.price || 0))} · Custo interno: {row.cost_known === 0 ? "não informado" : money(Number(row.cost || 0))}</small></div>
-                <div className="capture-actions">
-                  <button type="button" className="text-button" onClick={() => setEditing(row)}>Editar</button>
-                  <button type="button" className="text-button" onClick={async () => {
-                    try { await send(`/workshop-services/${row.id}/status`, { active: !row.active }, "PATCH"); refresh(); }
-                    catch (e) { setError((e as Error).message); }
-                  }}>{row.active ? "Inativar" : "Reativar"}</button>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : <p>Nenhum serviço encontrado.</p>}
-      </section>
-      {editing !== undefined && <WorkshopServiceForm initial={editing || undefined} onClose={() => setEditing(undefined)} onSaved={() => { setEditing(undefined); refresh(); }} />}
-    </>
-  );
+  const addCategory = (category: Entity) => setCategories((current) => [category, ...current.filter((row) => row.id !== category.id)]);
+  return <>
+    <PageHeading title="Serviços Próprios" eyebrow="CADASTROS" description="Cadastre os serviços particulares desta oficina, separados do Catálogo Técnico." />
+    <section className="panel work-order-section">
+      <div className="capture-actions">
+        <Field label="Pesquisar serviços"><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Descrição, referência ou categoria" /></Field>
+        <Field label="Categoria"><select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}><option value="">Todas as categorias</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}{!category.active ? " (inativa)" : ""}</option>)}</select></Field>
+        <Field label="Situação"><select value={status} onChange={(e) => setStatus(e.target.value as typeof status)}><option value="active">Ativos</option><option value="inactive">Inativos</option><option value="all">Todos</option></select></Field>
+        <button type="button" className="button" onClick={() => setManageCategories(true)}>Categorias</button>
+        <button type="button" className="button primary" onClick={() => setEditing(null)}>Novo serviço próprio</button>
+      </div>
+      {error && <p className="form-error" role="alert">{error}</p>}
+      {loading ? <p role="status">Buscando serviços…</p> : rows.length ? <div className="repair-results">{rows.map((row) => <div className="repair-result" key={row.id}>
+        <div><strong>{row.name}</strong><small>Referência: {row.reference || "—"} · Categoria: {row.category_name || "Sem categoria"}</small><small>Venda: {money(Number(row.price || 0))} · {row.active ? "Ativo" : "Inativo"}</small></div>
+        <div className="capture-actions"><button type="button" className="text-button" onClick={() => setEditing(row)}>Editar</button><button type="button" className="text-button" onClick={async () => { try { await send(`/workshop-services/${row.id}/status`, { active: !row.active }, "PATCH"); refresh(); } catch (e) { setError((e as Error).message); } }}>{row.active ? "Inativar" : "Reativar"}</button></div>
+      </div>)}</div> : <p>Nenhum serviço encontrado.</p>}
+    </section>
+    {editing !== undefined && <WorkshopServiceManagerForm initial={editing || undefined} categories={categories} onClose={() => setEditing(undefined)} onCategoryCreated={addCategory} onSaved={() => { setEditing(undefined); refresh(); }} />}
+    {manageCategories && <WorkshopServiceCategories categories={categories} onClose={() => setManageCategories(false)} onChanged={refresh} />}
+  </>;
 }
 const normalizeCatalogValue = (value: string) => value.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase().trim();
 const formatCatalogMinutes = (value: unknown) => {

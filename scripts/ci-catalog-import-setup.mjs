@@ -59,14 +59,15 @@ try {
     .filter((name) => /^\d{3}-.*\.sql$/.test(name))
     .sort();
   if (
-    files.length !== 24 ||
+    files.length !== 25 ||
     !files.includes("021-vehicle-update-audit-metadata.sql") ||
     !files.includes("022-admin-workshop-entitlements.sql") ||
     !files.includes("023-private-workshop-services.sql") ||
-    !files.includes("024-admin-technical-catalog-entitlement.sql")
+    !files.includes("024-admin-technical-catalog-entitlement.sql") ||
+    !files.includes("025-private-service-categories-references.sql")
   )
     throw new Error(
-      "A série completa de 24 migrações locais, incluindo o controle do Catálogo Técnico por oficina, não está presente.",
+      "A série completa de 25 migrações locais, incluindo categorias e referências de serviços próprios, não está presente.",
     );
   for (const file of files)
     await target.query(readFileSync(join("local-postgres", file), "utf8"));

@@ -31,8 +31,12 @@ test("migração preserva OS, itens, recebimentos e vínculos do banco anterior"
     assert.equal(db.prepare("SELECT COUNT(*) n FROM migrations WHERE version=26").get()!.n,1);
     assert.equal(db.prepare("SELECT COUNT(*) n FROM migrations WHERE version=27").get()!.n,1);
     assert.equal(db.prepare("SELECT COUNT(*) n FROM migrations WHERE version=28").get()!.n,1);
+    assert.equal(db.prepare("SELECT COUNT(*) n FROM migrations WHERE version=29").get()!.n,1);
     for (const column of ["description", "cost_known", "service_type", "name_key"])
       assert.ok(db.prepare("SELECT name FROM pragma_table_info('workshop_services') WHERE name=?").get(column));
+    for (const column of ["reference", "category_id"])
+      assert.ok(db.prepare("SELECT name FROM pragma_table_info('workshop_services') WHERE name=?").get(column));
+    assert.ok(db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='workshop_service_categories'").get());
 
     assert.ok(db.prepare("SELECT name FROM pragma_table_info('audit_events') WHERE name='metadata'").get());
     assert.ok(db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='data_transfer_records'").get());
@@ -70,4 +74,24 @@ test("migração preserva OS, itens, recebimentos e vínculos do banco anterior"
   } finally {
     db.close();
   }
+});
+test("migração EST-005 atribui referências por oficina sem alterar serviços existentes e isola categorias", () => {
+  const db = new DatabaseSync(":memory:");
+  try {
+    db.exec(`PRAGMA foreign_keys=ON;
+      CREATE TABLE tenants(id TEXT PRIMARY KEY);
+      INSERT INTO tenants VALUES('a'),('b');
+      CREATE TABLE migrations(version INTEGER PRIMARY KEY);
+      CREATE TABLE workshop_services(id TEXT PRIMARY KEY,tenant_id TEXT NOT NULL,name TEXT NOT NULL,active INTEGER NOT NULL DEFAULT 1,price INTEGER NOT NULL DEFAULT 0,cost INTEGER NOT NULL DEFAULT 0);
+      INSERT INTO workshop_services(id,tenant_id,name,price,cost) VALUES('service-a2','a','Serviço A2',2200,800),('service-a1','a','Serviço A1',1100,400),('service-b1','b','Serviço B1',3300,900);`);
+    db.exec(readFileSync(new URL("../server/db/migrations/029-private-service-categories-references.sql", import.meta.url), "utf8"));
+    assert.deepEqual(db.prepare("SELECT id,reference,name,price,cost FROM workshop_services ORDER BY tenant_id,id").all().map((row: any) => [row.id,row.reference,row.name,row.price,row.cost]), [
+      ["service-a1", "SRV-000001", "Serviço A1", 1100, 400],
+      ["service-a2", "SRV-000002", "Serviço A2", 2200, 800],
+      ["service-b1", "SRV-000001", "Serviço B1", 3300, 900],
+    ]);
+    db.prepare("INSERT INTO workshop_service_categories(id,tenant_id,name,name_key) VALUES('category-a','a','Elétrica','eletrica'),('category-b','b','Elétrica','eletrica')").run();
+    assert.throws(() => db.prepare("INSERT INTO workshop_services(id,tenant_id,name,reference,category_id) VALUES('service-cross','a','Serviço cruzado','SRV-OTHER','category-b')").run(), /não pertence a esta oficina/);
+    assert.throws(() => db.prepare("INSERT INTO workshop_services(id,tenant_id,name,reference) VALUES('service-duplicate','a','Duplicado','srv-000001')").run(), /UNIQUE constraint failed/);
+  } finally { db.close(); }
 });

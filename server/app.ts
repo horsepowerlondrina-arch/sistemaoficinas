@@ -81,7 +81,7 @@ import { getWorkshopProfile, saveWorkshopProfile } from "./services/workshopProf
 import { calculatePaymentPlan, paymentMethods } from "./domain/payments.js";
 import { lookupVehicle, lookupVehicleExternal, normalizePlate, providerToken } from "./services/vehicleLookup.js";
 import { vehicleFipeFields } from "./services/vehicleFipeFields.js";
-import { serviceInfo, saveLaborRates, searchBrands, searchModels, repairModel, identifyVehicleModel, confirmVehicleModel, catalogAccessState, searchRepairServices, listWorkshopServices, saveWorkshopService, setWorkshopServiceActive, resolveService, serviceSelectionSchema, withTenantScope, previewVehicleCatalogReview } from './services/repairCatalog.js';
+import { serviceInfo, saveLaborRates, searchBrands, searchModels, repairModel, identifyVehicleModel, confirmVehicleModel, catalogAccessState, searchRepairServices, listWorkshopServices, saveWorkshopService, setWorkshopServiceActive, listWorkshopServiceCategories, saveWorkshopServiceCategory, setWorkshopServiceCategoryActive, resolveService, serviceSelectionSchema, withTenantScope, previewVehicleCatalogReview } from './services/repairCatalog.js';
 const text = z.string().trim().max(500).default("");
 const name = z
   .string()
@@ -1175,6 +1175,14 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
   app.patch('/api/workshop-services/:id/status',async(req,res)=>{
     const input=z.object({active:z.boolean()}).parse(req.body);
     await transaction(db,async()=>{await setWorkshopServiceActive(db,res.locals.context,String(req.params.id),input.active);await audit(db,res.locals.context,input.active?'workshop_service.reactivated':'workshop_service.inactivated',String(req.params.id));});
+    res.json({ok:true});
+  });
+  app.get('/api/workshop-service-categories',async(req,res)=>res.json(await listWorkshopServiceCategories(db,res.locals.context,req.query)));
+  app.post('/api/workshop-service-categories',async(req,res)=>res.json({id:await transaction(db,async()=>{const id=await saveWorkshopServiceCategory(db,res.locals.context,req.body);await audit(db,res.locals.context,'workshop_service_category.created',id);return id;})}));
+  app.put('/api/workshop-service-categories/:id',async(req,res)=>res.json({id:await transaction(db,async()=>{const id=await saveWorkshopServiceCategory(db,res.locals.context,req.body,String(req.params.id));await audit(db,res.locals.context,'workshop_service_category.updated',id);return id;})}));
+  app.patch('/api/workshop-service-categories/:id/status',async(req,res)=>{
+    const input=z.object({active:z.boolean()}).parse(req.body);
+    await transaction(db,async()=>{await setWorkshopServiceCategoryActive(db,res.locals.context,String(req.params.id),input.active);await audit(db,res.locals.context,input.active?'workshop_service_category.reactivated':'workshop_service_category.inactivated',String(req.params.id));});
     res.json({ok:true});
   });
   app.post('/api/repair-services/preview',async(req,res)=>res.json(await resolveService(db,res.locals.context,req.body)));

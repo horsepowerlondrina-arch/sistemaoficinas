@@ -11,6 +11,9 @@ import {
   saveWorkshopService,
   listWorkshopServices,
   setWorkshopServiceActive,
+  listWorkshopServiceCategories,
+  saveWorkshopServiceCategory,
+  setWorkshopServiceCategoryActive,
   saveLaborRates,
   identifyVehicleModel,
   previewVehicleCatalogReview,
@@ -405,6 +408,45 @@ test("serviço próprio simples não exige porte nem tempo, pesquisa sem acento 
   } finally {
     f.db.close();
   }
+});
+test("referências e categorias próprias são únicas por oficina, pesquisáveis e preservam vínculos ao inativar", async () => {
+  const f = fixture();
+  try {
+    const category = await saveWorkshopServiceCategory(f.db, ctx, { name: "Elétrica Automotiva" });
+    const service = await saveWorkshopService(f.db, ctx, {
+      service_type: "private", name: "Reparo de alternador", reference: "hp-001", category_id: category, price: 15500, cost: 0,
+    });
+    const stored = f.db.prepare("SELECT reference,category_id,cost,cost_known FROM workshop_services WHERE tenant_id=? AND id=?").get("a", service)!;
+    assert.equal(stored.reference, "HP-001");
+    assert.equal(stored.category_id, category);
+    assert.equal(stored.cost, 0);
+    assert.equal(stored.cost_known, 1);
+    assert.equal((await listWorkshopServices(f.db, ctx, { q: "eletrica" })).items[0].id, service);
+    assert.equal((await listWorkshopServices(f.db, ctx, { q: "hp-001" })).items[0].id, service);
+    assert.equal((await listWorkshopServices(f.db, ctx, { private_category_id: category })).items[0].id, service);
+    await assert.rejects(saveWorkshopService(f.db, ctx, {
+      service_type: "private", name: "Outro serviço", reference: " hp-001 ", price: 1000,
+    }), /referência/);
+    const sameReferenceOtherOffice = await saveWorkshopService(f.db, { ...ctx, tenantId: "b" }, {
+      service_type: "private", name: "Outro serviço", reference: "hp-001", price: 1000,
+    });
+    assert.ok(sameReferenceOtherOffice);
+    await assert.rejects(saveWorkshopServiceCategory(f.db, ctx, { name: "ELETRICA   AUTOMOTIVA" }), /categoria/);
+    await assert.rejects(saveWorkshopService(f.db, { ...ctx, tenantId: "b" }, {
+      service_type: "private", name: "Serviço isolado", category_id: category, price: 1000,
+    }), /Categoria não encontrada/);
+    await saveWorkshopServiceCategory(f.db, ctx, { name: "Elétrica Premium" }, category);
+    assert.equal(f.db.prepare("SELECT category_id FROM workshop_services WHERE id=?").get(service)!.category_id, category);
+    await setWorkshopServiceCategoryActive(f.db, ctx, category, false);
+    assert.equal(f.db.prepare("SELECT category_id FROM workshop_services WHERE id=?").get(service)!.category_id, category);
+    assert.equal((await listWorkshopServiceCategories(f.db, ctx, { status: "inactive" })).items[0].id, category);
+    await assert.rejects(saveWorkshopService(f.db, ctx, {
+      service_type: "private", name: "Novo serviço", category_id: category, price: 1000,
+    }), /categoria inativa/);
+    await setWorkshopServiceCategoryActive(f.db, ctx, category, true);
+    assert.equal((await listWorkshopServiceCategories(f.db, ctx, { q: "eletrica premium" })).items[0].id, category);
+    assert.equal((await listWorkshopServices(f.db, { ...ctx, tenantId: "b" }, { status: "all", q: "hp-001" })).items[0].id, sameReferenceOtherOffice);
+  } finally { f.db.close(); }
 });
 test("snapshot de serviço próprio mantém nome, descrição, preço configurado e custo após edição do cadastro", async () => {
   const f = fixture();
