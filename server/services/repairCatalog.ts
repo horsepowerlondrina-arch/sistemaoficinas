@@ -464,17 +464,37 @@ export async function listWorkshopServices(
     .object({
       q: z.string().trim().max(100).default(""),
       category_id: commercialCategorySchema.optional(),
+      status: z.enum(["active", "inactive", "all"]).default("active"),
       offset: z.coerce.number().int().min(0).max(10000).default(0),
     })
     .parse(query);
+  const activeFilter = q.status === "all" ? null : q.status === "active" ? 1 : 0;
   const rows = await tenantRead(db, ctx, async () =>
     await db
       .prepare(
-        `SELECT s.*,p.name porte_name FROM workshop_services s LEFT JOIN labor_categories p ON p.id=s.commercial_category_id WHERE s.tenant_id=? AND s.active=1 AND (CAST(? AS TEXT) IS NULL OR s.commercial_category_id=CAST(? AS TEXT)) AND ${searchColumn('s.name')} LIKE ? ORDER BY s.name,s.id LIMIT 51 OFFSET ?`,
+        `SELECT s.*,p.name porte_name FROM workshop_services s LEFT JOIN labor_categories p ON p.id=s.commercial_category_id WHERE s.tenant_id=? AND (CAST(? AS INTEGER) IS NULL OR s.active=CAST(? AS INTEGER)) AND (CAST(? AS TEXT) IS NULL OR s.commercial_category_id=CAST(? AS TEXT)) AND ${searchColumn('s.name')} LIKE ? ORDER BY s.name,s.id LIMIT 51 OFFSET ?`,
       )
-      .all(ctx.tenantId, q.category_id || null, q.category_id || null, `%${searchKey(q.q)}%`, q.offset),
+      .all(ctx.tenantId, activeFilter, activeFilter, q.category_id || null, q.category_id || null, `%${searchKey(q.q)}%`, q.offset),
   );
   return { items: rows.slice(0, 50), has_more: rows.length > 50 };
+}
+function normalizedWorkshopServiceName(name: string) {
+  return name.normalize("NFD").replace(/\p{Diacritic}/gu, "").replace(/\s+/g, " ").trim().toLocaleLowerCase("pt-BR");
+}
+async function assertUniqueWorkshopServiceName(db: DB, tenantId: string, name: string, record?: string) {
+  const key = normalizedWorkshopServiceName(name);
+  const rows = await db.prepare("SELECT id,name FROM workshop_services WHERE tenant_id=?").all(tenantId);
+  if (rows.some((row) => row.id !== record && normalizedWorkshopServiceName(String(row.name)) === key))
+    throw new Error("Já existe um serviço com esse nome nesta oficina. Localize e reative o cadastro existente.");
+}
+export async function setWorkshopServiceActive(db: DB, ctx: Context, record: string, active: boolean) {
+  requireAdmin(ctx);
+  return tenantRead(db, ctx, async () => {
+    const service = await db.prepare("SELECT id,name,active FROM workshop_services WHERE tenant_id=? AND id=?").get(ctx.tenantId, record);
+    if (!service) throw new Error("Serviço não encontrado nesta oficina.");
+    if (active && !service.active) await assertUniqueWorkshopServiceName(db, ctx.tenantId, String(service.name), record);
+    await db.prepare("UPDATE workshop_services SET active=? WHERE tenant_id=? AND id=?").run(active ? 1 : 0, ctx.tenantId, record);
+  });
 }
 export async function saveWorkshopService(
   db: DB,
@@ -483,18 +503,45 @@ export async function saveWorkshopService(
   record?: string,
 ) {
   requireAdmin(ctx);
-  const v = z
-    .object({
-      name: z.string().trim().min(2).max(300),
-      execution: z.enum(["internal", "outsourced"]),
-      porte_id: uuid.nullable().optional(),
-      commercial_category_id: commercialCategorySchema,
-      pricing_mode: z.enum(["time", "price"]),
-      minutes: z.number().finite().min(0).max(10000),
-      price: cents,
-      cost: cents,
-    })
-    .parse(body);
+  const base = z.object({
+    service_type: z.literal("private"),
+    name: z.string().trim().min(2).max(300),
+    description: z.string().trim().max(1000).optional().default(""),
+    price: cents.min(1),
+    cost: cents.optional(),
+  }).safeParse(body);
+  if (base.success) {
+    const v = base.data;
+    return tenantRead(db, ctx, async () => {
+      const current = record
+        ? await db.prepare("SELECT id,name,active FROM workshop_services WHERE tenant_id=? AND id=?").get(ctx.tenantId, record)
+        : null;
+      if (record && (!current || !current.active)) throw new Error("Serviço não encontrado nesta oficina.");
+      if (!current || normalizedWorkshopServiceName(String(current.name)) !== normalizedWorkshopServiceName(v.name))
+        await assertUniqueWorkshopServiceName(db, ctx.tenantId, v.name, record);
+      const key = record || randomUUID();
+      const costKnown = v.cost !== undefined;
+      const cost = v.cost ?? 0;
+      if (record) {
+        await db.prepare("UPDATE workshop_services SET name=?,description=?,execution='internal',commercial_category_id=NULL,minutes=0,price=?,cost=?,cost_known=?,pricing_mode='price' WHERE tenant_id=? AND id=?")
+          .run(v.name, v.description, v.price, cost, costKnown ? 1 : 0, ctx.tenantId, key);
+      } else {
+        await db.prepare("INSERT INTO workshop_services(id,tenant_id,name,description,execution,commercial_category_id,minutes,price,cost,cost_known,pricing_mode) VALUES(?,?,?,?,'internal',NULL,0,?,?,?,'price')")
+          .run(key, ctx.tenantId, v.name, v.description, v.price, cost, costKnown ? 1 : 0);
+      }
+      return key;
+    });
+  }
+  const v = z.object({
+    name: z.string().trim().min(2).max(300),
+    execution: z.enum(["internal", "outsourced"]),
+    porte_id: uuid.nullable().optional(),
+    commercial_category_id: commercialCategorySchema,
+    pricing_mode: z.enum(["time", "price"]),
+    minutes: z.number().finite().min(0).max(10000),
+    price: cents,
+    cost: cents,
+  }).parse(body);
   return tenantRead(db, ctx, async () => {
   if (
     record &&
@@ -538,7 +585,7 @@ export async function saveWorkshopService(
   else
     await db
       .prepare(
-        "INSERT INTO workshop_services(id,tenant_id,name,execution,commercial_category_id,minutes,price,cost,pricing_mode) VALUES(?,?,?,?,?,?,?,?,?)",
+        "INSERT INTO workshop_services(id,tenant_id,name,description,execution,commercial_category_id,minutes,price,cost,cost_known,pricing_mode) VALUES(?,?,?,'',?,?,?,?,?,?,?)",
       )
       .run(
         key,
@@ -549,6 +596,7 @@ export async function saveWorkshopService(
         v.minutes,
         v.price,
         v.cost,
+        1,
         v.pricing_mode,
       );
   return key;
@@ -625,7 +673,10 @@ export async function resolveService(
       source: "manual",
       workshop_service_id: service.id,
       name: service.name,
+      description: service.description || "",
       porte_id: selected.porte_id || null,
+      service_type: service.commercial_category_id === null && service.pricing_mode === "price" && Number(service.minutes) === 0 ? "private" : "legacy",
+      cost_known: service.cost_known === undefined ? true : !!service.cost_known,
       commercial_category_id: service.commercial_category_id,
       commercial_category_name: service.commercial_category_id
         ? (await db.prepare("SELECT name FROM labor_categories WHERE id=?").get(service.commercial_category_id))?.name
@@ -638,6 +689,22 @@ export async function resolveService(
     };
   }
   if (!snapshot) throw new Error("Escolha um serviço válido.");
+  if (snapshot.source === "manual" && snapshot.service_type === "private") {
+    const configuredPrice = Number(snapshot.fixed_price || 0);
+    const chargedPrice = Number(selected.manual_price ?? configuredPrice);
+    if (!Number.isSafeInteger(chargedPrice) || chargedPrice < 0)
+      throw new Error("Informe um preço de venda válido.");
+    snapshot = {
+      ...snapshot,
+      execution: "internal",
+      minutes: 0,
+      cost: Number(snapshot.cost || 0),
+      cost_known: snapshot.cost_known !== false,
+      calculated_price: chargedPrice,
+      price_override: chargedPrice !== configuredPrice,
+    };
+    return { ...snapshot, price: chargedPrice, service_snapshot: JSON.stringify(snapshot), kind: "service", catalog_id: null };
+  }
   let originalCategory = String(snapshot.original_commercial_category_id || snapshot.commercial_category_id || "");
   const categoryId = selected.commercial_category_id || originalCategory;
   if (!categoryId && !existing)
