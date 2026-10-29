@@ -59,12 +59,13 @@ try {
     .filter((name) => /^\d{3}-.*\.sql$/.test(name))
     .sort();
   if (
-    files.length !== 22 ||
+    files.length !== 23 ||
     !files.includes("021-vehicle-update-audit-metadata.sql") ||
-    !files.includes("022-admin-workshop-entitlements.sql")
+    !files.includes("022-admin-workshop-entitlements.sql") ||
+    !files.includes("023-private-workshop-services.sql")
   )
     throw new Error(
-      "A série completa de 22 migrações locais, incluindo permissões administrativas por oficina, não está presente.",
+      "A série completa de 23 migrações locais, incluindo serviços próprios por oficina, não está presente.",
     );
   for (const file of files)
     await target.query(readFileSync(join("local-postgres", file), "utf8"));
