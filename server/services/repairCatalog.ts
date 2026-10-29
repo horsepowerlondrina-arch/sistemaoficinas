@@ -208,11 +208,7 @@ const catalogModelSelect = "SELECT m.id,m.name,m.brand_id,m.fipe_code,m.classifi
 const vehicleMatchInput = z.object({
   brand: z.string().trim().max(150).default(""),
   model: z.string().trim().max(300).default(""),
-  year: z.preprocess((value) => {
-    if (value === null || value === undefined || String(value).trim() === "") return null;
-    const parsed = Number(value);
-    return Number.isInteger(parsed) ? parsed : null;
-  }, z.number().nullable()).optional(),
+  year: z.coerce.number().int().min(1900).max(2100).nullable().optional(),
   fipe_code: z.string().trim().max(20).default(""),
   fipe_model: z.string().trim().max(300).default(""),
   fipe_year_id: z.string().trim().max(30).default(""),
