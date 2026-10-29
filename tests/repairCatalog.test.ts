@@ -637,7 +637,7 @@ test("prévia tolera ano zero, inválido, ausente e campos legados longos sem al
             const statement = target.prepare(sql);
             if (!sql.includes("SELECT v.*,c.name customer_name")) return statement;
             return {
-              all: async (...params: unknown[]) => {
+              all: async (...params: Parameters<typeof statement.all>) => {
                 const rows = await statement.all(...params);
                 return rows.map((row) => {
                   if (row.id !== "year-missing") return row;
@@ -645,7 +645,7 @@ test("prévia tolera ano zero, inválido, ausente e campos legados longos sem al
                   return withoutYear;
                 });
               },
-            } as ReturnType<typeof target.prepare>;
+            } as unknown as ReturnType<typeof target.prepare>;
           };
         }
         const value = Reflect.get(target, property, target);
