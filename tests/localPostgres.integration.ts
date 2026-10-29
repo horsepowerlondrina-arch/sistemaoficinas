@@ -23,15 +23,42 @@ test("PostgreSQL local: autenticação, oficinas, transações e RLS do catálog
       const first = "00000000-0000-4000-8000-000000000101";
       const second = "00000000-0000-4000-8000-000000000102";
       const third = "00000000-0000-4000-8000-000000000103";
-      const insert = "INSERT INTO horse_power.workshop_services(id,tenant_id,name,name_key,description,service_type,execution,minutes,price,cost,cost_known,pricing_mode) VALUES($1,$2,$3,$4,'','private','internal',0,1000,0,0,'price')";
-      await admin.query(insert, [first,"local-a","Revisão elétrica","revisao eletrica"]);
-      await admin.query(insert, [second,"local-b","Revisao eletrica","revisao eletrica"]);
-      await assert.rejects(admin.query(insert, [third,"local-a","REVISÃO ELÉTRICA","revisao eletrica"]), { code: "23505" });
+      const insert = "INSERT INTO horse_power.workshop_services(id,tenant_id,name,name_key,description,service_type,execution,minutes,price,cost,cost_known,pricing_mode,reference) VALUES($1,$2,$3,$4,'','private','internal',0,1000,0,0,'price',$5)";
+      await admin.query(insert, [first,"local-a","Revisão elétrica","revisao eletrica","SRV-PG-101"]);
+      await admin.query(insert, [second,"local-b","Revisao eletrica","revisao eletrica","SRV-PG-101"]);
+      await assert.rejects(admin.query(insert, [third,"local-a","REVISÃO ELÉTRICA","revisao eletrica","SRV-PG-103"]), { code: "23505" });
       await admin.query("ROLLBACK");
     } catch (error) {
       await admin.query("ROLLBACK").catch(() => {});
       throw error;
     } finally { await admin.end(); }
+  });
+  await t.test("migração PostgreSQL de categorias e referências mantém unicidade e vínculo por oficina", async () => {
+    const { adminClient } = await import("../scripts/local-admin");
+    const admin = adminClient(); await admin.connect();
+    try {
+      const columns = await admin.query(`SELECT column_name FROM information_schema.columns
+        WHERE table_schema='horse_power' AND table_name='workshop_services' AND column_name IN ('reference','category_id')`);
+      assert.deepEqual(columns.rows.map((row: any) => row.column_name).sort(), ["category_id","reference"]);
+      await admin.query("BEGIN");
+      const categoryA = "00000000-0000-4000-8000-000000000201", categoryB = "00000000-0000-4000-8000-000000000202";
+      const serviceA = "00000000-0000-4000-8000-000000000203", serviceB = "00000000-0000-4000-8000-000000000204";
+      await admin.query("INSERT INTO horse_power.workshop_service_categories(id,tenant_id,name,name_key) VALUES($1,'local-a','Elétrica','eletrica'),($2,'local-b','Elétrica','eletrica')", [categoryA,categoryB]);
+      const insert = "INSERT INTO horse_power.workshop_services(id,tenant_id,name,execution,minutes,price,cost,pricing_mode,service_type,name_key,reference,category_id) VALUES($1,$2,$3,'internal',0,1000,0,'price','private',$3,$4,$5)";
+      await admin.query(insert, [serviceA,"local-a","Serviço fictício A","SRV-EST005-1",categoryA]);
+      await admin.query(insert, [serviceB,"local-b","Serviço fictício B","SRV-EST005-1",categoryB]);
+      const expectConstraint = async (query: () => Promise<unknown>, code: string) => {
+        await admin.query("SAVEPOINT est005_constraint_check");
+        await assert.rejects(query(), { code });
+        await admin.query("ROLLBACK TO SAVEPOINT est005_constraint_check");
+        await admin.query("RELEASE SAVEPOINT est005_constraint_check");
+      };
+      await expectConstraint(() => admin.query(insert, ["00000000-0000-4000-8000-000000000205","local-a","Outro serviço","srv-est005-1",categoryA]), "23505");
+      await expectConstraint(() => admin.query(insert, ["00000000-0000-4000-8000-000000000206","local-a","Serviço cruzado","SRV-EST005-2",categoryB]), "23503");
+      await expectConstraint(() => admin.query("INSERT INTO horse_power.workshop_service_categories(id,tenant_id,name,name_key) VALUES('00000000-0000-4000-8000-000000000207','local-a','ELETRICA','eletrica')"), "23505");
+      await admin.query("ROLLBACK");
+    } catch (error) { await admin.query("ROLLBACK").catch(() => {}); throw error; }
+    finally { await admin.end(); }
   });
   await t.test("migração PostgreSQL registra metadados de auditoria de veículos",async()=>{
     const {adminClient}=await import("../scripts/local-admin");
@@ -149,7 +176,7 @@ test("PostgreSQL local: autenticação, oficinas, transações e RLS do catálog
     await assert.rejects(db.transaction(async()=>{
     await db.withTenantRead("local-a",async()=>{
        await db.prepare("INSERT INTO labor_commercial_rates(tenant_id,category_id,hourly_rate) VALUES('local-a','compacto',12000) ON CONFLICT(tenant_id,category_id) DO UPDATE SET hourly_rate=excluded.hourly_rate").run();
-      await db.prepare("INSERT INTO workshop_services(id,tenant_id,name,execution,commercial_category_id) VALUES('00000000-0000-4000-8000-000000000091','local-a','Serviço Fictício Compacto','internal','compacto'),('00000000-0000-4000-8000-000000000092','local-a','Serviço Fictício Premium','internal','premium')").run();
+      await db.prepare("INSERT INTO workshop_services(id,tenant_id,name,execution,commercial_category_id,reference) VALUES('00000000-0000-4000-8000-000000000091','local-a','Serviço Fictício Compacto','internal','compacto','SRV-COMPACTO'),('00000000-0000-4000-8000-000000000092','local-a','Serviço Fictício Premium','internal','premium','SRV-PREMIUM')").run();
     });
     assert.equal((await listWorkshopServices(db,serviceContext,{})).items.length,2);
     assert.equal((await listWorkshopServices(db,serviceContext,{category_id:"compacto"})).items.length,1);
@@ -164,7 +191,7 @@ test("PostgreSQL local: autenticação, oficinas, transações e RLS do catálog
     const {adminClient}=await import("../scripts/local-admin");const admin=adminClient();await admin.connect();
     try{
       await admin.query("BEGIN");
-      await admin.query("INSERT INTO horse_power.workshop_services(id,tenant_id,name,execution) VALUES('00000000-0000-4000-8000-000000000099','local-b','Serviço Fictício B','internal')");
+      await admin.query("INSERT INTO horse_power.workshop_services(id,tenant_id,name,execution,reference) VALUES('00000000-0000-4000-8000-000000000099','local-b','Serviço Fictício B','internal','SRV-OTHER-B')");
       await admin.query("SET LOCAL ROLE hp_local_app");
       await admin.query("SELECT set_config('app.tenant_id','local-a',true)");
       assert.deepEqual((await admin.query("SELECT tenant_id FROM horse_power.labor_commercial_rates WHERE tenant_id='local-b'")).rows,[]);

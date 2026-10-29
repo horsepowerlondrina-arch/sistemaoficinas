@@ -35,6 +35,7 @@ export function postgresSql(input: string) {
     "labor_categories",
     "labor_commercial_rates",
     "workshop_services",
+    "workshop_service_categories",
     "professionals",
     "catalog",
     "product_categories",
