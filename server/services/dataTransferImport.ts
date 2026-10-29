@@ -31,6 +31,61 @@ const safelyUpdatable = new Set<TransferTable>([
   "customers", "vehicles", "professionals", "suppliers", "product_categories", "catalog",
   "workshop_services", "labor_rates", "labor_commercial_rates", "payment_settings", "card_rates",
 ]);
+
+// Only these known relationships are rewritten when a globally unique source ID
+// collides with a record belonging to another tenant.
+const linkedIdFields: Partial<Record<TransferTable, Record<string, TransferTable>>> = {
+  vehicles: { customer_id: "customers" },
+  catalog: { merged_into: "catalog" },
+  workshop_services: {},
+  orders: { customer_id: "customers", vehicle_id: "vehicles" },
+  order_items: { order_id: "orders", catalog_id: "catalog", professional_id: "professionals" },
+  stock_invoices: { supplier_id: "suppliers" },
+  stock_invoice_products: { catalog_id: "catalog", supplier_id: "suppliers" },
+  stock_movements: { catalog_id: "catalog", order_id: "orders" },
+  receivables: { order_id: "orders", customer_id: "customers" },
+  payment_installments: { receivable_id: "receivables" },
+  cash_entries: { receivable_id: "receivables", installment_id: "payment_installments" },
+  payables: { template_id: "expense_templates" },
+  cash_movements: { account_id: "cash_accounts" },
+  service_aliases: { catalog_id: "catalog" },
+  service_merge_history: { canonical_id: "catalog" },
+  external_catalog_links: { catalog_id: "catalog" },
+  external_captures: { order_id: "orders", item_id: "order_items", catalog_id: "catalog" },
+  checklists: { customer_id: "customers", vehicle_id: "vehicles", order_id: "orders" },
+  checklist_photos: { checklist_id: "checklists" },
+};
+type IdRemaps = Map<TransferTable, Map<string, string>>;
+function remapLinkedIds(table: TransferTable, row: TransferRow, remaps: IdRemaps): TransferRow {
+  const mapped = { ...row };
+  const references = { ...(linkedIdFields[table] || {}) };
+  if (table === "cash_movements" && mapped.source_id) {
+    if (mapped.origin === "receipt") references.source_id = "payment_installments";
+    else if (mapped.origin === "expense") references.source_id = "payables";
+  }
+  if ((table === "document_revisions" || table === "data_transfer_archived_documents") && mapped.entity_id) {
+    if (mapped.kind === "order") references.entity_id = "orders";
+    else if (mapped.kind === "checklist") references.entity_id = "checklists";
+  }
+  if (table === "data_transfer_archived_documents") references.revision_id = "document_revisions";
+  for (const [field, parent] of Object.entries(references)) {
+    const value = mapped[field];
+    if (value === null || value === undefined) continue;
+    mapped[field] = remaps.get(parent)?.get(String(value)) ?? value;
+  }
+  return mapped;
+}
+function trackedLookup(table: TransferTable, trackedId: string, sourceRow: TransferRow): { fields: string[]; row: TransferRow } {
+  if (sourceRow.id !== undefined && sourceRow.id !== null) return { fields: ["id"], row: { id: trackedId } };
+  const fields = primaryFields[table] || [];
+  try {
+    const values = JSON.parse(trackedId) as unknown;
+    if (Array.isArray(values) && values.length === fields.length)
+      return { fields, row: Object.fromEntries(fields.map((field, index) => [field, values[index]])) };
+  } catch { /* older tracking records may not encode a composite key as JSON */ }
+  return { fields, row: sourceRow };
+}
+
 const uniqueKeys: Partial<Record<TransferTable, string[][]>> = {
   vehicles: [["plate"]], catalog: [["sku"]], orders: [["number"]], receivables: [["order_id"]],
   cash_entries: [["installment_id"]], payment_installments: [["receivable_id", "sequence"]],
@@ -177,7 +232,10 @@ async function buildPlan(db: DB, tenantId: string, payload: TransferPayload, mod
       const tracking = await getTracking(db, tenantId, payload, table, sourceId);
       let prior: TransferRow | undefined;
       let priorId = String(tracking?.target_record_id || "");
-      if (tracking) prior = await selectByFields(db, table, tenantId, targetLookupFields(table, row), mapped);
+      if (tracking) {
+        const lookup = trackedLookup(table, priorId, mapped);
+        prior = await selectByFields(db, table, tenantId, lookup.fields, lookup.row);
+      }
       else if (row.id !== undefined) prior = await selectByFields(db, table, tenantId, ["id"], row);
       if (!prior && !tracking) {
         const lookupKeys = [...(uniqueKeys[table] || []), ...(primaryFields[table] ? [primaryFields[table]!] : [])];
@@ -331,12 +389,42 @@ async function insertMappedRow(db: DB, table: TransferTable, mapped: TransferRow
   const columns = await columnsFor(db, table);
   const entries = Object.entries(mapped).filter(([key]) => columns.has(key));
   if (!entries.length) throw new Error(`A entidade ${table} não possui colunas importáveis.`);
-  await db.prepare(`INSERT INTO ${table} (${entries.map(([key]) => key).join(",")}) VALUES (${entries.map(() => "?").join(",")})`)
-    .run(...entries.map(([, value]) => value));
-  const identity = targetLookupFields(table, mapped);
-  const inserted = await selectByFields(db, table, String(mapped.tenant_id), identity, mapped);
-  if (!inserted) throw new Error(`Não foi possível verificar o registro criado em ${table}.`);
-  return inserted;
+  const insert = async (row: TransferRow) => {
+    const values = Object.entries(row).filter(([key]) => columns.has(key));
+    await db.prepare(`INSERT INTO ${table} (${values.map(([key]) => key).join(",")}) VALUES (${values.map(() => "?").join(",")})`)
+      .run(...values.map(([, value]) => value));
+    const identity = targetLookupFields(table, row);
+    const inserted = await selectByFields(db, table, String(row.tenant_id), identity, row);
+    if (!inserted) throw new Error(`Não foi possível verificar o registro criado em ${table}.`);
+    return inserted;
+  };
+  if (typeof db.exec !== "function") return insert(mapped);
+
+  await db.exec("SAVEPOINT transfer_row_insert");
+  try {
+    const inserted = await insert(mapped);
+    await db.exec("RELEASE SAVEPOINT transfer_row_insert");
+    return inserted;
+  } catch (error) {
+    const pgError = error as { code?: unknown; constraint?: unknown };
+    const isGlobalPrimaryKeyCollision = pgError?.code === "23505" && pgError.constraint === `${table}_pkey`
+      && typeof mapped.id === "string" && Boolean(mapped.id);
+    await db.exec("ROLLBACK TO SAVEPOINT transfer_row_insert");
+    if (!isGlobalPrimaryKeyCollision) {
+      await db.exec("RELEASE SAVEPOINT transfer_row_insert");
+      throw error;
+    }
+    const remapped = { ...mapped, id: randomUUID() };
+    try {
+      const inserted = await insert(remapped);
+      await db.exec("RELEASE SAVEPOINT transfer_row_insert");
+      return inserted;
+    } catch (retryError) {
+      await db.exec("ROLLBACK TO SAVEPOINT transfer_row_insert");
+      await db.exec("RELEASE SAVEPOINT transfer_row_insert");
+      throw retryError;
+    }
+  }
 }
 
 async function updateMappedRow(db: DB, table: TransferTable, mapped: TransferRow, old: TransferRow) {
@@ -419,17 +507,32 @@ export async function importWorkshopPackage(
     }
 
     const verified: Record<string, number> = {};
+    const idRemaps: IdRemaps = new Map();
+    for (const decision of plan.plans) {
+      if (decision.row.id !== undefined && decision.row.id !== null && decision.targetId && decision.targetId !== decision.sourceId) {
+        const tableRemaps = idRemaps.get(decision.table) || new Map<string, string>();
+        tableRemaps.set(String(decision.row.id), decision.targetId);
+        idRemaps.set(decision.table, tableRemaps);
+      }
+    }
     for (const table of insertOrder) {
       for (const decision of plan.plans.filter((item) => item.table === table)) {
         if (decision.action === "conflict") throw new Error(`Conflito em ${table}/${decision.sourceId}; nenhuma alteração foi mantida.`);
-        const mapped = remapRow(decision.row, payload.source.tenant.id, tenantId, actorUserId);
+        const mapped = remapLinkedIds(table, remapRow(decision.row, payload.source.tenant.id, tenantId, actorUserId), idRemaps);
+        if (table === "catalog" && mapped.merged_into) mapped.merged_into = null;
         if (decision.action === "new") {
           const inserted = await insertMappedRow(db, table, mapped);
+          if (decision.row.id !== undefined && decision.row.id !== null && inserted.id !== undefined && String(inserted.id) !== String(decision.row.id)) {
+            const tableRemaps = idRemaps.get(table) || new Map<string, string>();
+            tableRemaps.set(String(decision.row.id), String(inserted.id));
+            idRemaps.set(table, tableRemaps);
+          }
           await writeTracking(db, tenantId, payload, table, decision.sourceId, decision.sourceHash, inserted);
         } else if (decision.action === "equal") {
           await writeTracking(db, tenantId, payload, table, decision.sourceId, decision.sourceHash, decision.target!);
         } else if (decision.action === "update") {
-          const updated = await updateMappedRow(db, table, mapped, decision.target!);
+          const updateRow = table === "catalog" && mapped.merged_into ? { ...mapped, merged_into: null } : mapped;
+          const updated = await updateMappedRow(db, table, updateRow, decision.target!);
           await writeTracking(db, tenantId, payload, table, decision.sourceId, decision.sourceHash, updated);
         }
       }
@@ -438,6 +541,22 @@ export async function importWorkshopPackage(
       const actual = await db.prepare(`SELECT count(*) AS count FROM ${table} WHERE tenant_id=?`).get(tenantId);
       verified[table] = Number(actual?.count || 0);
       if (verified[table] < expectedRows) throw new Error(`A conferência de ${table} falhou; a transação será revertida.`);
+    }
+    // Catalog merges may point forward to another row in the same table. Resolve
+    // these references after every catalog ID has either been preserved or remapped.
+    for (const decision of plan.plans.filter((item) => item.table === "catalog" && item.action !== "conflict")) {
+      if (decision.row.merged_into === undefined) continue;
+      const sourceId = String(decision.row.id ?? decision.sourceId);
+      const targetId = idRemaps.get("catalog")?.get(sourceId) || decision.targetId || sourceId;
+      const mergedSourceId = decision.row.merged_into;
+      const mergedTargetId = mergedSourceId == null
+        ? null
+        : idRemaps.get("catalog")?.get(String(mergedSourceId)) || String(mergedSourceId);
+      await db.prepare("UPDATE catalog SET merged_into=? WHERE tenant_id=? AND id=?")
+        .run(mergedTargetId, tenantId, targetId);
+      const targetRow = await db.prepare("SELECT * FROM catalog WHERE tenant_id=? AND id=?").get(tenantId, targetId);
+      if (!targetRow) throw new Error("Não foi possível validar o vínculo do catálogo após importar.");
+      await writeTracking(db, tenantId, payload, "catalog", decision.sourceId, decision.sourceHash, targetRow);
     }
     if (options.adminApprovalId) {
       await db.prepare("INSERT INTO data_transfer_records(tenant_id,source_application,source_tenant_id,table_name,source_record_id,source_hash,target_record_id,target_hash) VALUES(?,?,?,?,?,?,?,?)")

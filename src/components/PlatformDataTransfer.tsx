@@ -1,4 +1,4 @@
-import { useEffect, useState, type ChangeEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { Download, LockKeyhole, Upload } from "lucide-react";
 
 type Mode = "empty" | "merge" | "replace";
@@ -29,6 +29,8 @@ export function PlatformDataTransfer({ tenantId, workshopName, environmentLabel,
   const [requests, setRequests] = useState<CriticalRequest[]>([]);
   const [history, setHistory] = useState<History[]>([]);
   const [busy, setBusy] = useState(false);
+  const importInFlight = useRef(false);
+  const [importing, setImporting] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
@@ -104,18 +106,40 @@ export function PlatformDataTransfer({ tenantId, workshopName, environmentLabel,
     finally { setBusy(false); }
   }
   async function runImport() {
-    if (!preview?.canImport || confirmation !== preview.confirmationId) return;
-    setBusy(true); setError(""); setMessage("");
+    if (importInFlight.current) return;
+    if (!preview?.canImport) {
+      setError("Gere uma prévia válida antes de confirmar a importação.");
+      return;
+    }
+    if (confirmation !== preview.confirmationId) {
+      setError("O identificador digitado não corresponde à prévia. Copie o identificador completo exibido e tente novamente.");
+      return;
+    }
+    if (!fileText || phrase.length < 12) {
+      setError("Selecione o pacote e informe a frase secreta antes de confirmar.");
+      return;
+    }
+    importInFlight.current = true;
+    setImporting(true); setBusy(true); setError(""); setMessage("");
     try {
       const sha = await packageSha256();
       const approval = preview.mode === "replace" ? requests.find(item => item.packageSha256 === sha && item.status === "approved") : undefined;
-      if (preview.mode === "replace" && (!approval || workshopConfirmation !== preview.targetWorkshop)) throw new Error("Digite o nome exato da oficina e obtenha a aprovação de outro administrador para este pacote.");
+      if (preview.mode === "replace" && (!approval || workshopConfirmation !== preview.targetWorkshop))
+        throw new Error("Digite o nome exato da oficina e obtenha a aprovação de outro administrador para este pacote.");
       await post("/import", { packageText: fileText, passphrase: phrase, confirmationId: preview.confirmationId, mode: preview.mode, workshopConfirmation, ...(approval ? { criticalRequestId: approval.id } : {}), confirm: true });
-      setMessage("Importação concluída; a operação foi registrada na auditoria administrativa.");
+      setMessage("Importação concluída e registrada na auditoria administrativa.");
       setPreview(null); setVerification(null); setConfirmation(""); setWorkshopConfirmation(""); setPhrase(""); setFileText(""); setFileName("");
-      await refresh();
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Falha na importação."); }
-    finally { setBusy(false); }
+      try { await refresh(); }
+      catch { setError("A importação foi concluída, mas a tela não conseguiu atualizar o histórico. Consulte o histórico antes de qualquer nova operação."); }
+    } catch (cause) {
+      const message = cause instanceof TypeError
+        ? "A conexão foi interrompida antes de confirmar a resposta. A importação pode ter sido concluída; consulte o Histórico de operações antes de tentar novamente."
+        : cause instanceof Error ? cause.message : "Falha ao processar a importação.";
+      setError(message);
+    } finally {
+      importInFlight.current = false;
+      setImporting(false); setBusy(false);
+    }
   }
   async function downloadBackup(id: string) {
     setError("");
@@ -161,7 +185,8 @@ export function PlatformDataTransfer({ tenantId, workshopName, environmentLabel,
           {preview.mode === "replace" && <><label className="field"><span>Digite exatamente o nome de destino: {preview.targetWorkshop}</span><input value={workshopConfirmation} onChange={event => setWorkshopConfirmation(event.target.value)} /></label>
             {canRequestCritical && <button type="button" className="button" disabled={busy || !fileText || phrase.length < 12} onClick={() => void requestApproval()}>Solicitar aprovação de outro administrador</button>}</>}
           <label className="field"><span>Digite o identificador da prévia: {preview.confirmationId}</span><input value={confirmation} onChange={event => setConfirmation(event.target.value)} /></label>
-          <button type="button" className="button primary" disabled={busy || confirmation !== preview.confirmationId || (preview.mode === "replace" && (workshopConfirmation !== preview.targetWorkshop || !requests.some(item => item.status === "approved")))} onClick={() => void runImport()}>{preview.mode === "replace" ? "Confirmar substituição" : preview.mode === "merge" ? "Confirmar mesclagem" : "Confirmar importação"}</button>
+          <button type="button" className="button primary" disabled={busy || confirmation !== preview.confirmationId || (preview.mode === "replace" && (workshopConfirmation !== preview.targetWorkshop || !requests.some(item => item.status === "approved")))} onClick={() => void runImport()}>{importing ? "Importando..." : preview.mode === "replace" ? "Confirmar substituição" : preview.mode === "merge" ? "Confirmar mesclagem" : "Confirmar importação"}</button>
+          {confirmation !== preview.confirmationId && <p className="muted" role="status">Para habilitar a confirmação, digite exatamente o identificador completo da prévia acima.</p>}
         </>}
       </div>}
       {verification && <div className="info-box"><h3>Relatório de conferência somente leitura</h3><pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{JSON.stringify(verification, null, 2)}</pre></div>}
