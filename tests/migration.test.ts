@@ -30,6 +30,10 @@ test("migração preserva OS, itens, recebimentos e vínculos do banco anterior"
     assert.equal(db.prepare("SELECT COUNT(*) n FROM migrations WHERE version=25").get()!.n,1);
     assert.equal(db.prepare("SELECT COUNT(*) n FROM migrations WHERE version=26").get()!.n,1);
     assert.equal(db.prepare("SELECT COUNT(*) n FROM migrations WHERE version=27").get()!.n,1);
+    assert.equal(db.prepare("SELECT COUNT(*) n FROM migrations WHERE version=28").get()!.n,1);
+    for (const column of ["description", "cost_known", "service_type", "name_key"])
+      assert.ok(db.prepare("SELECT name FROM pragma_table_info('workshop_services') WHERE name=?").get(column));
+
     assert.ok(db.prepare("SELECT name FROM pragma_table_info('audit_events') WHERE name='metadata'").get());
     assert.ok(db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='data_transfer_records'").get());
     assert.ok(db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='data_transfer_backups'").get());
