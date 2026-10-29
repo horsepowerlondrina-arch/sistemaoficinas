@@ -1,4 +1,5 @@
 import { platformTitle } from "../shared/platformIdentity";
+import { uiModuleForPath } from "../shared/workshopModules";
 import { PlatformBrand } from "./components/PlatformBrand";
 import { WorkshopBrand } from "./components/WorkshopBrand";
 import { advanceOnEnter } from "./lib/enterNavigation";
@@ -76,6 +77,7 @@ export function App() {
   const refresh = async () => {
     const result = await api<Workspace>("/workspace");
     setData(result);
+    if (result.modules) setSession(current => current ? { ...current, modules: result.modules } : current);
   };
   const load = async () => {
     setLoading(true);
@@ -183,14 +185,21 @@ export function App() {
     },
   ];
   const admin = session.role === "owner";
+  const available = (path: string) => {
+    const module = uiModuleForPath(path);
+    return !module || session.modules?.[module] !== false;
+  };
   const visibleGroups = admin
-    ? groups
+    ? groups.map((group) => ({ ...group, items: group.items.filter(([path]) => available(path)) })).filter((group) => group.items.length)
     : [
         {
           title: "OPERAÇÃO",
-          items: groups[0].items.filter(([path]) => path === "/ordens"),
+          items: groups[0].items.filter(([path]) => path === "/ordens" && available(path)),
         },
       ];
+  const blockedModule = uiModuleForPath(location.pathname);
+  if (blockedModule && session.modules?.[blockedModule] === false)
+    return <Navigate to="/inicio" replace />;
   const current =
     groups
       .flatMap((g) => g.items)
@@ -319,7 +328,7 @@ export function App() {
             ))}
           </nav>
           <div className="sidebar-bottom">
-            {admin && (
+            {admin && available("/configuracoes") && (
               <NavLink
                 to="/configuracoes"
                 className={({ isActive }) =>

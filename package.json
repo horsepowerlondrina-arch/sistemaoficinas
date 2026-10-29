@@ -18,7 +18,7 @@
     "db:local:seed": "tsx scripts/local-seed.ts",
     "catalog:inspect": "tsx scripts/catalog-inspect.ts",
     "catalog:import": "tsx scripts/catalog-import.ts",
-    "test:postgres": "tsx --test --test-concurrency=1 tests/localPostgres.integration.ts tests/platformAdmin.integration.ts tests/platformWorkshops.integration.ts tests/dataTransfer.postgres.integration.ts tests/workshopActivation.integration.ts tests/dataTransferVerification.postgres.integration.ts tests/catalogImportPipeline.integration.ts tests/extension.postgres.integration.ts"
+    "test:postgres": "tsx --test --test-concurrency=1 tests/localPostgres.integration.ts tests/platformAdmin.integration.ts tests/platformWorkshops.integration.ts tests/platformEntitlements.integration.ts tests/dataTransfer.postgres.integration.ts tests/workshopActivation.integration.ts tests/dataTransferVerification.postgres.integration.ts tests/catalogImportPipeline.integration.ts tests/extension.postgres.integration.ts"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.6",

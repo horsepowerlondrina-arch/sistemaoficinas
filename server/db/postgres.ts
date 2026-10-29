@@ -3,6 +3,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import pg from "pg";
 import { readFileSync } from "node:fs";
 import type { DB } from "./database.js";
+import { defaultWorkshopModules } from "../../shared/workshopModules.js";
 
 // Timestamps are text in the legacy contract; bigint aggregates stay exact JS integers.
 pg.types.setTypeParser(20, (value) => {
@@ -97,12 +98,12 @@ export function createPostgresDatabase(url = process.env.DATABASE_URL, options: 
     query_timeout: 15000,
   });
   const context = new AsyncLocalStorage<pg.PoolClient>();
-  async function setRequestIdentity(tenantId: string | null, userId?: string | null) {
+  async function setRequestIdentity(tenantId: string | null, userId?: string | null, publicShareHash?: string | null) {
     const client = context.getStore();
     if (!client) throw new Error("O contexto seguro da requisição não está ativo.");
     await client.query(
-      "SELECT set_config('app.tenant_id',$1,true),set_config('app.user_id',$2,true)",
-      [tenantId || "", userId || ""],
+      "SELECT set_config('app.tenant_id',$1,true),set_config('app.user_id',$2,true),set_config('app.public_share_hash',$3,true)",
+      [tenantId || "", userId || "", publicShareHash || ""],
     );
   }
   async function query(sql: string, values: any[] = []) {
@@ -153,6 +154,17 @@ export function createPostgresDatabase(url = process.env.DATABASE_URL, options: 
     async getTenantAccessState(tenant: string) {
       const result = await query("SELECT horse_power.local_tenant_access_state($1) AS state", [tenant]);
       return String(result.rows[0]?.state || "legacy");
+    },
+    async getTenantModuleAccess(tenant: string) {
+      try {
+        const result = await query("SELECT horse_power.local_tenant_module_access($1) AS modules", [tenant]);
+        const value = result.rows[0]?.modules;
+        return { ...defaultWorkshopModules, ...(value && typeof value === "object" ? value : {}) };
+      } catch (error) {
+        // The additive migration may not be installed yet during a Vercel Preview.
+        if ((error as { code?: string }).code === "42883") return { ...defaultWorkshopModules };
+        throw error;
+      }
     },
     async lockTenantMutations(tenant: string) {
       if (!tenant) return;

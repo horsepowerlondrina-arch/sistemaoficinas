@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { ArrowLeft, ChevronLeft, ChevronRight, Copy, Plus, RefreshCw, Search, ShieldCheck, X } from "lucide-react";
 import { PlatformDataTransfer } from "./PlatformDataTransfer";
+import { PlatformWorkshopEntitlements } from "./PlatformWorkshopEntitlements";
 
 type Status = "pending_verification" | "trial" | "active" | "grace_period" | "read_only" | "blocked" | "archived" | "legacy";
 type Workshop = {
@@ -210,6 +211,7 @@ export function PlatformWorkshops({ canManage, canManageModules, canTransfer, ca
       </section>}
       {canManage && selected.source === "admin" && selected.status === "pending_verification" && <div className="pa-workshop-actions"><button className="pa-primary pa-invitation-action" disabled={busy} onClick={() => void sendInvitation()}><RefreshCw size={15}/>{selected.invitation_status === "none" ? "Enviar convite" : "Reenviar convite"}</button><button type="button" className="pa-quiet pa-invitation-action" disabled={busy} onClick={() => { setIdentityVerified(false); setVerificationMethod("phone"); setManualActivation({ mode:"confirm" }); setError(""); setMessage(""); }}>Gerar link manual</button></div>}
       {selected.status_reason && <p className="pa-workshop-reason">Situação: {selected.status_reason}</p>}
+      {canManage && <PlatformWorkshopEntitlements key={selected.tenant_id} tenantId={selected.tenant_id} />}
       {canManage && selected.source !== "legacy" && <form className="pa-workshop-state-form" onSubmit={changeStatus}><h3>Alteração manual da situação</h3><p>Teste e estados de cobrança só podem ser definidos por confirmação ou integração futura.</p><label>Nova situação<select required value={nextStatus} onChange={e => setNextStatus(e.target.value)}><option value="">Selecione…</option><option value="read_only">Somente leitura</option><option value="blocked">Bloqueada</option><option value="archived">Arquivada</option></select></label><label>Justificativa<textarea required minLength={10} maxLength={500} value={reason} onChange={e => setReason(e.target.value)} /></label><button className="pa-quiet" disabled={busy || !nextStatus}>Registrar mudança</button></form>}
     </section>
     <section className="pa-card"><div className="pa-section-title"><div><h2>Histórico administrativo</h2><p>Eventos imutáveis associados à oficina.</p></div></div><div className="pa-audit-list">{history.map(event => <article className="pa-audit-event" key={event.id}><span className={`pa-status ${event.result === "success" ? "is-active" : ""}`}>{event.result}</span><div><strong>{event.action}</strong><small>{event.actor_email || "Sistema"} · {localDate(event.created_at)}</small>{typeof event.technical_context?.reason === "string" && <small>Justificativa: {event.technical_context.reason}</small>}</div></article>)}{history.length === 0 && <p>Nenhuma ação registrada.</p>}</div></section>

@@ -21,7 +21,7 @@ export function createDatabase(
 export type Row = Record<string, any>;
 export type MaybePromise<T> = T | Promise<T>;
 export interface DB {
-  setRequestIdentity?(tenantId: string | null, userId?: string | null): Promise<void>;
+  setRequestIdentity?(tenantId: string | null, userId?: string | null, publicShareHash?: string | null): Promise<void>;
   withRequestContext?<T>(
     settings: Record<string, string>,
     callback: () => Promise<T>,
@@ -30,6 +30,7 @@ export interface DB {
   withTenantRead?<T>(tenant: string, callback: () => Promise<T>): Promise<T>;
   withTenantServiceRead?<T>(tenant: string, callback: () => Promise<T>): Promise<T>;
   getTenantAccessState?(tenant: string): Promise<string>;
+  getTenantModuleAccess?(tenant: string): Promise<Record<string, boolean>>;
   lockTenantMutations?(tenant: string): Promise<void>;
   prepare(sql: string): {
     get(...values: any[]): MaybePromise<Row | undefined>;

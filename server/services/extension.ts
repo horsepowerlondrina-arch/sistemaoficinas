@@ -71,6 +71,10 @@ async function activeCaptureSession(db: DB, token: string) {
   const accessState = await db.getTenantAccessState?.(String(capture.tenant_id)) || "legacy";
   if (["pending_verification", "read_only", "blocked", "archived"].includes(accessState))
     throw Object.assign(new Error("A oficina não permite operações pela extensão no estado atual."), { status: 403 });
+  const modules = await db.getTenantModuleAccess?.(String(capture.tenant_id));
+  const requiredModules = capture.catalog_target ? ["inventory","catalog"] : ["orders"];
+  if (requiredModules.some((module) => modules?.[module] === false))
+    throw Object.assign(new Error("Esta funcionalidade não está habilitada para a oficina."), { status: 403 });
   return capture;
 }
 
