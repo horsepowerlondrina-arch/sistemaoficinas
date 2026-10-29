@@ -35,8 +35,9 @@ async function tenantRead<T>(db: DB, ctx: Context, fn: () => Promise<T>) {
 export function withTenantScope<T>(db: DB, ctx: Context, fn: () => Promise<T>) {
   return tenantRead(db, ctx, fn);
 }
-export type CatalogAccessState="active"|"not_contracted"|"expired"|"revoked"|"not_installed";
+export type CatalogAccessState="active"|"not_contracted"|"expired"|"revoked"|"not_installed"|"administratively_disabled";
 export async function catalogAccessState(db:DB,ctx:Context):Promise<CatalogAccessState>{
+  if (ctx.modules?.technical_catalog === false) return "administratively_disabled";
   try {
     const row = await db
       .prepare(
@@ -55,6 +56,7 @@ export async function catalogAccessState(db:DB,ctx:Context):Promise<CatalogAcces
   }
 }
 const catalogStatusMessage:Record<Exclude<CatalogAccessState,"active">,string>={
+  administratively_disabled:"O acesso ao Catálogo Técnico foi desabilitado pela administração da plataforma.",
   not_contracted:"O Catálogo Técnico é um módulo adicional e não está habilitado para esta oficina.",
   expired:"O acesso ao Catálogo Técnico venceu. Solicite a renovação à administração da plataforma.",
   revoked:"O acesso ao Catálogo Técnico foi revogado. Seus serviços particulares continuam disponíveis.",
