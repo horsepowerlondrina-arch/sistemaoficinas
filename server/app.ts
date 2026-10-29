@@ -468,7 +468,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
   });
   app.use("/api", (req, res, next) => {
     if (req.path === "/admin-api" || req.path.startsWith("/admin-api/")) { next(); return; }
-    const required = moduleForApiRequest(req.path);
+    const required = moduleForApiRequest(req.path, req.method);
     if (required === null) { res.status(404).json({ error: "Rota indisponível." }); return; }
     const modules = (res.locals.context as Context).modules || defaultWorkshopModules;
     if (required.some((key) => modules[key] === false)) {

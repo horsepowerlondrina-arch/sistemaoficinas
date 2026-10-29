@@ -45,10 +45,14 @@ const moduleForUiPath = (path: string): WorkshopModuleKey | null => {
   return null;
 };
 
-export function moduleForApiRequest(path: string): WorkshopModuleKey[] | null {
+export function moduleForApiRequest(path: string, method = "GET"): WorkshopModuleKey[] | null {
   const p = path.replace(/\/+$/, "") || "/";
   if (["/session", "/logout", "/tenant", "/workspace"].includes(p)) return [];
-  if (/^\/orders(?:\/|$)/.test(p) || p === "/customers-with-vehicle") return ["orders"];
+  if (p === "/customers-with-vehicle") return ["orders","customers_vehicles"];
+  if (/^\/orders(?:\/|$)/.test(p)) {
+    const isCreatingOrEditing = (method === "POST" && p === "/orders") || (method === "PUT" && /^\/orders\/[^/]+$/.test(p));
+    return isCreatingOrEditing ? ["orders","customers_vehicles"] : ["orders"];
+  }
   if (/^\/checklists(?:\/|$)/.test(p) || /^\/checklist-photos(?:\/|$)/.test(p)) return ["checklists"];
   if (p === "/documents/archives" || p.startsWith("/documents/archives/")) return ["orders", "checklists"];
   if (p.startsWith("/documents/")) {
@@ -56,10 +60,13 @@ export function moduleForApiRequest(path: string): WorkshopModuleKey[] | null {
     return kind === "checklist" ? ["checklists"] : ["orders"];
   }
   if (/^\/(?:customers|vehicles)(?:\/|$)/.test(p)) return ["customers_vehicles"];
-  if (/^\/(?:catalog|product-categories|catalog-batch|repair-services|workshop-services)(?:\/|$)/.test(p)) return ["catalog"];
+  if (/^\/catalog-capture(?:\/|$)/.test(p)) return ["inventory","catalog"];
+  if (/^\/repair-services(?:\/|$)/.test(p)) return ["catalog"];
+  if (/^\/(?:catalog|product-categories|catalog-batch|workshop-services)(?:\/|$)/.test(p)) return ["catalog"];
   if (/^\/professionals(?:\/|$)/.test(p)) return ["professionals"];
   if (/^\/suppliers(?:\/|$)/.test(p)) return ["suppliers"];
-  if (/^\/(?:stock|stock-invoices|catalog-capture)(?:\/|$)/.test(p)) return ["inventory"];
+  if (/^\/stock-invoices(?:\/|$)/.test(p)) return ["inventory","catalog","suppliers"];
+  if (/^\/stock(?:\/|$)/.test(p)) return ["inventory"];
   if (/^\/(?:expenses|payables|expense-templates|cash-control|cash-accounts|cash-adjustments|receivables|installments|payment-settings)(?:\/|$)/.test(p)) return ["finance"];
   if (p === "/parts-pricing" || p.startsWith("/parts-pricing/") || p.startsWith("/workshop-profile")) return ["settings"];
   return null;

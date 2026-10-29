@@ -5,6 +5,9 @@ import { defaultWorkshopModules, moduleForApiRequest, uiModuleForPath, workspace
 test("permissões por oficina usam compatibilidade habilitada e rotas conhecidas exigem módulo", () => {
   assert.equal(Object.values(defaultWorkshopModules).every(Boolean), true);
   assert.deepEqual(moduleForApiRequest("/orders/123/status"), ["orders"]);
+  assert.deepEqual(moduleForApiRequest("/orders", "POST"), ["orders","customers_vehicles"]);
+  assert.deepEqual(moduleForApiRequest("/catalog-capture/123/start", "POST"), ["inventory","catalog"]);
+  assert.deepEqual(moduleForApiRequest("/stock-invoices/import", "POST"), ["inventory","catalog","suppliers"]);
   assert.deepEqual(moduleForApiRequest("/payables/123/pay"), ["finance"]);
   assert.deepEqual(moduleForApiRequest("/documents/archives"), ["orders", "checklists"]);
   assert.deepEqual(moduleForApiRequest("/session"), []);
