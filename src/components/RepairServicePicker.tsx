@@ -659,7 +659,7 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
                 <small>{mode === "manual" ? money(Number(row.price || 0)) : (row.execution === "outsourced" ? "Terceirizado" : "Interno") + " · " + (row.porte_name || "Todos os portes")}</small>
                 {mode === "manual" && row.description ? <small>{row.description}</small> : null}
               </button>
-              {shouldShowWorkshopServices(mode, vehicleOnly) && (
+              {shouldShowWorkshopServices(mode, vehicleOnly) && !onAdd && (
                 <div className="capture-actions">
                   <button
                     type="button"
