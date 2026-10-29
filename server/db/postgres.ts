@@ -98,12 +98,12 @@ export function createPostgresDatabase(url = process.env.DATABASE_URL, options: 
     query_timeout: 15000,
   });
   const context = new AsyncLocalStorage<pg.PoolClient>();
-  async function setRequestIdentity(tenantId: string | null, userId?: string | null) {
+  async function setRequestIdentity(tenantId: string | null, userId?: string | null, publicShareHash?: string | null) {
     const client = context.getStore();
     if (!client) throw new Error("O contexto seguro da requisição não está ativo.");
     await client.query(
-      "SELECT set_config('app.tenant_id',$1,true),set_config('app.user_id',$2,true)",
-      [tenantId || "", userId || ""],
+      "SELECT set_config('app.tenant_id',$1,true),set_config('app.user_id',$2,true),set_config('app.public_share_hash',$3,true)",
+      [tenantId || "", userId || "", publicShareHash || ""],
     );
   }
   async function query(sql: string, values: any[] = []) {
