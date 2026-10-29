@@ -7,7 +7,7 @@ type ReviewItem = {
   vehicle: Entity;
   status: "linked" | "matched" | "confirmation" | "incomplete" | "plate_lookup" | "not_identified" | "unavailable";
   data_quality: "complete" | "incomplete" | "inconsistent";
-  catalog_status: "linked" | "matched" | "ambiguous" | "inconsistent" | "not_identified" | "unavailable" | "not_evaluated";
+  catalog_status: "linked" | "matched" | "ambiguous" | "inconsistent" | "plate_lookup" | "not_identified" | "unavailable" | "not_evaluated";
   candidates: Entity[];
 };
 type ReviewPage = { items: ReviewItem[]; total: number; limit: number; offset: number; has_more: boolean; dry_run: true };
@@ -21,6 +21,7 @@ const catalogLabels: Record<ReviewItem["catalog_status"], string> = {
   matched: "Correspondência única",
   ambiguous: "Correspondência ambígua",
   inconsistent: "Divergência com o vínculo",
+  plate_lookup: "Consulta de placa disponível",
   not_identified: "Sem correspondência confiável",
   unavailable: "Catálogo indisponível",
   not_evaluated: "Catálogo não avaliado",
