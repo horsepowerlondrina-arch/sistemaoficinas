@@ -6,17 +6,24 @@ import { Modal } from "./ui";
 type ReviewItem = {
   vehicle: Entity;
   status: "linked" | "matched" | "confirmation" | "incomplete" | "plate_lookup" | "not_identified" | "unavailable";
+  data_quality: "complete" | "incomplete" | "inconsistent";
+  catalog_status: "linked" | "matched" | "ambiguous" | "inconsistent" | "not_identified" | "unavailable" | "not_evaluated";
   candidates: Entity[];
 };
 type ReviewPage = { items: ReviewItem[]; total: number; limit: number; offset: number; has_more: boolean; dry_run: true };
-const labels: Record<ReviewItem["status"], string> = {
-  linked: "Identificado e vinculado",
-  matched: "Correspondência única disponível",
-  confirmation: "Necessita confirmação de versão",
+const qualityLabels: Record<ReviewItem["data_quality"], string> = {
+  complete: "Cadastro completo",
   incomplete: "Cadastro incompleto",
-  plate_lookup: "Consulta de placa disponível",
-  not_identified: "Não identificado",
-  unavailable: "Catálogo indisponível para esta oficina",
+  inconsistent: "Dados inconsistentes",
+};
+const catalogLabels: Record<ReviewItem["catalog_status"], string> = {
+  linked: "Vínculo confirmado",
+  matched: "Correspondência única",
+  ambiguous: "Correspondência ambígua",
+  inconsistent: "Divergência com o vínculo",
+  not_identified: "Sem correspondência confiável",
+  unavailable: "Catálogo indisponível",
+  not_evaluated: "Catálogo não avaliado",
 };
 
 export function VehicleCatalogReview({
@@ -51,12 +58,15 @@ export function VehicleCatalogReview({
         <p className="muted">Registros: {page?.total ?? "—"}. As consultas externas são individuais e iniciadas no cadastro do veículo. Não há processamento em lote.</p>
         {error && <p className="error-box" role="alert">{error}</p>}
         {busy && <p role="status">Analisando página…</p>}
-        {!busy && page?.items.map(({ vehicle, status, candidates }) => (
+        {!busy && page?.items.map(({ vehicle, data_quality, catalog_status, candidates }) => (
           <article className="vehicle-review-row" key={vehicle.id}>
             <div>
               <strong>{vehicle.plate} · {vehicle.brand} {vehicle.model}</strong>
               <p>{vehicle.customer_name || "Cliente"} · {vehicle.year || "Ano não informado"}</p>
-              <span className={`badge ${status}`}>{labels[status]}</span>
+              <div className="vehicle-review-statuses">
+                <span className={`badge ${data_quality}`}>{qualityLabels[data_quality]}</span>
+                <span className={`badge ${catalog_status}`}>{catalogLabels[catalog_status]}</span>
+              </div>
               {candidates.length > 0 && (
                 <p className="muted">Candidatos: {candidates.map((candidate) => candidate.name).join(" · ")}</p>
               )}
