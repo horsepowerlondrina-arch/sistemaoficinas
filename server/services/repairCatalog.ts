@@ -516,7 +516,7 @@ export async function saveWorkshopService(
       const current = record
         ? await db.prepare("SELECT id,name,active FROM workshop_services WHERE tenant_id=? AND id=?").get(ctx.tenantId, record)
         : null;
-      if (record && (!current || !current.active)) throw new Error("Serviço não encontrado nesta oficina.");
+      if (record && !current) throw new Error("Serviço não encontrado nesta oficina.");
       if (!current || normalizedWorkshopServiceName(String(current.name)) !== normalizedWorkshopServiceName(v.name))
         await assertUniqueWorkshopServiceName(db, ctx.tenantId, v.name, record);
       const key = record || randomUUID();
