@@ -57,7 +57,10 @@ test("PostgreSQL: convites de ativação, teste grátis, idempotência e isolame
     await owner.connect();
     await owner.query(`CREATE SCHEMA ${pa}; CREATE SCHEMA ${hp}`);
     schemasCreated = true;
-    await owner.query(`CREATE TABLE ${pa}.administrators(id text PRIMARY KEY);
+    await owner.query(`CREATE TABLE ${pa}.administrators(
+        id text PRIMARY KEY,email text NOT NULL,display_name text NOT NULL,role text NOT NULL,
+        permissions text[] NOT NULL DEFAULT '{}',active boolean NOT NULL DEFAULT true,enrolled boolean NOT NULL DEFAULT true);
+      CREATE TABLE ${pa}.sessions(token_hash text PRIMARY KEY,administrator_id text NOT NULL REFERENCES ${pa}.administrators(id),expires_at timestamptz NOT NULL);
       CREATE TABLE ${pa}.workshops(
         tenant_id text PRIMARY KEY, source text NOT NULL, name text NOT NULL,
         responsible_name text NOT NULL, responsible_email text NOT NULL,
@@ -81,7 +84,17 @@ test("PostgreSQL: convites de ativação, teste grátis, idempotência e isolame
     await once(server,"listening");
     const address = server.address(); assert.ok(address && typeof address !== "string");
     const base = `http://127.0.0.1:${address.port}`;
-    const post = (path: string, body: unknown) => fetch(base+path,{method:"POST",headers:{Origin:"http://127.0.0.1:5173","Content-Type":"application/json"},body:JSON.stringify(body)});
+    const post = (path: string, body: unknown, cookie?: string, origin = "http://127.0.0.1:5173") => fetch(base+path,{
+      method:"POST",headers:{Origin:origin,"Content-Type":"application/json",...(cookie?{Cookie:`hp_platform_session=${cookie}`}:{})},body:JSON.stringify(body),
+    });
+    const manageSessionToken = randomBytes(32).toString("hex");
+    const readOnlySessionToken = randomBytes(32).toString("hex");
+    await owner.query(`INSERT INTO ${pa}.administrators(id,email,display_name,role,permissions) VALUES
+      ('admin-manage','admin-manage@example.test','Admin Teste','principal',ARRAY['workshops:manage']),
+      ('admin-read','admin-read@example.test','Admin Leitura','support',ARRAY['workshops:read'])`);
+    await owner.query(`INSERT INTO ${pa}.sessions(token_hash,administrator_id,expires_at) VALUES
+      ($1,'admin-manage',now()+interval '1 hour'),($2,'admin-read',now()+interval '1 hour')`,
+      [digestAdminToken(manageSessionToken),digestAdminToken(readOnlySessionToken)]);
 
     const fresh = await addInvite("owner-one@example.test");
     assert.notEqual((await ownerQuery(`SELECT token_hash FROM ${pa}.workshop_activation_invites WHERE token_hash=$1`,[fresh.tokenHash])).rows[0].token_hash,fresh.token);
@@ -117,6 +130,70 @@ test("PostgreSQL: convites de ativação, teste grátis, idempotência e isolame
     assert.equal((await query(`SELECT * FROM ${pa}.inspect_workshop_activation($1)`,[digestAdminToken(randomBytes(32).toString("hex"))])).rowCount,0);
     assert.equal((await post("/admin-api/workshop-activation/complete",{token:fresh.token,password:"Another-Synthetic-Password"})).status,400);
     assert.equal((await post("/admin-api/workshop-activation/complete",{token:randomBytes(32).toString("hex"),password:"Synthetic-Invalid-Token"})).status,400);
+
+    const manualWorkshop = await addInvite("manual-owner@example.test");
+    await ownerQuery(`UPDATE ${pa}.workshop_activation_invites SET created_at=now()-interval '2 minutes' WHERE tenant_id=$1`,[manualWorkshop.tenantId]);
+    const manualUnauthenticated = await post(`/admin-api/workshops/${manualWorkshop.tenantId}/manual-activation-link`, {identity_verified:true,verification_method:"phone"});
+    assert.equal(manualUnauthenticated.status,401);
+    const manualForbidden = await post(`/admin-api/workshops/${manualWorkshop.tenantId}/manual-activation-link`, {identity_verified:true,verification_method:"phone"}, readOnlySessionToken);
+    assert.equal(manualForbidden.status,403);
+    const manualUnconfirmed = await post(`/admin-api/workshops/${manualWorkshop.tenantId}/manual-activation-link`, {identity_verified:false,verification_method:"phone"}, manageSessionToken);
+    assert.equal(manualUnconfirmed.status,400);
+    const manualBadOrigin = await post(`/admin-api/workshops/${manualWorkshop.tenantId}/manual-activation-link`, {identity_verified:true,verification_method:"phone"}, manageSessionToken, "https://untrusted.example");
+    assert.equal(manualBadOrigin.status,403);
+    const manualResponse = await post(`/admin-api/workshops/${manualWorkshop.tenantId}/manual-activation-link`,
+      {identity_verified:true,verification_method:"in_person"}, manageSessionToken);
+    assert.equal(manualResponse.status,200);
+    const manualBody = await manualResponse.json() as {activation_url:string;invitation_expires_at:string};
+    const manualUrl = new URL(manualBody.activation_url);
+    const manualToken = manualUrl.hash.slice(1);
+    assert.ok(/^[a-f0-9]{64}$/.test(manualToken),"manual activation token has the expected format");
+    assert.equal(manualUrl.origin,"http://127.0.0.1:5173");
+    assert.ok(new Date(manualBody.invitation_expires_at).getTime()>Date.now());
+    assert.equal((await post("/admin-api/workshop-activation/validate",{token:manualToken})).status,200);
+    const manualStored = (await ownerQuery(`SELECT id,token_hash,delivery_status FROM ${pa}.workshop_activation_invites WHERE tenant_id=$1`,[manualWorkshop.tenantId])).rows[0];
+    assert.equal(manualStored.token_hash,digestAdminToken(manualToken));
+    assert.ok(manualStored.token_hash !== manualToken,"activation token is never stored in plaintext");
+    assert.equal(manualStored.delivery_status,"pending");
+    assert.equal((await ownerQuery(`SELECT delivery_status FROM ${pa}.workshop_activation_invites WHERE tenant_id=$1 AND id<>$2`,[manualWorkshop.tenantId,manualStored.id])).rows[0].delivery_status,"revoked");
+    const beforeManualCompletion = (await ownerQuery(`SELECT status,email_verified_at,trial_started_at FROM ${pa}.workshops WHERE tenant_id=$1`,[manualWorkshop.tenantId])).rows[0];
+    assert.equal(beforeManualCompletion.status,"pending_verification");
+    assert.equal(beforeManualCompletion.email_verified_at,null);
+    assert.equal(beforeManualCompletion.trial_started_at,null);
+    assert.equal((await ownerQuery(`SELECT count(*)::int AS n FROM ${hp}.users WHERE lower(email)=lower($1)`,["manual-owner@example.test"])).rows[0].n,0);
+    const manualAudit = (await ownerQuery(`SELECT technical_context FROM ${pa}.audit_events
+      WHERE action='admin.workshop.invitation.manual_link_created' AND subject_tenant_id=$1`,[manualWorkshop.tenantId])).rows[0].technical_context as Record<string,unknown>;
+    assert.equal(manualAudit.identity_verified,true);
+    assert.equal(manualAudit.verification_method,"in_person");
+    assert.equal(manualAudit.invite_id,manualStored.id);
+    const manualAuditText=JSON.stringify(manualAudit);
+    assert.equal(manualAuditText.includes(manualToken),false);
+    assert.equal(manualAuditText.includes(manualBody.activation_url),false);
+    const manualActivated = await post("/admin-api/workshop-activation/complete",{token:manualToken,password:"Synthetic-Manual-Activation-Password"},manageSessionToken);
+    assert.equal(manualActivated.status,200);
+    const manualAfter = (await ownerQuery(`SELECT status,email_verified_at,trial_started_at FROM ${pa}.workshops WHERE tenant_id=$1`,[manualWorkshop.tenantId])).rows[0];
+    assert.equal(manualAfter.status,"trial");
+    assert.ok(manualAfter.email_verified_at);
+    assert.ok(manualAfter.trial_started_at);
+    assert.equal((await post("/admin-api/workshop-activation/complete",{token:manualToken,password:"Synthetic-Replay-Password"})).status,400);
+    assert.equal((await ownerQuery(`SELECT status FROM ${pa}.workshops WHERE tenant_id=$1`,[manualWorkshop.tenantId])).rows[0].status,"trial");
+
+    const manualExpired = await addInvite("manual-expired@example.test");
+    await ownerQuery(`UPDATE ${pa}.workshop_activation_invites SET created_at=now()-interval '2 minutes' WHERE tenant_id=$1`,[manualExpired.tenantId]);
+    const expiredManualResponse = await post(`/admin-api/workshops/${manualExpired.tenantId}/manual-activation-link`,
+      {identity_verified:true,verification_method:"other"}, manageSessionToken);
+    assert.equal(expiredManualResponse.status,200);
+    const expiredManualBody = await expiredManualResponse.json() as {activation_url:string};
+    const expiredManualToken = new URL(expiredManualBody.activation_url).hash.slice(1);
+    await ownerQuery(`UPDATE ${pa}.workshop_activation_invites SET expires_at=now()-interval '1 second' WHERE token_hash=$1`,[digestAdminToken(expiredManualToken)]);
+    assert.equal((await post("/admin-api/workshop-activation/validate",{token:expiredManualToken})).status,400);
+    assert.equal((await ownerQuery(`SELECT status FROM ${pa}.workshops WHERE tenant_id=$1`,[manualExpired.tenantId])).rows[0].status,"pending_verification");
+    assert.equal((await ownerQuery(`SELECT count(*)::int AS n FROM ${pa}.audit_events
+      WHERE action='workshop.activation.completed' AND subject_tenant_id=$1`,[manualExpired.tenantId])).rows[0].n,0);
+
+    const otherWorkshop = await addInvite("other-workshop@example.test");
+    assert.equal((await ownerQuery(`SELECT tenant_id FROM ${pa}.workshop_activation_invites WHERE token_hash=$1`,[digestAdminToken(manualToken)])).rows[0].tenant_id,manualWorkshop.tenantId);
+    assert.equal((await ownerQuery(`SELECT status FROM ${pa}.workshops WHERE tenant_id=$1`,[otherWorkshop.tenantId])).rows[0].status,"pending_verification");
 
     const existingUserId = randomUUID();
     const oldMembershipTenant = randomUUID();
