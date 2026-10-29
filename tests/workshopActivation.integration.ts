@@ -151,7 +151,7 @@ test("PostgreSQL: convites de ativação, teste grátis, idempotência e isolame
     assert.equal(manualUrl.origin,"http://127.0.0.1:5173");
     assert.ok(new Date(manualBody.invitation_expires_at).getTime()>Date.now());
     assert.equal((await post("/admin-api/workshop-activation/validate",{token:manualToken})).status,200);
-    const manualStored = (await ownerQuery(`SELECT id,token_hash,delivery_status FROM ${pa}.workshop_activation_invites WHERE tenant_id=$1`,[manualWorkshop.tenantId])).rows[0];
+    const manualStored = (await ownerQuery(`SELECT id,token_hash,delivery_status FROM ${pa}.workshop_activation_invites WHERE tenant_id=$1 AND token_hash=$2`,[manualWorkshop.tenantId,digestAdminToken(manualToken)])).rows[0];
     assert.equal(manualStored.token_hash,digestAdminToken(manualToken));
     assert.ok(manualStored.token_hash !== manualToken,"activation token is never stored in plaintext");
     assert.equal(manualStored.delivery_status,"pending");
