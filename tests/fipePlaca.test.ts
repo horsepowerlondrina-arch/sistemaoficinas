@@ -75,14 +75,24 @@ test("erros do provedor são tratados sem propagar mensagens ou credenciais", as
     (e) => e instanceof Error && !e.message.includes(token),
   );
 });
-test("chaves FipePlaca são isoladas por oficina", () => {
-  const prior = process.env.FIPEPLACA_TOKENS_JSON;
+test("FipePlaca exige allowlist e isola chaves por oficina", () => {
+  const priorTokens = process.env.FIPEPLACA_TOKENS_JSON;
+  const priorAllowlist = process.env.FIPEPLACA_ALLOWED_TENANT_IDS;
   try {
-    process.env.FIPEPLACA_TOKENS_JSON = JSON.stringify({ a: token });
+    process.env.FIPEPLACA_TOKENS_JSON = JSON.stringify({
+      a: token,
+      b: "other-test-secret",
+    });
+    delete process.env.FIPEPLACA_ALLOWED_TENANT_IDS;
+    assert.equal(fipePlacaToken("a"), null);
+    process.env.FIPEPLACA_ALLOWED_TENANT_IDS = " a ";
     assert.equal(fipePlacaToken("a"), token);
     assert.equal(fipePlacaToken("b"), null);
   } finally {
-    if (prior === undefined) delete process.env.FIPEPLACA_TOKENS_JSON;
-    else process.env.FIPEPLACA_TOKENS_JSON = prior;
+    if (priorTokens === undefined) delete process.env.FIPEPLACA_TOKENS_JSON;
+    else process.env.FIPEPLACA_TOKENS_JSON = priorTokens;
+    if (priorAllowlist === undefined)
+      delete process.env.FIPEPLACA_ALLOWED_TENANT_IDS;
+    else process.env.FIPEPLACA_ALLOWED_TENANT_IDS = priorAllowlist;
   }
 });
