@@ -8,8 +8,9 @@ import { NumericInput } from "./NumericInput";
 import { shouldLoadRepairServiceSearch, shouldShowVehicleCatalog, shouldShowWorkshopServices } from "../../shared/repairCatalogVisibility";
 import { calculateCatalogDropdownPlacement, canAddRepairServiceImmediately, initialCatalogOptionIndex, nextCatalogOptionIndex, serviceDropdownStateAfterAdd, shouldAutoSelectCatalogVehicle } from "../../shared/catalogPickerUsability";
 
-type Info = { enabled: boolean; catalog_status:"active"|"not_contracted"|"expired"|"revoked"|"not_installed"; categories: Entity[]; service_markup_bps: number };
+type Info = { enabled: boolean; catalog_status:"active"|"not_contracted"|"expired"|"revoked"|"not_installed"|"administratively_disabled"; categories: Entity[]; service_markup_bps: number };
 const catalogStatusMessage:Record<Exclude<Info["catalog_status"],"active">,string>={
+  administratively_disabled:"O acesso ao Catálogo Técnico foi desabilitado pela administração da plataforma.",
   not_contracted:"O Catálogo Técnico é um módulo adicional e não está habilitado para esta oficina.",
   expired:"O acesso ao Catálogo Técnico venceu. Solicite a renovação à administração da plataforma.",
   revoked:"O acesso ao Catálogo Técnico foi revogado. Seus serviços particulares continuam disponíveis.",
