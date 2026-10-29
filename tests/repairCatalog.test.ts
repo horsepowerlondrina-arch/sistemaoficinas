@@ -381,6 +381,7 @@ test("serviço próprio simples não exige porte nem tempo, pesquisa sem acento 
     assert.equal(stored.minutes, 0);
     assert.equal(stored.price, 7200);
     assert.equal(stored.cost_known, 0);
+    assert.equal(stored.service_type, "private");
     assert.equal(stored.description, "Limpeza completa do sistema.");
     assert.equal((await listWorkshopServices(f.db, ctx, { q: "higienizacao" })).items[0].id, id);
     assert.equal((await listWorkshopServices(f.db, { ...ctx, tenantId: "b" }, { status: "all" })).items.length, 0);
