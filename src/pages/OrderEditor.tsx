@@ -644,7 +644,7 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
                       : "Serviços do atendimento"}
                   </h3>
                   <p className="muted">
-                    {itemKind==='product'?'Cadastre produtos, importe pelo Sky Peças ou reutilize seu catálogo.':'Escolha o modelo e os serviços compatíveis, ou utilize os serviços da oficina. Atribua a execução à sua equipe.'}
+                    {itemKind==='product'?'Cadastre produtos, importe pelo Sky Peças ou reutilize seu catálogo.':'Use o Catálogo Técnico por veículo ou pesquise Serviços Próprios pelo nome, com ou sem veículo.'}
                   </p>
                   {!locked && itemKind==='service' && <RepairServicePicker key={form.vehicle_id||lookupPlate||'guest'} vehicle={vehicle||lookedUp} brandLocked={!!((vehicle||lookedUp)?.id&&(vehicle||lookedUp)?.brand)} modelId={serviceModelId} onModelChange={handleServiceModelChange} onAdd={item=>setForm(f=>({...f,items:[...f.items,item]}))}/>}
                   {!locked && itemKind==='product' && (
