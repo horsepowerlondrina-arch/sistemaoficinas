@@ -4,3 +4,4 @@ ALTER TABLE workshop_services ADD COLUMN service_type TEXT NOT NULL DEFAULT 'leg
 UPDATE workshop_services SET cost_known=0 WHERE execution='internal';
 ALTER TABLE workshop_services ADD COLUMN name_key TEXT NOT NULL DEFAULT '';
 CREATE UNIQUE INDEX idx_workshop_services_private_name ON workshop_services(tenant_id,name_key) WHERE service_type='private';
+INSERT INTO migrations(version) VALUES(28);
