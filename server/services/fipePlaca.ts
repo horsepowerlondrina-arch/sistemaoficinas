@@ -49,6 +49,13 @@ export async function lookupFipeCandidates(
   }
 }
 export function fipePlacaToken(tenant: string): string | null {
+  const allowedTenants = new Set(
+    (process.env.FIPEPLACA_ALLOWED_TENANT_IDS || "")
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean),
+  );
+  if (!allowedTenants.has(tenant)) return null;
   try {
     const entries = JSON.parse(process.env.FIPEPLACA_TOKENS_JSON || "{}");
     return typeof entries?.[tenant] === "string" && entries[tenant].trim()
