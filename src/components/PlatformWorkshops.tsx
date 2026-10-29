@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { ArrowLeft, ChevronLeft, ChevronRight, Plus, RefreshCw, Search, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Copy, Plus, RefreshCw, Search, ShieldCheck, X } from "lucide-react";
 import { PlatformDataTransfer } from "./PlatformDataTransfer";
 
 type Status = "pending_verification" | "trial" | "active" | "grace_period" | "read_only" | "blocked" | "archived" | "legacy";
@@ -8,13 +8,14 @@ type Workshop = {
   responsible_name: string; responsible_email: string; created_at: string | null; updated_at: string | null;
   email_verified_at: string | null; trial_started_at: string | null; trial_ends_at: string | null;
   trial_days_remaining: number | null; status_reason: string; total_count?: number;
-  invitation_status: "none" | "pending" | "sent" | "failed" | "expired" | "revoked" | "used";
+  invitation_status: "none" | "pending" | "sent" | "failed" | "expired" | "revoked" | "used" | "manual_link_created";
   invitation_expires_at: string | null; invitation_sent_at: string | null;
   catalog_access?: CatalogAccess;
 };
 type HistoryEvent = { id: string; actor_email: string; action: string; result: string; technical_context: Record<string, unknown>; created_at: string };
 type CatalogAccess = { status:"active"|"not_contracted"|"expired"|"revoked"|"not_installed"; enabled:boolean; valid_until:string|null; activated_at:string|null; grant_source:string; updated_by_admin_id:string|null; updated_by_admin_email:string; updated_at:string|null; reason:string; catalog_installed:boolean };
 type CatalogTestAccess = { available:boolean; enabled:boolean; valid_until:string|null; updated_by_admin_email:string; updated_at:string|null; reason:string };
+type ManualActivation = { mode:"confirm" } | { mode:"link"; url:string; expiresAt:string };
 type FormFields = Pick<Workshop, "name" | "responsible_name" | "responsible_email" | "phone" | "document">;
 
 const labels: Record<Status, string> = {
@@ -23,7 +24,7 @@ const labels: Record<Status, string> = {
 };
 const invitationLabels: Record<Workshop["invitation_status"], string> = {
   none:"Não enviado", pending:"Preparando envio", sent:"Enviado", failed:"Falha no envio",
-  expired:"Expirado", revoked:"Substituído", used:"Ativação concluída",
+  expired:"Expirado", revoked:"Substituído", used:"Ativação concluída", manual_link_created:"Link manual pronto",
 };
 const blank: FormFields = { name: "", responsible_name: "", responsible_email: "", phone: "", document: "" };
 
@@ -66,6 +67,9 @@ export function PlatformWorkshops({ canManage, canManageModules, canTransfer, ca
   const [testUntil,setTestUntil]=useState("");
   const [testReason,setTestReason]=useState("Acesso temporário para testes de homologação.");
   const [testAccessUnavailable,setTestAccessUnavailable]=useState(false);
+  const [manualActivation,setManualActivation]=useState<ManualActivation|null>(null);
+  const [identityVerified,setIdentityVerified]=useState(false);
+  const [verificationMethod,setVerificationMethod]=useState<"phone"|"in_person"|"video_call"|"other">("phone");
 
   const load = async (nextPage = page) => {
     setError("");
@@ -79,6 +83,7 @@ export function PlatformWorkshops({ canManage, canManageModules, canTransfer, ca
   useEffect(()=>{if(!canManageModules||environmentLabel==="Ambiente local")return;void request<CatalogTestAccess>("/catalog-test-access").then(value=>{setTestAccess(value);setTestUntil(localDateTimeInput(value.valid_until));}).catch(()=>setTestAccessUnavailable(true));},[canManageModules,environmentLabel]);
 
   const openWorkshop = async (tenantId: string) => {
+    setManualActivation(null); setIdentityVerified(false);
     setError(""); setMessage(""); setBusy(true);
     try {
       const detail = await request<Workshop>(`/workshops/${encodeURIComponent(tenantId)}`);
@@ -127,6 +132,34 @@ export function PlatformWorkshops({ canManage, canManageModules, canTransfer, ca
     } catch (cause) { setError((cause as Error).message); }
     finally { setBusy(false); }
   };
+  const generateManualActivationLink = async () => {
+    if (!selected || !identityVerified) return;
+    setBusy(true); setError(""); setMessage("");
+    try {
+      const result = await request<{ activation_url:string; invitation_expires_at:string }>(
+        `/workshops/${encodeURIComponent(selected.tenant_id)}/manual-activation-link`,
+        "POST",
+        { identity_verified:true, verification_method:verificationMethod },
+      );
+      const activationUrl = new URL(result.activation_url);
+      if (activationUrl.origin !== window.location.origin || !activationUrl.hash) {
+        throw new Error("O servidor retornou um link de ativação inválido.");
+      }
+      setSelected(current => current?.tenant_id === selected.tenant_id ? {
+        ...current, invitation_status:"manual_link_created", invitation_expires_at:result.invitation_expires_at, invitation_sent_at:null,
+      } : current);
+      setManualActivation({ mode:"link", url:activationUrl.toString(), expiresAt:result.invitation_expires_at });
+      setIdentityVerified(false);
+      await load();
+    } catch (cause) { setError((cause as Error).message); }
+    finally { setBusy(false); }
+  };
+  const closeManualActivation = () => { setManualActivation(null); setIdentityVerified(false); };
+  const copyManualActivationLink = async () => {
+    if (!manualActivation || manualActivation.mode !== "link") return;
+    try { await navigator.clipboard.writeText(manualActivation.url); setMessage("Link copiado. Ele continuará visível somente até você fechar esta janela."); }
+    catch { setError("Não foi possível copiar automaticamente. Selecione o link e copie manualmente."); }
+  };
   const setField = (key: keyof FormFields, value: string) => setFields(current => ({ ...current, [key]: value }));
   const changeCatalogAccess=async(enabled:boolean)=>{
     if(!selected)return;setBusy(true);setError("");setMessage("");
@@ -161,7 +194,7 @@ export function PlatformWorkshops({ canManage, canManageModules, canTransfer, ca
   </section>;
 
   if (selected) return <div className="pa-workshop-detail">
-    <section className="pa-card"><div className="pa-section-title"><div><button className="pa-back-button" onClick={() => setSelected(null)}><ArrowLeft size={15}/> Voltar à lista</button><h2>{selected.name}</h2><p>{selected.tenant_id}</p></div><span className={`pa-status ${selected.status === "trial" || selected.status === "active" ? "is-active" : ""}`}>{labels[selected.status]}</span></div>
+    <section className="pa-card"><div className="pa-section-title"><div><button className="pa-back-button" disabled={busy} onClick={() => { setSelected(null); closeManualActivation(); }}><ArrowLeft size={15}/> Voltar à lista</button><h2>{selected.name}</h2><p>{selected.tenant_id}</p></div><span className={`pa-status ${selected.status === "trial" || selected.status === "active" ? "is-active" : ""}`}>{labels[selected.status]}</span></div>
       {canManage && selected.source !== "legacy" && <button className="pa-quiet" disabled={busy} onClick={() => { setFields(toFields(selected)); setEditing(true); }}><ShieldCheck size={15}/> Editar dados</button>}
       <dl className="pa-workshop-data"><div><dt>Responsável</dt><dd>{selected.responsible_name || "Não informado"}</dd></div><div><dt>E-mail</dt><dd>{selected.responsible_email || "Não informado"}</dd></div><div><dt>Telefone</dt><dd>{selected.phone || "Não informado"}</dd></div><div><dt>CPF/CNPJ</dt><dd>{selected.document || "Não informado"}</dd></div><div><dt>Origem</dt><dd>{selected.source === "legacy" ? "Cadastro anterior" : "Painel administrativo"}</dd></div><div><dt>Cadastro</dt><dd>{localDate(selected.created_at)}</dd></div><div><dt>Convite</dt><dd>{invitationLabels[selected.invitation_status]}{selected.invitation_sent_at ? ` · ${localDate(selected.invitation_sent_at)}` : ""}{selected.invitation_expires_at && selected.invitation_status !== "used" ? ` · expira ${localDate(selected.invitation_expires_at)}` : ""}</dd></div><div><dt>E-mail confirmado</dt><dd>{localDate(selected.email_verified_at)}</dd></div><div><dt>Início do teste</dt><dd>{localDate(selected.trial_started_at)}</dd></div><div><dt>Fim do teste</dt><dd>{localDate(selected.trial_ends_at)}{selected.trial_days_remaining !== null && selected.trial_days_remaining !== undefined ? ` · ${selected.trial_days_remaining} dia(s) restantes` : ""}</dd></div><div><dt>Identificador</dt><dd>{selected.tenant_id}</dd></div></dl>
       {canManageModules && selected.catalog_access && <section className="pa-workshop-state-form" aria-labelledby="catalog-access-title">
@@ -175,12 +208,59 @@ export function PlatformWorkshops({ canManage, canManageModules, canTransfer, ca
         <h4>Histórico de concessões, renovações e revogações</h4>
         <div className="pa-audit-list">{history.filter(event=>event.action.startsWith("admin.catalog_access.")).map(event=><article className="pa-audit-event" key={event.id}><span className={`pa-status ${event.result==="success"?"is-active":""}`}>{event.result}</span><div><strong>{event.action}</strong><small>{event.actor_email||"Sistema"} · {localDate(event.created_at)}</small>{typeof event.technical_context?.reason==="string"&&<small>Justificativa: {event.technical_context.reason}</small>}</div></article>)}{history.every(event=>!event.action.startsWith("admin.catalog_access."))&&<p>Nenhuma alteração de acesso registrada.</p>}</div>
       </section>}
-      {canManage && selected.source === "admin" && selected.status === "pending_verification" && <button className="pa-primary pa-invitation-action" disabled={busy} onClick={() => void sendInvitation()}><RefreshCw size={15}/>{selected.invitation_status === "none" ? "Enviar convite" : "Reenviar convite"}</button>}
+      {canManage && selected.source === "admin" && selected.status === "pending_verification" && <div className="pa-workshop-actions"><button className="pa-primary pa-invitation-action" disabled={busy} onClick={() => void sendInvitation()}><RefreshCw size={15}/>{selected.invitation_status === "none" ? "Enviar convite" : "Reenviar convite"}</button><button type="button" className="pa-quiet pa-invitation-action" disabled={busy} onClick={() => { setIdentityVerified(false); setVerificationMethod("phone"); setManualActivation({ mode:"confirm" }); setError(""); setMessage(""); }}>Gerar link manual</button></div>}
       {selected.status_reason && <p className="pa-workshop-reason">Situação: {selected.status_reason}</p>}
       {canManage && selected.source !== "legacy" && <form className="pa-workshop-state-form" onSubmit={changeStatus}><h3>Alteração manual da situação</h3><p>Teste e estados de cobrança só podem ser definidos por confirmação ou integração futura.</p><label>Nova situação<select required value={nextStatus} onChange={e => setNextStatus(e.target.value)}><option value="">Selecione…</option><option value="read_only">Somente leitura</option><option value="blocked">Bloqueada</option><option value="archived">Arquivada</option></select></label><label>Justificativa<textarea required minLength={10} maxLength={500} value={reason} onChange={e => setReason(e.target.value)} /></label><button className="pa-quiet" disabled={busy || !nextStatus}>Registrar mudança</button></form>}
     </section>
     <section className="pa-card"><div className="pa-section-title"><div><h2>Histórico administrativo</h2><p>Eventos imutáveis associados à oficina.</p></div></div><div className="pa-audit-list">{history.map(event => <article className="pa-audit-event" key={event.id}><span className={`pa-status ${event.result === "success" ? "is-active" : ""}`}>{event.result}</span><div><strong>{event.action}</strong><small>{event.actor_email || "Sistema"} · {localDate(event.created_at)}</small>{typeof event.technical_context?.reason === "string" && <small>Justificativa: {event.technical_context.reason}</small>}</div></article>)}{history.length === 0 && <p>Nenhuma ação registrada.</p>}</div></section>
     {canTransfer && selected && <section className="pa-card"><PlatformDataTransfer tenantId={selected.tenant_id} workshopName={selected.name} environmentLabel={environmentLabel} canRequestCritical={canRequestCritical} canApproveCritical={canApproveCritical} /></section>}
+    {manualActivation && <div
+      role="presentation"
+      onClick={event => { if (!busy && event.target === event.currentTarget) closeManualActivation(); }}
+      style={{ position:"fixed", inset:0, zIndex:1000, display:"grid", placeItems:"center", padding:16, background:"rgba(15,23,42,.55)" }}
+    >
+      <section
+        className="pa-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="manual-activation-title"
+        onClick={event => event.stopPropagation()}
+        style={{ width:"min(100%, 620px)", maxHeight:"90vh", overflowY:"auto", boxShadow:"0 20px 60px rgba(0,0,0,.25)" }}
+      >
+        <div className="pa-section-title">
+          <div><h2 id="manual-activation-title">{manualActivation.mode === "confirm" ? "Gerar link manual de ativação" : "Link de ativação — exibição única"}</h2></div>
+          <button type="button" className="pa-quiet" aria-label="Fechar e apagar o link da tela" disabled={busy} onClick={closeManualActivation}><X size={16}/></button>
+        </div>
+        {manualActivation.mode === "confirm" ? <>
+          <p>Antes de continuar, confirme que verificou fora do sistema a titularidade da oficina e a autorização de quem receberá o link. A pessoa que concluir o fluxo poderá criar o acesso do responsável cadastrado e iniciar o teste grátis.</p>
+          <p>O link não será enviado por e-mail. Ele expira em 72 horas e a geração invalida convites anteriores ainda não utilizados.</p>
+          <label>Como a titularidade foi verificada?
+            <select value={verificationMethod} onChange={event => setVerificationMethod(event.target.value as typeof verificationMethod)}>
+              <option value="phone">Contato telefônico</option>
+              <option value="in_person">Presencialmente</option>
+              <option value="video_call">Chamada de vídeo</option>
+              <option value="other">Outro método externo</option>
+            </select>
+          </label>
+          <label style={{ display:"flex", alignItems:"flex-start", gap:10, marginTop:16 }}>
+            <input type="checkbox" checked={identityVerified} onChange={event => setIdentityVerified(event.target.checked)} />
+            <span>Confirmo que a titularidade e a autorização foram verificadas fora do sistema.</span>
+          </label>
+          <div className="pa-workshop-actions" style={{ marginTop:18 }}>
+            <button type="button" className="pa-primary" disabled={busy || !identityVerified} onClick={() => void generateManualActivationLink()}>{busy ? "Gerando…" : "Confirmar e gerar link"}</button>
+            <button type="button" className="pa-quiet" disabled={busy} onClick={closeManualActivation}>Cancelar</button>
+          </div>
+        </> : <>
+          <p>Copie e entregue o link somente à pessoa cuja titularidade foi verificada. Por segurança, ele não será salvo para consulta posterior. Fechar esta janela apaga o link da tela; se necessário, gere outro, o que invalidará este.</p>
+          <p>Expira: <strong>{localDate(manualActivation.expiresAt)}</strong></p>
+          <label>Link de ativação<input readOnly value={manualActivation.url} onFocus={event => event.currentTarget.select()} /></label>
+          <div className="pa-workshop-actions" style={{ marginTop:18 }}>
+            <button type="button" className="pa-primary" onClick={() => void copyManualActivationLink()}><Copy size={15}/> Copiar link</button>
+            <button type="button" className="pa-quiet" onClick={closeManualActivation}>Fechar e apagar</button>
+          </div>
+        </>}
+      </section>
+    </div>}
     {message && <p className="pa-note" role="status">{message}</p>}{error && <p className="pa-note pa-note--error" role="alert">{error}</p>}
   </div>;
 

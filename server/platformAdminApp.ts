@@ -11,7 +11,7 @@ import { hashPassword } from "./auth/session.js";
 import { isTestAdminPasswordOnlyLoginAllowed } from "./platformAdminMfa.js";
 import { catalogHomologationProjectId } from "./catalogHomologation.js";
 import { workshopRegistrationSchema, workshopStatusChangeSchema, canManuallyTransitionWorkshop, effectiveWorkshopStatus, workshopStatuses } from "./services/platformWorkshops.js";
-import { newWorkshopActivationId, newWorkshopActivationToken, sendWorkshopActivationEmail, workshopActivationTtlHours } from "./services/workshopActivation.js";
+import { newWorkshopActivationId, newWorkshopActivationToken, sendWorkshopActivationEmail, workshopActivationTtlHours, workshopActivationUrl } from "./services/workshopActivation.js";
 import { createPlatformAdminDataTransferRoutes } from "./platformAdminDataTransferRoutes.js";
 import type { PlatformAdminDataTransfer } from "./services/platformAdminDataTransfer.js";
 
@@ -51,7 +51,7 @@ function validOrigin(req: Request, res: Response) {
 type AdminContext = { id: string; email: string; display_name: string; role: PlatformRole; permissions: PlatformPermission[] };
 
 type InvitationView = {
-  invitation_status: "none" | "pending" | "sent" | "failed" | "expired" | "revoked" | "used";
+  invitation_status: "none" | "pending" | "sent" | "failed" | "expired" | "revoked" | "used" | "manual_link_created";
   invitation_expires_at: Date | null;
   invitation_sent_at: Date | null;
 };
@@ -63,13 +63,17 @@ function maskedEmail(value: string) {
 
 async function invitationViews(pool: Pool, tenantIds: string[]) {
   if (!tenantIds.length) return new Map<string, InvitationView>();
-  const result = await pool.query(`SELECT DISTINCT ON (tenant_id) tenant_id,delivery_status,expires_at,sent_at,used_at,revoked_at
-    FROM platform_admin.workshop_activation_invites WHERE tenant_id=ANY($1::text[])
-    ORDER BY tenant_id,created_at DESC,id DESC`, [tenantIds]);
+  const result = await pool.query(`SELECT DISTINCT ON (i.tenant_id) i.tenant_id,i.delivery_status,i.expires_at,i.sent_at,i.used_at,i.revoked_at,
+      EXISTS (SELECT 1 FROM platform_admin.audit_events a
+        WHERE a.subject_tenant_id=i.tenant_id AND a.action='admin.workshop.invitation.manual_link_created'
+          AND a.technical_context->>'invite_id'=i.id) AS manual_link_created
+    FROM platform_admin.workshop_activation_invites i WHERE i.tenant_id=ANY($1::text[])
+    ORDER BY i.tenant_id,i.created_at DESC,i.id DESC`, [tenantIds]);
   const views = new Map<string, InvitationView>();
   for (const row of result.rows) {
     const expired = row.used_at === null && row.revoked_at === null && new Date(row.expires_at).getTime() <= Date.now();
-    const invitation_status = row.used_at ? "used" : row.revoked_at ? "revoked" : expired ? "expired" : row.delivery_status;
+    const invitation_status = row.used_at ? "used" : row.revoked_at ? "revoked" : expired ? "expired"
+      : row.manual_link_created ? "manual_link_created" : row.delivery_status;
     views.set(String(row.tenant_id), {
       invitation_status,
       invitation_expires_at: row.expires_at,
@@ -79,31 +83,41 @@ async function invitationViews(pool: Pool, tenantIds: string[]) {
   return views;
 }
 
-async function sendWorkshopInvitation(pool: Pool, tenantId: string, actor: AdminContext) {
+type PreparedWorkshopInvitation = {
+  status: 200;
+  inviteId: string;
+  token: string;
+  expiresAt: Date;
+  workshop: { name: string; responsible_email: string };
+} | { status: 404 } | { status: 409 } | { status: 429 };
+
+async function prepareWorkshopInvitation(
+  pool: Pool, tenantId: string, actor: AdminContext,
+  verificationMethod?: "phone" | "in_person" | "video_call" | "other",
+): Promise<PreparedWorkshopInvitation> {
   const token = newWorkshopActivationToken();
   const inviteId = newWorkshopActivationId();
   const expiresAt = new Date(Date.now() + workshopActivationTtlHours * 60 * 60 * 1000);
-  let workshop: { name: string; responsible_email: string; source:string; status:string; email_verified_at:Date|null; trial_started_at:Date|null } | undefined;
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
     const found = await client.query(`SELECT name,responsible_email,source,status,email_verified_at,trial_started_at
       FROM platform_admin.workshops WHERE tenant_id=$1 FOR UPDATE`, [tenantId]);
-    workshop = found.rows[0];
+    const workshop = found.rows[0] as { name: string; responsible_email: string; source: string; status: string; email_verified_at: Date | null; trial_started_at: Date | null } | undefined;
     if (!workshop || workshop.source !== "admin") {
       await client.query("ROLLBACK");
-      return { status: 404 as const };
+      return { status: 404 };
     }
     if (workshop.status !== "pending_verification" || workshop.email_verified_at || workshop.trial_started_at) {
       await client.query("ROLLBACK");
-      return { status: 409 as const };
+      return { status: 409 };
     }
     const recent = await client.query(`SELECT 1 FROM platform_admin.workshop_activation_invites
       WHERE tenant_id=$1 AND delivery_status IN ('pending','sent') AND created_at>now()-interval '1 minute'
       ORDER BY created_at DESC LIMIT 1`, [tenantId]);
     if (recent.rowCount) {
       await client.query("ROLLBACK");
-      return { status: 429 as const };
+      return { status: 429 };
     }
     await client.query(`UPDATE platform_admin.workshop_activation_invites SET revoked_at=now(),delivery_status='revoked'
       WHERE tenant_id=$1 AND used_at IS NULL AND revoked_at IS NULL`, [tenantId]);
@@ -111,31 +125,61 @@ async function sendWorkshopInvitation(pool: Pool, tenantId: string, actor: Admin
       (id,tenant_id,token_hash,responsible_email,created_by_admin_id,expires_at,delivery_status)
       VALUES($1,$2,$3,lower($4),$5,$6,'pending')`, [inviteId,tenantId,digestAdminToken(token),workshop.responsible_email,actor.id,expiresAt]);
     await writeAdminAudit(client, { actorId:actor.id, actorEmail:actor.email, subjectTenantId:tenantId,
-      action:"admin.workshop.invitation.created", result:"success", technical:{ expires_at:expiresAt.toISOString() } });
+      action:"admin.workshop.invitation.created", result:"success", technical:{ invite_id:inviteId, expires_at:expiresAt.toISOString() } });
+    if (verificationMethod) {
+      await writeAdminAudit(client, { actorId:actor.id, actorEmail:actor.email, subjectTenantId:tenantId,
+        action:"admin.workshop.invitation.manual_link_created", result:"success",
+        technical:{ invite_id:inviteId, identity_verified:true, verification_method:verificationMethod, expires_at:expiresAt.toISOString() } });
+    }
     await client.query("COMMIT");
+    return { status:200, inviteId, token, expiresAt, workshop: { name:workshop.name, responsible_email:workshop.responsible_email } };
   } catch (error) {
     await client.query("ROLLBACK").catch(()=>{});
     throw error;
   } finally { client.release(); }
+}
+
+async function sendWorkshopInvitation(pool: Pool, tenantId: string, actor: AdminContext) {
+  const prepared = await prepareWorkshopInvitation(pool, tenantId, actor);
+  if (prepared.status !== 200) return prepared;
 
   let deliveryStatus: "sent" | "failed" = "sent";
   try {
     await sendWorkshopActivationEmail({
-      inviteId, token, email:workshop!.responsible_email, workshopName:workshop!.name, expiresAt,
+      inviteId:prepared.inviteId, token:prepared.token, email:prepared.workshop.responsible_email,
+      workshopName:prepared.workshop.name, expiresAt:prepared.expiresAt,
     });
-  } catch (error) {
+  } catch {
     deliveryStatus = "failed";
   }
   const sentAt = deliveryStatus === "sent" ? new Date() : null;
   await pool.query(`UPDATE platform_admin.workshop_activation_invites
-    SET delivery_status=$1,sent_at=$2 WHERE id=$3`, [deliveryStatus,sentAt,inviteId]);
+    SET delivery_status=$1,sent_at=$2 WHERE id=$3`, [deliveryStatus,sentAt,prepared.inviteId]);
   await writeAdminAudit(pool, { actorId:actor.id, actorEmail:actor.email, subjectTenantId:tenantId,
     action:deliveryStatus === "sent" ? "admin.workshop.invitation.sent" : "admin.workshop.invitation.delivery_failed",
     result:deliveryStatus === "sent" ? "success" : "failure",
     technical:{ reason:deliveryStatus === "sent" ? "accepted_by_provider" : "provider_unavailable_or_rejected" } });
-  return { status:200 as const, invitation_status:deliveryStatus, invitation_expires_at:expiresAt, invitation_sent_at:sentAt };
+  return { status:200 as const, invitation_status:deliveryStatus, invitation_expires_at:prepared.expiresAt, invitation_sent_at:sentAt };
 }
 
+function approvedActivationOrigin(req: Request) {
+  const origin = req.headers.origin;
+  if (!origin) return null;
+  const allowed = new Set([
+    "http://127.0.0.1:5173", "http://localhost:5173",
+    process.env.APP_ORIGIN,
+    ...(process.env.APP_ORIGINS || "").split(",").map(value => value.trim()),
+  ].filter((value): value is string => Boolean(value)));
+  if (!allowed.has(origin)) return null;
+  try {
+    const parsed = new URL(origin);
+    if (parsed.origin !== origin || parsed.username || parsed.password
+      || (parsed.protocol !== "https:" && !["localhost", "127.0.0.1"].includes(parsed.hostname))) return null;
+  } catch {
+    return null;
+  }
+  return origin;
+}
 export function createPlatformAdminApp(pool: Pool, encryptionKey: string, transfer?: PlatformAdminDataTransfer) {
   const app = express(); app.disable("x-powered-by"); app.use(noCache); app.use(express.json({ limit: "32kb" }));
   app.use("/admin-api", (req, res, next) => { if (!["GET", "HEAD", "OPTIONS"].includes(req.method) && !validOrigin(req, res)) return; next(); });
@@ -483,6 +527,26 @@ export function createPlatformAdminApp(pool: Pool, encryptionKey: string, transf
     if (result.status === 409) { res.status(409).json({ error:"Somente oficinas pendentes podem receber convite." }); return; }
     if (result.status === 429) { res.status(429).json({ error:"Um convite acabou de ser enviado. Aguarde um minuto antes de tentar novamente." }); return; }
     res.json({ invitation_status:result.invitation_status, invitation_expires_at:result.invitation_expires_at, invitation_sent_at:result.invitation_sent_at });
+  });
+
+  app.post("/admin-api/workshops/:id/manual-activation-link", requireSession, requirePermission("workshops:manage"), async (req, res) => {
+    const input = z.object({
+      identity_verified:z.literal(true),
+      verification_method:z.enum(["phone","in_person","video_call","other"]),
+    }).strict().safeParse(req.body);
+    if (!input.success) { res.status(400).json({ error:"Confirme a verificação externa da titularidade antes de gerar o link." }); return; }
+    const origin = approvedActivationOrigin(req);
+    if (!origin) { res.status(400).json({ error:"Não foi possível confirmar a origem autorizada para gerar o link." }); return; }
+    const result = await prepareWorkshopInvitation(
+      pool, String(req.params.id), res.locals.admin as AdminContext, input.data.verification_method,
+    );
+    if (result.status === 404) { res.status(404).json({ error:"Oficina administrada não encontrada." }); return; }
+    if (result.status === 409) { res.status(409).json({ error:"Somente oficinas pendentes podem receber link de ativação." }); return; }
+    if (result.status === 429) { res.status(429).json({ error:"Um convite foi criado há pouco. Aguarde um minuto antes de gerar outro link." }); return; }
+    res.json({
+      activation_url:workshopActivationUrl(origin, result.token),
+      invitation_expires_at:result.expiresAt,
+    });
   });
   app.put("/admin-api/workshops/:id", requireSession, requirePermission("workshops:manage"), async (req, res) => {
     const input = workshopRegistrationSchema.safeParse(req.body);
