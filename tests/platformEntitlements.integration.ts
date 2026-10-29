@@ -22,7 +22,7 @@ test("PostgreSQL: permissões administrativas por oficina, limites, período de 
       ownerId,"Proprietário Fictício","owner-" + tenantId + "@example.test","fixture",
       secondUserId,"Usuário Fictício","user-" + tenantId + "@example.test","fixture",
     ]);
-    await client.query("INSERT INTO horse_power.memberships(user_id,tenant_id,role) VALUES($1,$2,'owner')",[ownerId,tenantId]);
+    await client.query("INSERT INTO horse_power.memberships(user_id,tenant_id,role) VALUES($1,$2,'owner'),($3,$4,'operator')",[ownerId,tenantId,secondUserId,otherTenantId]);
     const startedAt = new Date();
     const endAt = new Date(startedAt.getTime()+14*86400000);
     await client.query(
@@ -40,29 +40,48 @@ test("PostgreSQL: permissões administrativas por oficina, limites, período de 
     let state = (await client.query("SELECT platform_admin.workshop_entitlement_status($1) AS value",[tenantId])).rows[0].value;
     assert.equal(state.modules.orders,true);
     assert.equal(state.modules.finance,true);
+    assert.equal(state.modules.technical_catalog,true);
     assert.equal(state.plan_configured,false);
     assert.equal(state.max_users,null);
     assert.equal(state.trial_days,14);
     assert.equal(state.user_count,1);
 
-    await client.query("UPDATE platform_admin.plan_defaults SET configured=true,module_defaults='{\"finance\":false}'::jsonb,max_users=3,trial_days=7 WHERE plan_code='basic'");
+    await client.query("UPDATE platform_admin.plan_defaults SET configured=true,module_defaults='{\"finance\":false,\"technical_catalog\":false}'::jsonb,max_users=3,trial_days=7 WHERE plan_code='basic'");
     await client.query("UPDATE platform_admin.workshops SET plan_code='basic' WHERE tenant_id=$1",[tenantId]);
     state=(await client.query("SELECT platform_admin.workshop_entitlement_status($1) AS value",[tenantId])).rows[0].value;
     assert.equal(state.modules.finance,false);
+    assert.equal(state.modules.technical_catalog,false);
     assert.equal(state.max_users,3);
     assert.equal(state.trial_days,7);
 
+    const rateCategory = (await client.query("SELECT id FROM horse_power.labor_categories ORDER BY sort_order,id LIMIT 1")).rows[0]?.id;
+    if (rateCategory) await client.query("INSERT INTO horse_power.labor_commercial_rates(tenant_id,category_id,hourly_rate) VALUES($1,$2,13750) ON CONFLICT(tenant_id,category_id) DO UPDATE SET hourly_rate=EXCLUDED.hourly_rate",[tenantId,rateCategory]);
+    const catalogModelsBefore = Number((await client.query("SELECT count(*)::int AS count FROM service_catalog.models")).rows[0].count);
+
     await client.query("SELECT platform_admin.set_workshop_entitlements($1,$2,$3::jsonb,$4,$5,$6)",[
-      tenantId,sessionHash,JSON.stringify({orders:false,finance:true}),1,5,"Exceção administrativa fictícia para teste",
+      tenantId,sessionHash,JSON.stringify({orders:false,finance:true,technical_catalog:true}),1,5,"Liberar Catálogo Técnico para oficina fictícia",
     ]);
     state=(await client.query("SELECT platform_admin.workshop_entitlement_status($1) AS value",[tenantId])).rows[0].value;
     assert.equal(state.modules.orders,false);
     assert.equal(state.modules.finance,true);
+    assert.equal(state.modules.technical_catalog,true, "a exceção administrativa libera o catálogo mesmo com padrão do plano desabilitado");
     assert.equal(state.max_users,1);
     assert.equal(state.trial_days,5);
     const trial=(await client.query("SELECT status,extract(epoch FROM (trial_ends_at-trial_started_at))/86400 AS days FROM platform_admin.workshops WHERE tenant_id=$1",[tenantId])).rows[0];
     assert.equal(trial.status,"trial");
     assert.equal(Math.round(Number(trial.days)),5);
+
+    await client.query("SELECT platform_admin.set_workshop_entitlements($1,$2,$3::jsonb,$4,$5,$6)",[
+      tenantId,sessionHash,JSON.stringify({orders:false,finance:true,technical_catalog:false}),1,5,"Bloquear Catálogo Técnico na oficina fictícia",
+    ]);
+    state=(await client.query("SELECT platform_admin.workshop_entitlement_status($1) AS value",[tenantId])).rows[0].value;
+    assert.equal(state.modules.technical_catalog,false);
+    const catalogModelsAfter = Number((await client.query("SELECT count(*)::int AS count FROM service_catalog.models")).rows[0].count);
+    assert.equal(catalogModelsAfter,catalogModelsBefore,"alterar a permissão não altera o catálogo central");
+    if (rateCategory) {
+      const rate = await client.query("SELECT hourly_rate FROM horse_power.labor_commercial_rates WHERE tenant_id=$1 AND category_id=$2",[tenantId,rateCategory]);
+      assert.equal(Number(rate.rows[0].hourly_rate),13750,"alterar a permissão preserva a tarifa da oficina");
+    }
 
     await client.query("SAVEPOINT user_cap");
     await assert.rejects(
@@ -84,9 +103,14 @@ test("PostgreSQL: permissões administrativas por oficina, limites, período de 
     let flags=(await client.query("SELECT horse_power.local_tenant_module_access($1) AS modules",[tenantId])).rows[0].modules;
     assert.equal(flags.orders,false);
     assert.equal(flags.finance,true);
+    assert.equal(flags.technical_catalog,false,"a permissão administrativa desabilitada chega ao backend operacional");
     await client.query("SAVEPOINT cross_tenant");
     await assert.rejects(client.query("SELECT horse_power.local_tenant_module_access($1)",[otherTenantId]),{code:"42501"});
     await client.query("ROLLBACK TO SAVEPOINT cross_tenant");
+    await client.query("SELECT set_config('app.tenant_id',$1,true),set_config('app.user_id',$2,true)",[otherTenantId,secondUserId]);
+    const otherFlags=(await client.query("SELECT horse_power.local_tenant_module_access($1) AS modules",[otherTenantId])).rows[0].modules;
+    assert.equal(otherFlags.technical_catalog,true,"a alteração de uma oficina não afeta outra");
+    await client.query("SELECT set_config('app.tenant_id',$1,true),set_config('app.user_id',$2,true)",[tenantId,ownerId]);
     await client.query("RESET ROLE");
 
     const audit=await client.query(
@@ -94,8 +118,9 @@ test("PostgreSQL: permissões administrativas por oficina, limites, período de 
       "WHERE subject_tenant_id=$1 AND action='admin.workshop.entitlements.updated' ORDER BY created_at",
       [tenantId],
     );
-    assert.equal(audit.rowCount,1);
-    assert.equal(audit.rows[0].reason,"Exceção administrativa fictícia para teste");
+    assert.equal(audit.rowCount,2);
+    assert.ok(audit.rows.some((row: {reason:string}) => row.reason === "Liberar Catálogo Técnico para oficina fictícia"));
+    assert.ok(audit.rows.some((row: {reason:string}) => row.reason === "Bloquear Catálogo Técnico na oficina fictícia"));
 
     await client.query("SELECT platform_admin.set_workshop_entitlements($1,$2,'{}'::jsonb,NULL,NULL,$3)",[
       tenantId,sessionHash,"Restaurar padrões fictícios para validação",
@@ -103,6 +128,7 @@ test("PostgreSQL: permissões administrativas por oficina, limites, período de 
     state=(await client.query("SELECT platform_admin.workshop_entitlement_status($1) AS value",[tenantId])).rows[0].value;
     assert.equal(state.modules.orders,true);
     assert.equal(state.modules.finance,false);
+    assert.equal(state.modules.technical_catalog,false);
     assert.equal(state.max_users,3);
     assert.equal(state.trial_days,7);
     assert.deepEqual(state.module_overrides,{});

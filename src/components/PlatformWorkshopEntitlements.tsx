@@ -75,7 +75,7 @@ export function PlatformWorkshopEntitlements({ tenantId }: { tenantId: string })
 
   return <section className="pa-workshop-state-form" aria-labelledby="workshop-entitlements-title">
     <h3 id="workshop-entitlements-title">Permissões e limites da oficina</h3>
-    <p>As permissões administrativas são individuais e independentes do plano. O Catálogo Técnico mantém seu controle de acesso separado.</p>
+    <p>As permissões administrativas são individuais e independentes do plano. A liberação do Catálogo Técnico também respeita o controle atual de contratação e validade desse catálogo; esta opção não altera tarifas nem dados do catálogo central.</p>
     {!state ? <p>Carregando configurações…</p> : <>
       <p>
         Plano: <strong>{state.plan_code || "sem plano associado"}</strong>
