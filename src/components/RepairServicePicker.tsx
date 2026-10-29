@@ -152,7 +152,7 @@ export function WorkshopServiceForm({
                   { service_type: "private", name: form.name, description: form.description, price: form.price, ...(form.cost === null ? {} : { cost: form.cost }) },
                   initial ? "PUT" : "POST",
                 ) as { id?: string };
-                onSaved({ ...initial, ...form, id: initial?.id || result.id, cost: form.cost ?? 0, cost_known: form.cost === null ? 0 : 1, active: 1, service_type: "private" } as Entity);
+                onSaved({ ...initial, ...form, id: initial?.id || result.id, cost: form.cost ?? 0, cost_known: form.cost === null ? 0 : 1, active: initial?.active ?? 1, service_type: "private" } as Entity);
               } catch (e) {
                 setError((e as Error).message);
               } finally { setBusy(false); }
