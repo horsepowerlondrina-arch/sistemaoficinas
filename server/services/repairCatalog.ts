@@ -208,7 +208,11 @@ const catalogModelSelect = "SELECT m.id,m.name,m.brand_id,m.fipe_code,m.classifi
 const vehicleMatchInput = z.object({
   brand: z.string().trim().max(150).default(""),
   model: z.string().trim().max(300).default(""),
-  year: z.coerce.number().int().min(1900).max(2100).nullable().optional(),
+  year: z.preprocess((value) => {
+    if (value === null || value === undefined || String(value).trim() === "") return null;
+    const parsed = Number(value);
+    return Number.isInteger(parsed) ? parsed : null;
+  }, z.number().nullable()).optional(),
   fipe_code: z.string().trim().max(20).default(""),
   fipe_model: z.string().trim().max(300).default(""),
   fipe_year_id: z.string().trim().max(30).default(""),
@@ -354,19 +358,47 @@ export async function previewVehicleCatalogReview(
   });
   const items = [];
   for (const vehicle of page.rows) {
-    const incomplete = !String(vehicle.plate || "").trim() || !String(vehicle.brand || "").trim() || !String(vehicle.model || "").trim();
-    const normalizedPlate = String(vehicle.plate || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
-    const fipeCode = String(vehicle.fipe_code || "").trim();
-    const validYear = vehicle.year === null || vehicle.year === undefined || String(vehicle.year).trim() === ""
-      ? true
-      : Number.isInteger(Number(vehicle.year)) && Number(vehicle.year) >= 1900 && Number(vehicle.year) <= 2100;
+    const nonEmpty = (value: unknown) => value !== null && value !== undefined && String(value).trim() !== "";
+    const rawYear = vehicle.year === null || vehicle.year === undefined || String(vehicle.year).trim() === ""
+      ? null
+      : Number(vehicle.year);
+    const yearMissing = rawYear === null || rawYear === 0;
+    const validYear = rawYear !== null && Number.isInteger(rawYear) && rawYear >= 1900 && rawYear <= 2100;
+    const normalizedPlate = typeof vehicle.plate === "string"
+      ? vehicle.plate.toUpperCase().replace(/[^A-Z0-9]/g, "")
+      : "";
+    const rawFipeCode = typeof vehicle.fipe_code === "string" ? vehicle.fipe_code.trim() : "";
+    const fipeCodeValid = !rawFipeCode || /^\d{6}-\d$/.test(rawFipeCode);
+    const boundedText = (value: unknown, max: number) =>
+      typeof value === "string" && value.length <= max ? value.trim() : "";
+    const boundedTextInvalid = (value: unknown, max: number) =>
+      value !== null && value !== undefined && (typeof value !== "string" || value.length > max);
+    const malformedFields =
+      boundedTextInvalid(vehicle.plate, 20) ||
+      boundedTextInvalid(vehicle.brand, 150) ||
+      boundedTextInvalid(vehicle.model, 300) ||
+      boundedTextInvalid(vehicle.fipe_code, 20) ||
+      boundedTextInvalid(vehicle.fipe_model, 300) ||
+      boundedTextInvalid(vehicle.fipe_year_id, 30) ||
+      boundedTextInvalid(vehicle.service_model_id, 80);
+    const incomplete =
+      !nonEmpty(vehicle.plate) || !nonEmpty(vehicle.brand) || !nonEmpty(vehicle.model) || yearMissing;
     const inconsistentFields =
+      malformedFields ||
       (!!normalizedPlate && !/^[A-Z]{3}\d[A-Z0-9]\d{2}$/.test(normalizedPlate)) ||
-      (!!fipeCode && !/^\d{6}-\d$/.test(fipeCode)) ||
-      !validYear;
+      (!!rawFipeCode && !fipeCodeValid) ||
+      (!yearMissing && !validYear);
     const match = incomplete
       ? { status: "not_identified", candidates: [] as Row[] }
-      : await identifyVehicleModel(db, ctx, vehicle);
+      : await identifyVehicleModel(db, ctx, {
+          brand: boundedText(vehicle.brand, 150),
+          model: boundedText(vehicle.model, 300),
+          year: validYear ? rawYear : null,
+          fipe_code: fipeCodeValid ? boundedText(vehicle.fipe_code, 20) : "",
+          fipe_model: boundedText(vehicle.fipe_model, 300),
+          fipe_year_id: boundedText(vehicle.fipe_year_id, 30),
+          service_model_id: boundedText(vehicle.service_model_id, 80),
+        });
     const data_quality: VehicleRecordQuality = incomplete
       ? "incomplete"
       : inconsistentFields || match.status === "mismatch" || ("review_reason" in match && match.review_reason === "inconsistent")
