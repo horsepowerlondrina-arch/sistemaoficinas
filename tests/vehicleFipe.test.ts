@@ -109,8 +109,10 @@ test("FIPE errors preserve paid vehicle data, missing codes and multiple candida
 });
 test("persistent cache survives another lookup call, is tenant scoped, expires, and local vehicles avoid provider charges", async () => {
   const db = fixture(),
-    prior = process.env.FIPEPLACA_TOKENS_JSON;
+    prior = process.env.FIPEPLACA_TOKENS_JSON,
+    priorAllowlist = process.env.FIPEPLACA_ALLOWED_TENANT_IDS;
   process.env.FIPEPLACA_TOKENS_JSON = JSON.stringify({ a: "fake", b: "fake" });
+  process.env.FIPEPLACA_ALLOWED_TENANT_IDS = "a,b";
   let calls = 0;
   const provider = (async (url) => {
     calls++;
@@ -144,6 +146,9 @@ test("persistent cache survives another lookup call, is tenant scoped, expires, 
   } finally {
     if (prior === undefined) delete process.env.FIPEPLACA_TOKENS_JSON;
     else process.env.FIPEPLACA_TOKENS_JSON = prior;
+    if (priorAllowlist === undefined)
+      delete process.env.FIPEPLACA_ALLOWED_TENANT_IDS;
+    else process.env.FIPEPLACA_ALLOWED_TENANT_IDS = priorAllowlist;
     db.close();
   }
 });
@@ -229,8 +234,10 @@ test("vehicle FIPE validation preserves leading zeroes and rejects malformed cod
 
 test("consulta explícita de veículo já cadastrado reutiliza cache e só gera prévia sem escrever", async () => {
   const db = fixture();
-  const prior = process.env.FIPEPLACA_TOKENS_JSON;
+  const prior = process.env.FIPEPLACA_TOKENS_JSON,
+    priorAllowlist = process.env.FIPEPLACA_ALLOWED_TENANT_IDS;
   process.env.FIPEPLACA_TOKENS_JSON = JSON.stringify({ a: "fake", b: "fake" });
+  process.env.FIPEPLACA_ALLOWED_TENANT_IDS = "a,b";
   let calls = 0;
   const provider = (async (url) => {
     calls++;
@@ -253,6 +260,9 @@ test("consulta explícita de veículo já cadastrado reutiliza cache e só gera 
   } finally {
     if (prior === undefined) delete process.env.FIPEPLACA_TOKENS_JSON;
     else process.env.FIPEPLACA_TOKENS_JSON = prior;
+    if (priorAllowlist === undefined)
+      delete process.env.FIPEPLACA_ALLOWED_TENANT_IDS;
+    else process.env.FIPEPLACA_ALLOWED_TENANT_IDS = priorAllowlist;
     db.close();
   }
 });
