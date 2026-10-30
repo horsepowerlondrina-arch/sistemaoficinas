@@ -29,5 +29,13 @@ test("PostgreSQL ADM-002: membership isolation, owner protection, lifecycle and 
  await c.query("SELECT platform_admin.manage_workshop_lifecycle($1,$2,'read_only',NULL,$3)",[t,session,"Suspender para teste"]);
  await rejects("SELECT platform_admin.manage_workshop_lifecycle($1,$2,'active',NULL,$3)",[t,"bad","Sessão inválida"],"42501");
  assert.equal((await c.query("SELECT count(*)::int n FROM platform_admin.audit_events WHERE subject_tenant_id=$1 AND action='admin.workshop.status_changed'",[t])).rows[0].n,3);
+ // Read-only administrators can inspect members but cannot mutate them.
+ await c.query("UPDATE platform_admin.administrators SET permissions='[\"workshops:read\"]'::jsonb WHERE id=$1",[admin]);
+ assert.equal((await c.query("SELECT * FROM platform_admin.workshop_member_directory($1,$2)",[t,session])).rowCount,1);
+ await rejects("SELECT platform_admin.manage_workshop_membership($1,$2,$3,'remove',NULL,$4)",[t,session,owner,"Tentativa sem permissão"],"42501");
+ await rejects("SELECT platform_admin.manage_workshop_lifecycle($1,$2,'blocked',NULL,$3)",[t,session,"Tentativa sem permissão"],"42501");
+ assert.equal((await c.query("SELECT role FROM horse_power.memberships WHERE tenant_id=$1 AND user_id=$2",[other,outsider])).rows[0].role,"owner");
+ assert.equal((await c.query("SELECT count(*)::int n FROM horse_power.users WHERE id=ANY($1::text[])",[[owner,operator,outsider]])).rows[0].n,3);
+ assert.equal((await c.query("SELECT count(*)::int n FROM platform_admin.audit_events WHERE subject_tenant_id=$1",[other])).rows[0].n,0);
  await c.query("ROLLBACK");}catch(e){await c.query("ROLLBACK").catch(()=>{});throw e;}finally{await c.end();}
 });
