@@ -215,6 +215,7 @@ const vehicleMatchInput = z.object({
   fipe_model: z.string().trim().max(300).default(""),
   fipe_year_id: z.string().trim().max(30).default(""),
   service_model_id: z.string().trim().max(80).nullable().default("").transform((value) => value || ""),
+  service_link_mode: z.string().trim().max(20).default(""),
 });
 export type VehicleCatalogMatchStatus = "linked" | "matched" | "needs_confirmation" | "not_identified" | "unavailable" | "mismatch";
 export type VehicleRecordQuality = "complete" | "incomplete" | "inconsistent";
@@ -243,7 +244,7 @@ export async function identifyVehicleModel(db: DB, ctx: Context, input: unknown)
     const fipeCompatible = !vehicle.fipe_code || !model.fipe_code || String(model.fipe_code) === vehicle.fipe_code;
     const savedName = vehicleSearchKey(model.name);
     const modelCompatible = !modelHints.length || modelHints.some((hint) => savedName === hint || savedName.startsWith(hint) || hint.startsWith(savedName));
-    return { status: brandCompatible && fipeCompatible && modelCompatible ? "linked" as const : "mismatch" as const, catalog_status: accessState, model, candidates: [model] };
+    return { status: vehicle.service_link_mode === "manual" || (brandCompatible && fipeCompatible && modelCompatible) ? "linked" as const : "mismatch" as const, catalog_status: accessState, model, candidates: [model] };
   }
   if (!brandKey || (!modelHints.length && !vehicle.fipe_code)) return { status: "not_identified" as const, catalog_status: accessState, model: null, candidates: [] };
   const brandPattern = "%" + brandKey.split(" ").filter(Boolean).join("%") + "%";
@@ -396,6 +397,7 @@ export async function previewVehicleCatalogReview(
           fipe_model: boundedText(vehicle.fipe_model, 300),
           fipe_year_id: boundedText(vehicle.fipe_year_id, 30),
           service_model_id: boundedText(vehicle.service_model_id, 80),
+          service_link_mode: boundedText(vehicle.service_link_mode, 20),
         });
     const data_quality: VehicleRecordQuality = incomplete
       ? "incomplete"
@@ -431,8 +433,6 @@ export async function previewVehicleCatalogReview(
 }
 export async function confirmVehicleModel(db: DB, ctx: Context, vehicle: { brand?: unknown }, modelId: string) {
   const model = await repairModel(db, ctx, modelId);
-  if (vehicleSearchKey(model.brand) !== vehicleSearchKey(vehicle.brand))
-    throw Object.assign(new Error("O modelo selecionado pertence a outra marca."), { status: 409 });
   return model;
 }
 export async function searchRepairServices(

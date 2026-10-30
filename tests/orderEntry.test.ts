@@ -64,9 +64,9 @@ test("new quote and OS open directly with customer and plate fields in order", (
     const fields = [
       "Nome do cliente",
       "Placa",
-      "Marca do veículo",
-      "Modelo do veículo",
-      "Ano fabricação/modelo",
+      "Marca",
+      "Modelo FIPE",
+      "Ano de fabricação",
       "Quilometragem",
       "Telefone / WhatsApp",
     ];
@@ -144,11 +144,11 @@ test("a guest quote preserves optional name and vehicle with a single plate inpu
   assert.match(html, /Telefone \/ WhatsApp \*/);
   assert.match(html, /O cliente será cadastrado ao salvar/);
   assert.match(html, /value="DEF4G56"/);
-  assert.match(html, /Marca do veículo \*/);
-  assert.match(html, /Modelo do veículo \*/);
-  assert.match(html, /Ano fabricação\/modelo \*/);
-  assert.match(html, /Cor do veículo/);
-  assert.match(html, /Chassi \(se disponível\)/);
+  assert.match(html, /Marca \*/);
+  assert.match(html, /Modelo FIPE \*/);
+  assert.match(html, /Ano de fabricação \*/);
+  assert.match(html, /Cor/);
+  assert.match(html, /Chassi/);
   assert.equal((html.match(/value="DEF4G56"/g) || []).length, 1);
   assert.doesNotMatch(html, /Veículo cadastrado \(opcional\)/);
 });
@@ -162,10 +162,10 @@ test("a saved quote without plate remains available without registering a vehicl
     items: [],
   });
   assert.match(html, /value="Veículo de exemplo"/);
-  assert.doesNotMatch(html, /Marca do veículo \*/);
+  assert.doesNotMatch(html, /Marca \*/);
 });
 
-test("editing a linked OS hides customer vehicle choices and offers explicit editing of its vehicle", () => {
+test("editing a linked OS shows customer vehicle choices and offers explicit editing of its vehicle", () => {
   const html = render("/ordens/o", {
     id: "o",
     status: "quote",
@@ -184,6 +184,6 @@ test("editing a linked OS hides customer vehicle choices and offers explicit edi
   assert.match(html, /value="Marca"/);
   assert.match(html, /value="Modelo"/);
   assert.match(html, /Editar veículo vinculado/);
-  assert.doesNotMatch(html, /order-vehicle-cards/);
-  assert.doesNotMatch(html, /\+ Novo veículo/);
+  assert.match(html, /order-vehicle-cards/);
+  assert.match(html, /\+ Novo veículo/);
 });

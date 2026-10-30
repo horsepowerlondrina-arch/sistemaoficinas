@@ -28,7 +28,7 @@ export function selectOrderCustomer(customerId: string, preservedVehicleId = "")
 }
 
 export function canShowCustomerVehicleOptions(isEditing: boolean, customerId: string, locked = false) {
-  return !isEditing && !!customerId && !locked;
+  return !!customerId && !locked;
 }
 
 export function selectOrderVehicleFromCard<T extends { id: string }>(

@@ -28,7 +28,8 @@ test("FipePlaca usa HTTPS, Bearer e retorna apenas dados do cadastro", async () 
     plate: "ABC1D23",
     brand: "Honda",
     model: "Fit",
-    year: 2021,
+    year: 2020,
+    model_year: 2021,
     color: "Preto",
   });
   assert.ok(!JSON.stringify(result).includes(token));

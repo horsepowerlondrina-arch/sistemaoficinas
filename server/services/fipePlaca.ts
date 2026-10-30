@@ -151,12 +151,13 @@ export async function lookupFipePlaca(
   return {
     source: "external",
     vehicle: {
+      ...(selection || {}),
       plate,
       ...(v.marca ? { brand: v.marca } : {}),
       ...(v.modelo ? { model: v.modelo } : {}),
-      ...(year !== null && year >= 1900 && year <= 2100 ? { year } : {}),
+      ...(v.anoFabricacao !== null && v.anoFabricacao >= 1900 && v.anoFabricacao <= 2100 ? { year: v.anoFabricacao } : {}),
+      ...(v.anoModelo !== null && v.anoModelo >= 1900 && v.anoModelo <= 2100 ? { model_year: v.anoModelo } : {}),
       ...(v.cor ? { color: v.cor } : {}),
-      ...(selection || {}),
     },
     ...(fipe
       ? { fipe_candidates: fipe.candidates, fipe_status: fipe.status }

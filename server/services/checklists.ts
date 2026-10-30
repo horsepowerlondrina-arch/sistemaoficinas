@@ -1,11 +1,12 @@
 import { z } from "zod";
+import { vehicleDisplayModel } from "../../shared/vehicleIdentity.js";
 import type { Context } from "../auth/session.js";
 import { transaction, type DB } from "../db/database.js";
 import { requireAdmin } from "./payments.js";
 import { normalizePlate } from "./vehicleLookup.js";
 import { vehicleFipeFields } from "./vehicleFipeFields.js";
 import { audit, id, saveOrder, scoped } from "./workshop.js";
-import { identifyVehicleModel, confirmVehicleModel, catalogAccessState } from "./repairCatalog.js";
+import { confirmVehicleModel, catalogAccessState, identifyVehicleModel } from "./repairCatalog.js";
 
 const conditionState = z.enum(["ok", "issue", "unchecked"]);
 const damageSchema = z.object({
@@ -22,6 +23,7 @@ const vehicleDataSchema = z.object({
   color: z.string().trim().max(80).default(""),
   chassis: z.string().trim().max(100).default(""),
   service_model_id: z.string().uuid().nullable().optional(),
+  service_link_mode: z.enum(["", "manual", "auto", "none"]).optional(),
 });
 const createSchema = z.object({
   order_id: z.string().trim().min(1).nullable().optional(),
@@ -78,7 +80,7 @@ function parseJson<T>(value: unknown, fallback: T): T {
   }
 }
 function vehicleLabel(vehicle: Record<string, any>) {
-  return [vehicle.brand, vehicle.model, vehicle.color, vehicle.year]
+  return [vehicle.brand, vehicleDisplayModel(vehicle), vehicle.color, vehicle.year]
     .filter(Boolean)
     .join(" ");
 }
@@ -222,6 +224,10 @@ export async function createChecklist(
           fipe_code: vehicle.fipe_code || "",
           fipe_model: vehicle.fipe_model || "",
           fipe_year_id: vehicle.fipe_year_id || "",
+          model_year: vehicle.model_year || null,
+          fuel: vehicle.fuel || "",
+          service_model_id: v.vehicle_data.service_model_id !== undefined ? v.vehicle_data.service_model_id : vehicle.service_model_id || null,
+          service_link_mode: v.vehicle_data.service_link_mode || vehicle.service_link_mode || "",
         }
       : vehicleDataSchema.parse(v.vehicle_data);
 
@@ -392,8 +398,8 @@ export async function finalizeChecklist(
         await db
           .prepare(
             `INSERT INTO vehicles(
-              id,tenant_id,customer_id,plate,brand,model,year,color,km,chassis,fipe_code,fipe_model,fipe_year_id,active
-            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,1)`,
+              id,tenant_id,customer_id,plate,brand,model,year,color,km,chassis,fipe_code,fipe_model,fipe_year_id,model_year,fuel,service_link_mode,active
+            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1)`,
           )
           .run(
             vehicleId,
@@ -409,6 +415,9 @@ export async function finalizeChecklist(
             vehicleData.fipe_code,
             vehicleData.fipe_model,
             vehicleData.fipe_year_id,
+            vehicleData.model_year || null,
+            vehicleData.fuel || "",
+            vehicleData.service_model_id ? "manual" : "none",
           );
         await audit(db, ctx, "vehicles.created_from_checklist", vehicleId);
         vehicle = await scoped(db, "vehicles", ctx.tenantId, vehicleId);
@@ -419,18 +428,22 @@ export async function finalizeChecklist(
     const requestedModelId = typeof vehicleDataRaw?.service_model_id === "string" && vehicleDataRaw.service_model_id ? z.string().uuid().parse(vehicleDataRaw.service_model_id) : "";
     if (vehicle) {
       let selectedModel: any = null;
-      if (requestedModelId && requestedModelId !== vehicle.service_model_id && await catalogAccessState(db, ctx) === "active") selectedModel = await confirmVehicleModel(db, ctx, vehicle, requestedModelId);
-      else if (!vehicle.service_model_id) {
-        const match = await identifyVehicleModel(db, ctx, vehicle);
+      if (requestedModelId && (requestedModelId !== vehicle.service_model_id || vehicleDataRaw.service_link_mode === "manual") && await catalogAccessState(db, ctx) === "active") selectedModel = await confirmVehicleModel(db, ctx, vehicle, requestedModelId);
+      if (!value.vehicle_id && !Object.prototype.hasOwnProperty.call(vehicleDataRaw, "service_model_id")) {
+        const match = await identifyVehicleModel(db, ctx, vehicleDataRaw);
         if (match.status === "matched") selectedModel = match.model;
       }
       if (selectedModel) {
-        await db.prepare("UPDATE vehicles SET service_model_id=?,service_porte_id=? WHERE tenant_id=? AND id=?").run(selectedModel.id, selectedModel.porte_id || "", ctx.tenantId, vehicle.id);
+        await db.prepare("UPDATE vehicles SET service_model_id=?,service_porte_id=?,service_link_mode='manual' WHERE tenant_id=? AND id=?").run(selectedModel.id, selectedModel.porte_id || "", ctx.tenantId, vehicle.id);
         vehicle.service_model_id = selectedModel.id; vehicle.service_porte_id = selectedModel.porte_id || "";
         await audit(db, ctx, requestedModelId ? "vehicles.catalog_link_confirmed" : "vehicles.catalog_link_auto", String(vehicle.id));
       }
     }
 
+    if (vehicle && vehicleDataRaw.service_link_mode === "none" && !requestedModelId) {
+      await db.prepare("UPDATE vehicles SET service_model_id='',service_porte_id='',service_link_mode='none' WHERE tenant_id=? AND id=?").run(ctx.tenantId, vehicle.id);
+      await audit(db, ctx, "vehicles.catalog_link_removed", String(vehicle.id));
+    }
     await db
       .prepare("UPDATE vehicles SET km=? WHERE tenant_id=? AND id=?")
       .run(Number(value.km || 0), ctx.tenantId, vehicle.id);

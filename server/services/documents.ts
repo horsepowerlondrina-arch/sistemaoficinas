@@ -1,3 +1,4 @@
+import { vehicleDisplayModel } from "../../shared/vehicleIdentity.js";
 import { createHash, randomUUID } from "node:crypto";
 import { transaction, type DB } from "../db/database.js";
 import type { Context } from "../auth/session.js";
@@ -87,7 +88,7 @@ export async function issueDocument(
    const customer=entity.customer_id?await scoped(db,"customers",ctx.tenantId,entity.customer_id):null;
    const vehicle=entity.vehicle_id?await scoped(db,"vehicles",ctx.tenantId,entity.vehicle_id):null;
    payload.customer=customer?Object.fromEntries(["id","name","phone","document","address"].map(k=>[k,customer[k]])):null;
-   payload.vehicle=vehicle?Object.fromEntries(["id","plate","brand","model","color","year","chassis","km"].map(k=>[k,vehicle[k]])):null;
+   payload.vehicle=vehicle?{...Object.fromEntries(["id","plate","brand","model","color","year","chassis","km","fipe_model","fipe_code","model_year","fuel"].map(k=>[k,vehicle[k]])),model:vehicleDisplayModel(vehicle)}:null;
    const receipt=entity.status==="completed"?await db.prepare("SELECT * FROM receivables WHERE tenant_id=? AND order_id=?").get(ctx.tenantId,id):undefined;
    const payments=receipt?await db.prepare("SELECT receivable_id,method,gross,status,paid_at FROM payment_installments WHERE tenant_id=? AND receivable_id=? ORDER BY sequence").all(ctx.tenantId,receipt.id):[];
    order.payment_summary=customerPayments(entity.status,receipt,payments);

@@ -28,7 +28,9 @@ import {
   Empty,
 } from "../components/ui";
 import { PlateField } from "../components/PlateField";
-import { RepairServicePicker } from "../components/RepairServicePicker";
+import { VehicleIdentityFields } from "../components/VehicleIdentityFields";
+import { VehicleTechnicalAssociation } from "../components/VehicleTechnicalAssociation";
+import { mergeVehicleLookup, lookupWouldReplace, vehicleDisplayModel } from "../../shared/vehicleIdentity";
 import { VehicleCatalogReview } from "../components/VehicleCatalogReview";
 import { candidateFields, fipeFields, emptyFipe } from "../../shared/vehicleFipe";
 type Kind = "customers" | "vehicles" | "catalog" | "professionals";
@@ -81,6 +83,7 @@ export function Registers({ kind }: { kind: Kind }) {
         r.search_aliases,
         r.plate,
         r.model,
+        r.fipe_model,
         r.brand,
         r.customer_name,
         r.phone,
@@ -279,7 +282,7 @@ export function Registers({ kind }: { kind: Kind }) {
                                 className="cell-link"
                                 onClick={() => setEditing(r)}
                               >
-                                {r.brand} {r.model}
+                                {r.brand} {vehicleDisplayModel(r)}
                               </button>
                               <small>
                                 {r.year || "Ano não informado"} ·{" "}
@@ -732,39 +735,12 @@ export function RegisterModal({
                               setVehicle(current => ({ ...current, ...fipeFields(r.vehicle) }));
                               return;
                             }
-                            if (r.vehicle && r.source !== "local")
-                              setVehicle((v) => ({ ...v, ...r.vehicle }));
+                            if (r.vehicle && r.source !== "local" && (!lookupWouldReplace(vehicle, r.vehicle) || window.confirm("A consulta retornou dados diferentes dos já preenchidos. Aplicar os novos dados?")))
+                              setVehicle((v) => mergeVehicleLookup(v, r.vehicle));
                           }}
                         />
-                        {[
-                          ["brand", "Marca"],
-                          ["model", "Modelo"],
-                          ["year", "Ano"],
-                          ["color", "Cor"],
-                          ["km", "Quilometragem"],
-                        ].map(([key, label]) => (
-                          <Field key={key} label={label}>
-                            <NumericInput
-                              required={["brand", "model", "year"].includes(
-                                key,
-                              )}
-                              type={
-                                ["year", "km"].includes(key) ? "number" : "text"
-                              }
-                              min={0}
-                              value={vehicle[key]}
-                              onChange={(e) =>
-                                setVehicle((v) => ({
-                                  ...v,
-                                  [key]: ["year", "km"].includes(key)
-                                    ? Number(e.target.value)
-                                    : e.target.value,
-                                }))
-                              }
-                            />
-                          </Field>
-                        ))}
-                        <div className="form-grid full"><RepairServicePicker vehicle={vehicle} modelId={String(vehicle.service_model_id || "")} onModelChange={(id) => setVehicle((v) => ({ ...v, service_model_id: id || null }))} vehicleOnly /></div>
+                        <VehicleIdentityFields vehicle={vehicle} onChange={setVehicle} km={vehicle.km} onKmChange={(value) => setVehicle((current) => ({ ...current, km: value }))} />
+                        <VehicleTechnicalAssociation vehicle={vehicle} modelId={String(vehicle.service_model_id || "")} onModelChange={(id) => setVehicle((current) => ({ ...current, service_model_id: id || null, service_link_mode: id ? "manual" : "none" }))} />
                       </div>
                     )}
                   </>
@@ -798,10 +774,10 @@ export function RegisterModal({
                   </div>
                   {plateProposal?.vehicle && <div className="vehicle-lookup-proposal">
                     <p><strong>{plateProposal.cache_status === "hit" ? "Consulta reutilizada do cache" : "Prévia da consulta"}</strong> · {plateProposal.message}</p>
-                    {["brand","model","year","color"].map((field) => {
+                    {["brand","model","year","model_year","fuel","color"].map((field) => {
                       const value = plateProposal.vehicle[field];
                       if (value === undefined || value === null || value === "") return null;
-                      const labels: Record<string,string> = { brand: "Marca", model: "Modelo", year: "Ano", color: "Cor" };
+                      const labels: Record<string,string> = { brand: "Marca", model: "Modelo", year: "Ano de fabricação", model_year: "Ano do modelo", fuel: "Combustível", color: "Cor" };
                       return <label className="checkbox-row" key={field}>
                         <input type="checkbox" checked={selectedLookupFields.includes(field)} onChange={(event) => setSelectedLookupFields((current) => event.target.checked ? [...current, field] : current.filter((item) => item !== field))} />
                         {labels[field]}: {String(form[field] ?? "—")} → {String(value)}
@@ -816,8 +792,8 @@ export function RegisterModal({
                           </option>)}
                         </select>
                       </Field>
-                      {(["fipe_code","fipe_model","fipe_year_id"] as const).map((field) => {
-                        const labels = { fipe_code: "Código FIPE", fipe_model: "Modelo FIPE", fipe_year_id: "Ano FIPE" };
+                      {(["fipe_code","fipe_model","fipe_year_id","model_year","fuel"] as const).map((field) => {
+                        const labels = { fipe_code: "Código FIPE", fipe_model: "Modelo FIPE", fipe_year_id: "Ano FIPE", model_year: "Ano do modelo", fuel: "Combustível" };
                         const next = selectedLookupCandidate ? candidateFields(plateProposal.fipe_candidates[Number(selectedLookupCandidate)])[field] : plateProposal.vehicle[field];
                         if (next === undefined || next === null || next === "") return null;
                         return <label className="checkbox-row" key={field}>
@@ -834,7 +810,8 @@ export function RegisterModal({
                 </section>}
                 <PlateField
                   value={form.plate}
-                  onChange={(plate) => setForm(current => ({ ...current, plate, ...emptyFipe, service_model_id: undefined }))}
+                  lookupDisabled={!!record}
+                  onChange={(plate) => setForm(current => ({ ...current, plate, ...emptyFipe, service_model_id: record ? current.service_model_id : undefined }))}
                   onFound={(r) => {
                     if (r.selectionOnly) {
                       setForm(current => ({ ...current, ...fipeFields(r.vehicle) }));
@@ -842,22 +819,14 @@ export function RegisterModal({
                     }
                     if (
                       r.vehicle &&
-                      (r.source !== "local" || r.vehicle.id === record?.id)
+                      (r.source !== "local" || r.vehicle.id === record?.id) &&
+                      (!lookupWouldReplace(form, r.vehicle) || window.confirm("A consulta retornou dados diferentes dos já preenchidos. Aplicar os novos dados?"))
                     )
-                      setForm((f) => ({ ...f, ...r.vehicle }));
+                      setForm((f) => mergeVehicleLookup(f, r.vehicle));
                   }}
                 />
-                {input("brand", "Marca *", "text", true)}
-                {input("model", "Modelo *", "text", true)}
-                {input("year", "Ano *", "number", true)}
-                {input("color", "Cor")}
-                {input("km", "Quilometragem", "number")}
-                {input("chassis", "Chassi", "text", false, true)}
-                <div className="form-grid full"><RepairServicePicker vehicle={form} modelId={String(form.service_model_id || "")} onModelChange={(id) => set("service_model_id", id || null)} vehicleOnly /></div>
-                <Field label="Código FIPE" full>
-                  <input readOnly value={form.fipe_code || ""} placeholder="Não identificado" />
-                  {!!form.fipe_model && <small>{form.fipe_model} · {form.fipe_year_id}</small>}
-                </Field>
+                <VehicleIdentityFields vehicle={form} onChange={setForm} km={form.km} onKmChange={(value) => set("km", value)} />
+                <VehicleTechnicalAssociation vehicle={form} modelId={String(form.service_model_id || "")} onModelChange={(id) => setForm((current) => ({ ...current, service_model_id: id || null, service_link_mode: id ? "manual" : "none" }))} />
               </>
             ) : kind === "catalog" ? (
               <>

@@ -1,0 +1,4 @@
+SET LOCAL search_path=horse_power,pg_catalog;
+ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS model_year INTEGER;
+ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS fuel TEXT NOT NULL DEFAULT '';
+ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS service_link_mode TEXT NOT NULL DEFAULT '';

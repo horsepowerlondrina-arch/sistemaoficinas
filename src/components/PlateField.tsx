@@ -16,11 +16,13 @@ export function PlateField({
   onChange,
   onFound,
   disabled = false,
+  lookupDisabled = false,
 }: {
   value: string;
   onChange: (value: string) => void;
   onFound: (result: Lookup) => void;
   disabled?: boolean;
+  lookupDisabled?: boolean;
 }) {
   const [busy, setBusy] = useState(false),
     [message, setMessage] = useState("");
@@ -66,6 +68,7 @@ export function PlateField({
       if (seq === request.current) {
         setMessage((e as Error).message);
         last.current = "";
+        onFound({ source: "unavailable", vehicle: null, message: "Consulta indisponível. Preencha os dados manualmente." });
       }
     } finally {
       if (seq === request.current) setBusy(false);
@@ -94,7 +97,7 @@ export function PlateField({
         <button
           type="button"
           className="button"
-          disabled={disabled || busy || value.length !== 7}
+          disabled={disabled || lookupDisabled || busy || value.length !== 7}
           onClick={() => void lookup(true)}
         >
           {busy ? (

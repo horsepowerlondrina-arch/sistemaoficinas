@@ -1,0 +1,4 @@
+ALTER TABLE vehicles ADD COLUMN model_year INTEGER;
+ALTER TABLE vehicles ADD COLUMN fuel TEXT NOT NULL DEFAULT '';
+ALTER TABLE vehicles ADD COLUMN service_link_mode TEXT NOT NULL DEFAULT '';
+INSERT INTO migrations(version) VALUES(30);

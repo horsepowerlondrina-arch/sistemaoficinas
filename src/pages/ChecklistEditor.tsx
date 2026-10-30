@@ -21,8 +21,10 @@ import { useApp } from "../lib/context";
 import type { Entity } from "../lib/types";
 import { Empty, Field, PageHeading } from "../components/ui";
 import { PlateField } from "../components/PlateField";
-import { RepairServicePicker } from "../components/RepairServicePicker";
+import { VehicleIdentityFields } from "../components/VehicleIdentityFields";
+import { VehicleTechnicalAssociation } from "../components/VehicleTechnicalAssociation";
 import { fipeFields, emptyFipe } from "../../shared/vehicleFipe";
+import { mergeVehicleLookup, lookupWouldReplace, vehicleDisplayModel } from "../../shared/vehicleIdentity";
 
 const conditionItems = [
   "Para-brisa e vidros",
@@ -278,6 +280,7 @@ export function ChecklistEditor() {
       color: initialVehicle?.color || "",
       chassis: initialVehicle?.chassis || "",
       service_model_id: initialVehicle?.service_model_id || null,
+      service_link_mode: initialVehicle?.service_link_mode || "",
     },
     km: initialOrder?.km || initialVehicle?.km || 0,
     fuel_level: 50,
@@ -525,6 +528,7 @@ export function ChecklistEditor() {
                   color: "",
                   chassis: "",
                   service_model_id: null,
+                  service_link_mode: "",
                 },
               }));
             }}
@@ -553,25 +557,16 @@ export function ChecklistEditor() {
                     color: String(found.color || ""),
                     chassis: String(found.chassis || ""),
                     service_model_id: found.service_model_id || null,
+                    service_link_mode: found.service_link_mode || "",
                   },
                   km: Number(found.km || current.km || 0),
                 }));
               } else {
+                if (found && lookupWouldReplace(creating.vehicle_data, found) && !window.confirm("A consulta retornou dados diferentes dos já preenchidos. Aplicar os novos dados?")) return;
                 setCreating((current) => ({
                   ...current,
                   lookup_source: result.source || "manual",
-                  customer_id: "",
-                  customer_name: "",
-                  phone: "",
-                  vehicle_data: {
-                    ...fipeFields(found),
-                    brand: String(found?.brand || ""),
-                    model: String(found?.model || ""),
-                    year: Number(found?.year || new Date().getFullYear()),
-                    color: String(found?.color || ""),
-                    chassis: "",
-                    service_model_id: null,
-                  },
+                  vehicle_data: mergeVehicleLookup(current.vehicle_data, found) as typeof current.vehicle_data,
                 }));
               }
               setLookupDone(true);
@@ -601,7 +596,6 @@ export function ChecklistEditor() {
                     : "Confira os dados abaixo. O cadastro só será criado quando o checklist for finalizado."}
                 </span>
               </div>
-              <RepairServicePicker vehicle={creating.vehicle_data} modelId={String(creating.vehicle_data.service_model_id || "")} onModelChange={(id) => setCreating((current) => ({ ...current, vehicle_data: { ...current.vehicle_data, service_model_id: id || null } }))} vehicleOnly />
 
               {!local && !initialOrder && (
                 <div className="form-grid checklist-customer-step">
@@ -666,88 +660,14 @@ export function ChecklistEditor() {
                   <strong>{selectedCustomer?.name || creating.customer_name}</strong>
                   <span>
                     {creating.plate} · {creating.vehicle_data.brand}{" "}
-                    {creating.vehicle_data.model} · {creating.vehicle_data.year}
+                    {vehicleDisplayModel(creating.vehicle_data)} · {creating.vehicle_data.year}
                   </span>
                 </div>
               )}
 
               <div className="form-grid checklist-vehicle-step">
-                <Field label="Marca *">
-                  <input
-                    disabled={local}
-                    value={creating.vehicle_data.brand}
-                    onChange={(e) =>
-                      setCreating((current) => ({
-                        ...current,
-                        vehicle_data: {
-                          ...current.vehicle_data,
-                          brand: e.target.value,
-                        },
-                      }))
-                    }
-                  />
-                </Field>
-                <Field label="Modelo *">
-                  <input
-                    disabled={local}
-                    value={creating.vehicle_data.model}
-                    onChange={(e) =>
-                      setCreating((current) => ({
-                        ...current,
-                        vehicle_data: {
-                          ...current.vehicle_data,
-                          model: e.target.value,
-                        },
-                      }))
-                    }
-                  />
-                </Field>
-                <Field label="Ano *">
-                  <NumericInput
-                    disabled={local}
-                    type="number"
-                    min="1900"
-                    max="2100"
-                    value={creating.vehicle_data.year}
-                    onChange={(e) =>
-                      setCreating((current) => ({
-                        ...current,
-                        vehicle_data: {
-                          ...current.vehicle_data,
-                          year: Number(e.target.value),
-                        },
-                      }))
-                    }
-                  />
-                </Field>
-                <Field label="Cor">
-                  <input
-                    disabled={local}
-                    value={creating.vehicle_data.color}
-                    onChange={(e) =>
-                      setCreating((current) => ({
-                        ...current,
-                        vehicle_data: {
-                          ...current.vehicle_data,
-                          color: e.target.value,
-                        },
-                      }))
-                    }
-                  />
-                </Field>
-                <Field label="Quilometragem (km)">
-                  <NumericInput
-                    type="number"
-                    min="0"
-                    value={creating.km}
-                    onChange={(e) =>
-                      setCreating((current) => ({
-                        ...current,
-                        km: Math.max(0, Number(e.target.value)),
-                      }))
-                    }
-                  />
-                </Field>
+                <VehicleIdentityFields vehicle={creating.vehicle_data} disabled={local} onChange={(value) => setCreating((current) => ({ ...current, vehicle_data: value as typeof current.vehicle_data }))} km={creating.km} onKmChange={(value) => setCreating((current) => ({ ...current, km: value }))} />
+                <VehicleTechnicalAssociation vehicle={creating.vehicle_data} modelId={String(creating.vehicle_data.service_model_id || "")} onModelChange={(id) => setCreating((current) => ({ ...current, vehicle_data: { ...current.vehicle_data, service_model_id: id || null, service_link_mode: id ? "manual" : "none" } }))} />
                 <Field label="Nível de combustível">
                   <select
                     value={creating.fuel_level}

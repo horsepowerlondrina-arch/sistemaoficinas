@@ -542,13 +542,13 @@ test("retroactive catalog preview is read-only and apply links only unique match
   } finally { f.db.close(); }
 });
 
-test("OS com veículo antigo sem vínculo identifica a versão única sem reconsultar a placa", async () => {
+test("OS com veículo antigo sem vínculo preserva cadastro até associação explícita", async () => {
   const f = fixture();
   try {
     f.db.prepare("UPDATE vehicles SET brand=?,model=?,fipe_code='' WHERE tenant_id=? AND id=?").run("Marca", "Modelo 2", "a", "v");
     const orderId = await saveOrder(f.db, ctx, { status: "quote", customer_id: "c", vehicle_id: "v", entered_on: "2026-10-25", due_on: "2026-10-25", km: 0, discount: 0, notes: "", problem: "", items: [] });
     assert.ok(orderId);
-    assert.equal(f.db.prepare("SELECT service_model_id FROM vehicles WHERE tenant_id='a' AND id='v'").get()?.service_model_id, f.other);
+    assert.equal(f.db.prepare("SELECT service_model_id FROM vehicles WHERE tenant_id='a' AND id='v'").get()?.service_model_id, "");
     assert.equal(f.db.prepare("SELECT action FROM audit_events WHERE tenant_id='a' AND action='vehicles.catalog_link_backfill'").get(), undefined);
   } finally { f.db.close(); }
 });
@@ -782,5 +782,20 @@ test("prévia tolera ano zero, inválido, ausente e campos legados longos sem al
     assert.equal(byId.get("long-fipe-model")?.data_quality, "inconsistent");
     assert.equal(f.db.prepare("SELECT year FROM vehicles WHERE tenant_id='a' AND id='year-zero'").get()?.year, 0);
     assert.equal(f.db.prepare("SELECT count(*) n FROM orders WHERE tenant_id='a'").get()!.n, 0);
+  } finally { f.db.close(); }
+});
+
+test("CAD-005: associação manual independente da FIPE é preservada e ausência explícita não vincula", async () => {
+  const f = fixture();
+  try {
+    f.db.prepare("UPDATE vehicles SET brand='Outra marca',fipe_model='Versão FIPE',service_model_id=?,service_link_mode='manual' WHERE id='v'").run(f.model);
+    const row = f.db.prepare("SELECT * FROM vehicles WHERE id='v'").get()!;
+    const match = await identifyVehicleModel(f.db, ctx, row);
+    assert.equal(match.status, "linked");
+    assert.equal(match.model?.id, f.model);
+    const preview = await previewVehicleCatalogReview(f.db, ctx, {});
+    assert.equal(preview.items[0].catalog_status, "linked");
+    await saveOrder(f.db, ctx, { status: "quote", customer_id: "c", new_vehicle: { plate: "CAD0A05", brand: "Marca", model: "Modelo 2", year: 2020, service_model_id: null }, entered_on: "2026-10-30", due_on: "2026-10-30", km: 0, discount: 0, notes: "", problem: "", items: [] });
+    assert.equal(f.db.prepare("SELECT service_model_id FROM vehicles WHERE plate='CAD0A05'").get()?.service_model_id, "");
   } finally { f.db.close(); }
 });

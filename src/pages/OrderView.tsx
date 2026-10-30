@@ -7,6 +7,7 @@ import { money, dateLabel, statusLabel } from "../lib/types";
 import { displayStatus } from "../lib/workflow";
 import { PageHeading, Badge, Empty, Modal, Field } from "../components/ui";
 import { ShareOrder } from "../components/ShareOrder";
+import { vehicleDisplayModel } from "../../shared/vehicleIdentity";
 export function OrderView() {
   const { id } = useParams();
   const { data, session, refresh, notify } = useApp();
@@ -42,11 +43,11 @@ export function OrderView() {
     const value = values.find((item) => item !== undefined && item !== null && String(item).trim() !== "");
     return value === undefined ? "Não informado" : String(value);
   };
-  const manufactureYear = displayValue(vehicle?.manufacture_year, vehicle?.year_manufacture, order.manufacture_year, order.year_manufacture);
+  const manufactureYear = displayValue(vehicle?.year, vehicle?.manufacture_year, vehicle?.year_manufacture, order.manufacture_year, order.year_manufacture);
   const modelYear = displayValue(vehicle?.model_year, vehicle?.year_model, vehicle?.year, order.model_year, order.year_model, order.year);
   const mileage = Number(order.km || 0) || Number(vehicle?.km || 0);
   const mileageLabel = mileage > 0 ? mileage.toLocaleString("pt-BR") + " km" : "Não informado";
-  const engineVersion = displayValue(vehicle?.engine, vehicle?.motorization, vehicle?.motor, vehicle?.version, vehicle?.trim, vehicle?.fipe_model, order.engine, order.motorization, order.version);
+  const engineVersion = displayValue(vehicle?.engine, vehicle?.motorization, vehicle?.motor, vehicle?.version, vehicle?.trim, order.engine, order.motorization, order.version);
   async function transition() {
     if (order && !["quote", "cancelled"].includes(confirm) && (!order.customer_id || !order.vehicle_id)) {
       notify("Informe o cliente e o veículo no atendimento e depois aprove a OS.");
@@ -165,7 +166,7 @@ export function OrderView() {
           <span>Marca</span><strong>{displayValue(order.brand, vehicle?.brand)}</strong>
         </div>
         <div className="work-order-summary-item">
-          <span>Modelo</span><strong>{displayValue(order.model, vehicle?.model, order.guest_vehicle)}</strong>
+          <span>Modelo FIPE</span><strong>{displayValue(vehicleDisplayModel(vehicle), order.model, order.guest_vehicle)}</strong>
         </div>
         <div className="work-order-summary-item">
           <span>Motorização / versão</span><strong>{engineVersion}</strong>
