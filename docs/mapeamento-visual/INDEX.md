@@ -518,6 +518,38 @@ Formulário vazio; nenhuma credencial ou código MFA aparece na captura.
 
 Estado: capturada · mobile · captura 2026-10-22 · commit de origem: não registrado · [arquivo completo](./capturas/17-painel-admin-central/login-admin-central.png)
 
+### Acessos e permissões da oficina
+
+Interface real da ADM-002.1 em Chromium, com API fictícia interceptada; integração PostgreSQL validada separadamente.
+
+[![Acessos e permissões da oficina](./capturas/17-painel-admin-central/adm0021-oficina-permissoes-desktop.png)](./capturas/17-painel-admin-central/adm0021-oficina-permissoes-desktop.png)
+
+Estado: capturada · desktop · captura 2026-10-30 · commit de origem: fdbee764e0dfdcaeb7698131779d52a4a8a6a4a8 · [arquivo completo](./capturas/17-painel-admin-central/adm0021-oficina-permissoes-desktop.png)
+
+### Convites e ativação no celular
+
+Interface real da ADM-002.1 em Chromium, com API fictícia interceptada; integração PostgreSQL validada separadamente.
+
+[![Convites e ativação no celular](./capturas/17-painel-admin-central/adm0021-oficina-convites-mobile.png)](./capturas/17-painel-admin-central/adm0021-oficina-convites-mobile.png)
+
+Estado: capturada · mobile · captura 2026-10-30 · commit de origem: fdbee764e0dfdcaeb7698131779d52a4a8a6a4a8 · [arquivo completo](./capturas/17-painel-admin-central/adm0021-oficina-convites-mobile.png)
+
+### Dados gerais no celular
+
+Interface real da ADM-002.1 em Chromium, com API fictícia interceptada; integração PostgreSQL validada separadamente.
+
+[![Dados gerais no celular](./capturas/17-painel-admin-central/adm0021-oficina-dados-mobile.png)](./capturas/17-painel-admin-central/adm0021-oficina-dados-mobile.png)
+
+Estado: capturada · mobile · captura 2026-10-30 · commit de origem: fdbee764e0dfdcaeb7698131779d52a4a8a6a4a8 · [arquivo completo](./capturas/17-painel-admin-central/adm0021-oficina-dados-mobile.png)
+
+### Proprietários e colaboradores
+
+Interface real da ADM-002.1 em Chromium, com API fictícia interceptada; integração PostgreSQL validada separadamente.
+
+[![Proprietários e colaboradores](./capturas/17-painel-admin-central/adm0021-oficina-usuarios-desktop.png)](./capturas/17-painel-admin-central/adm0021-oficina-usuarios-desktop.png)
+
+Estado: capturada · desktop · captura 2026-10-30 · commit de origem: fdbee764e0dfdcaeb7698131779d52a4a8a6a4a8 · [arquivo completo](./capturas/17-painel-admin-central/adm0021-oficina-usuarios-desktop.png)
+
 ## 99 — Fluxos completos
 
 Sequências de navegação entre áreas.

@@ -15,6 +15,7 @@ Consulte esta pasta no repositório privado do GitHub. O índice mostra as minia
 - visual:capture — percorre as rotas catalogadas e atualiza as capturas, data e commit. Faça o commit do código da interface primeiro; a captura gravadora exige checkout limpo para registrar a revisão correta. Requer aplicação local de teste e o arquivo ignorado data/local-credentials.json, gerado pelo seed local.
 - visual:capture -- --module 08-financeiro — limita a execução a um módulo.
 - visual:capture -- --affected — seleciona módulos conforme os arquivos alterados em relação a origin/main.
+- node scripts/test-admin-interface.mjs — valida as interações administrativas em loopback com API fictícia e gera capturas no diretório temporário do runner; artifacts do CI permitem revisão antes da inclusão no catálogo.
 - visual:check — confere PNGs, metadados, caminhos, estados e índices.
 - visual:index — regenera este índice e o checklist a partir do catálogo JSON.
 
@@ -22,4 +23,4 @@ Capturas que criem, editem ou finalizem registros só podem usar base PostgreSQL
 
 ## Coleta atual
 
-O acervo inclui 55 PNGs de telas reais, capturados em 22/10/2026. O commit da sessão original não foi registrado; a recaptura automatizada está pendente. Imagens administrativas de auditoria, credenciais, tokens e identidade de oficina não relacionada foram excluídas.
+O acervo inclui 59 PNGs de telas reais. Consulte a data e o commit de cada entrada: as capturas originais de 22/10/2026 não registraram o commit e continuam sinalizadas. Capturas ADM-002.1 usam Chromium com respostas de API fictícias e não comprovam o backend; a integração PostgreSQL é testada separadamente no CI. Nenhuma credencial, token ou dado real deve aparecer nas imagens.
