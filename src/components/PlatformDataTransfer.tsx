@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import {useAdminDraft} from "../lib/useAdminDraft";
+import {adminActionLabel,adminResultLabel} from "../lib/adminPresentation";
 import { Download, LockKeyhole, Upload } from "lucide-react";
 
 type Mode = "empty" | "merge" | "replace";
@@ -12,10 +14,10 @@ type Preview = {
 type Backup = { id: string; package_sha256: string; created_at: string; expires_at: string };
 type CriticalRequest = { id: string; packageSha256: string; status: string; requesterEmail: string; approverEmail: string | null; requestedAt: string; decidedAt: string | null };
 type History = { id: string; actor_email: string; action: string; result: string; technical_context: Record<string, unknown>; created_at: string };
-type Props = { tenantId: string; workshopName: string; environmentLabel: string; canRequestCritical: boolean; canApproveCritical: boolean };
+type Props = { showHistory?:boolean; onChanged?:()=>void; tenantId: string; workshopName: string; environmentLabel: string; canRequestCritical: boolean; canApproveCritical: boolean };
 const MAX_PACKAGE_BYTES = 4 * 1024 * 1024;
 
-export function PlatformDataTransfer({ tenantId, workshopName, environmentLabel, canRequestCritical, canApproveCritical }: Props) {
+export function PlatformDataTransfer({ tenantId, workshopName, environmentLabel, canRequestCritical, canApproveCritical, showHistory=true, onChanged }: Props) {
   const base = "/admin-api/workshops/" + encodeURIComponent(tenantId) + "/data-transfer";
   const [fileText, setFileText] = useState("");
   const [fileName, setFileName] = useState("");
@@ -34,6 +36,8 @@ export function PlatformDataTransfer({ tenantId, workshopName, environmentLabel,
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
+  useAdminDraft(!!fileText||!!phrase||busy);
+
   async function json<T>(path: string, method = "GET", body?: unknown): Promise<T> {
     const response = await fetch(base + path, {
       method, credentials: "same-origin", cache: "no-store",
@@ -45,9 +49,9 @@ export function PlatformDataTransfer({ tenantId, workshopName, environmentLabel,
   }
   async function refresh() {
     const [b, r, h] = await Promise.all([
-      json<Backup[]>("/backups"), json<CriticalRequest[]>("/critical-requests"), json<History[]>("/history"),
+      json<Backup[]>("/backups"), json<CriticalRequest[]>("/critical-requests"), showHistory?json<History[]>("/history"):Promise.resolve([] as History[]),
     ]);
-    setBackups(b); setRequests(r); setHistory(h);
+    setBackups(b); setRequests(r); setHistory(h);onChanged?.();
   }
   useEffect(() => { void refresh().catch(cause => setError(cause instanceof Error ? cause.message : "Falha ao carregar a transferência.")); }, [tenantId]);
 
@@ -196,7 +200,7 @@ export function PlatformDataTransfer({ tenantId, workshopName, environmentLabel,
       <section className="panel"><h3>Cópias de segurança de substituições</h3><p className="muted">Criptografadas, até cinco por oficina e por 30 dias. A auditoria registra downloads sem incluir o conteúdo dos arquivos.</p><button type="button" className="button" onClick={() => void refresh().catch(cause => setError(cause instanceof Error ? cause.message : "Falha ao atualizar."))}>Atualizar listas</button>
         {backups.map(item => <p key={item.id}>{new Date(item.created_at).toLocaleString("pt-BR")} · expira {new Date(item.expires_at).toLocaleDateString("pt-BR")} · SHA {item.package_sha256.slice(0, 12)}… <button type="button" className="button" onClick={() => void downloadBackup(item.id)}>Baixar .hptx</button></p>)}
       </section>
-      <section className="panel"><h3>Histórico de operações</h3><p className="muted">Auditoria administrativa da oficina selecionada.</p>{history.map(item => <p key={item.id}>{new Date(item.created_at).toLocaleString("pt-BR")} · {item.actor_email} · {item.action} · {item.result}</p>)}</section>
+      {showHistory&&<section className="panel"><h3>Histórico de operações</h3><p className="muted">Auditoria administrativa da oficina selecionada.</p>{history.map(item => <p key={item.id}>{new Date(item.created_at).toLocaleString("pt-BR")} · {item.actor_email} · {adminActionLabel(item.action)} · {adminResultLabel(item.result)}</p>)}</section>}
       {message && <p className="info-box" role="status">{message}</p>}{error && <div role="alert" className="error-box">{error}</div>}
     </section>
   </div>;

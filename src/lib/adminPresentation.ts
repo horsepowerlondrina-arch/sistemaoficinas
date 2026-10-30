@@ -21,6 +21,15 @@ const actions: Record<string,string> = {
  "admin.workshop.invitation_sent":"Convite enviado", "admin.workshop.invitation_failed":"Falha no envio do convite",
  "admin.workshop.manual_activation_link_created":"Link manual de ativação gerado",
  "admin.workshop.activated":"Ativação concluída",
+ "admin.workshop.invitation.created":"Convite de ativação preparado",
+ "admin.workshop.invitation.manual_link_created":"Link manual de ativação gerado",
+ "admin.workshop.entitlements.updated":"Permissões e limites alterados",
+ "admin.account.created":"Conta administrativa criada",
+ "admin.account.updated":"Conta administrativa atualizada",
+ "admin.invitation.renewed":"Convite administrativo renovado",
+ "admin.enrollment.completed":"Ativação administrativa concluída",
+ "admin.enrollment.mfa_failed":"Verificação de segundo fator recusada",
+ "admin.login.mfa_test_bypass":"Entrada da conta de teste conforme política do ambiente",
  "admin.login":"Entrada no painel", "admin.logout":"Saída do painel",
 };
 export function adminActionLabel(action:string) {

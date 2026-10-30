@@ -24,6 +24,7 @@ try{
   const json=(value,status=200)=>route.fulfill({status,json:value});
   if(path.endsWith("/session"))return json({administrator:{id:"admin",name:"Admin Fictício",email:"admin@example.test",role:"principal",permissions:readOnly?["workshops:read"]:["workshops:read","workshops:manage","modules:manage","data-transfer:manage","audit:read"]}});
   if(path==="/admin-api/workshops")return json({items:[workshop],total:1});
+  if(path.includes("/data-transfer/"))return json([]);
   if(path.endsWith("/history")){if(failHistory)return json({error:"Histórico temporariamente indisponível"},503);return json(events);}
   if(path.endsWith("/entitlements")){
    if(method==="PUT"){updates++;ent={...ent,module_overrides:body.module_overrides,max_users_override:body.max_users,trial_days_override:body.trial_days,modules:{...modules,...body.module_overrides}};return json({entitlements:ent});}
@@ -75,6 +76,18 @@ try{
  await page.getByText("Estrutura comercial planejada",{exact:true}).click();
  await expect(page.getByText("Premium",{exact:true})).toBeVisible();
  await page.screenshot({path:resolve(output,"oficina-permissoes-desktop.png"),fullPage:true});
+ await page.getByLabel("Justificativa das permissões",{exact:true}).fill("Restaurar configuração fictícia");
+ page.once("dialog",d=>d.accept());
+ await page.getByRole("button",{name:"Restaurar padrões",exact:true}).click();
+ await expect(page.getByLabel("Exceção: Catálogo Técnico de Tempos",{exact:true})).toHaveValue("inherit");
+ page.once("dialog",d=>d.dismiss());
+ await page.getByRole("button",{name:"Desabilitar catálogo",exact:true}).click();
+ await expect(page.getByRole("row").filter({hasText:"Catálogo Técnico de Tempos"})).toContainText("Liberado");
+ await page.getByLabel("Nova situação",{exact:true}).selectOption("read_only");
+ await page.getByLabel("Justificativa",{exact:true}).last().fill("Restrição fictícia temporária");
+ page.once("dialog",d=>d.accept());
+ await page.getByRole("button",{name:"Registrar mudança"}).click();
+ await expect(page.getByText("Situação alterada e registrada na auditoria.")).toBeVisible();
  await page.getByRole("tab",{name:"Usuários",exact:true}).click();
  await page.getByLabel("Justificativa para alterar um vínculo").fill("Promover colaborador fictício");
  const ownerCard=page.locator(".pa-member").filter({hasText:"Responsável Fictício"});
