@@ -291,13 +291,14 @@ const formatCatalogMinutes = (value: unknown) => {
   return [hours ? hours + "h" : "", minutes || !hours ? minutes + " min" : ""].filter(Boolean).join(" ");
 };
 
-export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, brandLocked = false, vehicleOnly = false }: {
+export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, brandLocked = false, vehicleOnly = false, autoIdentify = true }: {
   vehicle?: Record<string, any>;
   modelId: string;
   onModelChange: (id: string) => void;
   onAdd?: (item: Entity) => void;
   brandLocked?: boolean;
   vehicleOnly?: boolean;
+  autoIdentify?: boolean;
 }) {
   const [info, setInfo] = useState<Info | null>(null), [error, setError] = useState("");
   const [linkStatus, setLinkStatus] = useState<"linked"|"matched"|"needs_confirmation"|"not_identified"|"unavailable"|"mismatch">(modelId ? "linked" : "not_identified");
@@ -367,7 +368,7 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
   useEffect(() => {
     let active = true;
     const key = vehicleIdentity;
-    if (!vehicle || modelId || !info?.enabled || !key.replace(/\|/g, "")) { if (!info?.enabled) setLinkStatus("unavailable"); return () => { active = false; }; }
+    if (!autoIdentify || !vehicle || modelId || !info?.enabled || !key.replace(/\|/g, "")) { if (!info?.enabled) setLinkStatus("unavailable"); return () => { active = false; }; }
     if (manualEditKey.current === key || autoMatchTried.current === key) return () => { active = false; };
     autoMatchTried.current = key;
     send("/repair-services/identify-model", { vehicle }, "POST").then((result: any) => {
@@ -385,7 +386,7 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
       }
     }).catch((e: any) => { if (active) setError(e.message); });
     return () => { active = false; };
-  }, [vehicleIdentity, modelId, info?.enabled, onModelChange]);
+  }, [vehicleIdentity, modelId, info?.enabled, onModelChange, autoIdentify]);
   useEffect(() => {
     let active = true;
     if (!modelId) { setPorte(""); setCommercialCategory(""); return () => { active = false; }; }

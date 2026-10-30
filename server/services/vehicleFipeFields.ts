@@ -14,4 +14,6 @@ export const vehicleFipeFields = {
       "Ano FIPE inválido.",
     )
     .default(""),
+  model_year: z.number().int().min(1900).max(2100).nullable().optional(),
+  fuel: z.string().trim().max(80).default(""),
 };

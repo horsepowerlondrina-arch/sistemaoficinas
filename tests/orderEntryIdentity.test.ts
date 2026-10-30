@@ -64,9 +64,9 @@ test("clicking a vehicle card returns its details for the order form", () => {
   });
 });
 
-test("customer vehicle cards remain available for new orders only", () => {
+test("customer vehicle cards remain available while editing an unlocked order", () => {
   assert.equal(canShowCustomerVehicleOptions(false, "customer-1"), true);
-  assert.equal(canShowCustomerVehicleOptions(true, "customer-1"), false);
+  assert.equal(canShowCustomerVehicleOptions(true, "customer-1"), true);
   assert.equal(canShowCustomerVehicleOptions(false, "customer-1", true), false);
 });
 

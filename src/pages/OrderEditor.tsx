@@ -24,6 +24,9 @@ import { useApp } from "../lib/context";
 import { send } from "../lib/api";
 import { PlateField } from "../components/PlateField";
 import { fipeFields } from "../../shared/vehicleFipe";
+import { lookupWouldReplace, vehicleDisplayModel } from "../../shared/vehicleIdentity";
+import { VehicleIdentityFields } from "../components/VehicleIdentityFields";
+import { VehicleTechnicalAssociation } from "../components/VehicleTechnicalAssociation";
 import { RegisterModal } from "./Registers";
 import { money, today, statusLabel, type Entity } from "../lib/types";
 import {
@@ -227,8 +230,10 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
           ...fipeFields(lookedUp),
           plate,
           brand: lookedUp.brand,
-          model: lookedUp.model,
+          model: vehicleDisplayModel(lookedUp),
           year: Number(lookedUp.year),
+          model_year: Number(lookedUp.model_year) || null,
+          fuel: lookedUp.fuel || "",
           color: lookedUp.color || "",
           chassis: lookedUp.chassis || "",
           km: form.km,
@@ -495,7 +500,8 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
                           setCustomerName(owner.name);
                           setCustomerPhone(owner.phone || "");
                         } else {
-                          const description = [result.vehicle?.brand, result.vehicle?.model].filter(Boolean).join(" ");
+                          if (result.vehicle && lookupWouldReplace(lookedUp, result.vehicle) && !window.confirm("A consulta retornou dados diferentes dos já preenchidos. Aplicar os novos dados?")) return;
+                          const description = [result.vehicle?.brand, vehicleDisplayModel(result.vehicle)].filter(Boolean).join(" ");
                           setLookedUp(result.vehicle || { ...lookedUp, plate: lookupPlate });
                           setForm((f) => ({
                             ...f,
@@ -518,6 +524,8 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
                               className={selected ? "order-vehicle-card selected" : "order-vehicle-card"}
                               aria-pressed={selected}
                               onClick={() => {
+                                if (order?.vehicle_id && item.id !== order.vehicle_id &&
+                                  !window.confirm("Trocar o veículo removerá todos os serviços, peças e produtos desta OS. O histórico de outras OS será preservado. Deseja continuar?")) return;
                                 const choice = selectOrderVehicleFromCard(item);
                                 setLookupPlate(choice.plate);
                                 setLookedUp(item);
@@ -527,12 +535,13 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
                                   guest_plate: "",
                                   guest_vehicle: "",
                                   km: choice.km,
+                                  ...(order?.vehicle_id && item.id !== order.vehicle_id ? { items: [], discount: 0, confirm_vehicle_change: true } : {}),
                                 }));
                                 setError("");
                               }}
                             >
                               <span className="order-vehicle-plate">{item.plate || "Sem placa"}</span>
-                              <strong>{item.brand} {item.model}</strong>
+                              <strong>{item.brand} {vehicleDisplayModel(item)}</strong>
                               <small>{item.year || "Ano não informado"} · {Number(item.km || 0).toLocaleString("pt-BR")} km</small>
                             </button>
                           );
@@ -552,15 +561,8 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
                         Editar veículo vinculado
                       </button>
                     )}
-                    <Field label={"Marca do veículo" + (form.status !== "quote" || !!lookupPlate ? " *" : "")}>
-                      <input maxLength={150} readOnly={!!form.vehicle_id} value={lookedUp.brand || ""} onChange={(e) => setLookedUp((current) => ({ ...current, brand: e.target.value }))} />
-                    </Field>
-                    <Field label={"Modelo do veículo" + (form.status !== "quote" || !!lookupPlate ? " *" : "")}>
-                      <input maxLength={150} readOnly={!!form.vehicle_id} value={lookedUp.model || ""} onChange={(e) => setLookedUp((current) => ({ ...current, model: e.target.value }))} />
-                    </Field>
-                    <Field label={"Ano fabricação/modelo" + (form.status !== "quote" || !!lookupPlate ? " *" : "")}>
-                      <NumericInput type="number" min={1900} max={2100} disabled={!!form.vehicle_id} value={lookedUp.year || ""} onChange={(e) => setLookedUp((current) => ({ ...current, year: e.target.value ? Number(e.target.value) : "" }))} />
-                    </Field>
+                    <VehicleIdentityFields vehicle={lookedUp} onChange={setLookedUp} disabled={!!form.vehicle_id} required={form.status !== "quote" || !!lookupPlate} />
+                    <VehicleTechnicalAssociation vehicle={lookedUp} modelId={serviceModelId} onModelChange={(id) => { setServiceModelId(id); setServiceModelTouched(true); setLookedUp((current) => ({ ...current, service_model_id: id || null, service_link_mode: id ? "manual" : "none" })); }} />
                     <Field label="Quilometragem">
                       <NumericInput type="number" min="0" value={form.km} onChange={(e) => set("km", Number(e.target.value))} />
                     </Field>
@@ -572,12 +574,6 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
                         <input maxLength={200} value={form.guest_vehicle} onChange={(e) => set("guest_vehicle", e.target.value)} />
                       </Field>
                     )}
-                    <Field label="Cor do veículo">
-                      <input maxLength={200} disabled={!!form.vehicle_id} value={lookedUp.color || ""} onChange={(e) => setLookedUp((current) => ({ ...current, color: e.target.value }))} />
-                    </Field>
-                    <Field label="Chassi (se disponível)" full>
-                      <input maxLength={500} disabled={!!form.vehicle_id} value={lookedUp.chassis || ""} onChange={(e) => setLookedUp((current) => ({ ...current, chassis: e.target.value }))} />
-                    </Field>
                     {!form.customer_id && customerName.trim() && <p className="muted full">O cliente será cadastrado ao salvar o atendimento.</p>}
                     <Field label="Data de entrada">
                       <input type="date" value={form.entered_on} onChange={(e) => set("entered_on", e.target.value)} />
@@ -1070,6 +1066,13 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
                   },
                 ],
               }));
+            } else if (quickCreate === "vehicles") {
+              if (order?.vehicle_id && recordId !== order.vehicle_id &&
+                !window.confirm("Trocar o veículo removerá todos os serviços, peças e produtos desta OS. Deseja continuar?")) return;
+              setLookupPlate(String(values.plate || ""));
+              setLookedUp({ ...values, id: recordId });
+              setForm((current) => ({ ...current, vehicle_id: recordId, guest_plate: "", guest_vehicle: "", km: Number(values.km || current.km),
+                ...(order?.vehicle_id && recordId !== order.vehicle_id ? { items: [], discount: 0, confirm_vehicle_change: true } : {}) }));
             }
           }}
         />

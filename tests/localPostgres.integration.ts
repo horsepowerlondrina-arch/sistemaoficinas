@@ -9,6 +9,20 @@ const expectedCatalogModels = process.env.CATALOG_EXPECT_FULL === "1" ? 7534 : 1
 test("PostgreSQL local: autenticação, oficinas, transações e RLS do catálogo", async t => {
   const db = await createLocalDatabase();
   t.after(()=>db.close());
+  await t.test("CAD-005: campos FIPE e vínculo manual permanecem no veículo da oficina", async () => {
+    const { adminClient } = await import("../scripts/local-admin");
+    const admin = adminClient(); await admin.connect();
+    try {
+      const columns = await admin.query("SELECT column_name FROM information_schema.columns WHERE table_schema='horse_power' AND table_name='vehicles' AND column_name IN ('model_year','fuel','service_link_mode')");
+      assert.deepEqual(columns.rows.map((row: any) => row.column_name).sort(), ["fuel", "model_year", "service_link_mode"]);
+      await admin.query("BEGIN");
+      await admin.query("INSERT INTO horse_power.vehicles(id,tenant_id,customer_id,plate,brand,model,year,fipe_model,model_year,fuel,service_link_mode) VALUES('cad005-fixture','local-a',(SELECT id FROM horse_power.customers WHERE tenant_id='local-a' LIMIT 1),'CAD0A05','Marca Fictícia','Modelo antigo',2020,'Modelo FIPE fictício',2021,'Flex','none')");
+      const row = await admin.query("SELECT fipe_model,model_year,fuel,service_link_mode FROM horse_power.vehicles WHERE id='cad005-fixture'");
+      assert.deepEqual(row.rows[0], { fipe_model: "Modelo FIPE fictício", model_year: 2021, fuel: "Flex", service_link_mode: "none" });
+      await admin.query("ROLLBACK");
+    } catch (error) { await admin.query("ROLLBACK").catch(() => {}); throw error; }
+    finally { await admin.end(); }
+  });
   const credentialsPath=process.env.LOCAL_TEST_CREDENTIALS_FILE || "data/local-credentials.json";
   const credentials=JSON.parse(readFileSync(credentialsPath,"utf8"));
   await t.test("migração de serviços próprios preserva isolamento e impede nomes duplicados normalizados", async () => {

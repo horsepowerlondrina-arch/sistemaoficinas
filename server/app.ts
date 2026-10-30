@@ -152,6 +152,7 @@ const schemas = {
   }),
 };
 const orderSchema = z.object({
+  confirm_vehicle_change: z.boolean().optional(),
   service_model_id:z.string().uuid().nullable().optional(),
   customer_id: z.string().nullable().optional(),
   vehicle_id: z.string().nullable().optional(),
@@ -1042,7 +1043,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
     let confirmation_token: string | undefined;
     if (result.source === "external" && result.vehicle) {
       confirmation_token = randomBytes(32).toString("hex");
-      const fields = ["brand", "model", "year", "color", "fipe_code", "fipe_model", "fipe_year_id"];
+      const fields = ["brand", "model", "year", "model_year", "fuel", "color", "fipe_code", "fipe_model", "fipe_year_id"];
       const baseline = Object.fromEntries(fields.map((field) => [field, current[field]]));
       const storedResult = {
         ...result,
@@ -1065,7 +1066,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
   app.post("/api/vehicles/:id/apply-lookup", async (req, res) => {
     const input = z.object({
       confirmation_token: z.string().regex(/^[a-f0-9]{64}$/),
-      fields: z.array(z.enum(["brand", "model", "year", "color", "fipe_code", "fipe_model", "fipe_year_id"])).min(1).max(7),
+      fields: z.array(z.enum(["brand", "model", "year", "model_year", "fuel", "color", "fipe_code", "fipe_model", "fipe_year_id"])).min(1).max(9),
       fipe_candidate_index: z.number().int().min(0).max(999).nullable().optional(),
     }).strict().parse(req.body);
     const fields = [...new Set(input.fields)];
@@ -1099,6 +1100,8 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
       sourceValues.fipe_code = candidate.codigoFipe;
       sourceValues.fipe_model = candidate.modelo || "";
       sourceValues.fipe_year_id = candidate.anoId || "";
+      sourceValues.model_year = candidate.anoModelo || null;
+      sourceValues.fuel = candidate.combustivel || "";
     }
     const selectedValues = Object.fromEntries(fields.map((field) => [field, sourceValues[field]]));
     for (const field of fields)
@@ -1108,6 +1111,8 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
       brand: z.string().trim().min(2).max(150).optional(),
       model: z.string().trim().min(2).max(150).optional(),
       year: z.number().int().min(1900).max(2100).optional(),
+      model_year: z.number().int().min(1900).max(2100).nullable().optional(),
+      fuel: z.string().trim().max(80).optional(),
       color: z.string().trim().max(80).optional(),
       fipe_code: z.string().trim().regex(/^(?:\d{6}-\d)?$/).optional(),
       fipe_model: z.string().trim().max(300).optional(),
@@ -1204,11 +1209,12 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
       if (await catalogAccessState(db, ctx) === "active") selectedModel = await confirmVehicleModel(db, ctx, vehicle, vehicle.service_model_id);
       else vehicle.service_model_id = null;
     }
-    if (!vehicle.service_model_id) {
+    if (!Object.prototype.hasOwnProperty.call(req.body.vehicle || {}, "service_model_id")) {
       const match = await identifyVehicleModel(db, ctx, vehicle);
       if (match.status === "matched") { selectedModel = match.model; vehicle.service_model_id = match.model.id; }
     }
     (vehicle as any).service_porte_id = selectedModel?.porte_id || "";
+    (vehicle as any).service_link_mode = req.body.vehicle?.service_model_id ? "manual" : selectedModel ? "auto" : "none";
     const result = await transaction(db, async () => {
       const customerId = id(),
         vehicleId = id();
@@ -1392,6 +1398,9 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
           }
           input.service_porte_id = selectedModel?.porte_id || (input.service_model_id && input.service_model_id === old?.service_model_id ? old?.service_porte_id || "" : "");
           if (explicitModel && !input.service_model_id) input.service_porte_id = "";
+          input.service_link_mode = explicitModel && input.service_model_id !== old?.service_model_id
+            ? input.service_model_id ? "manual" : "none"
+            : old?.service_link_mode || (selectedModel ? "auto" : "none");
         }
         if (table === "catalog") {
           if(input.kind==='service')throw new Error('Cadastre e edite os serviços no módulo Serviços.');

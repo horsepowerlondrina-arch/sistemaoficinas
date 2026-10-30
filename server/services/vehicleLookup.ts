@@ -80,6 +80,7 @@ const responseSchema = z.object({
       modelo: z.string().max(150),
       ano: z.union([z.string(), z.number()]).optional(),
       ano_modelo: z.union([z.string(), z.number()]).optional(),
+      combustivel: z.string().max(80).optional(),
       cor: z.string().max(80).optional(),
     })
     .optional(),
@@ -129,7 +130,9 @@ export async function lookupVehicleExternal(
         plate,
         brand: current.marca,
         model: current.modelo,
-        year: Number.isInteger(year) && year >= 1900 && year <= 2100 ? year : null,
+        year: Number.isInteger(Number(current.ano)) && Number(current.ano) >= 1900 ? Number(current.ano) : Number.isInteger(year) && year >= 1900 && year <= 2100 ? year : null,
+        model_year: Number.isInteger(year) && year >= 1900 && year <= 2100 ? year : null,
+        fuel: current.combustivel || "",
         color: current.cor || "",
       },
       message: "Dados consultados via Placa FIPE. Confira antes de salvar.",
@@ -165,7 +168,7 @@ export async function lookupVehicle(
     throw new Error("Informe uma placa válida.");
   const local = await db
     .prepare(
-      "SELECT id,customer_id,plate,brand,model,year,color,km,chassis,active,fipe_code,fipe_model,fipe_year_id,service_model_id,service_porte_id FROM vehicles WHERE tenant_id=? AND plate=?",
+      "SELECT id,customer_id,plate,brand,model,year,model_year,fuel,color,km,chassis,active,fipe_code,fipe_model,fipe_year_id,service_model_id,service_porte_id FROM vehicles WHERE tenant_id=? AND plate=?",
     )
     .get(tenant, plate);
   if (local)
@@ -209,8 +212,9 @@ export async function lookupVehicle(
         plate,
         brand: v.marca,
         model: v.modelo,
-        year:
-          Number.isInteger(year) && year >= 1900 && year <= 2100 ? year : null,
+        year: Number.isInteger(Number(v.ano)) && Number(v.ano) >= 1900 ? Number(v.ano) : Number.isInteger(year) && year >= 1900 && year <= 2100 ? year : null,
+        model_year: Number.isInteger(year) && year >= 1900 && year <= 2100 ? year : null,
+        fuel: v.combustivel || "",
         color: v.cor || "",
       },
       message: "Dados consultados via Placa FIPE. Confira antes de salvar.",

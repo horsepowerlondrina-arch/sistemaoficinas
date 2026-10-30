@@ -16,11 +16,13 @@ export function PlateField({
   onChange,
   onFound,
   disabled = false,
+  lookupDisabled = false,
 }: {
   value: string;
   onChange: (value: string) => void;
   onFound: (result: Lookup) => void;
   disabled?: boolean;
+  lookupDisabled?: boolean;
 }) {
   const [busy, setBusy] = useState(false),
     [message, setMessage] = useState("");
@@ -94,7 +96,7 @@ export function PlateField({
         <button
           type="button"
           className="button"
-          disabled={disabled || busy || value.length !== 7}
+          disabled={disabled || lookupDisabled || busy || value.length !== 7}
           onClick={() => void lookup(true)}
         >
           {busy ? (

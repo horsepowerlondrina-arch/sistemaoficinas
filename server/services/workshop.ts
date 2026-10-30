@@ -239,22 +239,16 @@ async function resolveOrderIdentity(db: DB, ctx: Context, input: Row) {
           "Esta placa já pertence a outro cliente ou está inativa. Consulte a placa e selecione o cadastro correto.",
         );
       vehicleId = existing.id;
-      if (!existing.service_model_id) {
-        const match = await identifyVehicleModel(db, ctx, existing);
-        if (match.status === "matched") {
-          await db.prepare("UPDATE vehicles SET service_model_id=?,service_porte_id=? WHERE tenant_id=? AND id=? AND service_model_id=''").run(match.model.id, match.model.porte_id || "", ctx.tenantId, vehicleId);
-          await audit(db, ctx, "vehicles.catalog_link_auto", vehicleId);
-        }
-      }
     } else {
       vehicleId = id();
-      const selection = v.service_model_id || input.service_model_id;
+      const explicitNone = Object.prototype.hasOwnProperty.call(v, "service_model_id") && !v.service_model_id;
+      const selection = explicitNone ? null : v.service_model_id || input.service_model_id;
       const selectedModel = selection && await catalogAccessState(db, ctx) === "active" ? await confirmVehicleModel(db, ctx, v, selection) : null;
-      const match = selectedModel ? null : await identifyVehicleModel(db, ctx, v);
+      const match = selectedModel || explicitNone ? null : await identifyVehicleModel(db, ctx, v);
       const model = selectedModel || (match?.status === "matched" ? match.model : null);
       await db
         .prepare(
-          "INSERT INTO vehicles(id,tenant_id,customer_id,plate,brand,model,year,color,km,chassis,fipe_code,fipe_model,fipe_year_id,service_model_id,service_porte_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+          "INSERT INTO vehicles(id,tenant_id,customer_id,plate,brand,model,year,color,km,chassis,fipe_code,fipe_model,fipe_year_id,model_year,fuel,service_model_id,service_porte_id,service_link_mode) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         )
         .run(
           vehicleId,
@@ -270,8 +264,11 @@ async function resolveOrderIdentity(db: DB, ctx: Context, input: Row) {
           v.fipe_code || "",
           v.fipe_model || "",
           v.fipe_year_id || "",
+          v.model_year || null,
+          v.fuel || "",
           model?.id || "",
           model?.porte_id || "",
+          selection ? "manual" : model ? "auto" : "none",
         );
       await audit(db, ctx, "vehicles.created", vehicleId);
       if (model) await audit(db, ctx, selection ? "vehicles.catalog_link_confirmed" : "vehicles.catalog_link_auto", vehicleId);
@@ -321,6 +318,17 @@ export async function saveOrder(
           .prepare("SELECT * FROM order_items WHERE tenant_id=? AND order_id=?")
           .all(ctx.tenantId, record!)
       : [];
+    const changingVehicle = !!old && String(old.vehicle_id || "") !== String(vehicleId || "");
+    if (changingVehicle) {
+      if (!input.confirm_vehicle_change)
+        throw new Error("Confirme a troca do veículo e a remoção dos itens deste atendimento.");
+      if (input.items.length)
+        throw new Error("Remova os itens do veículo anterior antes de confirmar a troca.");
+      if (["completed", "cancelled"].includes(old.status) ||
+          await db.prepare("SELECT 1 FROM stock_movements WHERE tenant_id=? AND order_id=? LIMIT 1").get(ctx.tenantId, old.id) ||
+          await db.prepare("SELECT 1 FROM receivables WHERE tenant_id=? AND order_id=? LIMIT 1").get(ctx.tenantId, old.id))
+        throw new Error("Este atendimento possui movimentações ou cobrança. A troca de veículo requer estorno seguro.");
+    }
     const hasExplicitModel = Object.prototype.hasOwnProperty.call(input, "service_model_id");
     const addsCatalogServices = input.items.some((item: Row) =>
       item.repair_service_id && !previous.some((prior: Row) => prior.id === item.id && prior.service_snapshot),
@@ -331,24 +339,16 @@ export async function saveOrder(
       if (linkedMatch.status === "mismatch")
         throw new Error("Os dados do veículo divergem do vínculo técnico. Revise e confirme novamente o modelo antes de incluir serviços.");
     }
-    if (!hasExplicitModel && vehicle && !vehicle.service_model_id) {
-      const match = await identifyVehicleModel(db, ctx, vehicle);
-      if (match.status === "matched") {
-        await db.prepare("UPDATE vehicles SET service_model_id=?,service_porte_id=? WHERE tenant_id=? AND id=? AND service_model_id=''").run(match.model.id, match.model.porte_id || "", ctx.tenantId, vehicleId);
-        vehicle.service_model_id = match.model.id; vehicle.service_porte_id = match.model.porte_id || "";
-        await audit(db, ctx, "vehicles.catalog_link_auto", String(vehicle.id));
-      }
-    }
     if (hasExplicitModel && vehicleId && input.service_model_id !== vehicle?.service_model_id) {
       if (input.service_model_id) {
         if (await catalogAccessState(db, ctx) === "active") {
           const selectedModel = await confirmVehicleModel(db, ctx, vehicle || {}, input.service_model_id);
-          await db.prepare('UPDATE vehicles SET service_model_id=?,service_porte_id=? WHERE tenant_id=? AND id=?').run(input.service_model_id, selectedModel.porte_id || '', ctx.tenantId, vehicleId);
+          await db.prepare('UPDATE vehicles SET service_model_id=?,service_porte_id=?,service_link_mode=? WHERE tenant_id=? AND id=?').run(input.service_model_id, selectedModel.porte_id || '', 'manual', ctx.tenantId, vehicleId);
           if (vehicle) { vehicle.service_model_id = input.service_model_id; vehicle.service_porte_id = selectedModel.porte_id || ''; }
           await audit(db, ctx, "vehicles.catalog_link_confirmed", vehicleId);
         }
       } else {
-        await db.prepare("UPDATE vehicles SET service_model_id='',service_porte_id='' WHERE tenant_id=? AND id=?").run(ctx.tenantId, vehicleId);
+        await db.prepare("UPDATE vehicles SET service_model_id='',service_porte_id='',service_link_mode='none' WHERE tenant_id=? AND id=?").run(ctx.tenantId, vehicleId);
         if (vehicle) { vehicle.service_model_id = ''; vehicle.service_porte_id = ''; }
       }
     }
@@ -503,6 +503,7 @@ export async function saveOrder(
           item.service_snapshot || '',
         );
     if (changed) await invalidateOrderShares(db, ctx, orderId);
+    if (changingVehicle) await audit(db, ctx, `order.vehicle_changed:${String(old.vehicle_id || "")}:${String(vehicleId || "")}:items_removed:${previous.length}`, orderId);
     await audit(
       db,
       ctx,
