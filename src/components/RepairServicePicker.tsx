@@ -6,6 +6,7 @@ import { api, send } from "../lib/api";
 import { money, type Entity } from "../lib/types";
 import { Field, Modal, PageHeading } from "./ui";
 import { NumericInput } from "./NumericInput";
+import { thirdPartySalePrice } from "../../shared/pricing";
 import { shouldLoadRepairServiceSearch, shouldShowVehicleCatalog, shouldShowWorkshopServices } from "../../shared/repairCatalogVisibility";
 import { calculateCatalogDropdownPlacement, canAddRepairServiceImmediately, initialCatalogOptionIndex, nextCatalogOptionIndex, serviceDropdownStateAfterAdd, shouldAutoSelectCatalogVehicle } from "../../shared/catalogPickerUsability";
 
@@ -187,6 +188,7 @@ function WorkshopServiceManagerForm({ initial, categories, onClose, onSaved, onC
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [categoryBusy, setCategoryBusy] = useState(false);
+  const [calculating, setCalculating] = useState(false);
   const normalizedQuery = normalizeCatalogValue(categoryQuery);
   const exactCategory = categories.find((row) => normalizeCatalogValue(String(row.name)) === normalizedQuery);
   const categoryMatches = categories.filter((row) => row.active || row.id === categoryId)
@@ -201,6 +203,18 @@ function WorkshopServiceManagerForm({ initial, categories, onClose, onSaved, onC
       onCategoryCreated(category); setCategoryId(category.id); setCategoryQuery(value);
     } catch (e) { setError((e as Error).message); }
     finally { setCategoryBusy(false); }
+  }
+  async function calculateThirdPartyPrice(enteredCost: number) {
+    if (!Number.isSafeInteger(enteredCost) || enteredCost <= 0) {
+      setError("Informe um custo maior que zero para calcular o preço de venda.");
+      return;
+    }
+    setCalculating(true); setError("");
+    try {
+      const pricing = await api<{ service_markup_bps: number }>("/repair-services/config");
+      setPrice(thirdPartySalePrice(enteredCost, pricing.service_markup_bps));
+    } catch (e) { setError(`Não foi possível calcular o preço de venda: ${(e as Error).message}`); }
+    finally { setCalculating(false); }
   }
   return <Modal title={initial ? "Editar serviço próprio" : "Cadastrar serviço próprio"} description="Serviço particular desta oficina." onClose={onClose}>
     <div className="modal-body">
@@ -221,13 +235,13 @@ function WorkshopServiceManagerForm({ initial, categories, onClose, onSaved, onC
           {categoryQuery.trim().length >= 2 && !exactCategory && <button type="button" className="text-button" disabled={categoryBusy} onClick={() => void createCategory()}>{categoryBusy ? "Criando…" : `Criar categoria “${categoryQuery.trim()}”`}</button>}
           {categoryId && <button type="button" className="text-button" onClick={() => { setCategoryId(""); setCategoryQuery(""); }}>Remover categoria</button>}
         </Field>
-        <Field label="Custo do serviço/terceiros (R$)"><NumericInput type="number" min="0" step="0.01" value={cost / 100} onChange={(e) => { setCost(Math.round(Number(e.target.value) * 100)); setCostKnown(true); }} /></Field>
-        <Field label="Preço de venda (R$)"><NumericInput type="number" min="0.01" step="0.01" value={price / 100} onChange={(e) => setPrice(Math.round(Number(e.target.value) * 100))} /></Field>
+        <Field label="Custo do serviço/terceiros (R$)"><NumericInput type="number" min="0" step="0.01" value={cost / 100} disabled={calculating} onChange={(e) => { setCost(Math.round(Number(e.target.value) * 100)); setCostKnown(true); }} onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) { e.preventDefault(); void calculateThirdPartyPrice(Math.round(Number(e.currentTarget.value) * 100)); } }} /></Field>
+        <Field label="Preço de venda (R$)"><NumericInput type="number" min="0.01" step="0.01" value={price / 100} disabled={calculating} onChange={(e) => setPrice(Math.round(Number(e.target.value) * 100))} /></Field>
       </div>
       {error && <p className="form-error" role="alert">{error}</p>}
       <div className="capture-actions">
         <button type="button" className="button" onClick={onClose} disabled={busy}>Cancelar</button>
-        <button type="button" className="button primary" disabled={busy || name.trim().length < 2 || !reference.trim() || !Number.isSafeInteger(cost) || cost < 0 || !Number.isSafeInteger(price) || price < 1} onClick={async () => {
+        <button type="button" className="button primary" disabled={busy || calculating || name.trim().length < 2 || !reference.trim() || !Number.isSafeInteger(cost) || cost < 0 || !Number.isSafeInteger(price) || price < 1} onClick={async () => {
           setBusy(true); setError("");
           try {
             await send(initial ? `/workshop-services/${initial.id}` : "/workshop-services", {
