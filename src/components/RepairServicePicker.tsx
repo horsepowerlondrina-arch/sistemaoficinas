@@ -263,7 +263,11 @@ function WorkshopServiceCategories({ onClose, categories, onChanged }: { onClose
     </div>
   </Modal>;
 }
-export function WorkshopServices() {
+export function WorkshopServices({ embedded = false, newServiceTrigger = 0, onFormOpenChange }: {
+  embedded?: boolean;
+  newServiceTrigger?: number;
+  onFormOpenChange?: (open: boolean) => void;
+}) {
   const [rows, setRows] = useState<Entity[]>([]);
   const [categories, setCategories] = useState<Entity[]>([]);
   const [query, setQuery] = useState("");
@@ -275,6 +279,8 @@ export function WorkshopServices() {
   const [categoryError, setCategoryError] = useState("");
   const [revision, setRevision] = useState(0);
   const [loading, setLoading] = useState(false);
+  useEffect(() => { if (newServiceTrigger > 0) setEditing(null); }, [newServiceTrigger]);
+  useEffect(() => { onFormOpenChange?.(editing !== undefined || manageCategories); }, [editing, manageCategories, onFormOpenChange]);
   useEffect(() => {
     let active = true;
     const timer = window.setTimeout(() => {
@@ -300,9 +306,9 @@ export function WorkshopServices() {
   const addCategory = (category: Entity) => setCategories((current) => [category, ...current.filter((row) => row.id !== category.id)]);
   const hasFilters = Boolean(query.trim() || categoryFilter || status !== "active");
   return <>
-    <PageHeading title="Serviços Próprios" description="Gerencie os serviços particulares da oficina." actions={
+    {!embedded && <PageHeading title="Serviços Próprios" description="Gerencie os serviços particulares da oficina." actions={
       <button type="button" className="button primary" onClick={() => setEditing(null)}><Plus size={16} aria-hidden="true" /> Novo serviço</button>
-    } />
+    } />}
     <section className="panel workshop-services-panel" aria-label="Serviços próprios">
       <div className="workshop-services-search">
         <Field label="Pesquisar serviços"><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Pesquisar por descrição ou referência..." /></Field>

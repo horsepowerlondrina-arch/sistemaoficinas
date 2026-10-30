@@ -975,6 +975,36 @@
       "reason": null
     },
     {
+      "id": "catalogo-tempos-servicos-desktop",
+      "module": "09-cadastros-servicos",
+      "title": "Catálogo de Tempos em Serviços",
+      "description": "Consulta técnica por marca, modelo e serviço.",
+      "route": "/servicos?aba=tempos",
+      "kind": "Consulta técnica",
+      "viewport": "desktop",
+      "status": "pendente",
+      "image": "docs/mapeamento-visual/capturas/09-cadastros-servicos/catalogo-tempos-servicos-desktop.png",
+      "updatedAt": null,
+      "commit": null,
+      "freshness": "pendente",
+      "reason": "Captura Playwright pendente do PR EST-008."
+    },
+    {
+      "id": "catalogo-tempos-servicos-mobile",
+      "module": "09-cadastros-servicos",
+      "title": "Catálogo de Tempos em Serviços",
+      "description": "Consulta técnica por marca, modelo e serviço.",
+      "route": "/servicos?aba=tempos",
+      "kind": "Consulta técnica",
+      "viewport": "mobile",
+      "status": "pendente",
+      "image": "docs/mapeamento-visual/capturas/09-cadastros-servicos/catalogo-tempos-servicos-mobile.png",
+      "updatedAt": null,
+      "commit": null,
+      "freshness": "pendente",
+      "reason": "Captura Playwright pendente do PR EST-008."
+    },
+    {
       "id": "profissionais-desktop",
       "module": "09-cadastros-servicos",
       "title": "Profissionais",

@@ -78,6 +78,18 @@ try {
     const status = await page.goto(new URL(entry.route, baseUrl).toString(), { waitUntil: "domcontentloaded", timeout: 30000 });
     if (!status?.ok()) throw new Error(`A tela ${entry.id} respondeu HTTP ${status?.status() || "sem resposta"}.`);
     await page.getByRole("main").first().waitFor({ state: "visible", timeout: 15000 }).catch(() => {});
+    if (entry.route.includes("aba=tempos")) {
+      await page.getByRole("tab", { name: "Catálogo de Tempos" }).waitFor({ state: "visible", timeout: 15000 });
+      await page.getByText("Verificando acesso ao Catálogo de Tempos…").waitFor({ state: "hidden", timeout: 15000 });
+      const brand = page.getByRole("combobox", { name: "Marca" });
+      if (await brand.isVisible()) {
+        await brand.fill("Marca Fictícia");
+        await page.getByRole("option", { name: "Marca Fictícia" }).click();
+        await page.getByRole("combobox", { name: "Modelo" }).fill("Modelo Fictício");
+        await page.getByRole("option", { name: /Modelo Fictício/ }).click();
+        await page.getByText("Inspeção Fictícia").waitFor({ state: "visible", timeout: 15000 });
+      }
+    }
     await page.waitForTimeout(300);
     const path = outputFor(entry);
     mkdirSync(dirname(path), { recursive: true });
