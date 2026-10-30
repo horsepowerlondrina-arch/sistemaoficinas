@@ -61,7 +61,7 @@ Toda tarefa técnica deve registrar:
 
 - **Planejamento e decisões de produto:** responsável do projeto nas conversas de planejamento do ChatGPT.
 - **Implementação e evidências técnicas:** Codex na conversa de execução.
-- **Revisão, aprovação de integração e autorização de mudanças remotas:** responsável autorizado do projeto.
+- **Revisão e autorização específica:** responsável autorizado do projeto para mudanças remotas, ações fora do escopo ou quando a proteção da plataforma exigir uma revisão humana. As integrações rotineiras autorizadas por esta política não exigem nova aprovação do responsável.
 - **GitHub Actions:** verificações automatizadas configuradas no repositório; não substituem aprovação funcional.
 - **Vercel/Supabase:** serviços de hospedagem e banco nos ambientes identificados; a configuração ativa deve ser verificada antes de qualquer operação.
 
