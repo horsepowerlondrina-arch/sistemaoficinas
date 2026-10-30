@@ -18,7 +18,7 @@ BEGIN
  SELECT a.id,a.email INTO admin_row FROM platform_admin.sessions s JOIN platform_admin.administrators a ON a.id=s.administrator_id
  WHERE s.token_hash=p_session_token_hash AND s.expires_at>statement_timestamp() AND a.active AND a.enrolled AND a.permissions @> '["workshops:manage"]'::jsonb;
  IF NOT FOUND THEN RAISE EXCEPTION 'Permissão administrativa insuficiente' USING ERRCODE='42501'; END IF;
- IF p_action NOT IN ('set_role','remove') OR (p_action='set_role' AND (p_role IS NULL OR p_role NOT IN ('owner','operator')))
+ IF p_action IS NULL OR p_action NOT IN ('set_role','remove') OR (p_action='set_role' AND (p_role IS NULL OR p_role NOT IN ('owner','operator')))
    OR (p_action='remove' AND p_role IS NOT NULL) OR length(trim(coalesce(p_reason,''))) NOT BETWEEN 10 AND 500
  THEN RAISE EXCEPTION 'Operação ou justificativa inválida' USING ERRCODE='22023'; END IF;
  PERFORM pg_advisory_xact_lock(hashtextextended(p_tenant_id,104730));
@@ -44,7 +44,7 @@ BEGIN
  SELECT a.id,a.email INTO admin_row FROM platform_admin.sessions s JOIN platform_admin.administrators a ON a.id=s.administrator_id
  WHERE s.token_hash=p_session_token_hash AND s.expires_at>statement_timestamp() AND a.active AND a.enrolled AND a.permissions @> '["workshops:manage"]'::jsonb;
  IF NOT FOUND THEN RAISE EXCEPTION 'Permissão administrativa insuficiente' USING ERRCODE='42501'; END IF;
- IF p_status NOT IN ('trial','active','read_only','blocked','archived') OR (p_status='trial' AND p_trial_days IS NOT NULL AND p_trial_days NOT BETWEEN 1 AND 90)
+ IF p_status IS NULL OR p_status NOT IN ('trial','active','read_only','blocked','archived') OR (p_status='trial' AND p_trial_days IS NOT NULL AND p_trial_days NOT BETWEEN 1 AND 90)
   OR (p_status<>'trial' AND p_trial_days IS NOT NULL) OR length(trim(coalesce(p_reason,''))) NOT BETWEEN 10 AND 500
  THEN RAISE EXCEPTION 'Situação, período de teste ou justificativa inválidos' USING ERRCODE='22023'; END IF;
  PERFORM pg_advisory_xact_lock(hashtextextended(p_tenant_id,104730));
