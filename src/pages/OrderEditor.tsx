@@ -699,6 +699,9 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
                                     {item.kind === "service"
                                       ? "Serviço"
                                       : "Produto"}
+                                    {item.kind === "service" && (item.reference || item.service_details?.reference)
+                                      ? ` · ${item.reference || item.service_details?.reference}`
+                                      : ""}
                                     {item.duration_seconds
                                       ? ` · ${Math.round(item.duration_seconds / 60)} min`
                                       : ""}

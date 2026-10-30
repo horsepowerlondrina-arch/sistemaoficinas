@@ -73,11 +73,50 @@ try {
     if (!ready) throw new Error("A aplicação local não ficou pronta em 90 segundos.");
   }
   browser = await chromium.launch({ headless: true });
+  let est009Reference = "";
   const outputFor = (entry) => noWrite ? join(outputDir, `${entry.id}.png`) : resolve(root, entry.image);
   const save = async (page, entry) => {
     const status = await page.goto(new URL(entry.route, baseUrl).toString(), { waitUntil: "domcontentloaded", timeout: 30000 });
     if (!status?.ok()) throw new Error(`A tela ${entry.id} respondeu HTTP ${status?.status() || "sem resposta"}.`);
     await page.getByRole("main").first().waitFor({ state: "visible", timeout: 15000 }).catch(() => {});
+    if (entry.id.startsWith("est009-os-private-")) {
+      await page.getByRole("button", { name: "Adicionar produtos e serviços" }).click();
+      await page.getByRole("button", { name: "Adicionar serviço", exact: true }).click();
+      await page.getByRole("button", { name: "Serviços Próprios" }).click();
+      const search = page.getByRole("combobox", { name: "Pesquisar serviços próprios" });
+      await expect(page.getByRole("listbox", { name: "Serviços próprios" })).toHaveCount(0);
+      if (entry.id.endsWith("desktop")) {
+        await page.getByRole("button", { name: "Cadastrar serviço sem sair" }).click();
+        await page.getByRole("button", { name: "Cancelar" }).click();
+        await expect(page.locator(".order-item")).toHaveCount(0);
+        await page.getByRole("button", { name: "Cadastrar serviço sem sair" }).click();
+        est009Reference = await page.getByRole("textbox", { name: "Referência" }).inputValue();
+        await page.getByRole("textbox", { name: "Descrição", exact: true }).fill("Alinhamento Fictício");
+        await page.getByRole("spinbutton", { name: "Preço de venda (R$)" }).fill("100");
+        await page.getByRole("button", { name: "Salvar cadastro" }).click();
+        await expect(page.locator(".order-item").filter({ hasText: "Alinhamento Fictício" })).toHaveCount(1);
+        await search.fill("alinhamento");
+        await page.getByRole("option", { name: /Alinhamento Fictício/ }).waitFor();
+        await search.press("Escape");
+        await expect(page.getByRole("listbox", { name: "Serviços próprios" })).toHaveCount(0);
+        await search.fill("alinhament");
+        await page.getByRole("option", { name: /Alinhamento Fictício/ }).waitFor();
+        await search.press("ArrowDown");
+        await search.press("Enter");
+        await search.press("Enter");
+        await expect(page.locator(".order-item").filter({ hasText: "Alinhamento Fictício" })).toHaveCount(2);
+        const first = page.locator(".order-item").filter({ hasText: "Alinhamento Fictício" }).first();
+        await first.getByRole("spinbutton", { name: "Quantidade" }).fill("2");
+        await first.getByRole("spinbutton", { name: "Valor unitário (R$)" }).fill("150");
+        await expect(first.getByText("R$ 300,00")).toBeVisible();
+      } else {
+        if (!est009Reference) throw new Error("Referência fictícia EST-009 ausente.");
+        await search.fill(est009Reference.toLowerCase());
+        await page.getByRole("option", { name: /Alinhamento Fictício/ }).waitFor();
+        await page.getByRole("button", { name: "Adicionar", exact: true }).click();
+        await expect(page.locator(".order-item").filter({ hasText: "Alinhamento Fictício" })).toHaveCount(1);
+      }
+    }
     if (entry.id === "servicos-oficina-desktop") {
       await page.getByRole("button", { name: "Novo serviço" }).click();
       const cost = page.getByRole("spinbutton", { name: "Custo do serviço/terceiros (R$)" });

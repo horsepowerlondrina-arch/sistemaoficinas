@@ -105,6 +105,8 @@ Estados: capturada, pendente, bloqueada e não aplicável.
 | admin-central-administradores | Painel Administrativo Central | Administradores e permissões — Captura local disponível foi excluída por conter informações administrativas internas. | — | bloqueada | — | não registrado | Captura local disponível foi excluída por conter informações administrativas internas. |
 | admin-central-auditoria | Painel Administrativo Central | Auditoria administrativa — Captura local disponível foi excluída por exibir eventos e metadados técnicos; requer conjunto de dados sintético revisado. | — | bloqueada | — | não registrado | Captura local disponível foi excluída por exibir eventos e metadados técnicos; requer conjunto de dados sintético revisado. |
 | desktop-mobile-paridade | Erros e estados especiais | Paridade desktop e mobile — Gerar a dupla de capturas automatizadas para os principais módulos. | — | pendente | — | não registrado | A interação ainda não possui arquivo PNG correspondente; executar em navegador e dados de teste isolados. |
+| est009-os-private-desktop | Ordens de serviço | Serviços próprios na OS — Cadastro rápido, pesquisa e edição de serviço fictício em orçamento não salvo. | `capturas/07-ordens-servico/est009-os-private-desktop.png` (previsto) | pendente | — | não registrado | Captura real pendente do CI EST-009. |
+| est009-os-private-mobile | Ordens de serviço | Serviços próprios na OS (celular) — Pesquisa e inclusão de serviço fictício em orçamento não salvo. | `capturas/07-ordens-servico/est009-os-private-mobile.png` (previsto) | pendente | — | não registrado | Captura real pendente do CI EST-009. |
 
 ## Fluxos
 
