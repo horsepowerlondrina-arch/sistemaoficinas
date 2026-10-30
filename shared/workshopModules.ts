@@ -50,7 +50,8 @@ const moduleForUiPath = (path: string): WorkshopModuleKey | null => {
 export function moduleForApiRequest(path: string, method = "GET"): WorkshopModuleKey[] | null {
   // Express normally strips `/api` from paths mounted through `app.use("/api", ...)`.
   // Normalize both forms because the Vercel adapter can pass the original path.
-  const normalizedPath = path.replace(/^\/api(?=\/|$)/, "");
+  const pathname = path.split(/[?#]/, 1)[0] || "/";
+  const normalizedPath = pathname.replace(/^\/api(?=\/|$)/, "");
   const p = normalizedPath.replace(/\/+$/, "") || "/";
   if (["/session", "/logout", "/tenant", "/workspace"].includes(p)) return [];
   if (p === "/customers-with-vehicle") return ["orders","customers_vehicles"];
