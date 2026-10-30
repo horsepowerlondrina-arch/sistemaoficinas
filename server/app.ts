@@ -1387,6 +1387,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
           if (!customer.active) throw new Error("Cliente inativo.");
           if (old && old.customer_id !== input.customer_id)
             await audit(db, ctx, `vehicles.owner_changed:${old.customer_id}:${input.customer_id}`, record!);
+          for (const field of ["model_year", "fuel"]) if (old && !Object.prototype.hasOwnProperty.call(req.body, field)) input[field] = old[field];
           const explicitModel = Object.prototype.hasOwnProperty.call(input, "service_model_id");
           let selectedModel: any = null;
           if (explicitModel && input.service_model_id && (input.service_model_id !== old?.service_model_id || input.service_link_mode === "manual")) {

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { vehicleDisplayModel } from "../../shared/vehicleIdentity.js";
 import type { Context } from "../auth/session.js";
 import { transaction, type DB } from "../db/database.js";
 import { requireAdmin } from "./payments.js";
@@ -79,7 +80,7 @@ function parseJson<T>(value: unknown, fallback: T): T {
   }
 }
 function vehicleLabel(vehicle: Record<string, any>) {
-  return [vehicle.brand, vehicle.model, vehicle.color, vehicle.year]
+  return [vehicle.brand, vehicleDisplayModel(vehicle), vehicle.color, vehicle.year]
     .filter(Boolean)
     .join(" ");
 }
