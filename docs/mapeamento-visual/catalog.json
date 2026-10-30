@@ -1582,12 +1582,12 @@
       "route": "/cadastros?aba=veiculos",
       "kind": "Cadastro de veículo",
       "viewport": "desktop",
-      "status": "pendente",
+      "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/04-veiculos/cad005-register-desktop.png",
-      "updatedAt": null,
-      "commit": null,
-      "freshness": "pendente",
-      "reason": "Captura automatizada da CAD-005 aguardando CI."
+      "updatedAt": "2026-10-30",
+      "commit": "f6e2a4cb13517dc8f57dc1703586ce27268d004c",
+      "freshness": "atual",
+      "reason": null
     },
     {
       "id": "cad005-register-mobile",
@@ -1597,12 +1597,12 @@
       "route": "/cadastros?aba=veiculos",
       "kind": "Cadastro de veículo",
       "viewport": "mobile",
-      "status": "pendente",
+      "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/04-veiculos/cad005-register-mobile.png",
-      "updatedAt": null,
-      "commit": null,
-      "freshness": "pendente",
-      "reason": "Captura automatizada da CAD-005 aguardando CI."
+      "updatedAt": "2026-10-30",
+      "commit": "f6e2a4cb13517dc8f57dc1703586ce27268d004c",
+      "freshness": "atual",
+      "reason": null
     },
     {
       "id": "cad005-review-desktop",
@@ -1612,12 +1612,12 @@
       "route": "/cadastros?aba=veiculos",
       "kind": "Cadastro de veículo",
       "viewport": "desktop",
-      "status": "pendente",
+      "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/04-veiculos/cad005-review-desktop.png",
-      "updatedAt": null,
-      "commit": null,
-      "freshness": "pendente",
-      "reason": "Captura automatizada da CAD-005 aguardando CI."
+      "updatedAt": "2026-10-30",
+      "commit": "f6e2a4cb13517dc8f57dc1703586ce27268d004c",
+      "freshness": "atual",
+      "reason": null
     },
     {
       "id": "cad005-review-mobile",
@@ -1627,12 +1627,12 @@
       "route": "/cadastros?aba=veiculos",
       "kind": "Cadastro de veículo",
       "viewport": "mobile",
-      "status": "pendente",
+      "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/04-veiculos/cad005-review-mobile.png",
-      "updatedAt": null,
-      "commit": null,
-      "freshness": "pendente",
-      "reason": "Captura automatizada da CAD-005 aguardando CI."
+      "updatedAt": "2026-10-30",
+      "commit": "f6e2a4cb13517dc8f57dc1703586ce27268d004c",
+      "freshness": "atual",
+      "reason": null
     },
     {
       "id": "cad005-checklist-desktop",
@@ -1642,12 +1642,12 @@
       "route": "/checklists/novo",
       "kind": "Cadastro de veículo",
       "viewport": "desktop",
-      "status": "pendente",
+      "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/05-checklist/cad005-checklist-desktop.png",
-      "updatedAt": null,
-      "commit": null,
-      "freshness": "pendente",
-      "reason": "Captura automatizada da CAD-005 aguardando CI."
+      "updatedAt": "2026-10-30",
+      "commit": "f6e2a4cb13517dc8f57dc1703586ce27268d004c",
+      "freshness": "atual",
+      "reason": null
     },
     {
       "id": "cad005-checklist-mobile",
@@ -1657,12 +1657,12 @@
       "route": "/checklists/novo",
       "kind": "Cadastro de veículo",
       "viewport": "mobile",
-      "status": "pendente",
+      "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/05-checklist/cad005-checklist-mobile.png",
-      "updatedAt": null,
-      "commit": null,
-      "freshness": "pendente",
-      "reason": "Captura automatizada da CAD-005 aguardando CI."
+      "updatedAt": "2026-10-30",
+      "commit": "f6e2a4cb13517dc8f57dc1703586ce27268d004c",
+      "freshness": "atual",
+      "reason": null
     },
     {
       "id": "cad005-order-desktop",
@@ -1672,12 +1672,12 @@
       "route": "/ordens/nova",
       "kind": "Cadastro de veículo",
       "viewport": "desktop",
-      "status": "pendente",
+      "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/06-orcamentos/cad005-order-desktop.png",
-      "updatedAt": null,
-      "commit": null,
-      "freshness": "pendente",
-      "reason": "Captura automatizada da CAD-005 aguardando CI."
+      "updatedAt": "2026-10-30",
+      "commit": "f6e2a4cb13517dc8f57dc1703586ce27268d004c",
+      "freshness": "atual",
+      "reason": null
     },
     {
       "id": "cad005-order-mobile",
@@ -1687,12 +1687,12 @@
       "route": "/ordens/nova",
       "kind": "Cadastro de veículo",
       "viewport": "mobile",
-      "status": "pendente",
+      "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/06-orcamentos/cad005-order-mobile.png",
-      "updatedAt": null,
-      "commit": null,
-      "freshness": "pendente",
-      "reason": "Captura automatizada da CAD-005 aguardando CI."
+      "updatedAt": "2026-10-30",
+      "commit": "f6e2a4cb13517dc8f57dc1703586ce27268d004c",
+      "freshness": "atual",
+      "reason": null
     },
     {
       "id": "cad005-switch-desktop",
@@ -1702,12 +1702,12 @@
       "route": "/ordens/cad005-visual-order/editar",
       "kind": "Cadastro de veículo",
       "viewport": "desktop",
-      "status": "pendente",
+      "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/07-ordens-servico/cad005-switch-desktop.png",
-      "updatedAt": null,
-      "commit": null,
-      "freshness": "pendente",
-      "reason": "Captura automatizada da CAD-005 aguardando CI."
+      "updatedAt": "2026-10-30",
+      "commit": "f6e2a4cb13517dc8f57dc1703586ce27268d004c",
+      "freshness": "atual",
+      "reason": null
     },
     {
       "id": "cad005-switch-mobile",
@@ -1717,12 +1717,12 @@
       "route": "/ordens/cad005-visual-order/editar",
       "kind": "Cadastro de veículo",
       "viewport": "mobile",
-      "status": "pendente",
+      "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/07-ordens-servico/cad005-switch-mobile.png",
-      "updatedAt": null,
-      "commit": null,
-      "freshness": "pendente",
-      "reason": "Captura automatizada da CAD-005 aguardando CI."
+      "updatedAt": "2026-10-30",
+      "commit": "f6e2a4cb13517dc8f57dc1703586ce27268d004c",
+      "freshness": "atual",
+      "reason": null
     },
     {
       "id": "cad005-register-footer-mobile",
@@ -1732,12 +1732,12 @@
       "route": "/cadastros?aba=veiculos",
       "kind": "Cadastro de veículo",
       "viewport": "mobile",
-      "status": "pendente",
+      "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/04-veiculos/cad005-register-footer-mobile.png",
-      "updatedAt": null,
-      "commit": null,
-      "freshness": "pendente",
-      "reason": "Captura automatizada da CAD-005 aguardando CI."
+      "updatedAt": "2026-10-30",
+      "commit": "f6e2a4cb13517dc8f57dc1703586ce27268d004c",
+      "freshness": "atual",
+      "reason": null
     },
     {
       "id": "cad005-review-footer-mobile",
@@ -1747,12 +1747,12 @@
       "route": "/cadastros?aba=veiculos",
       "kind": "Cadastro de veículo",
       "viewport": "mobile",
-      "status": "pendente",
+      "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/04-veiculos/cad005-review-footer-mobile.png",
-      "updatedAt": null,
-      "commit": null,
-      "freshness": "pendente",
-      "reason": "Captura automatizada da CAD-005 aguardando CI."
+      "updatedAt": "2026-10-30",
+      "commit": "f6e2a4cb13517dc8f57dc1703586ce27268d004c",
+      "freshness": "atual",
+      "reason": null
     }
   ],
   "flows": [

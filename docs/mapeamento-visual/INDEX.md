@@ -90,6 +90,54 @@ Lista de veículos da segunda oficina fictícia.
 
 Estado: capturada · mobile · captura 2026-10-22 · commit de origem: não registrado · [arquivo completo](./capturas/04-veiculos/veiculos-lista-oficina-b.png)
 
+### CAD-005 — Novo veículo (desktop)
+
+Formulário real com dados fictícios; identificação FIPE independente da associação técnica.
+
+[![CAD-005 — Novo veículo (desktop)](./capturas/04-veiculos/cad005-register-desktop.png)](./capturas/04-veiculos/cad005-register-desktop.png)
+
+Estado: capturada · desktop · captura 2026-10-30 · commit de origem: f6e2a4cb13517dc8f57dc1703586ce27268d004c · [arquivo completo](./capturas/04-veiculos/cad005-register-desktop.png)
+
+### CAD-005 — Novo veículo (mobile)
+
+Formulário real com dados fictícios; identificação FIPE independente da associação técnica.
+
+[![CAD-005 — Novo veículo (mobile)](./capturas/04-veiculos/cad005-register-mobile.png)](./capturas/04-veiculos/cad005-register-mobile.png)
+
+Estado: capturada · mobile · captura 2026-10-30 · commit de origem: f6e2a4cb13517dc8f57dc1703586ce27268d004c · [arquivo completo](./capturas/04-veiculos/cad005-register-mobile.png)
+
+### CAD-005 — Revisão de veículo (desktop)
+
+Formulário real com dados fictícios; identificação FIPE independente da associação técnica.
+
+[![CAD-005 — Revisão de veículo (desktop)](./capturas/04-veiculos/cad005-review-desktop.png)](./capturas/04-veiculos/cad005-review-desktop.png)
+
+Estado: capturada · desktop · captura 2026-10-30 · commit de origem: f6e2a4cb13517dc8f57dc1703586ce27268d004c · [arquivo completo](./capturas/04-veiculos/cad005-review-desktop.png)
+
+### CAD-005 — Revisão de veículo (mobile)
+
+Formulário real com dados fictícios; identificação FIPE independente da associação técnica.
+
+[![CAD-005 — Revisão de veículo (mobile)](./capturas/04-veiculos/cad005-review-mobile.png)](./capturas/04-veiculos/cad005-review-mobile.png)
+
+Estado: capturada · mobile · captura 2026-10-30 · commit de origem: f6e2a4cb13517dc8f57dc1703586ce27268d004c · [arquivo completo](./capturas/04-veiculos/cad005-review-mobile.png)
+
+### CAD-005 — Novo veículo (mobile) — rodapé
+
+Formulário real com dados fictícios; identificação FIPE independente da associação técnica.
+
+[![CAD-005 — Novo veículo (mobile) — rodapé](./capturas/04-veiculos/cad005-register-footer-mobile.png)](./capturas/04-veiculos/cad005-register-footer-mobile.png)
+
+Estado: capturada · mobile · captura 2026-10-30 · commit de origem: f6e2a4cb13517dc8f57dc1703586ce27268d004c · [arquivo completo](./capturas/04-veiculos/cad005-register-footer-mobile.png)
+
+### CAD-005 — Revisão de veículo (mobile) — rodapé
+
+Formulário real com dados fictícios; identificação FIPE independente da associação técnica.
+
+[![CAD-005 — Revisão de veículo (mobile) — rodapé](./capturas/04-veiculos/cad005-review-footer-mobile.png)](./capturas/04-veiculos/cad005-review-footer-mobile.png)
+
+Estado: capturada · mobile · captura 2026-10-30 · commit de origem: f6e2a4cb13517dc8f57dc1703586ce27268d004c · [arquivo completo](./capturas/04-veiculos/cad005-review-footer-mobile.png)
+
 ## 05 — Checklist
 
 Recepção, checklist, evidências e conclusão.
@@ -110,6 +158,22 @@ Estado inicial do formulário; não foi criado nenhum registro.
 
 Estado: capturada · mobile · captura 2026-10-22 · commit de origem: não registrado · [arquivo completo](./capturas/05-checklist/novo-checklist.png)
 
+### CAD-005 — Veículo no checklist (desktop)
+
+Formulário real com dados fictícios; identificação FIPE independente da associação técnica.
+
+[![CAD-005 — Veículo no checklist (desktop)](./capturas/05-checklist/cad005-checklist-desktop.png)](./capturas/05-checklist/cad005-checklist-desktop.png)
+
+Estado: capturada · desktop · captura 2026-10-30 · commit de origem: f6e2a4cb13517dc8f57dc1703586ce27268d004c · [arquivo completo](./capturas/05-checklist/cad005-checklist-desktop.png)
+
+### CAD-005 — Veículo no checklist (mobile)
+
+Formulário real com dados fictícios; identificação FIPE independente da associação técnica.
+
+[![CAD-005 — Veículo no checklist (mobile)](./capturas/05-checklist/cad005-checklist-mobile.png)](./capturas/05-checklist/cad005-checklist-mobile.png)
+
+Estado: capturada · mobile · captura 2026-10-30 · commit de origem: f6e2a4cb13517dc8f57dc1703586ce27268d004c · [arquivo completo](./capturas/05-checklist/cad005-checklist-mobile.png)
+
 ## 06 — Orçamentos
 
 Orçamento dentro do fluxo de atendimento.
@@ -121,6 +185,22 @@ Orçamento no fluxo de ordem de serviço, antes de salvar.
 [![Novo orçamento](./capturas/06-orcamentos/novo-orcamento.png)](./capturas/06-orcamentos/novo-orcamento.png)
 
 Estado: capturada · mobile · captura 2026-10-22 · commit de origem: não registrado · [arquivo completo](./capturas/06-orcamentos/novo-orcamento.png)
+
+### CAD-005 — Veículo na abertura do atendimento (desktop)
+
+Formulário real com dados fictícios; identificação FIPE independente da associação técnica.
+
+[![CAD-005 — Veículo na abertura do atendimento (desktop)](./capturas/06-orcamentos/cad005-order-desktop.png)](./capturas/06-orcamentos/cad005-order-desktop.png)
+
+Estado: capturada · desktop · captura 2026-10-30 · commit de origem: f6e2a4cb13517dc8f57dc1703586ce27268d004c · [arquivo completo](./capturas/06-orcamentos/cad005-order-desktop.png)
+
+### CAD-005 — Veículo na abertura do atendimento (mobile)
+
+Formulário real com dados fictícios; identificação FIPE independente da associação técnica.
+
+[![CAD-005 — Veículo na abertura do atendimento (mobile)](./capturas/06-orcamentos/cad005-order-mobile.png)](./capturas/06-orcamentos/cad005-order-mobile.png)
+
+Estado: capturada · mobile · captura 2026-10-30 · commit de origem: f6e2a4cb13517dc8f57dc1703586ce27268d004c · [arquivo completo](./capturas/06-orcamentos/cad005-order-mobile.png)
 
 ## 07 — Ordens de serviço
 
@@ -165,6 +245,22 @@ Pesquisa e inclusão de serviço fictício em orçamento não salvo.
 [![Serviços próprios na OS (celular)](./capturas/07-ordens-servico/est009-os-private-mobile.png)](./capturas/07-ordens-servico/est009-os-private-mobile.png)
 
 Estado: capturada · mobile · captura 2026-10-30 · commit de origem: f53519d7d874817dd129414e68789368cef5f170 · [arquivo completo](./capturas/07-ordens-servico/est009-os-private-mobile.png)
+
+### CAD-005 — Troca de veículo no atendimento (desktop)
+
+Formulário real com dados fictícios; identificação FIPE independente da associação técnica.
+
+[![CAD-005 — Troca de veículo no atendimento (desktop)](./capturas/07-ordens-servico/cad005-switch-desktop.png)](./capturas/07-ordens-servico/cad005-switch-desktop.png)
+
+Estado: capturada · desktop · captura 2026-10-30 · commit de origem: f6e2a4cb13517dc8f57dc1703586ce27268d004c · [arquivo completo](./capturas/07-ordens-servico/cad005-switch-desktop.png)
+
+### CAD-005 — Troca de veículo no atendimento (mobile)
+
+Formulário real com dados fictícios; identificação FIPE independente da associação técnica.
+
+[![CAD-005 — Troca de veículo no atendimento (mobile)](./capturas/07-ordens-servico/cad005-switch-mobile.png)](./capturas/07-ordens-servico/cad005-switch-mobile.png)
+
+Estado: capturada · mobile · captura 2026-10-30 · commit de origem: f6e2a4cb13517dc8f57dc1703586ce27268d004c · [arquivo completo](./capturas/07-ordens-servico/cad005-switch-mobile.png)
 
 ## 08 — Financeiro
 

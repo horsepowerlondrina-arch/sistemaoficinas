@@ -1217,6 +1217,8 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
     }
     (vehicle as any).service_porte_id = selectedModel?.porte_id || "";
     (vehicle as any).service_link_mode = req.body.vehicle?.service_model_id ? "manual" : selectedModel ? "auto" : "none";
+    // The legacy database stores an absent technical association as an empty string.
+    vehicle.service_model_id = vehicle.service_model_id || "";
     const result = await transaction(db, async () => {
       const customerId = id(),
         vehicleId = id();
@@ -1404,6 +1406,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
           input.service_link_mode = explicitModel && (input.service_model_id !== old?.service_model_id || input.service_link_mode === "manual")
             ? input.service_model_id ? "manual" : "none"
             : old?.service_link_mode || (selectedModel ? "auto" : "none");
+          input.service_model_id = input.service_model_id || "";
         }
         if (table === "catalog") {
           if(input.kind==='service')throw new Error('Cadastre e edite os serviços no módulo Serviços.');
@@ -1441,7 +1444,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
         const vehicleSnapshotChanged =
           table === "vehicles" &&
           !!old &&
-          ["plate", "brand", "model", "year", "color", "km", "chassis"].some(
+          ["plate", "brand", "model", "year", "color", "km", "chassis", "fipe_code", "fipe_model", "fipe_year_id", "model_year", "fuel"].some(
             (field) => String(old[field] ?? "") !== String(input[field] ?? ""),
           );
         const linkedOrders = vehicleSnapshotChanged

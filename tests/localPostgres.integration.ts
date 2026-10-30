@@ -372,13 +372,23 @@ test("PostgreSQL local: autenticação, oficinas, transações e RLS do catálog
     assert.equal(identifiedBody.model.id,sample.id);
     const createdVehicle=await request("/api/customers-with-vehicle",localACookie,{
       customer:{name:"Cliente CAT013 Nulo",phone:"",email:"",document:"",birthday:"",address:"",notes:"",active:1},
-      vehicle:{plate:"QAZ1C23",brand:sample.brand,model:sample.name,year:2020,color:"",km:0,chassis:"",fipe_code:sample.fipe_code||"",fipe_model:"",fipe_year_id:"",service_model_id:null}
+      vehicle:{plate:"QAZ1C23",brand:sample.brand,model:sample.name,year:2020,color:"",km:0,chassis:"",fipe_code:sample.fipe_code||"",fipe_model:"",fipe_year_id:""}
     });
     const createdVehicleText=await createdVehicle.text();
     assert.equal(createdVehicle.status,201,createdVehicleText);
     const createdBody=JSON.parse(createdVehicleText) as any;
     const persistedLink=await db.withTenantRead("local-a",async()=>db.prepare("SELECT service_model_id FROM vehicles WHERE tenant_id=? AND id=?").get("local-a",createdBody.vehicle_id) as any);
     assert.equal(persistedLink.service_model_id,sample.id);
+    const unlinkedResponse=await request("/api/customers-with-vehicle",localACookie,{
+      customer:{name:"Cliente CAD005 sem vínculo"},
+      vehicle:{plate:"QAZ1C24",brand:sample.brand,model:sample.name,year:2020,km:0,service_model_id:null}
+    });
+    const unlinkedText=await unlinkedResponse.text();
+    assert.equal(unlinkedResponse.status,201,unlinkedText);
+    const unlinked=JSON.parse(unlinkedText);
+    const unlinkedVehicle=await db.withTenantRead("local-a",async()=>db.prepare("SELECT service_model_id,service_link_mode FROM vehicles WHERE tenant_id=? AND id=?").get("local-a",unlinked.vehicle_id) as any);
+    assert.equal(unlinkedVehicle.service_model_id,"");
+    assert.equal(unlinkedVehicle.service_link_mode,"none");
 
     const priorLookupTokens = process.env.FIPEPLACA_TOKENS_JSON;
     const priorLookupAllowlist = process.env.FIPEPLACA_ALLOWED_TENANT_IDS;

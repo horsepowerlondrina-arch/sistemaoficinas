@@ -22,4 +22,4 @@ Capturas que criem, editem ou finalizem registros só podem usar base PostgreSQL
 
 ## Coleta atual
 
-O acervo inclui 41 PNGs de telas reais, capturados em 22/10/2026. O commit da sessão original não foi registrado; a recaptura automatizada está pendente. Imagens administrativas de auditoria, credenciais, tokens e identidade de oficina não relacionada foram excluídas.
+O acervo inclui 53 PNGs de telas reais, capturados em 22/10/2026. O commit da sessão original não foi registrado; a recaptura automatizada está pendente. Imagens administrativas de auditoria, credenciais, tokens e identidade de oficina não relacionada foram excluídas.
