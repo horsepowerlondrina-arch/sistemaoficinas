@@ -1,113 +1,47 @@
-import { useCallback, useEffect, useState } from "react";
-import { workshopModuleKeys, workshopModuleLabels, type WorkshopModuleKey, type WorkshopModules } from "../../shared/workshopModules";
-
-type Entitlements = {
-  plan_code: string | null;
-  plan_configured: boolean;
-  plan_module_defaults: Partial<WorkshopModules>;
-  module_overrides: Partial<WorkshopModules>;
-  modules: WorkshopModules;
-  max_users_override: number | null;
-  max_users: number | null;
-  trial_days_override: number | null;
-  trial_days: number;
-  user_count: number;
-};
-
-async function requestEntitlements<T>(path: string, method = "GET", body?: unknown): Promise<T> {
-  const response = await fetch(`/admin-api${path}`, {
-    method,
-    credentials: "same-origin",
-    ...(body === undefined ? {} : { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
-  });
-  const value = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(value.error || "Não foi possível carregar as permissões.");
-  return value as T;
-}
-
-export function PlatformWorkshopEntitlements({ tenantId }: { tenantId: string }) {
-  const [state, setState] = useState<Entitlements | null>(null);
-  const [modules, setModules] = useState<Partial<WorkshopModules>>({});
-  const [maxUsers, setMaxUsers] = useState("");
-  const [trialDays, setTrialDays] = useState("");
-  const [reason, setReason] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
-
-  const load = useCallback(async () => {
-    setError("");
-    try {
-      const value = await requestEntitlements<Entitlements>(`/workshops/${encodeURIComponent(tenantId)}/entitlements`);
-      setState(value);
-      setModules(value.module_overrides || {});
-      setMaxUsers(value.max_users_override == null ? "" : String(value.max_users_override));
-      setTrialDays(value.trial_days_override == null ? "" : String(value.trial_days_override));
-    } catch (cause) { setError((cause as Error).message); }
-  }, [tenantId]);
-  useEffect(() => { void load(); }, [load]);
-
-  const toggle = (key: WorkshopModuleKey, enabled: boolean) => {
-    setModules(current => ({ ...current, [key]: enabled }));
-  };
-  const save = async (restore = false) => {
-    setBusy(true); setError(""); setMessage("");
-    try {
-      const result = await requestEntitlements<{ok:boolean;entitlements:Entitlements}>(
-        `/workshops/${encodeURIComponent(tenantId)}/entitlements`,
-        "PUT",
-        {
-          module_overrides: restore ? {} : modules,
-          max_users: restore || maxUsers.trim() === "" ? null : Number(maxUsers),
-          trial_days: restore || trialDays.trim() === "" ? null : Number(trialDays),
-          reason,
-        },
-      );
-      setState(result.entitlements);
-      setModules(result.entitlements.module_overrides || {});
-      setMaxUsers(result.entitlements.max_users_override == null ? "" : String(result.entitlements.max_users_override));
-      setTrialDays(result.entitlements.trial_days_override == null ? "" : String(result.entitlements.trial_days_override));
-      setReason("");
-      setMessage(restore ? "Padrões do plano restaurados e registrados no histórico." : "Permissões e limites salvos e registrados no histórico.");
-    } catch (cause) { setError((cause as Error).message); }
-    finally { setBusy(false); }
-  };
-
-  return <section className="pa-workshop-state-form" aria-labelledby="workshop-entitlements-title">
-    <h3 id="workshop-entitlements-title">Permissões e limites da oficina</h3>
-    <p>As permissões administrativas são individuais e independentes do plano. A liberação do Catálogo Técnico também respeita o controle atual de contratação e validade desse catálogo; esta opção não altera tarifas nem dados do catálogo central.</p>
-    {!state ? <p>Carregando configurações…</p> : <>
-      <p>
-        Plano: <strong>{state.plan_code || "sem plano associado"}</strong>
-        {state.plan_configured ? " · padrões do plano configurados" : " · padrões Básico/Profissional ainda não configurados; mantendo as funcionalidades atuais"}
-      </p>
-      <p>Usuários existentes: <strong>{state.user_count}</strong>{state.max_users == null ? " · sem limite" : ` · limite efetivo de ${state.max_users}`}</p>
-      <fieldset disabled={busy} style={{ border: 0, padding: 0, margin: "12px 0" }}>
-        <legend>Funcionalidades habilitadas</legend>
-        {workshopModuleKeys.map(key => {
-          const enabled = modules[key] ?? state.plan_module_defaults[key] ?? true;
-          return <label key={key} style={{ display: "flex", gap: 8, alignItems: "center", margin: "8px 0" }}>
-            <input type="checkbox" checked={enabled} onChange={event => toggle(key, event.target.checked)} />
-            <span>{workshopModuleLabels[key]}</span>
-            {Object.prototype.hasOwnProperty.call(modules,key) && <small>(exceção administrativa)</small>}
-          </label>;
-        })}
-      </fieldset>
-      <label>Limite máximo de usuários (vazio: padrão do plano ou sem limite)
-        <input type="number" min={1} max={10000} step={1} value={maxUsers} onChange={event => setMaxUsers(event.target.value)} disabled={busy} />
-      </label>
-      <label>Período de teste em dias (vazio: padrão de 14 dias ou do plano)
-        <input type="number" min={1} max={90} step={1} value={trialDays} onChange={event => setTrialDays(event.target.value)} disabled={busy} />
-      </label>
-      <p>Período efetivo: <strong>{state.trial_days} dias</strong>. Reduzir o limite de usuários não remove contas existentes; impede apenas novas associações acima do limite. Ajustar o teste não muda a situação da oficina.</p>
-      <label>Justificativa obrigatória<textarea required minLength={10} maxLength={500} value={reason} onChange={event => setReason(event.target.value)} disabled={busy} /></label>
-      <div className="pa-workshop-actions">
-        <button type="button" className="pa-primary" disabled={busy || reason.trim().length < 10} onClick={() => void save(false)}>{busy ? "Salvando…" : "Salvar permissões"}</button>
-        <button type="button" className="pa-quiet" disabled={busy || reason.trim().length < 10} onClick={() => void save(true)}>Restaurar padrões</button>
-        <button type="button" className="pa-quiet" disabled={busy} onClick={() => void load()}>Atualizar</button>
-      </div>
-    </>}
-    {error && <p role="alert" className="pa-error">{error}</p>}
-    {message && <p role="status" className="pa-success">{message}</p>}
-  </section>;
+import {useCallback,useEffect,useRef,useState,type ReactNode} from "react";
+import {workshopModuleKeys,workshopModuleLabels,type WorkshopModules} from "../../shared/workshopModules";
+import {adminRequest,optionalWholeNumber,plannedWorkshopPlans} from "../lib/adminPresentation";
+import {useAdminDraft} from "../lib/useAdminDraft";
+type Entitlements={plan_code:string|null;plan_configured:boolean;plan_module_defaults:Partial<WorkshopModules>;module_overrides:Partial<WorkshopModules>;modules:WorkshopModules;max_users_override:number|null;max_users:number|null;trial_days_override:number|null;trial_days:number;user_count:number};
+export function PlatformWorkshopEntitlements({tenantId,canEdit=true,onSaved,catalogStatus,catalogControls}:{tenantId:string;canEdit?:boolean;onSaved?:()=>void;catalogStatus?:string;catalogControls?:ReactNode}){
+ const [state,setState]=useState<Entitlements|null>(null),[modules,setModules]=useState<Partial<WorkshopModules>>({}),[maxUsers,setMaxUsers]=useState(""),[trialDays,setTrialDays]=useState(""),[reason,setReason]=useState(""),[busy,setBusy]=useState(false),[error,setError]=useState(""),[message,setMessage]=useState("");
+ const lock=useRef(false);
+ const apply=(value:Entitlements)=>{setState(value);setModules(value.module_overrides||{});setMaxUsers(value.max_users_override==null?"":String(value.max_users_override));setTrialDays(value.trial_days_override==null?"":String(value.trial_days_override));setReason("");};
+ const dirty=!!state&&(JSON.stringify(modules)!==JSON.stringify(state.module_overrides||{})||maxUsers!==(state.max_users_override==null?"":String(state.max_users_override))||trialDays!==(state.trial_days_override==null?"":String(state.trial_days_override))||!!reason);
+ useAdminDraft(dirty);
+ const load=useCallback(async()=>{setBusy(true);setError("");try{apply(await adminRequest<Entitlements>(`/workshops/${encodeURIComponent(tenantId)}/entitlements`));}catch(e){setError((e as Error).message);}finally{setBusy(false);}},[tenantId]);
+ useEffect(()=>{void load();},[load]);
+ const refresh=()=>{if(dirty&&!window.confirm("Descartar as alterações de permissões não salvas?"))return;void load();};
+ const save=async(restore=false)=>{
+  if(lock.current||!canEdit)return;
+  if(reason.trim().length<10||reason.trim().length>500){setError("Informe uma justificativa entre 10 e 500 caracteres.");return;}
+  if(restore&&!window.confirm("Remover as exceções administrativas e restaurar os padrões atuais?"))return;
+  lock.current=true;setBusy(true);setError("");setMessage("");
+  try{const result=await adminRequest<{entitlements:Entitlements}>(`/workshops/${encodeURIComponent(tenantId)}/entitlements`,"PUT",{
+   module_overrides:restore?{}:modules,max_users:restore?null:optionalWholeNumber(maxUsers,10000),trial_days:restore?null:optionalWholeNumber(trialDays,90),reason:reason.trim()});
+   apply(result.entitlements);setMessage(restore?"Padrões atuais restaurados e auditados.":"Permissões e limites salvos e auditados.");onSaved?.();
+  }catch(e){setError((e as Error).message);}finally{lock.current=false;setBusy(false);}
+ };
+ return <section className="pa-workshop-state-form" aria-labelledby="workshop-entitlements-title">
+ <h3 id="workshop-entitlements-title">Permissões e limites da oficina</h3>
+ {error&&<p role="alert" className="pa-note pa-note--error">{error}</p>}{message&&<p role="status" className="pa-note">{message}</p>}
+ {!state?<><p>{busy?"Carregando configurações…":"Configurações indisponíveis."}</p><button type="button" className="pa-quiet" disabled={busy} onClick={()=>void load()}>Tentar novamente</button></>:<>
+ <p>Plano associado: <strong>{plannedWorkshopPlans.find(p=>p.code===state.plan_code)?.label||state.plan_code||"Sem plano"}</strong>. {state.plan_configured?"Padrões cadastrados no sistema.":"Sem padrões comerciais configurados; os acessos existentes são preservados."}</p>
+ <details className="pa-plans"><summary>Estrutura comercial planejada</summary><ul>{plannedWorkshopPlans.map(p=><li key={p.code}><strong>{p.label}</strong>: {p.description}</li>)}</ul><p>Planejamento futuro, sem cobrança ou alteração de contratos. Nenhum acesso é concedido ou removido por esta apresentação.</p></details>
+ <div className="pa-permissions-table"><table><thead><tr><th>Funcionalidade</th><th>Padrão atual</th><th>Exceção administrativa</th><th>Acesso salvo</th></tr></thead><tbody>
+ {workshopModuleKeys.map(key=><tr key={key}><th scope="row">{workshopModuleLabels[key]}</th><td>{state.plan_module_defaults[key]===undefined?"Compatibilidade atual":state.plan_module_defaults[key]?"Habilitado":"Desabilitado"}</td><td><select aria-label={`Exceção: ${workshopModuleLabels[key]}`} disabled={busy||!canEdit} value={modules[key]===undefined?"inherit":modules[key]?"allow":"deny"} onChange={e=>setModules(current=>{const next={...current};if(e.target.value==="inherit")delete next[key];else next[key]=e.target.value==="allow";return next;})}><option value="inherit">Usar padrão</option><option value="allow">Habilitar</option><option value="deny">Desabilitar</option></select></td><td>{state.modules[key]===false?"Bloqueado":key==="technical_catalog"?(catalogStatus===undefined?"Consultar disponibilidade":catalogStatus==="active"?"Liberado":"Indisponível pela validade ou autorização"):"Liberado"}</td></tr>)}
+ </tbody></table></div>
+ <p>As exceções prevalecem sobre o plano. O catálogo também exige autorização válida abaixo; suas tarifas e dados permanecem preservados.</p>
+ <form onSubmit={e=>{e.preventDefault();void save();}} className="pa-workshop-state-form">
+ <fieldset disabled={busy||!canEdit} className="pa-form-fields">
+ <label>Limite máximo de usuários<input type="number" min={1} max={10000} step={1} value={maxUsers} onChange={e=>setMaxUsers(e.target.value)} placeholder="Padrão atual"/></label>
+ <label>Período padrão de teste em dias<input type="number" min={1} max={90} step={1} value={trialDays} onChange={e=>setTrialDays(e.target.value)} placeholder="Padrão atual"/></label>
+ <label className="pa-full-row">Justificativa das permissões<textarea required minLength={10} maxLength={500} value={reason} onChange={e=>setReason(e.target.value)}/></label>
+ </fieldset>
+ <p>{state.user_count} usuário(s) vinculado(s); limite salvo: {state.max_users??"sem limite"}. Teste padrão salvo: {state.trial_days} dias. Reduzir o limite não remove usuários. O período padrão não reinicia um teste em curso.</p>
+ <div className="pa-workshop-actions">{canEdit&&<><button className="pa-primary" disabled={busy}>{busy?"Salvando…":"Salvar permissões"}</button><button type="button" className="pa-quiet" disabled={busy||reason.trim().length<10} onClick={()=>void save(true)}>Restaurar padrões</button></>}<button type="button" className="pa-quiet" disabled={busy} onClick={refresh}>Atualizar permissões</button>{dirty&&<button type="button" className="pa-quiet" disabled={busy} onClick={()=>{if(window.confirm("Descartar alterações de permissões?"))apply(state);}}>Cancelar alterações</button>}</div>
+ </form>
+ </>}
+ {catalogControls}
+ </section>;
 }

@@ -44,6 +44,16 @@ jobs:
         run: npm run db:local:seed
       - name: Install isolated Playwright browser
         run: npx playwright install --with-deps chromium
+      - name: ADM-002.1 administrative UI regression
+        run: node scripts/test-admin-interface.mjs
+        timeout-minutes: 4
+      - name: Store administrative interface evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: adm-002-1-interface
+          path: ${{ runner.temp }}/adm0021-ui
+          retention-days: 14
       - name: Capture visual screens in isolated environment
         run: npm run visual:capture -- --start --no-write --output-dir "${{ runner.temp }}/map-001-captures"
         env:

@@ -48,7 +48,7 @@ if (args.includes("--affected")) {
 }
 if (moduleFilter && !catalog.modules.some((module) => module.id === moduleFilter)) throw new Error(`Módulo desconhecido: ${moduleFilter}`);
 
-const candidates = catalog.entries.filter((entry) => entry.image && entry.route.startsWith("/") && (!selectedModules || selectedModules.has(entry.module)) && entry.id !== "login-painel-central");
+const candidates = catalog.entries.filter((entry) => entry.driver !== "admin-interface" && entry.image && entry.route.startsWith("/") && (!selectedModules || selectedModules.has(entry.module)) && entry.id !== "login-painel-central");
 if (!candidates.length) throw new Error("Nenhuma interação com rota automatizável corresponde ao filtro.");
 if (!/^[a-z0-9-]+$/.test(fixtureTenant)) throw new Error("VISUAL_TEST_TENANT inválido.");
 if (!noWrite) {
