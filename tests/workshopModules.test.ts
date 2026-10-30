@@ -15,6 +15,8 @@ test("permissões por oficina usam compatibilidade habilitada e rotas conhecidas
   assert.deepEqual(moduleForApiRequest("/repair-services/rates", "PUT"), ["settings"]);
   assert.deepEqual(moduleForApiRequest("/vehicles/catalog-review"), ["customers_vehicles", "technical_catalog"]);
   assert.deepEqual(moduleForApiRequest("/workshop-services"), ["catalog"]);
+  assert.deepEqual(moduleForApiRequest("/api/workshop-services"), ["catalog"]);
+  assert.deepEqual(moduleForApiRequest("/api/workshop-services?status=active"), ["catalog"]);
   assert.deepEqual(moduleForApiRequest("/payables/123/pay"), ["finance"]);
   assert.deepEqual(moduleForApiRequest("/documents/archives"), ["orders", "checklists"]);
   assert.deepEqual(moduleForApiRequest("/session"), []);
