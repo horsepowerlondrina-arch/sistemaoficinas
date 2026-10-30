@@ -42,6 +42,23 @@ jobs:
         run: npm run db:local:migrate
       - name: Seed fictitious local workshops
         run: npm run db:local:seed
+      - name: Install isolated Playwright browser
+        run: npx playwright install --with-deps chromium
+      - name: Capture visual screens and test the protected gallery
+        run: npm run visual:capture -- --start --no-write --output-dir "${{ runner.temp }}/map-001-captures"
+        env:
+          VISUAL_BASE_URL: http://127.0.0.1:5173
+          VISUAL_TEST_TENANT: local-a
+      - name: Validate the visual library and indexes
+        run: npm run visual:check
+      - name: Store current real UI captures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sistema-oficinas-map-001-captures
+          path: ${{ runner.temp }}/map-001-captures
+          if-no-files-found: warn
+          retention-days: 14
       - name: Verify four-porte catalog, rollback and import RLS on disposable PostgreSQL 17
         run: node scripts/ci-catalog-import-setup.mjs
         env:

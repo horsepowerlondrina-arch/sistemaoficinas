@@ -16,7 +16,7 @@
   "functions": {
     "api/index.ts": {
       "maxDuration": 60,
-      "includeFiles": "server/db/certs/**"
+      "includeFiles": "{server/db/certs/**,docs/mapeamento-visual/catalog.json,docs/mapeamento-visual/capturas/**}"
     }
   },
   "rewrites": [

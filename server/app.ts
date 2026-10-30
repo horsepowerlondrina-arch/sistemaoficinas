@@ -35,7 +35,8 @@ import express from "express";
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import { normalizeVehicleModelLink, serviceModelIdSchema } from "./services/vehicleModelLink.js";
-import { resolve } from "node:path";
+import { resolve, sep } from "node:path";
+import { readFileSync } from "node:fs";
 import type { DB } from "./db/database.js";
 import { defaultWorkshopModules, moduleForApiRequest, workspaceForModules } from "../shared/workshopModules.js";
 import { transaction } from "./db/database.js";
@@ -473,6 +474,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
   app.use("/api", (req, res, next) => {
     if (req.path === "/admin-api" || req.path.startsWith("/admin-api/")) { next(); return; }
     const required = moduleForApiRequest(req.path, req.method);
+    if (required === null && req.path.startsWith("/visual-library/")) { next(); return; }
     if (required === null) { res.status(404).json({ error: "Rota indisponível." }); return; }
     const modules = (res.locals.context as Context).modules || defaultWorkshopModules;
     if (required.some((key) => modules[key] === false)) {
@@ -480,6 +482,53 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
       return;
     }
     next();
+  });
+  app.get("/api/visual-library/catalog", (_req, res) => {
+    if (res.locals.context?.role !== "owner") {
+      res.status(403).json({ error: "Esta área é exclusiva do administrador." });
+      return;
+    }
+    try {
+      const catalog = JSON.parse(
+        readFileSync(resolve("docs/mapeamento-visual/catalog.json"), "utf8"),
+      );
+      res.set("Cache-Control", "private, no-store").json(catalog);
+    } catch {
+      res.status(503).json({ error: "A biblioteca visual está indisponível." });
+    }
+  });
+  app.get("/api/visual-library/images/:id", (req, res) => {
+    if (res.locals.context?.role !== "owner") {
+      res.status(403).json({ error: "Esta área é exclusiva do administrador." });
+      return;
+    }
+    try {
+      const catalog = JSON.parse(
+        readFileSync(resolve("docs/mapeamento-visual/catalog.json"), "utf8"),
+      );
+      const entry = catalog.entries.find(
+        (item: { id: string; status: string; image?: string }) =>
+          item.id === req.params.id && item.status === "capturada" && item.image,
+      );
+      if (!entry || typeof entry.image !== "string") {
+        res.status(404).json({ error: "Imagem não encontrada." });
+        return;
+      }
+      const root = resolve("docs/mapeamento-visual/capturas");
+      const imagePath = resolve(entry.image);
+      if (!imagePath.startsWith(root + sep) || !imagePath.toLowerCase().endsWith(".png")) {
+        res.status(404).json({ error: "Imagem não encontrada." });
+        return;
+      }
+      res.set({
+        "Cache-Control": "private, no-store",
+        "X-Robots-Tag": "noindex, nofollow",
+        "Content-Disposition": "inline",
+      });
+      res.type("png").send(readFileSync(imagePath));
+    } catch {
+      res.status(503).json({ error: "A biblioteca visual está indisponível." });
+    }
   });
   // Complete workshop transfers are available only through the separately authenticated central-admin API.
   app.get("/api/workspace", async (_req, res) => {

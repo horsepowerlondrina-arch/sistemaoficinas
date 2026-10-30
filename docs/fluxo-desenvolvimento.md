@@ -11,3 +11,12 @@
 9. Registre commits, verificações, migrações e validação de homologação.
 
 O serviço PostgreSQL do workflow é isolado por execução e descartado pelo GitHub Actions. O workflow aplica as migrações e cria as duas oficinas fictícias exigidas pelas integrações; as credenciais randômicas do seed ficam somente no workspace efêmero do runner e nunca são impressas. Não armazena credenciais em arquivos versionados nem exige arquivos `.env` do computador. O preparo recusa execução fora do GitHub Actions, fora de loopback ou sobre banco/roles preexistentes. O job não configura produção, homologação, Vercel ou Supabase.
+
+## Alterações de interface e referência visual
+
+- Antes de mudar uma interface, consulte docs/mapeamento-visual/README.md, INDEX.md e CHECKLIST.md.
+- Atualize capturas apenas para o módulo afetado (npm run visual:capture -- --module <id>) ou para os módulos detectados pelos arquivos alterados (npm run visual:capture -- --affected); evite refazer o acervo inteiro sem necessidade.
+- A automação autentica somente com os usuários fictícios criados pelo seed local de teste e recusa alvos fora de loopback. Em CI, o PostgreSQL 17 do job é descartável; não usa Supabase ou Vercel.
+- Inclua imagens reais geradas, metadados e índices no mesmo PR da interface. Depois rode npm run visual:index e npm run visual:check. O workflow captura as telas atuais em artefato temporário e testa navegação, pesquisa, filtros, imagem protegida, zoom, navegação entre imagens e layout mobile; ele não faz commit automático e não cria loops de CI.
+- A galeria do produto fica em /biblioteca-visual, protegida pela sessão da oficina e pelo perfil administrador. Imagens não são servidas de public/.
+- Registre no relatório final se o mapeamento foi atualizado, os módulos, imagens criadas/substituídas, capturas ainda pendentes e resultado dos testes visuais.
