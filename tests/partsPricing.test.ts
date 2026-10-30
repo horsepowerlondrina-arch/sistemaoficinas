@@ -1,4 +1,4 @@
-import { catalogSalePrice } from "../shared/pricing";
+import { catalogSalePrice, thirdPartySalePrice } from "../shared/pricing";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -257,6 +257,13 @@ test("cadastro calcula venda por faixa com frete e custo de terceiros por percen
     partsPricingSchema.safeParse({ service_markup_bps: 100001 }).success,
     false,
   );
+});
+
+test("serviço próprio calcula preço a partir do custo e do acréscimo da oficina", () => {
+  assert.equal(thirdPartySalePrice(10000, 3000), 13000);
+  assert.equal(thirdPartySalePrice(12345, 2750), 15740);
+  assert.equal(thirdPartySalePrice(10000, 0), 10000);
+  assert.throws(() => thirdPartySalePrice(100000000, 3000));
 });
 
 test("percentual de terceiros persiste por oficina e mantém compatibilidade com tabelas antigas", async () => {

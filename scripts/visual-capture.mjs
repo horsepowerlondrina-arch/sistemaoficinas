@@ -2,7 +2,7 @@ import { spawn, execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
-import { chromium } from "@playwright/test";
+import { chromium, expect } from "@playwright/test";
 
 const root = process.cwd();
 const catalogPath = resolve(root, "docs/mapeamento-visual/catalog.json");
@@ -78,6 +78,17 @@ try {
     const status = await page.goto(new URL(entry.route, baseUrl).toString(), { waitUntil: "domcontentloaded", timeout: 30000 });
     if (!status?.ok()) throw new Error(`A tela ${entry.id} respondeu HTTP ${status?.status() || "sem resposta"}.`);
     await page.getByRole("main").first().waitFor({ state: "visible", timeout: 15000 }).catch(() => {});
+    if (entry.id === "servicos-oficina-desktop") {
+      await page.getByRole("button", { name: "Novo serviço" }).click();
+      const cost = page.getByRole("spinbutton", { name: "Custo do serviço/terceiros (R$)" });
+      const price = page.getByRole("spinbutton", { name: "Preço de venda (R$)" });
+      await cost.fill("100");
+      await cost.press("Enter");
+      await expect(price).toHaveValue("130");
+      await price.fill("145");
+      await expect(price).toHaveValue("145");
+      await page.getByRole("button", { name: "Cancelar" }).click();
+    }
     if (entry.route.includes("aba=tempos")) {
       await page.getByRole("tab", { name: "Catálogo de Tempos" }).waitFor({ state: "visible", timeout: 15000 });
       await page.getByText("Verificando acesso ao Catálogo de Tempos…").waitFor({ state: "hidden", timeout: 15000 });

@@ -34,9 +34,9 @@ export function catalogSalePrice(
 ) {
   return kind === "product"
     ? salePrice(cost + freight, policy)
-    : validPrice(
-        Math.round(
-          (cost * (10000 + (policy.service_markup_bps ?? 3000))) / 10000,
-        ),
-      );
+    : thirdPartySalePrice(cost, policy.service_markup_bps ?? 3000);
+}
+
+export function thirdPartySalePrice(cost: number, markupBps: number) {
+  return validPrice(Math.round((cost * (10000 + markupBps)) / 10000));
 }
