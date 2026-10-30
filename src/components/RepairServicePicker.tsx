@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
+import { Pencil, Plus, Tags } from "lucide-react";
 import { Link } from "react-router-dom";
 import { api, send } from "../lib/api";
 import { money, type Entity } from "../lib/types";
@@ -271,6 +272,7 @@ export function WorkshopServices() {
   const [editing, setEditing] = useState<Entity | null | undefined>(undefined);
   const [manageCategories, setManageCategories] = useState(false);
   const [error, setError] = useState("");
+  const [categoryError, setCategoryError] = useState("");
   const [revision, setRevision] = useState(0);
   const [loading, setLoading] = useState(false);
   useEffect(() => {
@@ -288,28 +290,41 @@ export function WorkshopServices() {
   }, [query, categoryFilter, status, revision]);
   useEffect(() => {
     let active = true;
+    setCategoryError("");
     api<{ items: Entity[] }>("/workshop-service-categories?status=all")
       .then((result) => active && setCategories(result.items))
-      .catch((e) => active && setError(e.message));
+      .catch((e) => active && setCategoryError(e.message));
     return () => { active = false; };
   }, [revision]);
   const refresh = () => setRevision((value) => value + 1);
   const addCategory = (category: Entity) => setCategories((current) => [category, ...current.filter((row) => row.id !== category.id)]);
+  const hasFilters = Boolean(query.trim() || categoryFilter || status !== "active");
   return <>
-    <PageHeading title="Serviços Próprios" eyebrow="CADASTROS" description="Cadastre os serviços particulares desta oficina, separados do Catálogo Técnico." />
-    <section className="panel work-order-section">
-      <div className="capture-actions workshop-services-filter-row">
-        <Field label="Pesquisar serviços"><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Descrição, referência ou categoria" /></Field>
+    <PageHeading title="Serviços Próprios" description="Gerencie os serviços particulares da oficina." actions={
+      <button type="button" className="button primary" onClick={() => setEditing(null)}><Plus size={16} aria-hidden="true" /> Novo serviço</button>
+    } />
+    <section className="panel workshop-services-panel" aria-label="Serviços próprios">
+      <div className="workshop-services-search">
+        <Field label="Pesquisar serviços"><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Pesquisar por descrição ou referência..." /></Field>
+      </div>
+      <div className="workshop-services-filters">
         <Field label="Categoria"><select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}><option value="">Todas as categorias</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}{!category.active ? " (inativa)" : ""}</option>)}</select></Field>
         <Field label="Situação"><select value={status} onChange={(e) => setStatus(e.target.value as typeof status)}><option value="active">Ativos</option><option value="inactive">Inativos</option><option value="all">Todos</option></select></Field>
-        <button type="button" className="button" onClick={() => setManageCategories(true)}>Categorias</button>
-        <button type="button" className="button primary" onClick={() => setEditing(null)}>Novo serviço próprio</button>
+        <button type="button" className="button" onClick={() => setManageCategories(true)}><Tags size={16} aria-hidden="true" /> Categorias</button>
       </div>
-      {error && <p className="form-error" role="alert">{error}</p>}
-      {loading ? <p role="status">Buscando serviços…</p> : rows.length ? <div className="repair-results">{rows.map((row) => <div className="repair-result" key={row.id}>
-        <div><strong>{row.name}</strong><small>Referência: {row.reference || "—"} · Categoria: {row.category_name || "Sem categoria"}</small><small>Venda: {money(Number(row.price || 0))} · {row.active ? "Ativo" : "Inativo"}</small></div>
-        <div className="capture-actions"><button type="button" className="text-button" onClick={() => setEditing(row)}>Editar</button><button type="button" className="text-button" onClick={async () => { try { await send(`/workshop-services/${row.id}/status`, { active: !row.active }, "PATCH"); refresh(); } catch (e) { setError((e as Error).message); } }}>{row.active ? "Inativar" : "Reativar"}</button></div>
-      </div>)}</div> : <p>Nenhum serviço encontrado.</p>}
+      {categoryError && <p className="form-error" role="alert">Não foi possível carregar as categorias: {categoryError}</p>}
+      <div className="workshop-services-list-section">
+        <h2>Serviços cadastrados</h2>
+        {error && <p className="form-error" role="alert">Não foi possível carregar os serviços: {error}</p>}
+        {loading ? <p role="status">Buscando serviços…</p> : error ? null : rows.length ? <div className="workshop-services-list">{rows.map((row) => <div className="workshop-services-item" key={row.id}>
+          <div className="workshop-services-item-details"><strong>{row.name}</strong><small>Referência: {row.reference || "—"} · Categoria: {row.category_name || "Sem categoria"}</small></div>
+          <strong className="workshop-services-price">{money(Number(row.price || 0))}</strong>
+          <div className="workshop-services-item-actions">
+            <button type="button" className="text-button" onClick={() => setEditing(row)}><Pencil size={15} aria-hidden="true" /> Editar</button>
+            <button type="button" className="text-button" onClick={async () => { try { await send(`/workshop-services/${row.id}/status`, { active: !row.active }, "PATCH"); refresh(); } catch (e) { setError((e as Error).message); } }}>{row.active ? "Inativar" : "Reativar"}</button>
+          </div>
+        </div>)}</div> : <p className="workshop-services-empty">{hasFilters ? "Nenhum serviço corresponde à pesquisa ou aos filtros." : "Nenhum serviço ativo cadastrado."}</p>}
+      </div>
     </section>
     {editing !== undefined && <WorkshopServiceManagerForm initial={editing || undefined} categories={categories} onClose={() => setEditing(undefined)} onCategoryCreated={addCategory} onSaved={() => { setEditing(undefined); refresh(); }} />}
     {manageCategories && <WorkshopServiceCategories categories={categories} onClose={() => setManageCategories(false)} onChanged={refresh} />}
