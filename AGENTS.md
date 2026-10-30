@@ -62,6 +62,15 @@ Para CAT-008 ou outras cargas grandes, não dependa do computador do usuário, d
 
 Não faça importação real como parte de testes automatizados.
 
+## Mapeamento visual de interfaces
+
+- A biblioteca visual oficial fica em docs/mapeamento-visual/; consulte README.md, INDEX.md e CHECKLIST.md antes de alterar interfaces.
+- Quando uma tarefa modificar a interface, identifique as interações afetadas e atualize suas capturas no mesmo PR: use npm run visual:capture -- --module <id> ou npm run visual:capture -- --affected. Inclua os PNGs e execute npm run visual:index e npm run visual:check.
+- Use somente sessões e dados fictícios em ambiente local de teste ou no PostgreSQL 17 descartável do GitHub Actions. A automação recusa URLs fora de loopback e não pode gravar no Supabase de homologação ou em produção.
+- Uma tela só está capturada quando o PNG existe e seu estado está como capturada; informe data e commit. Registre motivo nas entradas pendentes ou bloqueadas. Não crie telas ou imagens simuladas para funcionalidades inexistentes.
+- A galeria web usa a sessão autenticada e só pode ser acessada por administradores da oficina. Nunca mova suas imagens para diretórios públicos nem afrouxe autenticação.
+- No relatório final de tarefas de interface, informe: mapeamento atualizado (sim/não), módulos afetados, imagens criadas/substituídas, capturas pendentes e resultado dos testes visuais.
+
 ## Relato de conclusão
 
 Ao encerrar uma tarefa, informe de forma concisa e verificável:

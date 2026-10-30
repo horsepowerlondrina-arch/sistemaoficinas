@@ -490,6 +490,7 @@ test("API autentica, protege oficinas, valida entrada e revoga sessão", async (
   };
   try {
     assert.equal((await request("/workspace")).status, 401);
+    assert.equal((await request("/visual-library/catalog")).status, 401);
     const login = await request("/login", "POST", {
       email: "test@example.com",
       password: "password-test",
@@ -497,6 +498,35 @@ test("API autentica, protege oficinas, valida entrada e revoga sessão", async (
     assert.equal(login.status, 200);
     cookie = login.headers.get("set-cookie")!.split(";")[0];
     assert.match(login.headers.get("set-cookie")!, /HttpOnly/);
+    const visualCatalogResponse = await request("/visual-library/catalog");
+    assert.equal(visualCatalogResponse.status, 200);
+    const visualCatalog = await visualCatalogResponse.json();
+    assert.ok(visualCatalog.entries.some((entry: any) => entry.id === "login-oficina" && entry.status === "capturada"));
+    const visualImage = await request("/visual-library/images/login-oficina");
+    assert.equal(visualImage.status, 200, await visualImage.clone().text());
+    assert.equal(visualImage.headers.get("content-type"), "image/png");
+    assert.match(visualImage.headers.get("cache-control") || "", /private.*no-store/);
+    assert.equal(visualImage.headers.get("x-robots-tag"), "noindex, nofollow");
+    assert.equal(Buffer.from(await visualImage.arrayBuffer()).subarray(0, 8).toString("hex"), "89504e470d0a1a0a");
+    assert.equal((await request("/visual-library/images/../../server/app.ts")).status, 404);
+    db.prepare("INSERT INTO users(id,name,email,password_hash) VALUES(?,?,?,?)").run(
+      "mechanic", "Mecânico Fictício", "mechanic@example.test", hashPassword("password-test"),
+    );
+    db.prepare("INSERT INTO memberships VALUES(?,?,?)").run("mechanic", "a", "operator");
+    const mechanicLogin = await request("/login", "POST", {
+      email: "mechanic@example.test",
+      password: "password-test",
+    });
+    assert.equal(mechanicLogin.status, 200);
+    cookie = mechanicLogin.headers.get("set-cookie")!.split(";")[0];
+    assert.equal((await request("/visual-library/catalog")).status, 403);
+    assert.equal((await request("/visual-library/images/login-oficina")).status, 403);
+    const ownerRelogin = await request("/login", "POST", {
+      email: "test@example.com",
+      password: "password-test",
+    });
+    assert.equal(ownerRelogin.status, 200);
+    cookie = ownerRelogin.headers.get("set-cookie")!.split(";")[0];
     const workspace = await (await request("/workspace")).json();
     assert.deepEqual(
       workspace.customers.map((c: any) => c.id),
