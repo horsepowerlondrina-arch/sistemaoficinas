@@ -5,7 +5,7 @@ import {adminClient} from "../scripts/local-admin.js";
 test("PostgreSQL ADM-002: membership isolation, owner protection, lifecycle and audit",async()=>{
  const c=adminClient(),t=randomUUID(),other=randomUUID(),pending=randomUUID(),owner=randomUUID(),operator=randomUUID(),outsider=randomUUID(),admin=randomBytes(16).toString("hex"),session=randomBytes(32).toString("hex");
  await c.connect();try{await c.query("BEGIN");
- const rejects=async(sql,params,code)=>{await c.query("SAVEPOINT adm_expected_error");try{await assert.rejects(c.query(sql,params),{code});}finally{await c.query("ROLLBACK TO SAVEPOINT adm_expected_error");await c.query("RELEASE SAVEPOINT adm_expected_error");}};
+ const rejects=async(sql:string,params:(string|number|Date|null)[],code:string)=>{await c.query("SAVEPOINT adm_expected_error");try{await assert.rejects(c.query(sql,params),{code});}finally{await c.query("ROLLBACK TO SAVEPOINT adm_expected_error");await c.query("RELEASE SAVEPOINT adm_expected_error");}};
  await c.query("INSERT INTO horse_power.tenants(id,name) VALUES($1,$2),($3,$4),($5,$6)",[t,"Oficina Fictícia ADM002",other,"Oficina Fictícia Isolada",pending,"Oficina Pendente Fictícia"]);
  await c.query("INSERT INTO horse_power.users(id,name,email,password_hash) VALUES($1,'Dono Fictício',$2,'fixture'),($3,'Operador Fictício',$4,'fixture'),($5,'Outro Usuário',$6,'fixture')",[owner,"o-"+owner+"@example.test",operator,"u-"+operator+"@example.test",outsider,"x-"+outsider+"@example.test"]);
  await c.query("INSERT INTO horse_power.memberships(user_id,tenant_id,role) VALUES($1,$2,'owner'),($3,$2,'operator'),($4,$5,'owner')",[owner,t,operator,outsider,other]);
