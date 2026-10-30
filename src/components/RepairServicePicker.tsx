@@ -4,7 +4,7 @@ import { Pencil, Plus, Tags } from "lucide-react";
 import { Link } from "react-router-dom";
 import { api, send } from "../lib/api";
 import { money, type Entity } from "../lib/types";
-import { Field, Modal, PageHeading } from "./ui";
+import { Field, Modal, PageHeading, useInsideModal } from "./ui";
 import { NumericInput } from "./NumericInput";
 import { thirdPartySalePrice } from "../../shared/pricing";
 import { shouldLoadRepairServiceSearch, shouldShowVehicleCatalog, shouldShowWorkshopServices } from "../../shared/repairCatalogVisibility";
@@ -300,6 +300,7 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
   vehicleOnly?: boolean;
   autoIdentify?: boolean;
 }) {
+  const insideModal = useInsideModal();
   const [info, setInfo] = useState<Info | null>(null), [error, setError] = useState("");
   const [linkStatus, setLinkStatus] = useState<"linked"|"matched"|"needs_confirmation"|"not_identified"|"unavailable"|"mismatch">(modelId ? "linked" : "not_identified");
   const autoMatchTried = useRef("");
@@ -336,7 +337,7 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
     return () => document.removeEventListener("pointerdown", closeIfOutside);
   }, []);
   useEffect(() => {
-    if (!openKind) { setDropdownPosition(null); return; }
+    if (!openKind || insideModal) { setDropdownPosition(null); return; }
     const update = () => {
       const anchor = openKind === "brand" ? brandInputRef.current : openKind === "vehicle" ? modelInputRef.current : serviceInputRef.current;
       if (!anchor) return;
@@ -350,7 +351,7 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
     window.addEventListener("resize", update);
     window.addEventListener("scroll", update, true);
     return () => { window.removeEventListener("resize", update); window.removeEventListener("scroll", update, true); };
-  }, [openKind]);
+  }, [openKind, insideModal]);
   const [editing, setEditing] = useState<Entity | null | undefined>(), [selected, setSelected] = useState<Entity | null>(null),
     [execution, setExecution] = useState("internal"), [cost, setCost] = useState(0), [minutes, setMinutes] = useState(0),
     [price, setPrice] = useState(0), [inputMode, setInputMode] = useState("time"), [adding, setAdding] = useState(false);
@@ -615,9 +616,11 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
     else if (event.key === "Enter" && serviceOpen) { event.preventDefault(); const exact = rows.filter((x) => normalizeCatalogValue(String(x.name)) === normalizeCatalogValue(search)); const row = rows[serviceActiveIndex] || (exact.length === 1 ? exact[0] : null); if (row && !adding && !loading) choose(row); }
     else if (event.key === "Escape") setServiceOpen(false);
   }
-  const dropdownContent = openKind && info?.enabled && dropdownPosition && typeof document !== "undefined" ? createPortal(
-    <div ref={dropdownRef} className="catalog-dropdown" style={{ position: "fixed", left: dropdownPosition.left, top: dropdownPosition.top, width: dropdownPosition.width, zIndex: 9999 }}>
-      {openKind === "brand" && <div className="catalog-dropdown-list" style={{ maxHeight: dropdownPosition.maxHeight }}>
+  // Modal options must stay inside Dialog.Content's focus and pointer boundary.
+  const dropdownMaxHeight = insideModal ? 240 : dropdownPosition?.maxHeight;
+  const dropdownContent = openKind && info?.enabled && (insideModal || dropdownPosition) ? (
+    <div ref={dropdownRef} className="catalog-dropdown" style={insideModal ? { position: "relative", inset: "auto", width: "100%", marginTop: 4, zIndex: 0 } : { position: "fixed", left: dropdownPosition!.left, top: dropdownPosition!.top, width: dropdownPosition!.width, zIndex: 9999 }}>
+      {openKind === "brand" && <div className="catalog-dropdown-list" style={{ maxHeight: dropdownMaxHeight }}>
         <div id={dropdownId + "-brands"} role="listbox" aria-label="Marcas">
           {brandOptions.map((row, index) => <button id={dropdownId + "-brand-" + index} type="button" role="option" aria-selected={index === brandActiveIndex} className="catalog-dropdown-option" key={row.id} onClick={() => chooseBrand(row)}>
             <strong>{row.name}</strong><small>{Number(row.vehicle_count || 0).toLocaleString("pt-BR")} veículos</small>
@@ -626,7 +629,7 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
         {!brandOptions.length && <p className="catalog-dropdown-empty">Nenhuma marca encontrada.</p>}
         {brandMore && <button type="button" className="catalog-dropdown-more" onClick={() => setBrandOffset((v) => v + 20)}>Mais marcas</button>}
       </div>}
-      {openKind === "vehicle" && <div className="catalog-dropdown-list" aria-busy={modelsLoading} style={{ maxHeight: dropdownPosition.maxHeight }}>
+      {openKind === "vehicle" && <div className="catalog-dropdown-list" aria-busy={modelsLoading} style={{ maxHeight: dropdownMaxHeight }}>
         <div id={dropdownId + "-vehicles"} role="listbox" aria-label="Veículos do catálogo">
           {!modelsLoading && models.map((row, index) => <button id={dropdownId + "-vehicle-" + index} type="button" role="option" aria-selected={index === modelActiveIndex} className="catalog-dropdown-option" key={row.id} onClick={() => chooseModel(row)}>
             <strong>{row.name}</strong><small>{row.porte_name}</small>
@@ -636,7 +639,7 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
         {!modelsLoading && !models.length && <p className="catalog-dropdown-empty">Nenhum veículo encontrado.</p>}
         {!modelsLoading && <button type="button" className="catalog-dropdown-more" disabled={!moreModels} onClick={() => setModelOffset((v) => v + 30)}>{moreModels ? "Mais veículos" : "Fim da lista"}</button>}
       </div>}
-      {openKind === "service" && <div className="catalog-dropdown-list" aria-busy={loading} style={{ maxHeight: dropdownPosition.maxHeight }}>
+      {openKind === "service" && <div className="catalog-dropdown-list" aria-busy={loading} style={{ maxHeight: dropdownMaxHeight }}>
         <div id={dropdownId + "-services"} role="listbox" aria-label="Serviços do veículo">
           {!loading && rows.map((row, index) => <button id={dropdownId + "-service-" + index} type="button" role="option" aria-selected={index === serviceActiveIndex} className="catalog-dropdown-option" key={row.service_id || row.id} onClick={() => choose(row)}>
             <strong>{row.name}</strong><small>{Number(row.minutes) > 0 ? formatCatalogMinutes(row.minutes) + " · " + (rate > 0 ? money(Math.round((Number(row.minutes) * rate) / 60)) : "Configure a tarifa do porte") : "Tempo técnico não cadastrado"}</small>
@@ -649,8 +652,7 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
           <button type="button" disabled={!more || loading} onClick={() => setOffset((v) => v + 50)}>Mais serviços</button>
         </div>}
       </div>}
-    </div>,
-    document.body,
+    </div>
   ) : null;
   return (
     <>
@@ -683,6 +685,7 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
             </div>
           </Field>}
         </div>
+        {insideModal && dropdownContent}
         {(vehicleOnly || linkStatus === "needs_confirmation" || linkStatus === "mismatch") && <p className="muted" role="status">{linkStatus === "linked" || linkStatus === "matched" ? "Vinculado ao Catálogo Técnico." : linkStatus === "needs_confirmation" ? "Aguardando confirmação: escolha a versão correta." : linkStatus === "mismatch" ? "O vínculo diverge dos dados atuais. Revise e confirme novamente o modelo antes de incluir serviços." : "Não identificado no Catálogo Técnico."}</p>}
         {brandLocked && <p className="muted catalog-lock-note">A marca está vinculada ao veículo. Para corrigi-la, atualize o cadastro do veículo.</p>}
         {vehicle && <p className="muted">{[vehicle.brand, vehicle.model, vehicle.year].filter(Boolean).join(" · ")}</p>}
@@ -747,7 +750,7 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
       {!vehicleOnly && editing !== undefined && <WorkshopServiceManagerForm initial={editing || undefined} categories={quickCategories} onClose={() => setEditing(undefined)} onCategoryCreated={(category) => setQuickCategories((current) => [category, ...current])} onSaved={(service) => { setEditing(undefined); setRevision((v) => v + 1); setMode("manual"); void addService(service); }} />}
 
     </section>
-      {dropdownContent}
+      {!insideModal && dropdownContent && typeof document !== "undefined" && createPortal(dropdownContent, document.body)}
     </>
   );
 }

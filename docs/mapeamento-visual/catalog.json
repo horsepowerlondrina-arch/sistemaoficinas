@@ -1753,6 +1753,36 @@
       "commit": "f6e2a4cb13517dc8f57dc1703586ce27268d004c",
       "freshness": "atual",
       "reason": null
+    },
+    {
+      "id": "cad005-review-catalog-desktop",
+      "module": "04-veiculos",
+      "title": "CAD-005 — Associação manual no modal (desktop)",
+      "description": "Clique real na marca e no modelo, gravação e reabertura do vínculo manual sem alterar a identificação FIPE.",
+      "route": "/cadastros?aba=veiculos",
+      "kind": "Edição de veículo",
+      "viewport": "desktop",
+      "status": "capturada",
+      "image": "docs/mapeamento-visual/capturas/04-veiculos/cad005-review-catalog-desktop.png",
+      "updatedAt": "2026-10-30",
+      "commit": "e5a84d7a9bb11a524307051eb7da7c44bfddd12b",
+      "freshness": "atual",
+      "reason": null
+    },
+    {
+      "id": "cad005-review-catalog-mobile",
+      "module": "04-veiculos",
+      "title": "CAD-005 — Associação manual no modal (mobile)",
+      "description": "Clique real na marca e no modelo, gravação e reabertura do vínculo manual sem alterar a identificação FIPE.",
+      "route": "/cadastros?aba=veiculos",
+      "kind": "Edição de veículo",
+      "viewport": "mobile",
+      "status": "capturada",
+      "image": "docs/mapeamento-visual/capturas/04-veiculos/cad005-review-catalog-mobile.png",
+      "updatedAt": "2026-10-30",
+      "commit": "e5a84d7a9bb11a524307051eb7da7c44bfddd12b",
+      "freshness": "atual",
+      "reason": null
     }
   ],
   "flows": [
