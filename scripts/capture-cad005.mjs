@@ -46,6 +46,9 @@ export async function captureCad005(page, entry) {
     await expect(scope.getByRole("combobox", { name: /^Veículo/ })).toHaveValue("Modelo Fictício");
     await scope.getByRole("button", { name: "Abrir marcas", exact: true }).click();
     await expect(page.getByRole("option", { name: /Marca Fictícia/ })).toBeVisible();
+    await scope.evaluate(element => { element.scrollTop = element.scrollHeight; });
+    await expect(page.getByText("Cadastro salvo com sucesso.", { exact: true })).toHaveCount(0, { timeout: 10000 });
+    await expect(page.getByRole("option", { name: /Marca Fictícia/ })).toBeInViewport();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBeTruthy();
     return;
   }

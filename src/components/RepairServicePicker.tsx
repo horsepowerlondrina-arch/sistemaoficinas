@@ -619,7 +619,7 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
   // Modal options must stay inside Dialog.Content's focus and pointer boundary.
   const dropdownMaxHeight = insideModal ? 240 : dropdownPosition?.maxHeight;
   const dropdownContent = openKind && info?.enabled && (insideModal || dropdownPosition) ? (
-    <div ref={dropdownRef} className="catalog-dropdown" style={insideModal ? { position: "relative", inset: "auto", width: "100%", marginTop: 4 } : { position: "fixed", left: dropdownPosition!.left, top: dropdownPosition!.top, width: dropdownPosition!.width, zIndex: 9999 }}>
+    <div ref={dropdownRef} className="catalog-dropdown" style={insideModal ? { position: "relative", inset: "auto", width: "100%", marginTop: 4, zIndex: 0 } : { position: "fixed", left: dropdownPosition!.left, top: dropdownPosition!.top, width: dropdownPosition!.width, zIndex: 9999 }}>
       {openKind === "brand" && <div className="catalog-dropdown-list" style={{ maxHeight: dropdownMaxHeight }}>
         <div id={dropdownId + "-brands"} role="listbox" aria-label="Marcas">
           {brandOptions.map((row, index) => <button id={dropdownId + "-brand-" + index} type="button" role="option" aria-selected={index === brandActiveIndex} className="catalog-dropdown-option" key={row.id} onClick={() => chooseBrand(row)}>
