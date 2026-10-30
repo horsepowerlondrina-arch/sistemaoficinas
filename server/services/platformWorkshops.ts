@@ -16,27 +16,23 @@ export const workshopRegistrationSchema = z.object({
     context.addIssue({ code: "custom", path: ["document"], message: "CPF ou CNPJ inválido." });
 });
 
-export const manualWorkshopStatuses = ["read_only", "blocked", "archived"] as const;
+export const manualWorkshopStatuses = ["trial", "active", "read_only", "blocked", "archived"] as const;
 export const workshopStatusChangeSchema = z.object({
   status: z.enum(manualWorkshopStatuses),
+  trial_days: z.number().int().min(1).max(90).nullable().optional(),
   reason: z.string().trim().min(10).max(500),
-}).strict();
+}).strict().superRefine((value, context) => {
+  if (value.status !== "trial" && value.trial_days != null)
+    context.addIssue({ code: "custom", path: ["trial_days"], message: "O período só pode acompanhar a concessão de teste." });
+});
 
-const allowedManualTransitions: Record<Exclude<WorkshopStatus, "legacy">, readonly WorkshopStatus[]> = {
-  pending_verification: ["blocked", "archived"],
-  trial: ["read_only", "blocked", "archived"],
-  active: ["read_only", "blocked", "archived"],
-  grace_period: ["read_only", "blocked", "archived"],
-  read_only: ["blocked", "archived"],
-  blocked: ["read_only", "archived"],
-  archived: [],
-};
-
-/** Billing states can only be entered by their future verified/billing workflows. */
+/** Billing remains external; only verified workshops can be reactivated administratively. */
 export function canManuallyTransitionWorkshop(from: WorkshopStatus, to: WorkshopStatus) {
-  if (from === "legacy" || to === "legacy" || to === "trial" || to === "active" || to === "grace_period" || to === "pending_verification")
-    return false;
-  return allowedManualTransitions[from].includes(to);
+  if (from === "legacy" || to === "legacy" || to === "pending_verification" || to === "grace_period") return false;
+  if (to === "archived" || to === "blocked") return from !== "archived";
+  if (to === "read_only") return ["trial", "active", "grace_period", "blocked"].includes(from);
+  if (to === "active" || to === "trial") return ["trial", "read_only", "blocked"].includes(from);
+  return false;
 }
 
 export function effectiveWorkshopStatus(status: WorkshopStatus, trialEndsAt: string | Date | null, now = Date.now()): WorkshopStatus {

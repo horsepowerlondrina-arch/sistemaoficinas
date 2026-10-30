@@ -10,7 +10,7 @@ import {
 import { hashPassword } from "./auth/session.js";
 import { isTestAdminPasswordOnlyLoginAllowed } from "./platformAdminMfa.js";
 import { catalogHomologationProjectId } from "./catalogHomologation.js";
-import { workshopRegistrationSchema, workshopStatusChangeSchema, canManuallyTransitionWorkshop, effectiveWorkshopStatus, workshopStatuses } from "./services/platformWorkshops.js";
+import { workshopRegistrationSchema, workshopStatusChangeSchema, workshopStatuses } from "./services/platformWorkshops.js";
 import { newWorkshopActivationId, newWorkshopActivationToken, sendWorkshopActivationEmail, workshopActivationTtlHours, workshopActivationUrl } from "./services/workshopActivation.js";
 import { createPlatformAdminDataTransferRoutes } from "./platformAdminDataTransferRoutes.js";
 import type { PlatformAdminDataTransfer } from "./services/platformAdminDataTransfer.js";
@@ -451,6 +451,32 @@ export function createPlatformAdminApp(pool: Pool, encryptionKey: string, transf
       : undefined;
     res.json({ ...rows.rows[0], ...(catalogAccess ? { catalog_access:catalogAccess } : {}), ...(invitations.get(tenantId) || { invitation_status:"none", invitation_expires_at:null, invitation_sent_at:null }) });
   });
+  app.get("/admin-api/workshops/:id/users", requireSession, requirePermission("workshops:read"), async (req,res) => {
+    const token=cookieValue(req); if(!token){res.status(401).json({error:"Entre no painel central."});return;}
+    try{
+      const result=await pool.query("SELECT * FROM platform_admin.workshop_member_directory($1,$2)",[String(req.params.id),digestAdminToken(token)]);
+      res.json({items:result.rows});
+    }catch(error){const code=(error as {code?:string}).code;if(code==="P0002"){res.status(404).json({error:"Oficina não encontrada."});return;}if(code==="42501"){res.status(403).json({error:"Permissão administrativa insuficiente."});return;}throw error;}
+  });
+  app.patch("/admin-api/workshops/:id/users/:userId", requireSession, requirePermission("workshops:manage"), async (req,res) => {
+    const input=z.object({action:z.enum(["set_role","remove"]),role:z.enum(["owner","operator"]).nullable(),reason:z.string().trim().min(10).max(500)}).strict().safeParse(req.body);
+    if(!input.success||(input.success&&input.data.action==="set_role"&&!input.data.role)||(input.success&&input.data.action==="remove"&&input.data.role!==null)){res.status(400).json({error:"Informe a operação e uma justificativa válida."});return;}
+    const token=cookieValue(req);if(!token){res.status(401).json({error:"Entre no painel central."});return;}
+    const tenantId=String(req.params.id),client=await pool.connect();
+    try{
+      await client.query("BEGIN");
+      const result=await client.query("SELECT platform_admin.manage_workshop_membership($1,$2,$3,$4,$5,$6) AS change",
+        [tenantId,digestAdminToken(token),String(req.params.userId),input.data.action,input.data.role,input.data.reason]);
+      const detail=result.rows[0]?.change||{};
+      await client.query("COMMIT");res.json({ok:true,...detail});
+    }catch(error){
+      await client.query("ROLLBACK").catch(()=>{});const code=(error as {code?:string}).code;
+      if(code==="P0002"){res.status(404).json({error:"Vínculo da oficina não encontrado."});return;}
+      if(code==="42501"){res.status(403).json({error:"Permissão administrativa insuficiente."});return;}
+      if(code==="23514"){res.status(409).json({error:"A operação manteria a oficina sem proprietário."});return;}
+      if(code==="22023"){res.status(400).json({error:"Operação ou justificativa inválida."});return;}throw error;
+    }finally{client.release();}
+  });
   app.get("/admin-api/workshops/:id/entitlements", requireSession, requirePermission("workshops:read"), async (req,res) => {
     try {
       const result = await pool.query("SELECT platform_admin.workshop_entitlement_status($1) AS entitlements", [String(req.params.id)]);
@@ -607,23 +633,26 @@ export function createPlatformAdminApp(pool: Pool, encryptionKey: string, transf
   });
   app.patch("/admin-api/workshops/:id/status", requireSession, requirePermission("workshops:manage"), async (req, res) => {
     const input = workshopStatusChangeSchema.safeParse(req.body);
-    if (!input.success) { res.status(400).json({ error:"Informe uma situação manual permitida e uma justificativa." }); return; }
-    const actor = res.locals.admin as AdminContext, tenantId = String(req.params.id), client = await pool.connect();
-    try {
+    if (!input.success) { res.status(400).json({ error:"Informe uma situação permitida, o prazo de teste quando aplicável e uma justificativa." }); return; }
+    const tenantId=String(req.params.id),token=cookieValue(req);
+    if(!token){res.status(401).json({error:"Entre no painel central."});return;}
+    const client=await pool.connect();
+    try{
       await client.query("BEGIN");
-      const homologationProjectId = catalogHomologationProjectId(req.hostname);
-      await client.query("SELECT set_config('app.vercel_project_id',$1,true),set_config('app.vercel_env',$2,true)",
-        [homologationProjectId || "", homologationProjectId ? process.env.VERCEL_ENV || "" : ""]);
-      const current = await client.query("SELECT status,trial_ends_at FROM platform_admin.workshops WHERE tenant_id=$1 FOR UPDATE",[tenantId]);
-      if (!current.rowCount) { await client.query("ROLLBACK"); res.status(404).json({ error:"Oficina gerenciada não encontrada." }); return; }
-      const from = effectiveWorkshopStatus(current.rows[0].status,current.rows[0].trial_ends_at);
-      if (!canManuallyTransitionWorkshop(from,input.data.status)) { await client.query("ROLLBACK"); res.status(409).json({ error:"Transição indisponível. Teste, assinatura e tolerância dependem de confirmação ou cobrança." }); return; }
-      const changed = await client.query("SELECT platform_admin.set_workshop_status_admin($1,$2,$3,$4) AS previous_status",[tenantId,input.data.status,input.data.reason,actor.id]);
-      await writeAdminAudit(client,{actorId:actor.id,actorEmail:actor.email,subjectTenantId:tenantId,action:"admin.workshop.status_changed",result:"success",technical:{from:changed.rows[0].previous_status,to:input.data.status,reason:input.data.reason}});
+      const result=await client.query("SELECT platform_admin.manage_workshop_lifecycle($1,$2,$3,$4,$5) AS change",
+        [tenantId,digestAdminToken(token),input.data.status,input.data.trial_days??null,input.data.reason]);
+      const detail=result.rows[0]?.change||{};
       await client.query("COMMIT");
-    } catch(error) { await client.query("ROLLBACK").catch(()=>{}); throw error; }
-    finally { client.release(); }
-    res.json({ok:true});
+      res.json({ok:true,...detail});
+    }catch(error){
+      await client.query("ROLLBACK").catch(()=>{});
+      const code=(error as {code?:string}).code;
+      if(code==="P0002"){res.status(404).json({error:"Oficina gerenciada não encontrada."});return;}
+      if(code==="42501"){res.status(403).json({error:"Permissão administrativa insuficiente."});return;}
+      if(code==="23514"){res.status(409).json({error:"Transição indisponível para a situação atual."});return;}
+      if(code==="22023"){res.status(400).json({error:"Período de teste ou justificativa inválidos."});return;}
+      throw error;
+    }finally{client.release();}
   });
   app.get("/admin-api/audit", requireSession, requirePermission("audit:read"), async (req, res) => {
     const limit = Math.max(1, Math.min(200, Number(req.query.limit) || 100));

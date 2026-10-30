@@ -1,0 +1,15 @@
+import { useCallback,useEffect,useState } from "react";
+type Member={user_id:string;name:string;email:string;role:"owner"|"operator"};
+async function request<T>(path:string,method="GET",body?:unknown):Promise<T>{
+ const response=await fetch(`/admin-api${path}`,{method,credentials:"same-origin",...(body===undefined?{}:{headers:{"Content-Type":"application/json"},body:JSON.stringify(body)})});
+ const value=await response.json().catch(()=>({}));if(!response.ok)throw new Error(value.error||"Não foi possível concluir a operação.");return value as T;
+}
+export function PlatformWorkshopUsers({tenantId,primaryOwnerEmail}:{tenantId:string;primaryOwnerEmail:string}){
+ const [items,setItems]=useState<Member[]>([]),[reason,setReason]=useState(""),[busy,setBusy]=useState(false),[loading,setLoading]=useState(true),[error,setError]=useState(""),[message,setMessage]=useState("");
+ const load=useCallback(async()=>{setLoading(true);setError("");try{setItems((await request<{items:Member[]}>(`/workshops/${encodeURIComponent(tenantId)}/users`)).items);}catch(e){setError((e as Error).message);}finally{setLoading(false);}},[tenantId]);
+ useEffect(()=>{void load();},[load]);
+ const change=async(m:Member,action:"set_role"|"remove",role:"owner"|"operator"|null)=>{if(reason.trim().length<10){setError("Informe uma justificativa com pelo menos 10 caracteres.");return;}if(action==="remove"&&!window.confirm(`Remover o acesso de ${m.name} somente desta oficina?`))return;setBusy(true);setError("");setMessage("");try{await request(`/workshops/${encodeURIComponent(tenantId)}/users/${encodeURIComponent(m.user_id)}`,"PATCH",{action,role,reason});setReason("");setMessage("Acesso atualizado e registrado na auditoria.");await load();}catch(e){setError((e as Error).message);}finally{setBusy(false);}};
+ return <section className="pa-workshop-state-form" aria-labelledby="workshop-users-title"><h3 id="workshop-users-title">Proprietários e usuários da oficina</h3><p>Os vínculos são limitados à oficina selecionada. A conta não é apagada; o último proprietário não pode perder o acesso.</p>
+ {error&&<p role="alert">{error}</p>}{message&&<p role="status">{message}</p>}<label>Justificativa para a próxima alteração<textarea minLength={10} maxLength={500} value={reason} onChange={e=>setReason(e.target.value)}/></label>
+ <div className="pa-audit-list">{items.map(m=><article className="pa-audit-event" key={m.user_id}><div><strong>{m.name} · {m.email.toLowerCase()===primaryOwnerEmail.toLowerCase()?"Proprietário principal":m.role==="owner"?"Proprietário":"Operador"}</strong><small>{m.email}</small><div className="pa-workshop-actions"><button type="button" className="pa-quiet" disabled={busy||reason.trim().length<10} onClick={()=>void change(m,"set_role",m.role==="owner"?"operator":"owner")}>{m.role==="owner"?"Tornar operador":"Tornar proprietário"}</button><button type="button" className="pa-quiet" disabled={busy||reason.trim().length<10} onClick={()=>void change(m,"remove",null)}>Remover desta oficina</button></div></div></article>)}{!loading&&items.length===0&&<p>Nenhum usuário vinculado à oficina.</p>}{loading&&<p>Carregando usuários…</p>}</div></section>;
+}

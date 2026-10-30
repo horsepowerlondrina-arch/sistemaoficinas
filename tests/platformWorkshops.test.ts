@@ -11,12 +11,14 @@ test("central workshop registration validates fictitious optional tax identifier
   assert.equal(workshopRegistrationSchema.safeParse({ ...base, tenant_id: "tenant-browser" }).success, false);
 });
 
-test("manual workshop transitions cannot activate trials or legacy tenants", () => {
-  assert.equal(canManuallyTransitionWorkshop("legacy", "blocked"), false);
-  assert.equal(canManuallyTransitionWorkshop("pending_verification", "active"), false);
-  assert.equal(canManuallyTransitionWorkshop("trial", "blocked"), true);
-  assert.equal(canManuallyTransitionWorkshop("blocked", "read_only"), true);
-  assert.equal(canManuallyTransitionWorkshop("archived", "blocked"), false);
+test("administrative lifecycle protects pending activation and allows controlled reactivation",()=>{
+ assert.equal(canManuallyTransitionWorkshop("legacy","blocked"),false);
+ assert.equal(canManuallyTransitionWorkshop("pending_verification","active"),false);
+ assert.equal(canManuallyTransitionWorkshop("trial","blocked"),true);
+ assert.equal(canManuallyTransitionWorkshop("blocked","active"),true);
+ assert.equal(canManuallyTransitionWorkshop("read_only","trial"),true);
+ assert.equal(canManuallyTransitionWorkshop("active","trial"),false);
+ assert.equal(canManuallyTransitionWorkshop("archived","blocked"),false);
 });
 
 test("expired trials become read-only and tenant gates preserve legacy access", () => {
