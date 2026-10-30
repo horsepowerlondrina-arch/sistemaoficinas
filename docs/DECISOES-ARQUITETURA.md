@@ -8,7 +8,7 @@ Este documento consolida as decisões vigentes acordadas para desenvolvimento. U
 2. `horse-power` é repositório histórico. Mudanças novas não são feitas nele sem decisão explícita.
 3. Cada tarefa trabalha em branch própria derivada da versão atualizada de `main`; a integração ocorre por PR.
 4. Somente um Codex implementa no repositório por vez. O planejamento funcional fica nas conversas específicas do ChatGPT; Codex executa o escopo aprovado.
-5. Nenhum commit/PR concede, por si só, autorização para merge, migração remota ou publicação.
+5. A solicitação de implementação do responsável autoriza, dentro do escopo pedido, branch, desenvolvimento, testes, PR, integração após CI obrigatório aprovado e proteções satisfeitas, e publicação automática na homologação. Não se pede autorização rotineira adicional para essas etapas. Migrações/alterações persistentes remotas, operações destrutivas, mudanças sensíveis de credenciais, segredos, autenticação ou permissões, produção e ações fora do escopo exigem autorização específica.
 
 ## Ambientes
 
@@ -34,8 +34,8 @@ Este documento consolida as decisões vigentes acordadas para desenvolvimento. U
 ## Qualidade e liberação
 
 - Antes da integração: revisar diff e segredos, executar `npm run build`, `npm test` e `npm run test:postgres` quando definidos/aplicáveis; resolver falhas ou registrar bloqueio externo.
-- Aprovação do CI é necessária, mas não substitui revisão funcional nem autorização para efeitos remotos.
-- Homologar com dados fictícios. Publicar somente no ambiente explicitamente autorizado e depois das migrações necessárias aprovadas.
+- CI obrigatório deve passar antes da integração. Revisões e aprovações que as proteções de branch ou a plataforma tornem obrigatórias continuam válidas; não podem ser contornadas.
+- A solicitação da tarefa autoriza a publicação automática e a validação na homologação dentro do escopo. Migrações remotas e alterações persistentes exigem autorização específica e devem ser aprovadas antes da aplicação.
 - Produção não pode ser modificada, migrada ou publicada sem autorização explícita para a operação concreta.
 
 ## Planejamento

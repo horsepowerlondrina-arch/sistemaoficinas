@@ -18,11 +18,11 @@ Estas instruções se aplicam a todo o repositório, salvo instruções mais esp
 3. Prefira GitHub, GitHub Actions e as integrações existentes de Vercel e Supabase. O computador do usuário, um checkout local, PostgreSQL local, worktree local ou arquivos `.env.local` não são pré-requisitos para implementar, versionar ou validar uma alteração.
 4. Não solicite nem copie credenciais para o chat, código, commits, artifacts ou logs. Use apenas os mecanismos de autenticação já conectados e peça ao usuário que digite segredos diretamente em um prompt seguro quando isso for indispensável.
 5. Revise o diff completo, caminhos staged, arquivos gerados e conteúdo sensível antes de abrir o PR.
-6. Faça commit e push somente da branch da tarefa. Abra PR para `main`, acompanhe as verificações e corrija falhas reais na mesma branch.
-7. Integre somente quando os controles aplicáveis e a aprovação exigida para a operação estiverem atendidos. Não ignore proteção ou revisão obrigatória.
-8. Quando autorizado e aplicável, publique somente no projeto/ambiente de homologação identificado para a tarefa e valide o deployment. Registre o resultado e as limitações com evidências.
+6. Faça commit e push somente da branch da tarefa e abra PR para `main`. A solicitação de implementação do responsável autoriza o fluxo completo dentro do escopo, incluindo o PR e a integração de rotina.
+7. Acompanhe os testes obrigatórios do GitHub Actions e corrija falhas reais na mesma branch. Quando os testes exigidos passarem e as proteções da branch forem satisfeitas, integre o PR sem pedir uma aprovação rotineira adicional.
+8. A integração e a publicação automática no projeto Vercel `sistema-oficinas-homologacao` estão cobertas pela autorização padrão da tarefa. Valide o deployment online quando houver acesso. Respeite revisões ou confirmações obrigatórias da plataforma; nunca as contorne.
 
-Resolva problemas técnicos rotineiros dentro do escopo e continue o trabalho independente de um bloqueio parcial. Não contorne controles de acesso, proteções de branch, falhas de teste ou autorizações necessárias. Se uma etapa depender de uma decisão humana ou acesso indisponível, complete tudo que não dependa dela, registre o bloqueio exato e pare somente a etapa afetada.
+Resolva problemas técnicos rotineiros dentro do escopo e continue o trabalho independente de um bloqueio parcial. Não contorne controles de acesso, proteções de branch, falhas de teste ou autorizações necessárias. Se uma etapa depender de uma decisão humana obrigatória da plataforma ou de acesso indisponível, complete tudo que não dependa dela, registre o bloqueio exato e pare somente a etapa afetada. Não solicite aprovação humana repetida para operações rotineiras já cobertas pela autorização padrão.
 
 ## Testes e dados
 
@@ -35,8 +35,8 @@ Resolva problemas técnicos rotineiros dentro do escopo e continue o trabalho in
 ## Operações remotas e ambientes
 
 - Confirme a identidade do projeto e ambiente antes de consultar ou alterar Vercel ou Supabase. O projeto atualmente registrado para homologação é Vercel `sistema-oficinas-homologacao` e Supabase `vnclahdnirqlcbamodqy`; revalide esses destinos antes de cada operação.
-- Produção é separada da homologação. Nunca testar, migrar, importar, substituir dados, mudar permissões ou publicar em produção sem autorização explícita para a operação concreta.
-- Migrações remotas, alterações de configuração persistente, escrita de dados e publicação que ainda não tenham autorização requerem autorização específica. Antes de pedir aprovação, revise o SQL/impacto, destino, compatibilidade, rollback/recuperação e evidências de teste.
+- Produção é separada da homologação. Nunca testar, migrar, importar, substituir dados, mudar permissões ou publicar em produção sem autorização explícita para a operação concreta. A autorização padrão para tarefas não se estende à produção comercial.
+- Migrações remotas, alterações persistentes de dados, operações destrutivas, mudanças sensíveis de credenciais/segredos/autenticação/permissões e publicação em produção exigem autorização específica. A autorização padrão de uma tarefa cobre o desenvolvimento e a homologação dentro do escopo, mas não essas operações excepcionais. Antes de solicitar autorização específica, revise o impacto, destino, compatibilidade, recuperação e evidências de teste.
 - Não altere variáveis de ambiente, domínios, integrações Git ou configurações da Vercel como parte incidental de uma tarefa.
 - Para operações autorizadas, limite as alterações ao ambiente identificado e verifique o resultado sem expor valores de segredo.
 - Diferencie deployment pronto de funcionalidade verificada. Para validar um fluxo online, registre URL/ambiente, commit, endpoint ou ação e resultado observado; se autenticação, sessão ou acesso impedir o teste, diga isso claramente.
