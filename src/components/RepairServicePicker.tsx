@@ -368,7 +368,7 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
   useEffect(() => {
     let active = true;
     const key = vehicleIdentity;
-    if (!autoIdentify || !vehicle || modelId || !info?.enabled || !key.replace(/\|/g, "")) { if (!info?.enabled) setLinkStatus("unavailable"); return () => { active = false; }; }
+    if (!autoIdentify || vehicle?.service_link_mode === "none" || !vehicle || modelId || !info?.enabled || !key.replace(/\|/g, "")) { if (!info?.enabled) setLinkStatus("unavailable"); return () => { active = false; }; }
     if (manualEditKey.current === key || autoMatchTried.current === key) return () => { active = false; };
     autoMatchTried.current = key;
     send("/repair-services/identify-model", { vehicle }, "POST").then((result: any) => {

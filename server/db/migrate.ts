@@ -30,6 +30,7 @@ export function migrate(db: DatabaseSync) {
     [27, "027-vehicle-update-audit-metadata.sql"],
     [28, "028-private-workshop-services.sql"],
     [29, "029-private-service-categories-references.sql"],
+    [30, "030-vehicle-fipe-identity.sql"],
   ] as const) {
     if (db.prepare("SELECT 1 FROM migrations WHERE version=?").get(version))
       continue;

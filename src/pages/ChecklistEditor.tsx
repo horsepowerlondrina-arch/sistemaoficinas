@@ -280,6 +280,7 @@ export function ChecklistEditor() {
       color: initialVehicle?.color || "",
       chassis: initialVehicle?.chassis || "",
       service_model_id: initialVehicle?.service_model_id || null,
+      service_link_mode: initialVehicle?.service_link_mode || "",
     },
     km: initialOrder?.km || initialVehicle?.km || 0,
     fuel_level: 50,
@@ -527,6 +528,7 @@ export function ChecklistEditor() {
                   color: "",
                   chassis: "",
                   service_model_id: null,
+                  service_link_mode: "",
                 },
               }));
             }}
@@ -555,6 +557,7 @@ export function ChecklistEditor() {
                     color: String(found.color || ""),
                     chassis: String(found.chassis || ""),
                     service_model_id: found.service_model_id || null,
+                    service_link_mode: found.service_link_mode || "",
                   },
                   km: Number(found.km || current.km || 0),
                 }));
@@ -563,18 +566,16 @@ export function ChecklistEditor() {
                 setCreating((current) => ({
                   ...current,
                   lookup_source: result.source || "manual",
-                  customer_id: "",
-                  customer_name: "",
-                  phone: "",
-                  vehicle_data: {
+                  vehicle_data: found ? {
+                    ...current.vehicle_data,
                     ...fipeFields(found),
                     brand: String(found?.brand || ""),
                     model: String(found?.model || ""),
                     year: Number(found?.year || new Date().getFullYear()),
                     color: String(found?.color || ""),
-                    chassis: "",
-                    service_model_id: null,
-                  },
+                    chassis: found.chassis || current.vehicle_data.chassis,
+                    service_model_id: current.vehicle_data.service_model_id,
+                  } : current.vehicle_data,
                 }));
               }
               setLookupDone(true);

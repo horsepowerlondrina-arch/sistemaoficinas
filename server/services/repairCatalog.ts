@@ -397,6 +397,7 @@ export async function previewVehicleCatalogReview(
           fipe_model: boundedText(vehicle.fipe_model, 300),
           fipe_year_id: boundedText(vehicle.fipe_year_id, 30),
           service_model_id: boundedText(vehicle.service_model_id, 80),
+          service_link_mode: boundedText(vehicle.service_link_mode, 20),
         });
     const data_quality: VehicleRecordQuality = incomplete
       ? "incomplete"

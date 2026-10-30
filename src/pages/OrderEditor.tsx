@@ -4,7 +4,7 @@ import { CapturePanel } from "../components/CapturePanel";
 import { CatalogPicker } from "../components/CatalogPicker";
 import { CustomerPicker } from "../components/CustomerPicker";
 import { canShowCustomerVehicleOptions, orderVehiclesForCustomer, selectOrderCustomer, selectOrderVehicleFromCard } from "../../shared/orderEntryIdentity";
-import { validNewCustomerPhone } from "../../shared/customerIdentity";
+import { normalizeCustomerName, validNewCustomerPhone } from "../../shared/customerIdentity";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import {
@@ -157,9 +157,10 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
   }, [discountMode, discountPercent, subtotal]);
   const customer = data.customers.find((c) => c.id === form.customer_id);
   const vehicle = data.vehicles.find((v) => v.id === form.vehicle_id);
-  const customerVehicles = order
-    ? []
-    : orderVehiclesForCustomer(data.vehicles, form.customer_id, form.vehicle_id);
+  const [vehicleQuery, setVehicleQuery] = useState("");
+  const normalizedVehicleQuery = normalizeCustomerName(vehicleQuery);
+  const customerVehicles = orderVehiclesForCustomer(data.vehicles, form.customer_id, form.vehicle_id).filter(item =>
+    normalizeCustomerName([item.plate, item.brand, vehicleDisplayModel(item), customer?.name].join(" ")).includes(normalizedVehicleQuery));
   const showCustomerVehicleOptions = canShowCustomerVehicleOptions(!!order, form.customer_id, !!locked);
   const add = () => {
     const item = data.catalog.find((c) => c.id === pick);
@@ -230,19 +231,20 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
           ...fipeFields(lookedUp),
           plate,
           brand: lookedUp.brand,
-          model: vehicleDisplayModel(lookedUp),
+          model: vehicleDisplayModel(lookedUp).slice(0, 150),
           year: Number(lookedUp.year),
           model_year: Number(lookedUp.model_year) || null,
           fuel: lookedUp.fuel || "",
           color: lookedUp.color || "",
           chassis: lookedUp.chassis || "",
           km: form.km,
+          ...(serviceModelTouched ? { service_model_id: serviceModelId || null, service_link_mode: serviceModelId ? "manual" : "none" } : {}),
         };
       }
     }
     return {
       ...form,
-      ...(serviceModelTouched ? { service_model_id: serviceModelId || null } : {}),
+      ...(serviceModelTouched ? { service_model_id: serviceModelId || null, service_link_mode: serviceModelId ? "manual" : "none" } : {}),
       guest_name: form.customer_id || newCustomer ? "" : form.guest_name,
       new_customer: newCustomer,
       new_vehicle: newVehicle,
@@ -502,7 +504,7 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
                         } else {
                           if (result.vehicle && lookupWouldReplace(lookedUp, result.vehicle) && !window.confirm("A consulta retornou dados diferentes dos já preenchidos. Aplicar os novos dados?")) return;
                           const description = [result.vehicle?.brand, vehicleDisplayModel(result.vehicle)].filter(Boolean).join(" ");
-                          setLookedUp(result.vehicle || { ...lookedUp, plate: lookupPlate });
+                          setLookedUp({ ...lookedUp, ...result.vehicle, plate: lookupPlate, service_model_id: lookedUp.service_model_id, service_link_mode: lookedUp.service_link_mode });
                           setForm((f) => ({
                             ...f,
                             vehicle_id: "",
@@ -514,6 +516,8 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
                     />
                     )}
                     {showCustomerVehicleOptions && (
+                      <div className="full">
+                      <Field label="Pesquisar veículo por placa, modelo ou proprietário" full><input value={vehicleQuery} onChange={e => setVehicleQuery(e.target.value)} placeholder="Placa, modelo ou proprietário..." /></Field>
                       <div className="order-vehicle-cards full" role="group" aria-label="Veículos cadastrados do cliente">
                         {customerVehicles.map((item) => {
                           const selected = form.vehicle_id === item.id;
@@ -524,7 +528,7 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
                               className={selected ? "order-vehicle-card selected" : "order-vehicle-card"}
                               aria-pressed={selected}
                               onClick={() => {
-                                if (order?.vehicle_id && item.id !== order.vehicle_id &&
+                                if (order?.vehicle_id && item.id !== form.vehicle_id &&
                                   !window.confirm("Trocar o veículo removerá todos os serviços, peças e produtos desta OS. O histórico de outras OS será preservado. Deseja continuar?")) return;
                                 const choice = selectOrderVehicleFromCard(item);
                                 setLookupPlate(choice.plate);
@@ -546,8 +550,8 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
                             </button>
                           );
                         })}
-                        {!customerVehicles.length && <p className="muted">Este cliente ainda não tem veículos cadastrados.</p>}
-                      </div>
+                        {!customerVehicles.length && <p className="muted">Nenhum veículo encontrado para este cliente.</p>}
+                      </div></div>
                     )}
                     {showCustomerVehicleOptions && (
                       <button type="button" className="text-button full" onClick={() => setQuickCreate("vehicles")}>

@@ -68,6 +68,7 @@ export function PlateField({
       if (seq === request.current) {
         setMessage((e as Error).message);
         last.current = "";
+        onFound({ source: "unavailable", vehicle: null, message: "Consulta indisponível. Preencha os dados manualmente." });
       }
     } finally {
       if (seq === request.current) setBusy(false);

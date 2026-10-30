@@ -183,6 +183,33 @@ test("PostgreSQL local: autenticação, oficinas, transações e RLS do catálog
     }),e=>e===stop);
     assert.equal((await listOrders(db,"local-a")).length,0);
   });
+  await t.test("CAD-005: troca atômica, confirmação, histórico, bloqueios e isolamento no PostgreSQL", async () => {
+    const { saveOrder, listOrders } = await import("../server/services/workshop");
+    const ctx = { tenantId: "local-a", userId: "local-owner-a", role: "owner" };
+    const stop = new Error("rollback CAD005");
+    await assert.rejects(db.transaction(async () => {
+      await db.withTenantRead("local-a", async () => {
+        await db.prepare("INSERT INTO vehicles(id,tenant_id,customer_id,plate,brand,model,year,fipe_model,model_year,fuel) VALUES('cad005-second','local-a','local-a-customer','CAD0A05','Fictícia','Legado',2020,'Modelo FIPE Fictício',2021,'Flex')").run();
+        await db.prepare("INSERT INTO catalog(id,tenant_id,kind,name,sku,cost,price,stock,minimum_stock) VALUES('cad005-product','local-a','product','Peça fictícia','CAD005',500,1000,0,0)").run();
+      });
+      const base = { status: "quote", customer_id: "local-a-customer", vehicle_id: "local-a-vehicle", entered_on: "2026-10-30", due_on: "2026-10-30", km: 10, discount: 0, notes: "Observação preservada", problem: "Relato preservado", items: [{ catalog_id: "cad005-product", quantity: 2, price: 1000 }] };
+      const order = await saveOrder(db, ctx, base);
+      const next = { ...base, vehicle_id: "cad005-second", items: [] };
+      await assert.rejects(saveOrder(db, ctx, next, order), /Confirme a troca/);
+      let saved = (await listOrders(db, ctx.tenantId)).find(o => o.id === order)!;
+      assert.equal(saved.vehicle_id, base.vehicle_id); assert.equal(saved.items.length, 1);
+      await assert.rejects(saveOrder(db, ctx, { ...next, vehicle_id: "local-b-vehicle", confirm_vehicle_change: true }, order));
+      await saveOrder(db, ctx, { ...next, confirm_vehicle_change: true }, order);
+      saved = (await listOrders(db, ctx.tenantId)).find(o => o.id === order)!;
+      assert.equal(saved.vehicle_id, next.vehicle_id); assert.equal(saved.items.length, 0); assert.equal(saved.total, 0); assert.equal(saved.notes, base.notes);
+      const history = await db.prepare("SELECT metadata FROM audit_events WHERE tenant_id=? AND entity_id=? AND action LIKE 'order.vehicle_changed:%'").get(ctx.tenantId, order);
+      assert.equal(JSON.parse(history!.metadata).previous_items[0].price, 1000);
+      assert.equal((await listOrders(db, "local-b")).some(o => o.id === order), false);
+      await db.prepare("INSERT INTO receivables(id,tenant_id,order_id,customer_id,description,amount,due_on) VALUES('cad005-r','local-a',?,'local-a-customer','Fictícia',1000,'2026-10-30')").run(order);
+      await assert.rejects(saveOrder(db, ctx, { ...base, items: [], confirm_vehicle_change: true }, order), /movimentações ou cobrança/);
+      throw stop;
+    }), e => e === stop);
+  });
   await t.test("RLS limita tarifas e serviços particulares ao tenant do contexto",async()=>{
     const {listWorkshopServices}=await import("../server/services/repairCatalog");
     const serviceContext={tenantId:"local-a",userId:"local-owner-a",role:"owner"};

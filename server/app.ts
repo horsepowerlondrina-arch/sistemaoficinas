@@ -126,6 +126,7 @@ const schemas = {
     km: integer,
     chassis: text,
     service_model_id: serviceModelIdSchema,
+    service_link_mode: z.enum(["", "manual", "auto", "none"]).optional(),
     active: z.number().int().min(0).max(1).default(1),
   }),
   catalog: z.object({
@@ -154,6 +155,7 @@ const schemas = {
 const orderSchema = z.object({
   confirm_vehicle_change: z.boolean().optional(),
   service_model_id:z.string().uuid().nullable().optional(),
+  service_link_mode:z.enum(["manual", "none"]).optional(),
   customer_id: z.string().nullable().optional(),
   vehicle_id: z.string().nullable().optional(),
   new_customer: z.object({ name, phone: z.string().trim().max(60) }).optional(),
@@ -1387,7 +1389,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
             await audit(db, ctx, `vehicles.owner_changed:${old.customer_id}:${input.customer_id}`, record!);
           const explicitModel = Object.prototype.hasOwnProperty.call(input, "service_model_id");
           let selectedModel: any = null;
-          if (explicitModel && input.service_model_id && input.service_model_id !== old?.service_model_id) {
+          if (explicitModel && input.service_model_id && (input.service_model_id !== old?.service_model_id || input.service_link_mode === "manual")) {
             if (await catalogAccessState(db, ctx) === "active") selectedModel = await confirmVehicleModel(db, ctx, input, input.service_model_id);
             else input.service_model_id = old?.service_model_id || null;
           } else if (!explicitModel && old?.service_model_id) {
@@ -1398,7 +1400,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
           }
           input.service_porte_id = selectedModel?.porte_id || (input.service_model_id && input.service_model_id === old?.service_model_id ? old?.service_porte_id || "" : "");
           if (explicitModel && !input.service_model_id) input.service_porte_id = "";
-          input.service_link_mode = explicitModel && input.service_model_id !== old?.service_model_id
+          input.service_link_mode = explicitModel && (input.service_model_id !== old?.service_model_id || input.service_link_mode === "manual")
             ? input.service_model_id ? "manual" : "none"
             : old?.service_link_mode || (selectedModel ? "auto" : "none");
         }

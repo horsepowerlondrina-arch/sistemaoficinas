@@ -130,7 +130,7 @@ export async function lookupVehicleExternal(
         plate,
         brand: current.marca,
         model: current.modelo,
-        year: Number.isInteger(Number(current.ano)) && Number(current.ano) >= 1900 ? Number(current.ano) : Number.isInteger(year) && year >= 1900 && year <= 2100 ? year : null,
+        year: Number.isInteger(Number(current.ano)) && Number(current.ano) >= 1900 && Number(current.ano) <= 2100 ? Number(current.ano) : Number.isInteger(year) && year >= 1900 && year <= 2100 ? year : null,
         model_year: Number.isInteger(year) && year >= 1900 && year <= 2100 ? year : null,
         fuel: current.combustivel || "",
         color: current.cor || "",
@@ -168,7 +168,7 @@ export async function lookupVehicle(
     throw new Error("Informe uma placa válida.");
   const local = await db
     .prepare(
-      "SELECT id,customer_id,plate,brand,model,year,model_year,fuel,color,km,chassis,active,fipe_code,fipe_model,fipe_year_id,service_model_id,service_porte_id FROM vehicles WHERE tenant_id=? AND plate=?",
+      "SELECT id,customer_id,plate,brand,model,year,model_year,fuel,color,km,chassis,active,fipe_code,fipe_model,fipe_year_id,service_model_id,service_porte_id,service_link_mode FROM vehicles WHERE tenant_id=? AND plate=?",
     )
     .get(tenant, plate);
   if (local)

@@ -128,7 +128,7 @@ export async function listOrders(db: DB, tenant: string): Promise<Row[]> {
   const rows = await db
     .prepare(
       `SELECT o.*,COALESCE(c.name,NULLIF(o.guest_name,''),'Cliente não informado') customer_name,
- COALESCE(v.plate,o.guest_plate) plate,COALESCE(v.brand,'') brand,COALESCE(v.model,o.guest_vehicle) model,
+ COALESCE(v.plate,o.guest_plate) plate,COALESCE(v.brand,'') brand,COALESCE(NULLIF(v.fipe_model,''),v.model,o.guest_vehicle) model,
  r.id receivable_id,r.status payment_status,
  CASE WHEN o.status='completed' AND r.status='open' THEN 'awaiting_payment' ELSE o.status END display_status
  FROM orders o LEFT JOIN customers c ON c.id=o.customer_id AND c.tenant_id=o.tenant_id
@@ -284,6 +284,7 @@ export async function saveOrder(
 ) {
   requireAdmin(ctx);
   return await transaction(db, async () => {
+    await db.lockTenantMutations?.(ctx.tenantId);
     const old = record
       ? await scoped(db, "orders", ctx.tenantId, record)
       : null;
@@ -318,7 +319,7 @@ export async function saveOrder(
           .prepare("SELECT * FROM order_items WHERE tenant_id=? AND order_id=?")
           .all(ctx.tenantId, record!)
       : [];
-    const changingVehicle = !!old && String(old.vehicle_id || "") !== String(vehicleId || "");
+    const changingVehicle = !!old?.vehicle_id && String(old.vehicle_id) !== String(vehicleId || "");
     if (changingVehicle) {
       if (!input.confirm_vehicle_change)
         throw new Error("Confirme a troca do veículo e a remoção dos itens deste atendimento.");
@@ -333,13 +334,13 @@ export async function saveOrder(
     const addsCatalogServices = input.items.some((item: Row) =>
       item.repair_service_id && !previous.some((prior: Row) => prior.id === item.id && prior.service_snapshot),
     );
-    const explicitlyChangedModel = hasExplicitModel && input.service_model_id !== vehicle?.service_model_id;
+    const explicitlyChangedModel = hasExplicitModel && (input.service_model_id !== vehicle?.service_model_id || input.service_link_mode === "manual");
     if (vehicle?.service_model_id && addsCatalogServices && !explicitlyChangedModel) {
       const linkedMatch = await identifyVehicleModel(db, ctx, vehicle);
       if (linkedMatch.status === "mismatch")
         throw new Error("Os dados do veículo divergem do vínculo técnico. Revise e confirme novamente o modelo antes de incluir serviços.");
     }
-    if (hasExplicitModel && vehicleId && input.service_model_id !== vehicle?.service_model_id) {
+    if (hasExplicitModel && vehicleId && (input.service_model_id !== vehicle?.service_model_id || input.service_link_mode === "manual")) {
       if (input.service_model_id) {
         if (await catalogAccessState(db, ctx) === "active") {
           const selectedModel = await confirmVehicleModel(db, ctx, vehicle || {}, input.service_model_id);
@@ -503,7 +504,11 @@ export async function saveOrder(
           item.service_snapshot || '',
         );
     if (changed) await invalidateOrderShares(db, ctx, orderId);
-    if (changingVehicle) await audit(db, ctx, `order.vehicle_changed:${String(old.vehicle_id || "")}:${String(vehicleId || "")}:items_removed:${previous.length}`, orderId);
+    if (changingVehicle) {
+      const archived = await audit(db, ctx, `order.vehicle_changed:${String(old.vehicle_id || "")}:${String(vehicleId || "")}:items_removed:${previous.length}`, orderId,
+        { previous_order: old, previous_items: previous, vehicle_id: vehicleId });
+      if (!archived) throw new Error("Atualize a estrutura de auditoria antes de trocar o veículo. Nenhuma alteração foi salva.");
+    }
     await audit(
       db,
       ctx,

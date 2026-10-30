@@ -8,6 +8,7 @@ export function VehicleTechnicalAssociation({ vehicle, modelId, onModelChange }:
   onModelChange: (id: string) => void;
 }) {
   const [summary, setSummary] = useState("");
+  const [expanded, setExpanded] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   useEffect(() => {
@@ -30,7 +31,7 @@ export function VehicleTechnicalAssociation({ vehicle, modelId, onModelChange }:
     finally { setBusy(false); }
   };
   return <section className="vehicle-technical-association full">
-    <details>
+    <details onToggle={event => setExpanded(event.currentTarget.open)}>
       <summary>Associação ao Catálogo Técnico</summary>
       <p className="muted">O modelo técnico é opcional e independente da identificação FIPE.</p>
       <div className="capture-actions">
@@ -38,7 +39,7 @@ export function VehicleTechnicalAssociation({ vehicle, modelId, onModelChange }:
         <button type="button" className="button" onClick={() => { onModelChange(""); setMessage("Veículo sem associação técnica. Salve para confirmar."); }}>Sem associação</button>
       </div>
       {message && <p role="status" className="muted">{message}</p>}
-      <RepairServicePicker vehicle={vehicle} modelId={modelId} onModelChange={onModelChange} vehicleOnly autoIdentify={false} />
+      {expanded && <RepairServicePicker vehicle={vehicle} modelId={modelId} onModelChange={onModelChange} vehicleOnly autoIdentify={false} />}
     </details>
     {modelId && <small className="muted">Vínculo atual: {summary || "Carregando…"}</small>}
   </section>;

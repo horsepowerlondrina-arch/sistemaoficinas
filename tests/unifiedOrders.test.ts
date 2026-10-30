@@ -69,7 +69,7 @@ test("legacy kind cannot override status in permissions lists finance or anonymo
       input({ customer_id: "c", vehicle_id: "v" }),
     );
     db.prepare("UPDATE orders SET kind='order' WHERE id=?").run(record);
-    await saveOrder(db, owner, input(), record);
+    await saveOrder(db, owner, input({ confirm_vehicle_change: true, items: [] }), record);
     assert.equal((await listOrders(db, "a"))[0].customer_id, null);
     await saveOrder(
       db,

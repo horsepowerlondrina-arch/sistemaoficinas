@@ -19,8 +19,8 @@ export function VehicleIdentityFields({ vehicle, onChange, disabled = false, req
     <Field label={`Ano de fabricação${required ? " *" : ""}`}><NumericInput required={required} disabled={disabled} type="number" min={1900} max={2100} value={vehicle.year || ""} onChange={(event) => set("year", event.target.value ? Number(event.target.value) : null)} /></Field>
     <Field label="Ano do modelo"><NumericInput disabled={disabled} type="number" min={1900} max={2100} value={vehicleModelYear(vehicle) || ""} onChange={(event) => set("model_year", event.target.value ? Number(event.target.value) : null)} /></Field>
     <Field label="Combustível"><input disabled={disabled} maxLength={80} value={vehicle.fuel || ""} onChange={(event) => set("fuel", event.target.value)} /></Field>
-    <Field label="Cor"><input disabled={disabled} maxLength={200} value={vehicle.color || ""} onChange={(event) => set("color", event.target.value)} /></Field>
-    <Field label="Chassi"><input disabled={disabled} maxLength={500} value={vehicle.chassis || ""} onChange={(event) => set("chassis", event.target.value)} /></Field>
+    <Field label="Cor"><input disabled={disabled} maxLength={80} value={vehicle.color || ""} onChange={(event) => set("color", event.target.value)} /></Field>
+    <Field label="Chassi"><input disabled={disabled} maxLength={100} value={vehicle.chassis || ""} onChange={(event) => set("chassis", event.target.value)} /></Field>
     {onKmChange && <Field label="Quilometragem"><NumericInput type="number" min={0} value={km || 0} onChange={(event) => onKmChange(Math.max(0, Number(event.target.value)))} /></Field>}
   </>;
 }

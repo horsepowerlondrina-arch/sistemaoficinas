@@ -218,7 +218,7 @@ test("checklist preserves selected FIPE through draft and vehicle creation", asy
     await finalizeChecklist(db, ctx, draft.id);
     const vehicle = db
       .prepare(
-        "SELECT fipe_code,fipe_model,fipe_year_id FROM vehicles WHERE tenant_id='a'",
+        "SELECT fipe_code,fipe_model,fipe_year_id,model_year,fuel FROM vehicles WHERE tenant_id='a'",
       )
       .get()!;
     assert.deepEqual({ ...vehicle }, candidateFields(candidate));

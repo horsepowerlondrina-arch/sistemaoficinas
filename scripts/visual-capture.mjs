@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { chromium, expect } from "@playwright/test";
+import { captureCad005 } from "./capture-cad005.mjs";
 
 const root = process.cwd();
 const catalogPath = resolve(root, "docs/mapeamento-visual/catalog.json");
@@ -62,6 +63,7 @@ if (!credentialFor(fixtureTenant)) throw new Error(`A oficina fictícia ${fixtur
 
   const appProcess = args.includes("--start") ? spawn(process.platform === "win32" ? "npm.cmd" : "npm", ["run", "dev"], { cwd: root, stdio: "ignore", windowsHide: true, env: { ...process.env, PORT: "3001" } }) : null;
 let browser;
+let cad005Fixture = false;
 try {
   if (appProcess) {
     let ready = false;
@@ -71,6 +73,10 @@ try {
       await delay(1000);
     }
     if (!ready) throw new Error("A aplicação local não ficou pronta em 90 segundos.");
+  }
+  if (candidates.some(entry => entry.id.startsWith("cad005-"))) {
+    execFileSync(process.execPath, ["--import", "tsx", "scripts/cad005-visual-fixture.ts", "setup"], { stdio: "inherit" });
+    cad005Fixture = true;
   }
   browser = await chromium.launch({ headless: true });
   let est009Reference = "";
@@ -143,6 +149,7 @@ try {
         await page.getByRole("heading", { name: "Tempos técnicos" }).click();
       }
     }
+    await captureCad005(page, entry);
     await page.waitForTimeout(300);
     const path = outputFor(entry);
     mkdirSync(dirname(path), { recursive: true });
@@ -195,6 +202,7 @@ try {
   console.log(`Capturas reais concluídas: ${captures}. Módulo: ${moduleFilter || (args.includes("--affected") ? "arquivos alterados" : "todos com rota automatizável")}.`);
 } finally {
   await browser?.close();
+  if (cad005Fixture) execFileSync(process.execPath, ["--import", "tsx", "scripts/cad005-visual-fixture.ts", "cleanup"], { stdio: "inherit" });
   if (appProcess) {
     appProcess.kill("SIGTERM");
     await Promise.race([new Promise((resolvePromise) => appProcess.once("exit", resolvePromise)), delay(5000)]);
