@@ -137,9 +137,11 @@ try {
       await page.getByRole("button", { name: "Aumentar zoom" }).click();
       await page.getByRole("button", { name: "Próxima captura" }).click();
       await page.keyboard.press("Escape");
-      await page.goto(new URL("/biblioteca-visual#capture-inicio-oficina-a", baseUrl).toString(), { waitUntil: "domcontentloaded" });
-      await page.getByRole("dialog", { name: /Início da Oficina Fictícia A/ }).waitFor({ state: "visible", timeout: 10000 });
-      await page.keyboard.press("Escape");
+      const directLinkPage = await context.newPage();
+      await directLinkPage.goto(new URL("/biblioteca-visual#capture-inicio-oficina-a", baseUrl).toString(), { waitUntil: "domcontentloaded" });
+      await directLinkPage.getByRole("dialog", { name: /Início da Oficina Fictícia A/ }).waitFor({ state: "visible", timeout: 10000 });
+      await directLinkPage.keyboard.press("Escape");
+      await directLinkPage.close();
       await page.setViewportSize({ width: 390, height: 844 });
       const noHorizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
       if (!noHorizontalOverflow) throw new Error("A galeria apresenta rolagem horizontal em viewport mobile.");
