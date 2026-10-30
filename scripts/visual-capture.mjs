@@ -109,12 +109,14 @@ try {
         await first.getByRole("spinbutton", { name: "Quantidade" }).fill("2");
         await first.getByRole("spinbutton", { name: "Valor unitário (R$)" }).fill("150");
         await expect(first.getByText("R$ 300,00")).toBeVisible();
+        await page.getByRole("heading", { name: "Serviços da Oficina" }).click();
       } else {
         if (!est009Reference) throw new Error("Referência fictícia EST-009 ausente.");
         await search.fill(est009Reference.toLowerCase());
         await page.getByRole("option", { name: /Alinhamento Fictício/ }).waitFor();
         await page.getByRole("button", { name: "Adicionar", exact: true }).click();
         await expect(page.locator(".order-item").filter({ hasText: "Alinhamento Fictício" })).toHaveCount(1);
+        await page.getByRole("heading", { name: "Serviços da Oficina" }).click();
       }
     }
     if (entry.id === "servicos-oficina-desktop") {

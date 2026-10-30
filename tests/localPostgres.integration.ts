@@ -178,9 +178,9 @@ test("PostgreSQL local: autenticação, oficinas, transações e RLS do catálog
        await db.prepare("INSERT INTO labor_commercial_rates(tenant_id,category_id,hourly_rate) VALUES('local-a','compacto',12000) ON CONFLICT(tenant_id,category_id) DO UPDATE SET hourly_rate=excluded.hourly_rate").run();
       await db.prepare("INSERT INTO workshop_services(id,tenant_id,name,execution,commercial_category_id,reference) VALUES('00000000-0000-4000-8000-000000000091','local-a','Serviço Fictício Compacto','internal','compacto','SRV-COMPACTO'),('00000000-0000-4000-8000-000000000092','local-a','Serviço Fictício Premium','internal','premium','SRV-PREMIUM')").run();
     });
-    assert.equal((await listWorkshopServices(db,serviceContext,{})).items.length,2);
-    assert.equal((await listWorkshopServices(db,serviceContext,{category_id:"compacto"})).items.length,1);
-    assert.equal((await listWorkshopServices(db,serviceContext,{category_id:"premium"})).items.length,1);
+    assert.equal((await listWorkshopServices(db,serviceContext,{service_type:"legacy"})).items.length,2);
+    assert.equal((await listWorkshopServices(db,serviceContext,{service_type:"legacy",category_id:"compacto"})).items.length,1);
+    assert.equal((await listWorkshopServices(db,serviceContext,{service_type:"legacy",category_id:"premium"})).items.length,1);
     assert.equal((await listWorkshopServices(db,{...serviceContext,tenantId:"local-b",userId:"local-owner-b"},{})).items.length,0);
     const a=await db.withTenantRead("local-a",async()=>db.prepare("SELECT tenant_id,category_id,hourly_rate FROM labor_commercial_rates WHERE tenant_id='local-a'").all());
     const crossRate=await db.withTenantRead("local-a",async()=>db.prepare("SELECT tenant_id FROM labor_commercial_rates WHERE tenant_id='local-b'").all());

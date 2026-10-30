@@ -758,7 +758,7 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
                                   </button>
                                 )}
                               </div>
-                              <div className="item-fields">
+                              <div className={`item-fields ${item.service_details?.service_type === "private" ? "private-service-fields" : ""}`}>
                                 <Field label="Quantidade">
                                   <NumericInput
                                     type="number"
@@ -819,7 +819,7 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
                                     </select>
                                   </Field>
                                 )}
-                                {!locked && item.kind==='service' && (item.repair_service_id||item.workshop_service_id) && <ServiceExecutionFields item={item} onChange={updates=>setForm(f=>({...f,items:f.items.map((row,n)=>n===index?{...row,...updates}:row)}))}/>}
+                                {!locked && item.kind==='service' && item.service_details?.service_type !== "private" && (item.repair_service_id||item.workshop_service_id) && <ServiceExecutionFields item={item} onChange={updates=>setForm(f=>({...f,items:f.items.map((row,n)=>n===index?{...row,...updates}:row)}))}/>}
                                 <div className="item-total">
                                   <span>Total</span>
                                   <strong>
@@ -827,6 +827,7 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
                                   </strong>
                                 </div>
                               </div>
+                              {item.service_details?.service_type === "private" && <small className="muted private-service-note">O preço nesta OS pode ser alterado sem modificar o cadastro.</small>}
                             </div>
                           ),
                       )}

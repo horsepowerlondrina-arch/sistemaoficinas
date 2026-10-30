@@ -5191,6 +5191,10 @@ body { padding-top: 36px; }
 .os-private-suggestions > button.active, .os-private-suggestions > button:hover { background: #fff1f2; }
 .os-private-suggestions > button span { white-space: nowrap; }
 .os-private-suggestions > p { padding: 10px 12px; margin: 0; color: var(--muted); }
+.private-service-fields { grid-template-columns: repeat(4,minmax(0,1fr)); }
+.private-service-note { display: block; margin-top: 10px; }
+@media (max-width: 900px) { .private-service-fields { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media (max-width: 520px) { .private-service-fields { grid-template-columns: minmax(0,1fr); } }
 @media (max-width: 420px) { .os-private-search-row { grid-template-columns: minmax(0,1fr); } .os-private-search-row > .button { justify-self: start; } }
 .service-tabs-panel { padding: 0; min-width: 0; }
 .service-tabs { padding: 0 24px; }
