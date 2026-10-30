@@ -539,7 +539,7 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
                                   guest_plate: "",
                                   guest_vehicle: "",
                                   km: choice.km,
-                                  ...(order?.vehicle_id && item.id !== order.vehicle_id ? { items: [], discount: 0, confirm_vehicle_change: true } : {}),
+                                  ...(order?.vehicle_id && item.id !== f.vehicle_id ? { items: [], discount: 0, confirm_vehicle_change: true } : {}),
                                 }));
                                 setError("");
                               }}
