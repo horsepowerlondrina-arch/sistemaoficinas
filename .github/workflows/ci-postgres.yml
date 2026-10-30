@@ -44,7 +44,7 @@ jobs:
         run: npm run db:local:seed
       - name: Install isolated Playwright browser
         run: npx playwright install --with-deps chromium
-      - name: Capture visual screens and test the protected gallery
+      - name: Capture visual screens in isolated environment
         run: npm run visual:capture -- --start --no-write --output-dir "${{ runner.temp }}/map-001-captures"
         env:
           VISUAL_BASE_URL: http://127.0.0.1:5173

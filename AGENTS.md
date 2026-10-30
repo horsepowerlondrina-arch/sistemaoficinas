@@ -68,7 +68,7 @@ Não faça importação real como parte de testes automatizados.
 - Quando uma tarefa modificar a interface, identifique as interações afetadas e atualize suas capturas no mesmo PR: use npm run visual:capture -- --module <id> ou npm run visual:capture -- --affected. Inclua os PNGs e execute npm run visual:index e npm run visual:check.
 - Use somente sessões e dados fictícios em ambiente local de teste ou no PostgreSQL 17 descartável do GitHub Actions. A automação recusa URLs fora de loopback e não pode gravar no Supabase de homologação ou em produção.
 - Uma tela só está capturada quando o PNG existe e seu estado está como capturada; informe data e commit. Registre motivo nas entradas pendentes ou bloqueadas. Não crie telas ou imagens simuladas para funcionalidades inexistentes.
-- A galeria web usa a sessão autenticada e só pode ser acessada por administradores da oficina. Nunca mova suas imagens para diretórios públicos nem afrouxe autenticação.
+- A biblioteca visual é somente a pasta privada docs/mapeamento-visual/ no GitHub. Não adicione galeria, rota, API ou imagens públicas à aplicação da oficina.
 - No relatório final de tarefas de interface, informe: mapeamento atualizado (sim/não), módulos afetados, imagens criadas/substituídas, capturas pendentes e resultado dos testes visuais.
 
 ## Relato de conclusão
