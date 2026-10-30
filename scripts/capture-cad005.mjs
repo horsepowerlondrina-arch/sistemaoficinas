@@ -34,7 +34,7 @@ export async function captureCad005(page, entry) {
     await expect(scope.getByRole("textbox", { name: /^Modelo FIPE/ })).toHaveValue("Modelo FIPE Fictício 1.0 Flex");
     await scope.getByRole("button", { name: "Salvar cadastro", exact: true }).click();
     await expect(scope).toHaveCount(0);
-    const workspaceResponse = await page.request.get("/api/workspace");
+    const workspaceResponse = await page.request.get(new URL("/api/workspace", page.url()).toString());
     expect(workspaceResponse.ok()).toBeTruthy();
     const workspace = await workspaceResponse.json();
     const savedVehicle = workspace.vehicles.find(vehicle => vehicle.id === "cad005-visual-vehicle");

@@ -1,7 +1,9 @@
-import type { ReactNode } from "react";
+import { createContext, useContext, type ReactNode } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { X, Search, ArrowUpRight, Inbox, LoaderCircle } from "lucide-react";
 import { statusLabel } from "../lib/types";
+const ModalContext = createContext(false);
+export const useInsideModal = () => useContext(ModalContext);
 export function Badge({ status }: { status: string }) {
   return (
     <span className={`badge ${status}`}>
@@ -39,7 +41,7 @@ export function Modal({
               <X size={20} />
             </Dialog.Close>
           </div>
-          {children}
+          <ModalContext.Provider value={true}>{children}</ModalContext.Provider>
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
