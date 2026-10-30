@@ -236,7 +236,7 @@ Lista sem serviços próprios cadastrados.
 
 [![Serviços particulares](./capturas/09-cadastros-servicos/servicos-oficina.png)](./capturas/09-cadastros-servicos/servicos-oficina.png)
 
-Estado: capturada · mobile · captura 2026-10-22 · commit de origem: não registrado · [arquivo completo](./capturas/09-cadastros-servicos/servicos-oficina.png)
+Estado: capturada · mobile · captura 2026-10-30 · commit de origem: 1af0c481f958a404341efeefb5572bb6a58b6aad · [arquivo completo](./capturas/09-cadastros-servicos/servicos-oficina.png)
 
 ### Profissionais
 
@@ -245,6 +245,14 @@ Lista vazia na demonstração.
 [![Profissionais](./capturas/09-cadastros-servicos/profissionais.png)](./capturas/09-cadastros-servicos/profissionais.png)
 
 Estado: capturada · mobile · captura 2026-10-22 · commit de origem: não registrado · [arquivo completo](./capturas/09-cadastros-servicos/profissionais.png)
+
+### Serviços particulares
+
+Lista sem serviços próprios cadastrados.
+
+[![Serviços particulares](./capturas/09-cadastros-servicos/servicos-oficina-desktop.png)](./capturas/09-cadastros-servicos/servicos-oficina-desktop.png)
+
+Estado: capturada · desktop · captura 2026-10-30 · commit de origem: 1af0c481f958a404341efeefb5572bb6a58b6aad · [arquivo completo](./capturas/09-cadastros-servicos/servicos-oficina-desktop.png)
 
 ## 10 — Estoque
 
