@@ -127,10 +127,10 @@ try {
       if (!(await firstImage.evaluate((image) => image.complete && image.naturalWidth > 0))) throw new Error("A galeria não conseguiu abrir uma imagem protegida.");
       await page.getByPlaceholder("Pesquisar tela, descrição ou rota").fill("clientes");
       if (!(await page.locator(".visual-capture-card").count())) throw new Error("A pesquisa da galeria não retornou as telas de clientes.");
-      await page.getByLabel("Estado").selectOption("capturada");
-      await page.getByLabel("Módulo").selectOption("03-clientes");
-      await page.getByLabel("Interação").selectOption("Lista e pesquisa");
-      await page.getByLabel("Tela").selectOption("mobile");
+      await page.getByLabel("Estado", { exact: true }).selectOption("capturada");
+      await page.getByLabel("Módulo", { exact: true }).selectOption("03-clientes");
+      await page.getByLabel("Interação", { exact: true }).selectOption("Lista e pesquisa");
+      await page.getByLabel("Tela", { exact: true }).selectOption("mobile");
       const cardImage = page.locator(".visual-capture-preview img").first();
       await cardImage.click();
       await page.getByRole("dialog").waitFor({ state: "visible" });
