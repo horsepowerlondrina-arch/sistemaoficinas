@@ -108,7 +108,7 @@ try {
     const page = await context.newPage();
     await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
     await page.getByPlaceholder("E-mail").fill(credential.email);
-    await page.getByLabel("Senha").fill(credential.password);
+    await page.getByPlaceholder("Senha", { exact: true }).fill(credential.password);
     const [loginResponse] = await Promise.all([page.waitForResponse((response) => response.url().endsWith("/api/login") && response.request().method() === "POST"), page.getByRole("button", { name: "Entrar" }).click()]);
     if (loginResponse.status() !== 200) throw new Error("A autenticação com a conta fictícia de teste falhou; nenhuma credencial foi exibida.");
     await page.getByRole("heading", { name: "Início" }).waitFor({ state: "visible", timeout: 15000 }).catch(() => {});
