@@ -24,7 +24,7 @@ import { useApp } from "../lib/context";
 import { send } from "../lib/api";
 import { PlateField } from "../components/PlateField";
 import { fipeFields } from "../../shared/vehicleFipe";
-import { lookupWouldReplace, vehicleDisplayModel } from "../../shared/vehicleIdentity";
+import { mergeVehicleLookup, lookupWouldReplace, vehicleDisplayModel } from "../../shared/vehicleIdentity";
 import { VehicleIdentityFields } from "../components/VehicleIdentityFields";
 import { VehicleTechnicalAssociation } from "../components/VehicleTechnicalAssociation";
 import { RegisterModal } from "./Registers";
@@ -504,7 +504,7 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
                         } else {
                           if (result.vehicle && lookupWouldReplace(lookedUp, result.vehicle) && !window.confirm("A consulta retornou dados diferentes dos já preenchidos. Aplicar os novos dados?")) return;
                           const description = [result.vehicle?.brand, vehicleDisplayModel(result.vehicle)].filter(Boolean).join(" ");
-                          setLookedUp({ ...lookedUp, ...result.vehicle, plate: lookupPlate, service_model_id: lookedUp.service_model_id, service_link_mode: lookedUp.service_link_mode });
+                          setLookedUp(mergeVehicleLookup(lookedUp, result.vehicle));
                           setForm((f) => ({
                             ...f,
                             vehicle_id: "",

@@ -30,7 +30,7 @@ import {
 import { PlateField } from "../components/PlateField";
 import { VehicleIdentityFields } from "../components/VehicleIdentityFields";
 import { VehicleTechnicalAssociation } from "../components/VehicleTechnicalAssociation";
-import { lookupWouldReplace, vehicleDisplayModel } from "../../shared/vehicleIdentity";
+import { mergeVehicleLookup, lookupWouldReplace, vehicleDisplayModel } from "../../shared/vehicleIdentity";
 import { VehicleCatalogReview } from "../components/VehicleCatalogReview";
 import { candidateFields, fipeFields, emptyFipe } from "../../shared/vehicleFipe";
 type Kind = "customers" | "vehicles" | "catalog" | "professionals";
@@ -736,7 +736,7 @@ export function RegisterModal({
                               return;
                             }
                             if (r.vehicle && r.source !== "local" && (!lookupWouldReplace(vehicle, r.vehicle) || window.confirm("A consulta retornou dados diferentes dos já preenchidos. Aplicar os novos dados?")))
-                              setVehicle((v) => ({ ...v, ...r.vehicle }));
+                              setVehicle((v) => mergeVehicleLookup(v, r.vehicle));
                           }}
                         />
                         <VehicleIdentityFields vehicle={vehicle} onChange={setVehicle} km={vehicle.km} onKmChange={(value) => setVehicle((current) => ({ ...current, km: value }))} />
@@ -822,7 +822,7 @@ export function RegisterModal({
                       (r.source !== "local" || r.vehicle.id === record?.id) &&
                       (!lookupWouldReplace(form, r.vehicle) || window.confirm("A consulta retornou dados diferentes dos já preenchidos. Aplicar os novos dados?"))
                     )
-                      setForm((f) => ({ ...f, ...r.vehicle }));
+                      setForm((f) => mergeVehicleLookup(f, r.vehicle));
                   }}
                 />
                 <VehicleIdentityFields vehicle={form} onChange={setForm} km={form.km} onKmChange={(value) => set("km", value)} />

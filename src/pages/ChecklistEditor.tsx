@@ -24,7 +24,7 @@ import { PlateField } from "../components/PlateField";
 import { VehicleIdentityFields } from "../components/VehicleIdentityFields";
 import { VehicleTechnicalAssociation } from "../components/VehicleTechnicalAssociation";
 import { fipeFields, emptyFipe } from "../../shared/vehicleFipe";
-import { lookupWouldReplace, vehicleDisplayModel } from "../../shared/vehicleIdentity";
+import { mergeVehicleLookup, lookupWouldReplace, vehicleDisplayModel } from "../../shared/vehicleIdentity";
 
 const conditionItems = [
   "Para-brisa e vidros",
@@ -566,16 +566,7 @@ export function ChecklistEditor() {
                 setCreating((current) => ({
                   ...current,
                   lookup_source: result.source || "manual",
-                  vehicle_data: found ? {
-                    ...current.vehicle_data,
-                    ...fipeFields(found),
-                    brand: String(found?.brand || ""),
-                    model: String(found?.model || ""),
-                    year: Number(found?.year || new Date().getFullYear()),
-                    color: String(found?.color || ""),
-                    chassis: found.chassis || current.vehicle_data.chassis,
-                    service_model_id: current.vehicle_data.service_model_id,
-                  } : current.vehicle_data,
+                  vehicle_data: mergeVehicleLookup(current.vehicle_data, found) as typeof current.vehicle_data,
                 }));
               }
               setLookupDone(true);

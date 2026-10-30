@@ -16,3 +16,13 @@ export function lookupWouldReplace(current: Record<string, any>, incoming: Recor
     current[field] !== undefined && current[field] !== null && current[field] !== "" &&
     String(incoming[field]) !== String(current[field]));
 }
+
+// Provider omissions must not clear manually entered data or a technical link.
+export function mergeVehicleLookup(current: Record<string, any>, incoming: Record<string, any> | null): Record<string, any> {
+  const next = { ...current };
+  for (const field of ["plate", "brand", "model", "year", "color", "chassis", "fipe_model", "fipe_code", "fipe_year_id", "model_year", "fuel"]) {
+    const value = incoming?.[field];
+    if (value !== undefined && value !== null && value !== "") next[field] = value;
+  }
+  return next;
+}
