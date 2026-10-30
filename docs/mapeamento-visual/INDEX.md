@@ -150,6 +150,22 @@ Formulário inicial; nenhum atendimento foi salvo.
 
 Estado: capturada · mobile · captura 2026-10-22 · commit de origem: não registrado · [arquivo completo](./capturas/07-ordens-servico/nova-os.png)
 
+### Serviços próprios na OS
+
+Cadastro rápido, pesquisa e edição de serviço fictício em orçamento não salvo.
+
+[![Serviços próprios na OS](./capturas/07-ordens-servico/est009-os-private-desktop.png)](./capturas/07-ordens-servico/est009-os-private-desktop.png)
+
+Estado: capturada · desktop · captura 2026-10-30 · commit de origem: f53519d7d874817dd129414e68789368cef5f170 · [arquivo completo](./capturas/07-ordens-servico/est009-os-private-desktop.png)
+
+### Serviços próprios na OS (celular)
+
+Pesquisa e inclusão de serviço fictício em orçamento não salvo.
+
+[![Serviços próprios na OS (celular)](./capturas/07-ordens-servico/est009-os-private-mobile.png)](./capturas/07-ordens-servico/est009-os-private-mobile.png)
+
+Estado: capturada · mobile · captura 2026-10-30 · commit de origem: f53519d7d874817dd129414e68789368cef5f170 · [arquivo completo](./capturas/07-ordens-servico/est009-os-private-mobile.png)
+
 ## 08 — Financeiro
 
 Contas, caixa, recebíveis e relatórios.

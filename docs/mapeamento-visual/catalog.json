@@ -1552,12 +1552,12 @@
       "route": "/ordens/nova?status=quote",
       "kind": "Inclusão de serviço",
       "viewport": "desktop",
-      "status": "pendente",
+        "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/07-ordens-servico/est009-os-private-desktop.png",
-      "updatedAt": null,
-      "commit": null,
-      "freshness": "pendente",
-      "reason": "Captura real pendente do CI EST-009."
+        "updatedAt": "2026-10-30",
+        "commit": "f53519d7d874817dd129414e68789368cef5f170",
+        "freshness": "atual",
+        "reason": null
     },
     {
       "id": "est009-os-private-mobile",
@@ -1567,12 +1567,12 @@
       "route": "/ordens/nova?status=quote",
       "kind": "Inclusão de serviço",
       "viewport": "mobile",
-      "status": "pendente",
+        "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/07-ordens-servico/est009-os-private-mobile.png",
-      "updatedAt": null,
-      "commit": null,
-      "freshness": "pendente",
-      "reason": "Captura real pendente do CI EST-009."
+        "updatedAt": "2026-10-30",
+        "commit": "f53519d7d874817dd129414e68789368cef5f170",
+        "freshness": "atual",
+        "reason": null
     }
   ],
   "flows": [
