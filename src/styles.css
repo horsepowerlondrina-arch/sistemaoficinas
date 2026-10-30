@@ -5145,3 +5145,35 @@ body { padding-top: 36px; }
     white-space: normal;
   }
 }
+
+/* EST-006C: private services list */
+.workshop-services-panel { padding: 24px; min-width: 0; }
+.workshop-services-search { border-top: 1px solid var(--border); padding: 22px 0 20px; }
+.workshop-services-search .field { width: 100%; }
+.workshop-services-filters { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr) auto; align-items: end; gap: 16px; padding-bottom: 24px; }
+.workshop-services-filters .field { width: 100%; }
+.workshop-services-filters > .button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 40px; white-space: nowrap; }
+.workshop-services-list-section { border-top: 1px solid var(--border); padding-top: 22px; min-width: 0; }
+.workshop-services-list-section h2 { margin: 0 0 14px; font-size: 17px; }
+.workshop-services-list { display: grid; min-width: 0; }
+.workshop-services-item { display: grid; grid-template-columns: minmax(0,1fr) auto auto; align-items: center; gap: 20px; padding: 17px 0; border-top: 1px solid var(--border); min-width: 0; }
+.workshop-services-item:first-child { border-top: 0; }
+.workshop-services-item-details { display: grid; gap: 5px; min-width: 0; overflow-wrap: anywhere; }
+.workshop-services-item-details strong { font-size: 14px; }
+.workshop-services-item-details small { color: var(--muted,#64748b); font-size: 12px; }
+.workshop-services-price { font-size: 14px; white-space: nowrap; }
+.workshop-services-item-actions { display: flex; align-items: center; justify-content: flex-end; gap: 12px; white-space: nowrap; }
+.workshop-services-item-actions .text-button { display: inline-flex; align-items: center; gap: 6px; }
+.workshop-services-empty { margin: 0; color: var(--muted,#64748b); padding: 24px 0; }
+@media (max-width: 700px) {
+  .workshop-services-panel { padding: 18px; }
+  .workshop-services-filters { grid-template-columns: minmax(0,1fr); gap: 12px; }
+  .workshop-services-filters > .button { justify-self: stretch; }
+  .workshop-services-item { grid-template-columns: minmax(0,1fr) auto; gap: 10px; }
+  .workshop-services-item-actions { grid-column: 1 / -1; justify-content: flex-start; flex-wrap: wrap; }
+}
+@media (max-width: 420px) {
+  .workshop-services-item { grid-template-columns: minmax(0,1fr); }
+  .workshop-services-price { margin-top: 2px; }
+  .workshop-services-item-actions { grid-column: 1; }
+}
