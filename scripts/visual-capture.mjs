@@ -88,6 +88,7 @@ try {
         await page.getByRole("combobox", { name: "Modelo" }).fill("Modelo Fictício");
         await page.getByRole("option", { name: /Modelo Fictício/ }).click();
         await page.getByText("Inspeção Fictícia").waitFor({ state: "visible", timeout: 15000 });
+        await page.getByRole("heading", { name: "Tempos técnicos" }).click();
       }
     }
     await page.waitForTimeout(300);
