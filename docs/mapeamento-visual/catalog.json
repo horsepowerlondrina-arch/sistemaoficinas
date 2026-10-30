@@ -459,10 +459,10 @@
       "viewport": "mobile",
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/09-cadastros-servicos/servicos-oficina.png",
-      "updatedAt": "2026-10-22",
-      "commit": null,
-      "freshness": "revisar",
-      "reason": "Captura real com dados fictícios feita em 22/10/2026. O commit de origem não foi registrado; recaptura Playwright e atualização do commit estão pendentes."
+      "updatedAt": "2026-10-30",
+      "commit": "1af0c481f958a404341efeefb5572bb6a58b6aad",
+      "freshness": "atual",
+      "reason": null
     },
     {
       "id": "profissionais",
@@ -967,12 +967,12 @@
       "route": "/servicos",
       "kind": "Lista e estado vazio",
       "viewport": "desktop",
-      "status": "pendente",
+      "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/09-cadastros-servicos/servicos-oficina-desktop.png",
-      "updatedAt": null,
-      "commit": null,
-      "freshness": "pendente",
-      "reason": "Variante desktop ainda não foi gerada. Execute a captura Playwright em ambiente local de teste."
+      "updatedAt": "2026-10-30",
+      "commit": "1af0c481f958a404341efeefb5572bb6a58b6aad",
+      "freshness": "atual",
+      "reason": null
     },
     {
       "id": "profissionais-desktop",
