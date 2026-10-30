@@ -5177,3 +5177,39 @@ body { padding-top: 36px; }
   .workshop-services-price { margin-top: 2px; }
   .workshop-services-item-actions { grid-column: 1; }
 }
+
+/* EST-008: services page and read-only technical catalog. */
+.service-tabs-panel { padding: 0; min-width: 0; }
+.service-tabs { padding: 0 24px; }
+.service-tabs-panel .workshop-services-panel { border: 0; box-shadow: none; border-radius: 0 0 12px 12px; }
+.service-tabs-panel .workshop-services-search { border-top: 0; padding-top: 0; }
+.service-tab-notice { margin: 16px 24px 0; padding: 10px 12px; color: #854d0e; background: #fef9c3; border-radius: 8px; font-size: 13px; }
+.technical-catalog-content { padding: 24px; min-width: 0; }
+.technical-catalog-access { padding: 28px 24px; color: var(--muted,#64748b); }
+.technical-catalog-vehicle-fields { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; }
+.technical-catalog-combobox { position: relative; min-width: 0; }
+.technical-catalog-combobox > input { width: 100%; }
+.technical-catalog-options { position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 20; max-height: 240px; overflow-y: auto; background: white; border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 12px 24px #17223620; }
+.technical-catalog-options button { display: flex; flex-direction: column; width: 100%; padding: 10px 12px; border: 0; border-bottom: 1px solid var(--border); background: white; text-align: left; color: inherit; }
+.technical-catalog-options button:hover,.technical-catalog-options button:focus-visible { background: #f5f7fa; }
+.technical-catalog-options small { color: var(--muted,#64748b); }
+.technical-catalog-options p { margin: 0; padding: 12px; color: var(--muted,#64748b); }
+.technical-catalog-search { margin-top: 20px; }
+.technical-catalog-results { border-top: 1px solid var(--border); margin-top: 24px; padding-top: 22px; min-width: 0; }
+.technical-catalog-results h2 { margin: 0 0 14px; font-size: 17px; }
+.technical-catalog-result { display: grid; grid-template-columns: minmax(0,1fr) 125px 145px 195px; align-items: center; gap: 16px; min-width: 0; padding: 16px 0; border-top: 1px solid var(--border); font-size: 13px; }
+.technical-catalog-result > :first-child { overflow-wrap: anywhere; }
+.technical-catalog-result > :last-child { text-align: right; }
+.technical-catalog-pagination { display: flex; justify-content: flex-end; gap: 8px; padding-top: 16px; }
+@media (max-width: 720px) {
+  .technical-catalog-result { grid-template-columns: minmax(0,1fr) auto; gap: 6px 12px; }
+  .technical-catalog-result > :first-child { grid-column: 1 / -1; }
+  .technical-catalog-result > :last-child { text-align: left; }
+}
+@media (max-width: 600px) {
+  .service-tabs { padding: 0 18px; gap: 18px; }
+  .technical-catalog-content { padding: 18px; }
+  .technical-catalog-vehicle-fields { grid-template-columns: minmax(0,1fr); gap: 12px; }
+  .technical-catalog-result { grid-template-columns: minmax(0,1fr) auto; }
+  .technical-catalog-pagination { justify-content: flex-start; flex-wrap: wrap; }
+}
