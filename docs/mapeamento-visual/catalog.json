@@ -429,10 +429,10 @@
       "viewport": "mobile",
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/09-cadastros-servicos/catalogo-tempos.png",
-      "updatedAt": "2026-10-22",
-      "commit": null,
-      "freshness": "revisar",
-      "reason": "Captura real com dados fictícios feita em 22/10/2026. O commit de origem não foi registrado; recaptura Playwright e atualização do commit estão pendentes."
+      "updatedAt": "2026-10-30",
+      "commit": "3792b567510404220727ed26137e813eb84bc96e",
+      "freshness": "atual",
+      "reason": null
     },
     {
       "id": "servico-modelo-ficticio",
@@ -444,10 +444,10 @@
       "viewport": "mobile",
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/09-cadastros-servicos/servicos-modelo-ficticio.png",
-      "updatedAt": "2026-10-22",
-      "commit": null,
-      "freshness": "revisar",
-      "reason": "Captura real com dados fictícios feita em 22/10/2026. O commit de origem não foi registrado; recaptura Playwright e atualização do commit estão pendentes."
+      "updatedAt": "2026-10-30",
+      "commit": "3792b567510404220727ed26137e813eb84bc96e",
+      "freshness": "atual",
+      "reason": null
     },
     {
       "id": "servicos-oficina",
@@ -460,7 +460,7 @@
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/09-cadastros-servicos/servicos-oficina.png",
       "updatedAt": "2026-10-30",
-      "commit": "1af0c481f958a404341efeefb5572bb6a58b6aad",
+      "commit": "3792b567510404220727ed26137e813eb84bc96e",
       "freshness": "atual",
       "reason": null
     },
@@ -937,12 +937,12 @@
       "route": "/servicos?aba=tempos",
       "kind": "Pesquisa e seletor",
       "viewport": "desktop",
-      "status": "pendente",
+      "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/09-cadastros-servicos/catalogo-tempos-desktop.png",
-      "updatedAt": null,
-      "commit": null,
-      "freshness": "pendente",
-      "reason": "Variante desktop ainda não foi gerada. Execute a captura Playwright em ambiente local de teste."
+      "updatedAt": "2026-10-30",
+      "commit": "3792b567510404220727ed26137e813eb84bc96e",
+      "freshness": "atual",
+      "reason": null
     },
     {
       "id": "servico-modelo-ficticio-desktop",
@@ -952,12 +952,12 @@
       "route": "/servicos?aba=tempos",
       "kind": "Detalhe",
       "viewport": "desktop",
-      "status": "pendente",
+      "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/09-cadastros-servicos/servicos-modelo-ficticio-desktop.png",
-      "updatedAt": null,
-      "commit": null,
-      "freshness": "pendente",
-      "reason": "Variante desktop ainda não foi gerada. Execute a captura Playwright em ambiente local de teste."
+      "updatedAt": "2026-10-30",
+      "commit": "3792b567510404220727ed26137e813eb84bc96e",
+      "freshness": "atual",
+      "reason": null
     },
     {
       "id": "servicos-oficina-desktop",
@@ -970,7 +970,7 @@
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/09-cadastros-servicos/servicos-oficina-desktop.png",
       "updatedAt": "2026-10-30",
-      "commit": "1af0c481f958a404341efeefb5572bb6a58b6aad",
+      "commit": "3792b567510404220727ed26137e813eb84bc96e",
       "freshness": "atual",
       "reason": null
     },
@@ -982,12 +982,12 @@
       "route": "/servicos?aba=tempos",
       "kind": "Consulta técnica",
       "viewport": "desktop",
-      "status": "pendente",
+      "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/09-cadastros-servicos/catalogo-tempos-servicos-desktop.png",
-      "updatedAt": null,
-      "commit": null,
-      "freshness": "pendente",
-      "reason": "Captura Playwright pendente do PR EST-008."
+      "updatedAt": "2026-10-30",
+      "commit": "3792b567510404220727ed26137e813eb84bc96e",
+      "freshness": "atual",
+      "reason": null
     },
     {
       "id": "catalogo-tempos-servicos-mobile",
@@ -997,12 +997,12 @@
       "route": "/servicos?aba=tempos",
       "kind": "Consulta técnica",
       "viewport": "mobile",
-      "status": "pendente",
+      "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/09-cadastros-servicos/catalogo-tempos-servicos-mobile.png",
-      "updatedAt": null,
-      "commit": null,
-      "freshness": "pendente",
-      "reason": "Captura Playwright pendente do PR EST-008."
+      "updatedAt": "2026-10-30",
+      "commit": "3792b567510404220727ed26137e813eb84bc96e",
+      "freshness": "atual",
+      "reason": null
     },
     {
       "id": "profissionais-desktop",

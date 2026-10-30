@@ -220,7 +220,7 @@ Modelo e serviço fictícios disponíveis para consulta.
 
 [![Catálogo de tempos](./capturas/09-cadastros-servicos/catalogo-tempos.png)](./capturas/09-cadastros-servicos/catalogo-tempos.png)
 
-Estado: capturada · mobile · captura 2026-10-22 · commit de origem: não registrado · [arquivo completo](./capturas/09-cadastros-servicos/catalogo-tempos.png)
+Estado: capturada · mobile · captura 2026-10-30 · commit de origem: 3792b567510404220727ed26137e813eb84bc96e · [arquivo completo](./capturas/09-cadastros-servicos/catalogo-tempos.png)
 
 ### Serviços do modelo fictício
 
@@ -228,7 +228,7 @@ Serviço de demonstração e duração de referência.
 
 [![Serviços do modelo fictício](./capturas/09-cadastros-servicos/servicos-modelo-ficticio.png)](./capturas/09-cadastros-servicos/servicos-modelo-ficticio.png)
 
-Estado: capturada · mobile · captura 2026-10-22 · commit de origem: não registrado · [arquivo completo](./capturas/09-cadastros-servicos/servicos-modelo-ficticio.png)
+Estado: capturada · mobile · captura 2026-10-30 · commit de origem: 3792b567510404220727ed26137e813eb84bc96e · [arquivo completo](./capturas/09-cadastros-servicos/servicos-modelo-ficticio.png)
 
 ### Serviços particulares
 
@@ -236,7 +236,7 @@ Lista sem serviços próprios cadastrados.
 
 [![Serviços particulares](./capturas/09-cadastros-servicos/servicos-oficina.png)](./capturas/09-cadastros-servicos/servicos-oficina.png)
 
-Estado: capturada · mobile · captura 2026-10-30 · commit de origem: 1af0c481f958a404341efeefb5572bb6a58b6aad · [arquivo completo](./capturas/09-cadastros-servicos/servicos-oficina.png)
+Estado: capturada · mobile · captura 2026-10-30 · commit de origem: 3792b567510404220727ed26137e813eb84bc96e · [arquivo completo](./capturas/09-cadastros-servicos/servicos-oficina.png)
 
 ### Profissionais
 
@@ -246,13 +246,45 @@ Lista vazia na demonstração.
 
 Estado: capturada · mobile · captura 2026-10-22 · commit de origem: não registrado · [arquivo completo](./capturas/09-cadastros-servicos/profissionais.png)
 
+### Catálogo de tempos
+
+Modelo e serviço fictícios disponíveis para consulta.
+
+[![Catálogo de tempos](./capturas/09-cadastros-servicos/catalogo-tempos-desktop.png)](./capturas/09-cadastros-servicos/catalogo-tempos-desktop.png)
+
+Estado: capturada · desktop · captura 2026-10-30 · commit de origem: 3792b567510404220727ed26137e813eb84bc96e · [arquivo completo](./capturas/09-cadastros-servicos/catalogo-tempos-desktop.png)
+
+### Serviços do modelo fictício
+
+Serviço de demonstração e duração de referência.
+
+[![Serviços do modelo fictício](./capturas/09-cadastros-servicos/servicos-modelo-ficticio-desktop.png)](./capturas/09-cadastros-servicos/servicos-modelo-ficticio-desktop.png)
+
+Estado: capturada · desktop · captura 2026-10-30 · commit de origem: 3792b567510404220727ed26137e813eb84bc96e · [arquivo completo](./capturas/09-cadastros-servicos/servicos-modelo-ficticio-desktop.png)
+
 ### Serviços particulares
 
 Lista sem serviços próprios cadastrados.
 
 [![Serviços particulares](./capturas/09-cadastros-servicos/servicos-oficina-desktop.png)](./capturas/09-cadastros-servicos/servicos-oficina-desktop.png)
 
-Estado: capturada · desktop · captura 2026-10-30 · commit de origem: 1af0c481f958a404341efeefb5572bb6a58b6aad · [arquivo completo](./capturas/09-cadastros-servicos/servicos-oficina-desktop.png)
+Estado: capturada · desktop · captura 2026-10-30 · commit de origem: 3792b567510404220727ed26137e813eb84bc96e · [arquivo completo](./capturas/09-cadastros-servicos/servicos-oficina-desktop.png)
+
+### Catálogo de Tempos em Serviços
+
+Consulta técnica por marca, modelo e serviço.
+
+[![Catálogo de Tempos em Serviços](./capturas/09-cadastros-servicos/catalogo-tempos-servicos-desktop.png)](./capturas/09-cadastros-servicos/catalogo-tempos-servicos-desktop.png)
+
+Estado: capturada · desktop · captura 2026-10-30 · commit de origem: 3792b567510404220727ed26137e813eb84bc96e · [arquivo completo](./capturas/09-cadastros-servicos/catalogo-tempos-servicos-desktop.png)
+
+### Catálogo de Tempos em Serviços
+
+Consulta técnica por marca, modelo e serviço.
+
+[![Catálogo de Tempos em Serviços](./capturas/09-cadastros-servicos/catalogo-tempos-servicos-mobile.png)](./capturas/09-cadastros-servicos/catalogo-tempos-servicos-mobile.png)
+
+Estado: capturada · mobile · captura 2026-10-30 · commit de origem: 3792b567510404220727ed26137e813eb84bc96e · [arquivo completo](./capturas/09-cadastros-servicos/catalogo-tempos-servicos-mobile.png)
 
 ## 10 — Estoque
 
