@@ -71,7 +71,7 @@ export function moduleForApiRequest(path: string, method = "GET"): WorkshopModul
   if (/^\/(?:customers|vehicles)(?:\/|$)/.test(p)) return ["customers_vehicles"];
   if (/^\/catalog-capture(?:\/|$)/.test(p)) return ["inventory","catalog"];
   if (/^\/repair-services(?:\/|$)/.test(p)) return ["technical_catalog"];
-  if (/^\/(?:catalog|product-categories|catalog-batch|workshop-services)(?:\/|$)/.test(p)) return ["catalog"];
+  if (/^\/(?:catalog|product-categories|catalog-batch|workshop-services|workshop-service-categories)(?:\/|$)/.test(p)) return ["catalog"];
   if (/^\/professionals(?:\/|$)/.test(p)) return ["professionals"];
   if (/^\/suppliers(?:\/|$)/.test(p)) return ["suppliers"];
   if (/^\/stock-invoices(?:\/|$)/.test(p)) return ["inventory","catalog","suppliers"];
