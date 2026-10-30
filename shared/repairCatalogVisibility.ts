@@ -13,5 +13,5 @@ export function shouldLoadRepairServiceSearch(
   serviceOpen: boolean,
 ) {
   if (vehicleOnly) return false;
-  return mode === "manual" || (!!modelId && serviceOpen);
+  return serviceOpen && (mode === "manual" || !!modelId);
 }

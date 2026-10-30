@@ -740,6 +740,7 @@ export async function resolveService(
       source: "manual",
       workshop_service_id: service.id,
       name: service.name,
+      reference: service.reference || "",
       description: service.description || "",
       porte_id: selected.porte_id || null,
       service_type: service.service_type === "private" ? "private" : "legacy",

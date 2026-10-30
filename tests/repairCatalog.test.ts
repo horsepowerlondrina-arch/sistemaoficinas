@@ -638,7 +638,8 @@ test("vehicleOnly nunca dispara pesquisa de serviços ou exige categoria de cobr
   assert.equal(shouldLoadRepairServiceSearch("catalog", true, "modelo", true), false);
   assert.equal(shouldLoadRepairServiceSearch("catalog", false, "modelo", false), false);
   assert.equal(shouldLoadRepairServiceSearch("catalog", false, "modelo", true), true);
-  assert.equal(shouldLoadRepairServiceSearch("manual", false, "", false), true);
+  assert.equal(shouldLoadRepairServiceSearch("manual", false, "", false), false);
+  assert.equal(shouldLoadRepairServiceSearch("manual", false, "", true), true);
 });
 
 

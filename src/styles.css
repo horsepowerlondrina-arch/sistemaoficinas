@@ -5179,6 +5179,23 @@ body { padding-top: 36px; }
 }
 
 /* EST-008: services page and read-only technical catalog. */
+.os-private-services { min-width: 0; display: grid; gap: 12px; }
+.os-private-services h3 { margin: 0; }
+.os-private-search-row { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 12px; align-items: end; }
+.os-private-search-row .field, .os-private-search-row input { width: 100%; min-width: 0; }
+.os-private-search-row > .button { height: 40px; white-space: nowrap; }
+.os-private-quick-create { justify-self: start; }
+.os-private-suggestions { width: min(100%, 620px); max-height: 224px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; background: white; box-shadow: 0 8px 20px #17223618; }
+.os-private-suggestions > button { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 10px 12px; border: 0; border-bottom: 1px solid var(--border); background: white; text-align: left; font-size: 13px; }
+.os-private-suggestions > button:last-child { border-bottom: 0; }
+.os-private-suggestions > button.active, .os-private-suggestions > button:hover { background: #fff1f2; }
+.os-private-suggestions > button span { white-space: nowrap; }
+.os-private-suggestions > p { padding: 10px 12px; margin: 0; color: var(--muted); }
+.private-service-fields { grid-template-columns: repeat(4,minmax(0,1fr)); }
+.private-service-note { display: block; margin-top: 10px; }
+@media (max-width: 900px) { .private-service-fields { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media (max-width: 520px) { .private-service-fields { grid-template-columns: minmax(0,1fr); } }
+@media (max-width: 420px) { .os-private-search-row { grid-template-columns: minmax(0,1fr); } .os-private-search-row > .button { justify-self: start; } }
 .service-tabs-panel { padding: 0; min-width: 0; }
 .service-tabs { padding: 0 24px; }
 .service-tabs-panel .workshop-services-panel { border: 0; box-shadow: none; border-radius: 0 0 12px 12px; }

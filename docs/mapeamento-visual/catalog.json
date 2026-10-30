@@ -1543,6 +1543,36 @@
       "updatedAt": null,
       "commit": null,
       "reason": "A interação ainda não possui arquivo PNG correspondente; executar em navegador e dados de teste isolados."
+    },
+    {
+      "id": "est009-os-private-desktop",
+      "module": "07-ordens-servico",
+      "title": "Serviços próprios na OS",
+      "description": "Cadastro rápido, pesquisa e edição de serviço fictício em orçamento não salvo.",
+      "route": "/ordens/nova?status=quote",
+      "kind": "Inclusão de serviço",
+      "viewport": "desktop",
+        "status": "capturada",
+      "image": "docs/mapeamento-visual/capturas/07-ordens-servico/est009-os-private-desktop.png",
+        "updatedAt": "2026-10-30",
+        "commit": "f53519d7d874817dd129414e68789368cef5f170",
+        "freshness": "atual",
+        "reason": null
+    },
+    {
+      "id": "est009-os-private-mobile",
+      "module": "07-ordens-servico",
+      "title": "Serviços próprios na OS (celular)",
+      "description": "Pesquisa e inclusão de serviço fictício em orçamento não salvo.",
+      "route": "/ordens/nova?status=quote",
+      "kind": "Inclusão de serviço",
+      "viewport": "mobile",
+        "status": "capturada",
+      "image": "docs/mapeamento-visual/capturas/07-ordens-servico/est009-os-private-mobile.png",
+        "updatedAt": "2026-10-30",
+        "commit": "f53519d7d874817dd129414e68789368cef5f170",
+        "freshness": "atual",
+        "reason": null
     }
   ],
   "flows": [
