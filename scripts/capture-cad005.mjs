@@ -37,6 +37,8 @@ export async function captureCad005(page, entry) {
     await page.getByPlaceholder("Placa, modelo ou proprietário...").fill("");
   }
   await expect(scope.getByRole("textbox", { name: /^Modelo FIPE/ })).toHaveValue("Modelo FIPE Fictício 1.0 Flex");
+  if (entry.id.includes("-footer-")) await scope.evaluate(element => { element.scrollTop = element.scrollHeight; });
+  else if (register || review) await scope.evaluate(element => { element.scrollTop = 0; });
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1);
   if (overflow) throw new Error(`Horizontal overflow in ${entry.id}`);
 }

@@ -1723,6 +1723,36 @@
       "commit": null,
       "freshness": "pendente",
       "reason": "Captura automatizada da CAD-005 aguardando CI."
+    },
+    {
+      "id": "cad005-register-footer-mobile",
+      "module": "04-veiculos",
+      "title": "CAD-005 — Novo veículo (mobile) — rodapé",
+      "description": "Formulário real com dados fictícios; identificação FIPE independente da associação técnica.",
+      "route": "/cadastros?aba=veiculos",
+      "kind": "Cadastro de veículo",
+      "viewport": "mobile",
+      "status": "pendente",
+      "image": "docs/mapeamento-visual/capturas/04-veiculos/cad005-register-footer-mobile.png",
+      "updatedAt": null,
+      "commit": null,
+      "freshness": "pendente",
+      "reason": "Captura automatizada da CAD-005 aguardando CI."
+    },
+    {
+      "id": "cad005-review-footer-mobile",
+      "module": "04-veiculos",
+      "title": "CAD-005 — Revisão de veículo (mobile) — rodapé",
+      "description": "Formulário real com dados fictícios; identificação FIPE independente da associação técnica.",
+      "route": "/cadastros?aba=veiculos",
+      "kind": "Cadastro de veículo",
+      "viewport": "mobile",
+      "status": "pendente",
+      "image": "docs/mapeamento-visual/capturas/04-veiculos/cad005-review-footer-mobile.png",
+      "updatedAt": null,
+      "commit": null,
+      "freshness": "pendente",
+      "reason": "Captura automatizada da CAD-005 aguardando CI."
     }
   ],
   "flows": [

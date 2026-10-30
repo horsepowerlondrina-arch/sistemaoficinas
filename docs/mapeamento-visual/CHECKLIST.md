@@ -117,6 +117,8 @@ Estados: capturada, pendente, bloqueada e não aplicável.
 | cad005-order-mobile | Orçamentos | CAD-005 — Veículo na abertura do atendimento (mobile) — Formulário real com dados fictícios; identificação FIPE independente da associação técnica. | `capturas/06-orcamentos/cad005-order-mobile.png` (previsto) | pendente | — | não registrado | Captura automatizada da CAD-005 aguardando CI. |
 | cad005-switch-desktop | Ordens de serviço | CAD-005 — Troca de veículo no atendimento (desktop) — Formulário real com dados fictícios; identificação FIPE independente da associação técnica. | `capturas/07-ordens-servico/cad005-switch-desktop.png` (previsto) | pendente | — | não registrado | Captura automatizada da CAD-005 aguardando CI. |
 | cad005-switch-mobile | Ordens de serviço | CAD-005 — Troca de veículo no atendimento (mobile) — Formulário real com dados fictícios; identificação FIPE independente da associação técnica. | `capturas/07-ordens-servico/cad005-switch-mobile.png` (previsto) | pendente | — | não registrado | Captura automatizada da CAD-005 aguardando CI. |
+| cad005-register-footer-mobile | Veículos | CAD-005 — Novo veículo (mobile) — rodapé — Formulário real com dados fictícios; identificação FIPE independente da associação técnica. | `capturas/04-veiculos/cad005-register-footer-mobile.png` (previsto) | pendente | — | não registrado | Captura automatizada da CAD-005 aguardando CI. |
+| cad005-review-footer-mobile | Veículos | CAD-005 — Revisão de veículo (mobile) — rodapé — Formulário real com dados fictícios; identificação FIPE independente da associação técnica. | `capturas/04-veiculos/cad005-review-footer-mobile.png` (previsto) | pendente | — | não registrado | Captura automatizada da CAD-005 aguardando CI. |
 
 ## Fluxos
 

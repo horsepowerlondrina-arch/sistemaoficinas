@@ -153,7 +153,8 @@ try {
     await page.waitForTimeout(300);
     const path = outputFor(entry);
     mkdirSync(dirname(path), { recursive: true });
-    await page.screenshot({ path, fullPage: true, animations: "disabled" });
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.screenshot({ path, fullPage: !(entry.id.startsWith("cad005-") && /register|review/.test(entry.id)), animations: "disabled" });
     return path;
   };
   let captures = 0;

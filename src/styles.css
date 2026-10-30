@@ -5235,3 +5235,10 @@ body { padding-top: 36px; }
   .technical-catalog-result { grid-template-columns: minmax(0,1fr) auto; }
   .technical-catalog-pagination { justify-content: flex-start; flex-wrap: wrap; }
 }
+
+.vehicle-identity-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 19px 17px; min-width: 0; }
+.modal:has(.vehicle-identity-fields) { top: calc(50% + 18px); max-height: calc(100dvh - 64px); }
+.modal:has(.vehicle-identity-fields) .modal-footer { position: sticky; bottom: 0; z-index: 1; }
+@media (max-width: 600px) {
+  .vehicle-identity-fields { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+}

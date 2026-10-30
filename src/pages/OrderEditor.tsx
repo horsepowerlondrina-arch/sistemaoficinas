@@ -646,7 +646,7 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
                   <p className="muted">
                     {itemKind==='product'?'Cadastre produtos, importe pelo Sky Peças ou reutilize seu catálogo.':'Use o Catálogo Técnico por veículo ou pesquise Serviços Próprios pelo nome, com ou sem veículo.'}
                   </p>
-                  {!locked && itemKind==='service' && <RepairServicePicker key={form.vehicle_id||lookupPlate||'guest'} vehicle={vehicle||lookedUp} brandLocked={!!((vehicle||lookedUp)?.id&&(vehicle||lookedUp)?.brand)} modelId={serviceModelId} onModelChange={handleServiceModelChange} onAdd={item=>setForm(f=>({...f,items:[...f.items,item]}))}/>}
+                  {!locked && itemKind==='service' && <RepairServicePicker key={form.vehicle_id||lookupPlate||'guest'} vehicle={{ ...(vehicle||lookedUp), ...(serviceModelTouched ? { service_link_mode: serviceModelId ? "manual" : "none" } : {}) }} modelId={serviceModelId} onModelChange={handleServiceModelChange} onAdd={item=>setForm(f=>({...f,items:[...f.items,item]}))}/>}
                   {!locked && itemKind==='product' && (
                     <div className="item-picker">
                       <CatalogPicker

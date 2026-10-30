@@ -410,7 +410,7 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
       } else setError(message);
     });
     return () => { active = false; };
-  }, [modelId, info?.enabled, vehicle?.brand, vehicle?.model, vehicle?.fipe_model, vehicle?.fipe_code]);
+  }, [modelId, info?.enabled, vehicle?.brand, vehicle?.model, vehicle?.fipe_model, vehicle?.fipe_code, vehicle?.service_link_mode]);
   useEffect(() => {
     let active = true; setBrandOptions([]); setBrandMore(false);
     if (!info?.enabled || mode !== "catalog" || (!brandOpen && !autoBrandPending)) return () => { active = false; };
