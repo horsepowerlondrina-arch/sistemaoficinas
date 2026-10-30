@@ -61,3 +61,8 @@
 .pa-members{display:grid;gap:12px}.pa-member{display:flex;justify-content:space-between;align-items:center;gap:16px;border:1px solid #dbe2e7;padding:14px;border-radius:8px}.pa-member small{display:block;overflow-wrap:anywhere}.pa-danger{color:#a12424!important}
 .pa-note[role=alert]{overflow-wrap:anywhere}
 @media(max-width:640px){.pa-form-fields{grid-template-columns:1fr}.pa-member{align-items:stretch;flex-direction:column}.pa-workshop-tabs{gap:6px}.pa-workshop-tabs button{padding:9px;font-size:12px}.pa-workshop-data{grid-template-columns:1fr}.pa-workshop-detail .pa-workshop-actions button{font-size:12px;min-height:40px}}
+
+/* Keep the administrative header below the existing environment notice. */
+body:has(.development-notice) .pa-topbar{top:36px}
+.pa-workshop-state-form p,.pa-workshop-data dd{color:#52616f}
+.pa-permissions-table th,.pa-permissions-table td{padding:9px 12px}

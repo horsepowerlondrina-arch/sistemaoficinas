@@ -76,7 +76,7 @@ try{
  await expect(page.getByRole("row").filter({hasText:"Catálogo Técnico de Tempos"})).toContainText("Bloqueado");
  await page.getByText("Estrutura comercial planejada",{exact:true}).click();
  await expect(page.getByText("Premium",{exact:true})).toBeVisible();
- await page.screenshot({path:resolve(output,"oficina-permissoes-desktop.png"),fullPage:true});
+ await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:resolve(output,"oficina-permissoes-desktop.png"),fullPage:true});
  await page.getByLabel("Justificativa das permissões",{exact:true}).fill("Restaurar configuração fictícia");
  page.once("dialog",d=>d.accept());
  await page.getByRole("button",{name:"Restaurar padrões",exact:true}).click();
@@ -97,13 +97,13 @@ try{
  await page.getByRole("button",{name:"Tornar proprietário"}).click();
  await expect(page.getByText("Vínculo atualizado e auditado.")).toBeVisible();
  if(memberUpdates!==1)throw Error("Duplicate membership update");
- await page.screenshot({path:resolve(output,"oficina-usuarios-desktop.png"),fullPage:true});
+ await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:resolve(output,"oficina-usuarios-desktop.png"),fullPage:true});
  await page.getByRole("tab",{name:"Convites",exact:true}).click();
  await expect(page.getByText("Ativação concluída",{exact:true})).toBeVisible();
  await expect(page.getByRole("button",{name:"Gerar link manual"})).toHaveCount(0);
  await page.setViewportSize({width:390,height:844});
  await page.getByRole("tab",{name:"Dados gerais",exact:true}).click();
- await page.screenshot({path:resolve(output,"oficina-dados-mobile.png"),fullPage:true});
+ await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:resolve(output,"oficina-dados-mobile.png"),fullPage:true});
  if(await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth+1))throw Error("Page overflows mobile viewport");
  // Pending activation uses the original explicit ownership confirmation.
  workshop={...workshop,status:"pending_verification",invitation_status:"expired",email_verified_at:null};
@@ -116,7 +116,7 @@ try{
  await expect(page.getByLabel("Link de ativação",{exact:true})).toHaveValue(/fictitious-ui-only/);
  await page.getByRole("button",{name:"Fechar e apagar",exact:true}).click();
  await expect(page.getByRole("dialog")).toHaveCount(0);
- await page.screenshot({path:resolve(output,"oficina-convites-mobile.png"),fullPage:true});
+ await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:resolve(output,"oficina-convites-mobile.png"),fullPage:true});
  readOnly=true;await page.reload();await page.getByRole("button",{name:"Oficinas",exact:true}).click();await page.getByRole("button",{name:/Oficina Editada Fictícia/}).click();
  await expect(page.getByRole("button",{name:"Editar dados",exact:true})).toHaveCount(0);
  await page.getByRole("tab",{name:"Acessos e permissões",exact:true}).click();
