@@ -11,7 +11,7 @@ export function vehicleModelYear(vehicle: { model_year?: unknown; fipe_year_id?:
 }
 
 export function lookupWouldReplace(current: Record<string, any>, incoming: Record<string, any>): boolean {
-  return ["brand", "model", "year", "color", "fipe_model", "fipe_code", "model_year", "fuel"].some((field) =>
+  return ["brand", "model", "year", "color", "chassis", "fipe_model", "fipe_code", "fipe_year_id", "model_year", "fuel"].some((field) =>
     incoming[field] !== undefined && incoming[field] !== null && incoming[field] !== "" &&
     current[field] !== undefined && current[field] !== null && current[field] !== "" &&
     String(incoming[field]) !== String(current[field]));

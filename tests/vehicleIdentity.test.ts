@@ -21,4 +21,6 @@ test("provider omissions preserve manual data and never replace the technical as
   assert.equal(lookupWouldReplace(current, incoming), true);
   assert.deepEqual(mergeVehicleLookup(current, incoming), { ...current, brand: "FIAT", model: "Uno Mille" });
   assert.deepEqual(mergeVehicleLookup(current, null), current);
+  assert.equal(lookupWouldReplace({ chassis: "manual" }, { chassis: "provider" }), true);
+  assert.equal(lookupWouldReplace({ fipe_year_id: "2020-1" }, { fipe_year_id: "2021-1" }), true);
 });
