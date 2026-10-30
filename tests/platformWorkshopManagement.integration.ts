@@ -5,6 +5,7 @@ import {adminClient} from "../scripts/local-admin.js";
 test("PostgreSQL ADM-002: membership isolation, owner protection, lifecycle and audit",async()=>{
  const c=adminClient(),t=randomUUID(),other=randomUUID(),pending=randomUUID(),owner=randomUUID(),operator=randomUUID(),outsider=randomUUID(),admin=randomBytes(16).toString("hex"),session=randomBytes(32).toString("hex");
  await c.connect();try{await c.query("BEGIN");
+ const rejects=async(sql,params,code)=>{await c.query("SAVEPOINT adm_expected_error");try{await assert.rejects(c.query(sql,params),{code});}finally{await c.query("ROLLBACK TO SAVEPOINT adm_expected_error");await c.query("RELEASE SAVEPOINT adm_expected_error");}};
  await c.query("INSERT INTO horse_power.tenants(id,name) VALUES($1,$2),($3,$4),($5,$6)",[t,"Oficina Fictícia ADM002",other,"Oficina Fictícia Isolada",pending,"Oficina Pendente Fictícia"]);
  await c.query("INSERT INTO horse_power.users(id,name,email,password_hash) VALUES($1,'Dono Fictício',$2,'fixture'),($3,'Operador Fictício',$4,'fixture'),($5,'Outro Usuário',$6,'fixture')",[owner,"o-"+owner+"@example.test",operator,"u-"+operator+"@example.test",outsider,"x-"+outsider+"@example.test"]);
  await c.query("INSERT INTO horse_power.memberships(user_id,tenant_id,role) VALUES($1,$2,'owner'),($3,$2,'operator'),($4,$5,'owner')",[owner,t,operator,outsider,other]);
@@ -14,19 +15,19 @@ test("PostgreSQL ADM-002: membership isolation, owner protection, lifecycle and 
  await c.query("INSERT INTO platform_admin.administrators(id,email,display_name,role,permissions,password_hash,totp_secret_ciphertext,active,enrolled) VALUES($1,$2,'Admin Fictício','principal','[\"workshops:read\",\"workshops:manage\"]'::jsonb,'fixture','fixture',true,true)",[admin,"a-"+admin+"@example.test"]);
  await c.query("INSERT INTO platform_admin.sessions(token_hash,administrator_id,expires_at) VALUES($1,$2,now()+interval '1 hour')",[session,admin]);
  const list=await c.query("SELECT * FROM platform_admin.workshop_member_directory($1,$2)",[t,session]);assert.equal(list.rowCount,2);assert.equal(list.rows[0].role,"owner");assert.equal(list.rows.some(r=>r.user_id===outsider),false);
- await assert.rejects(c.query("SELECT * FROM platform_admin.workshop_member_directory($1,$2)",[t,"bad"]),{code:"42501"});
- await assert.rejects(c.query("SELECT platform_admin.manage_workshop_membership($1,$2,$3,'remove',NULL,$4)",[t,session,outsider,"Teste de isolamento"]),{code:"P0002"});
+ await rejects("SELECT * FROM platform_admin.workshop_member_directory($1,$2)",[t,"bad"],"42501");
+ await rejects("SELECT platform_admin.manage_workshop_membership($1,$2,$3,'remove',NULL,$4)",[t,session,outsider,"Teste de isolamento"],"P0002");
  await c.query("SELECT platform_admin.manage_workshop_membership($1,$2,$3,'set_role','owner',$4)",[t,session,operator,"Promover operador fictício"]);
  await c.query("SELECT platform_admin.manage_workshop_membership($1,$2,$3,'set_role','operator',$4)",[t,session,operator,"Rebaixar operador fictício"]);
  await c.query("SELECT platform_admin.manage_workshop_membership($1,$2,$3,'remove',NULL,$4)",[t,session,operator,"Remover operador fictício"]);
- await assert.rejects(c.query("SELECT platform_admin.manage_workshop_membership($1,$2,$3,'remove',NULL,$4)",[t,session,owner,"Preservar dono fictício"]),{code:"23514"});
+ await rejects("SELECT platform_admin.manage_workshop_membership($1,$2,$3,'remove',NULL,$4)",[t,session,owner,"Preservar dono fictício"],"23514");
  assert.equal((await c.query("SELECT count(*)::int n FROM platform_admin.audit_events WHERE subject_tenant_id=$1 AND action='admin.workshop.membership_changed'",[t])).rows[0].n,3);
- await assert.rejects(c.query("SELECT platform_admin.manage_workshop_lifecycle($1,$2,'active',NULL,$3)",[pending,session,"Ativar sem verificação"]),{code:"23514"});
+ await rejects("SELECT platform_admin.manage_workshop_lifecycle($1,$2,'active',NULL,$3)",[pending,session,"Ativar sem verificação"],"23514");
  const trial=await c.query("SELECT platform_admin.manage_workshop_lifecycle($1,$2,'trial',5,$3) result",[t,session,"Novo teste fictício"]);assert.equal(trial.rows[0].result.after.status,"trial");
  const days=await c.query("SELECT round(extract(epoch FROM(trial_ends_at-trial_started_at))/86400)::int n FROM platform_admin.workshops WHERE tenant_id=$1",[t]);assert.equal(days.rows[0].n,5);
  await c.query("SELECT platform_admin.manage_workshop_lifecycle($1,$2,'active',NULL,$3)",[t,session,"Reativação fictícia"]);
  await c.query("SELECT platform_admin.manage_workshop_lifecycle($1,$2,'read_only',NULL,$3)",[t,session,"Suspender para teste"]);
- await assert.rejects(c.query("SELECT platform_admin.manage_workshop_lifecycle($1,$2,'active',NULL,$3)",[t,"bad","Sessão inválida"]),{code:"42501"});
+ await rejects("SELECT platform_admin.manage_workshop_lifecycle($1,$2,'active',NULL,$3)",[t,"bad","Sessão inválida"],"42501");
  assert.equal((await c.query("SELECT count(*)::int n FROM platform_admin.audit_events WHERE subject_tenant_id=$1 AND action='admin.workshop.status_changed'",[t])).rows[0].n,3);
  await c.query("ROLLBACK");}catch(e){await c.query("ROLLBACK").catch(()=>{});throw e;}finally{await c.end();}
 });
