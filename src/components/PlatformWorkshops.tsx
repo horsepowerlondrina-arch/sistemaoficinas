@@ -89,7 +89,7 @@ export function PlatformWorkshops({ canManage, canManageModules, canTransfer, ca
       const result = await request<{ items: Workshop[]; total: number }>(`/workshops?${query}`);
       if(requestId!==listRequest.current)return;
       setItems(result.items); setTotal(result.total); setPage(nextPage);
-    } catch (cause) { setError((cause as Error).message); }
+    } catch (cause) { if(requestId===listRequest.current)setError((cause as Error).message); }
   };
   useEffect(() => { void load(1); }, [status]);
   useEffect(()=>{if(!canManageModules||environmentLabel==="Ambiente local")return;void request<CatalogTestAccess>("/catalog-test-access").then(value=>{setTestAccess(value);setTestUntil(localDateTimeInput(value.valid_until));}).catch(()=>setTestAccessUnavailable(true));},[canManageModules,environmentLabel]);
@@ -105,7 +105,7 @@ export function PlatformWorkshops({ canManage, canManageModules, canTransfer, ca
       setSelected(detail); setFields(toFields(detail)); setEditing(false); setCreating(false); setReason(""); setNextStatus(""); setTrialDays("");
       setCatalogUntil(localDateTimeInput(detail.catalog_access?.valid_until||null));
       setCatalogReason("Autorização administrativa do módulo Catálogo Técnico.");
-    } catch (cause) { setError((cause as Error).message); }
+    } catch (cause) { if(requestId===detailRequest.current)setError((cause as Error).message); }
     finally { if(requestId===detailRequest.current&&!actionLock.current)setBusy(false); }
   };
   const save = async (event: FormEvent<HTMLFormElement>) => {

@@ -11,7 +11,7 @@ try{
  let ready=false;for(let i=0;i<60;i++){try{if((await fetch("http://127.0.0.1:5179")).ok){ready=true;break;}}catch{}await delay(500);}if(!ready)throw Error("UI test server unavailable");
  browser=await chromium.launch();
  const context=await browser.newContext({viewport:{width:1440,height:1000}});
- const page=await context.newPage();
+ const page=await context.newPage();page.setDefaultTimeout(15000);
  const errors=[];page.on("pageerror",e=>errors.push(e.message));
  let readOnly=false,failSave=true,failHistory=true,updates=0,memberUpdates=0;
  const modules=Object.fromEntries(["dashboard","orders","checklists","customers_vehicles","catalog","technical_catalog","professionals","suppliers","inventory","finance","settings"].map(k=>[k,true]));
@@ -61,6 +61,7 @@ try{
  await expect(page.getByText("Vínculo de usuário alterado",{exact:true})).toBeVisible();
  await expect(page.getByText("Justificativa: Revisão fictícia de acesso")).toBeVisible();
  await page.getByRole("tab",{name:"Acessos e permissões",exact:true}).click();
+ await expect(page.getByLabel("Exceção: Catálogo Técnico de Tempos",{exact:true})).toBeEnabled();
  await page.getByLabel("Exceção: Catálogo Técnico de Tempos",{exact:true}).selectOption("deny");
  await page.getByLabel("Justificativa das permissões",{exact:true}).fill("Bloqueio fictício para regressão");
  await page.getByRole("tab",{name:"Usuários",exact:true}).click();
