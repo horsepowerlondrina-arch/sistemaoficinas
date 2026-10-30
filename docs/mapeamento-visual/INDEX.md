@@ -138,6 +138,22 @@ Formulário real com dados fictícios; identificação FIPE independente da asso
 
 Estado: capturada · mobile · captura 2026-10-30 · commit de origem: f6e2a4cb13517dc8f57dc1703586ce27268d004c · [arquivo completo](./capturas/04-veiculos/cad005-review-footer-mobile.png)
 
+### CAD-005 — Associação manual no modal (desktop)
+
+Clique real na marca e no modelo, gravação e reabertura do vínculo manual sem alterar a identificação FIPE.
+
+[![CAD-005 — Associação manual no modal (desktop)](./capturas/04-veiculos/cad005-review-catalog-desktop.png)](./capturas/04-veiculos/cad005-review-catalog-desktop.png)
+
+Estado: capturada · desktop · captura 2026-10-30 · commit de origem: e5a84d7a9bb11a524307051eb7da7c44bfddd12b · [arquivo completo](./capturas/04-veiculos/cad005-review-catalog-desktop.png)
+
+### CAD-005 — Associação manual no modal (mobile)
+
+Clique real na marca e no modelo, gravação e reabertura do vínculo manual sem alterar a identificação FIPE.
+
+[![CAD-005 — Associação manual no modal (mobile)](./capturas/04-veiculos/cad005-review-catalog-mobile.png)](./capturas/04-veiculos/cad005-review-catalog-mobile.png)
+
+Estado: capturada · mobile · captura 2026-10-30 · commit de origem: e5a84d7a9bb11a524307051eb7da7c44bfddd12b · [arquivo completo](./capturas/04-veiculos/cad005-review-catalog-mobile.png)
+
 ## 05 — Checklist
 
 Recepção, checklist, evidências e conclusão.

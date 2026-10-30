@@ -1762,12 +1762,12 @@
       "route": "/cadastros?aba=veiculos",
       "kind": "Edição de veículo",
       "viewport": "desktop",
-      "status": "pendente",
+      "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/04-veiculos/cad005-review-catalog-desktop.png",
-      "updatedAt": null,
-      "commit": null,
-      "freshness": "pendente",
-      "reason": "Regressão de clique no seletor da janela de edição aguardando CI."
+      "updatedAt": "2026-10-30",
+      "commit": "e5a84d7a9bb11a524307051eb7da7c44bfddd12b",
+      "freshness": "atual",
+      "reason": null
     },
     {
       "id": "cad005-review-catalog-mobile",
@@ -1777,12 +1777,12 @@
       "route": "/cadastros?aba=veiculos",
       "kind": "Edição de veículo",
       "viewport": "mobile",
-      "status": "pendente",
+      "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/04-veiculos/cad005-review-catalog-mobile.png",
-      "updatedAt": null,
-      "commit": null,
-      "freshness": "pendente",
-      "reason": "Regressão de clique no seletor da janela de edição aguardando CI."
+      "updatedAt": "2026-10-30",
+      "commit": "e5a84d7a9bb11a524307051eb7da7c44bfddd12b",
+      "freshness": "atual",
+      "reason": null
     }
   ],
   "flows": [
