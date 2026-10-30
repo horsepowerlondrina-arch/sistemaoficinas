@@ -7,7 +7,9 @@
 - O planejamento funcional e a priorização ficam nas conversas específicas do ChatGPT. O Codex executa tarefas já definidas, registra evidências e não cria escopo adicional.
 - Apenas um Codex deve implementar mudanças no repositório por vez. Revisões independentes podem ocorrer sem alterar arquivos.
 - Todo trabalho começa conferindo `main`, branches, estado do checkout e documentação atual. Cada tarefa usa branch própria derivada da versão atual de `main`; não se reutiliza uma branch antiga sem conferir sua base.
-- Alterações integram por Pull Request após as verificações exigidas. Merge, migração remota e publicação requerem autorização conforme o impacto e as decisões de arquitetura.
+- Cada solicitação de implementação do responsável autoriza o fluxo completo no escopo solicitado: branch, implementação, testes, PR e integração após CI aprovado e proteções satisfeitas. Não se pede aprovação rotineira adicional para merge nem para a publicação automática na homologação.
+- Migrações remotas, alterações persistentes/destrutivas de dados, mudanças sensíveis de credenciais, segredos, autenticação ou permissões e publicação em produção continuam exigindo autorização específica.
+- **GOV-002 — Padronização de autorizações e publicação:** registrar como política de governança a execução ponta a ponta por tarefa, mantendo as exceções de segurança e os controles obrigatórios da plataforma.
 
 ## Frentes e módulos
 
@@ -51,9 +53,9 @@ Toda tarefa técnica deve registrar:
 3. Implementar o menor conjunto coerente, preservando alterações existentes.
 4. Executar build, testes gerais e PostgreSQL exigidos pela tarefa. Dados de teste são fictícios.
 5. Revisar diff, segredos, arquivos incluídos e efeitos de migrações.
-6. Criar commit e PR; corrigir falhas na mesma branch.
-7. Integrar somente após verificações e aprovação. Migrações remotas e publicações têm autorização própria quando exigida.
-8. Validar o destino com dados fictícios e atualizar `docs/ESTADO-ATUAL.md` ou o registro específico sem alegar verificações não feitas.
+6. Criar commit e PR para `main`; corrigir falhas na mesma branch.
+7. A solicitação da tarefa já autoriza o merge após CI obrigatório aprovado e proteções/revisões da branch satisfeitas, sem nova aprovação rotineira. O deployment automático na homologação também está coberto no escopo.
+8. Migrações remotas, alterações persistentes ou destrutivas de dados, mudanças sensíveis de credenciais/autenticação/permissões e produção exigem autorização específica. Validar a homologação com dados fictícios e registrar evidências sem alegar verificações não feitas.
 
 ## Responsáveis funcionais
 
