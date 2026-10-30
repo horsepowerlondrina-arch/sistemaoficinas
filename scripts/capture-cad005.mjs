@@ -26,10 +26,10 @@ export async function captureCad005(page, entry) {
     await scope.getByRole("button", { name: "Sem associação", exact: true }).click();
     await scope.getByRole("button", { name: "Associação automática", exact: true }).click();
     await expect(scope.getByText("Sem correspondência única e confiável. Pesquise e escolha manualmente, se desejar.")).toBeVisible();
-    await scope.getByRole("combobox", { name: "Marca", exact: true }).fill("Marca");
+    await scope.getByRole("combobox", { name: /^Marca/ }).fill("Marca");
     // A real pointer click must work inside the modal, without force or JS click.
     await page.locator(".catalog-dropdown-option").filter({ hasText: "Marca Fictícia" }).click({ timeout: 5000 });
-    await scope.getByRole("combobox", { name: "Veículo", exact: true }).fill("Modelo");
+    await scope.getByRole("combobox", { name: /^Veículo/ }).fill("Modelo");
     await page.locator(".catalog-dropdown-option").filter({ hasText: "Modelo Fictício" }).click();
     await expect(scope.getByRole("textbox", { name: /^Modelo FIPE/ })).toHaveValue("Modelo FIPE Fictício 1.0 Flex");
     await scope.getByRole("button", { name: "Salvar cadastro", exact: true }).click();
@@ -43,7 +43,7 @@ export async function captureCad005(page, entry) {
     expect(savedVehicle.fipe_model).toBe("Modelo FIPE Fictício 1.0 Flex");
     await page.getByRole("button", { name: "Editar CAD0A05", exact: true }).click();
     await association.locator("summary").click();
-    await expect(scope.getByRole("combobox", { name: "Veículo", exact: true })).toHaveValue("Modelo Fictício");
+    await expect(scope.getByRole("combobox", { name: /^Veículo/ })).toHaveValue("Modelo Fictício");
     await scope.getByRole("button", { name: "Abrir marcas", exact: true }).click();
     await expect(page.getByRole("option", { name: /Marca Fictícia/ })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBeTruthy();
