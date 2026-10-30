@@ -85,12 +85,6 @@ try {
     return path;
   };
   let captures = 0;
-  if (selectedModules === null) {
-    const anonymousContext = await browser.newContext();
-    const anonymousResponse = await anonymousContext.request.get(new URL("/api/visual-library/catalog", baseUrl).toString());
-    if (anonymousResponse.status() !== 401) throw new Error("O catálogo da galeria respondeu sem sessão; acesso anônimo precisa permanecer bloqueado.");
-    await anonymousContext.close();
-  }
   const loginShots = candidates.filter((entry) => entry.route === "/");
   if (loginShots.length) {
     const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, deviceScaleFactor: 1 });
@@ -116,35 +110,6 @@ try {
       await page.setViewportSize(entry.viewport === "desktop" ? { width: 1440, height: 1000 } : { width: 390, height: 844 });
       await save(page, entry);
       captures++;
-    }
-    if (tenant === "local-a" && selectedModules === null) {
-      await page.setViewportSize({ width: 1440, height: 1000 });
-      await page.goto(new URL("/biblioteca-visual", baseUrl).toString(), { waitUntil: "domcontentloaded" });
-      await page.getByRole("heading", { name: "Biblioteca visual" }).waitFor({ state: "visible", timeout: 15000 });
-      await page.getByRole("heading", { name: "Capturas" }).waitFor({ state: "visible" });
-      const firstImage = page.locator(".visual-capture-preview img").first();
-      await firstImage.waitFor({ state: "visible", timeout: 10000 });
-      if (!(await firstImage.evaluate((image) => image.complete && image.naturalWidth > 0))) throw new Error("A galeria não conseguiu abrir uma imagem protegida.");
-      await page.getByPlaceholder("Pesquisar tela, descrição ou rota").fill("clientes");
-      if (!(await page.locator(".visual-capture-card").count())) throw new Error("A pesquisa da galeria não retornou as telas de clientes.");
-      await page.getByLabel("Estado", { exact: true }).selectOption("capturada");
-      await page.getByLabel("Módulo", { exact: true }).selectOption("03-clientes");
-      await page.getByLabel("Interação", { exact: true }).selectOption("Lista e pesquisa");
-      await page.getByLabel("Tela", { exact: true }).selectOption("mobile");
-      const cardImage = page.locator(".visual-capture-preview img").first();
-      await cardImage.click();
-      await page.getByRole("dialog").waitFor({ state: "visible" });
-      await page.getByRole("button", { name: "Aumentar zoom" }).click();
-      await page.getByRole("button", { name: "Próxima captura" }).click();
-      await page.keyboard.press("Escape");
-      const directLinkPage = await context.newPage();
-      await directLinkPage.goto(new URL("/biblioteca-visual#capture-inicio-oficina-a", baseUrl).toString(), { waitUntil: "domcontentloaded" });
-      await directLinkPage.getByRole("dialog", { name: /Início da Oficina Fictícia A/ }).waitFor({ state: "visible", timeout: 10000 });
-      await directLinkPage.keyboard.press("Escape");
-      await directLinkPage.close();
-      await page.setViewportSize({ width: 390, height: 844 });
-      const noHorizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
-      if (!noHorizontalOverflow) throw new Error("A galeria apresenta rolagem horizontal em viewport mobile.");
     }
     await context.close();
   }

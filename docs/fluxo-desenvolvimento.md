@@ -17,6 +17,6 @@ O serviço PostgreSQL do workflow é isolado por execução e descartado pelo Gi
 - Antes de mudar uma interface, consulte docs/mapeamento-visual/README.md, INDEX.md e CHECKLIST.md.
 - Atualize capturas apenas para o módulo afetado (npm run visual:capture -- --module <id>) ou para os módulos detectados pelos arquivos alterados (npm run visual:capture -- --affected); evite refazer o acervo inteiro sem necessidade.
 - A automação autentica somente com os usuários fictícios criados pelo seed local de teste e recusa alvos fora de loopback. Em CI, o PostgreSQL 17 do job é descartável; não usa Supabase ou Vercel.
-- Inclua imagens reais geradas, metadados e índices no mesmo PR da interface. Depois rode npm run visual:index e npm run visual:check. O workflow captura as telas atuais em artefato temporário e testa navegação, pesquisa, filtros, imagem protegida, zoom, navegação entre imagens e layout mobile; ele não faz commit automático e não cria loops de CI.
-- A galeria do produto fica em /biblioteca-visual, protegida pela sessão da oficina e pelo perfil administrador. Imagens não são servidas de public/.
+- Inclua imagens reais geradas, metadados e índices no mesmo PR da interface. Depois rode npm run visual:index e npm run visual:check. O workflow captura as telas atuais em artefato temporário; ele não faz commit automático e não cria loops de CI.
+- Consulte a biblioteca somente na pasta privada docs/mapeamento-visual/ do GitHub. Ela não integra a aplicação da oficina e não deve ser publicada.
 - Registre no relatório final se o mapeamento foi atualizado, os módulos, imagens criadas/substituídas, capturas ainda pendentes e resultado dos testes visuais.

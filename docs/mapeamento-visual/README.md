@@ -4,11 +4,11 @@ Referência compartilhada de telas reais do Sistema Oficinas. As capturas foram 
 
 - [Índice visual navegável](./INDEX.md)
 - [Checklist completo](./CHECKLIST.md)
-- [Catálogo da galeria](./catalog.json)
+- [Catálogo de capturas](./catalog.json)
 
-## Galeria protegida
+## Acesso
 
-Na aplicação, entre em **Biblioteca visual**. A galeria exige sessão autenticada de administrador da oficina e entrega imagens por API sem cache público. O repositório é privado. Acesse o projeto de homologação depois do deployment da MAP-001; a galeria não tem URL pública independente.
+Consulte esta pasta no repositório privado do GitHub. O índice mostra as miniaturas e abre os PNGs completos. A biblioteca é exclusiva do desenvolvimento e não integra nem é publicada com a aplicação da oficina.
 
 ## Manutenção
 

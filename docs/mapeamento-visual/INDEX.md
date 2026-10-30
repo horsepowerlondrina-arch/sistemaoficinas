@@ -1,6 +1,6 @@
 # Índice visual
 
-As miniaturas abaixo são links diretos para os PNGs completos. O [catálogo JSON](./catalog.json) é a fonte usada também pela galeria HTML da aplicação.
+As miniaturas abaixo são links diretos para os PNGs completos. O [catálogo JSON](./catalog.json) contém os metadados das capturas.
 
 ## 01 — Login e acesso
 

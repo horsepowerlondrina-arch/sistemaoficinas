@@ -47,7 +47,6 @@ import {
   ArrowRight,
   CalendarDays,
   TriangleAlert,
-  Images,
 } from "lucide-react";
 import { api, send } from "./lib/api";
 import { AppContext } from "./lib/context";
@@ -62,7 +61,6 @@ import { OrderView } from "./pages/OrderView";
 import { Payment } from "./pages/Payment";
 import { Checklists } from "./pages/Checklists";
 import { ChecklistEditor } from "./pages/ChecklistEditor";
-import { VisualLibrary } from "./pages/VisualLibrary";
 export function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [data, setData] = useState<Workspace | null>(null);
@@ -183,7 +181,6 @@ export function App() {
       items: [
         ["/estoque", "Estoque", Package],
         ["/financeiro", "Financeiro", Wallet],
-        ["/biblioteca-visual", "Biblioteca visual", Images],
       ],
     },
   ];
@@ -410,7 +407,6 @@ export function App() {
           <main className="page-content">
             {!admin &&
             location.pathname !== "/inicio" &&
-            location.pathname !== "/biblioteca-visual" &&
             !/^\/ordens(?:\/[^/]+)?$/.test(location.pathname) ? (
               <Navigate to="/ordens" replace />
             ) : !admin && location.pathname === "/ordens/nova" ? (
@@ -487,7 +483,6 @@ export function App() {
                   element={<Expenses cash />}
                 />
                 <Route path="/configuracoes" element={<SettingsPage />} />
-                <Route path="/biblioteca-visual" element={admin ? <VisualLibrary /> : <Navigate to="/ordens" replace />} />
                 <Route path="/" element={<Navigate to="/inicio" replace />} />
                 <Route
                   path="*"
