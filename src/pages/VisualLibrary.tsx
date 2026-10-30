@@ -83,8 +83,14 @@ export function VisualLibrary() {
   }, [openViewer, selectedIndex, visibleEntries]);
 
   useEffect(() => {
-    const id = window.location.hash.match(/^#capture-(.+)$/)?.[1];
-    if (id && catalog?.entries.some((entry) => entry.id === id && entry.status === "capturada")) setSelectedId(id);
+    const syncCaptureHash = () => {
+      const id = window.location.hash.match(/^#capture-(.+)$/)?.[1];
+      if (id && catalog?.entries.some((entry) => entry.id === id && entry.status === "capturada")) setSelectedId(id);
+      else if (window.location.hash.startsWith("#capture-")) setSelectedId("");
+    };
+    syncCaptureHash();
+    window.addEventListener("hashchange", syncCaptureHash);
+    return () => window.removeEventListener("hashchange", syncCaptureHash);
   }, [catalog]);
 
   useEffect(() => {
