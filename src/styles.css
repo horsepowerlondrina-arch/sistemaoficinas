@@ -10,7 +10,8 @@
   background: #f7f8fa;
   font-synthesis: none;
   font-weight: 400;
-  --red: #e32935;
+  --red: #a31c28;
+  --red-ink: #fff;
   --red-soft: #fff0f1;
   --border: #e9ebef;
   --muted: #808590;
@@ -273,7 +274,7 @@ button:hover:not(:disabled) {
   background: #f7f8fa;
 }
 .nav-item.active {
-  background: #fff0f1;
+  background: var(--red-soft);
   color: var(--red);
   font-weight: 650;
 }
@@ -485,14 +486,14 @@ button:hover:not(:disabled) {
   box-shadow: 0 1px 2px #172b4d03;
 }
 .button.primary {
-  color: #fff;
+  color: var(--red-ink, #fff);
   background: var(--red);
   border-color: var(--red);
   box-shadow: 0 2px 3px #dc253015;
 }
 .button.primary:hover {
-  background: #d8232f;
-  border-color: #d8232f;
+  background: color-mix(in srgb, var(--red) 88%, black);
+  border-color: color-mix(in srgb, var(--red) 88%, black);
 }
 .button.small {
   font-size: 12px;
@@ -5261,3 +5262,13 @@ body { padding-top: 36px; }
 .products-register-table .person-cell small { max-width: none; white-space: normal; overflow-wrap: anywhere; }
 .products-register-table td:nth-child(n+3) { white-space: nowrap; }
 .products-register-table th:last-child, .products-register-table td:last-child { text-align: center; }
+
+/* Product mark uses the approved OSDrive art without altering the source image. */
+.platform-brand--full{display:block;width:min(100%,380px);aspect-ratio:3.7;overflow:hidden}
+.platform-brand--full .platform-brand-logo{display:block;width:100%;height:auto;max-width:none;border-radius:0;transform:translateY(-12%)}
+/* Workshop colors are scoped to the authenticated shell, leaving admin branding independent. */
+.app-shell .nav-item b{background:var(--red-soft);color:var(--red)}
+.app-shell .button.primary:hover{background:color-mix(in srgb,var(--red) 88%,black);border-color:color-mix(in srgb,var(--red) 88%,black)}
+.app-shell :is(input,select,textarea):focus{border-color:var(--red)}
+.app-shell :is(button,a,input,select,textarea):focus-visible{outline-color:var(--red)}
+.app-shell .search-field:focus-within{border-color:var(--red);outline-color:var(--red)}

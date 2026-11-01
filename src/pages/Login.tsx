@@ -55,7 +55,7 @@ export function Login({ onLogin }: { onLogin: () => Promise<void> }) {
     <main className="hp-login">
       <div className="hp-login-scenery" aria-hidden="true" />
       <div className="hp-login-center">
-        <section className="hp-login-card" aria-label="Acesso ao Sistema Oficinas">
+        <section className="hp-login-card" aria-label="Acesso ao OSDrive">
           <div className="platform-login-heading"><PlatformBrand /></div>
           <h1>Sua oficina organizada, todos os dias</h1>
           <form onSubmit={login}>
