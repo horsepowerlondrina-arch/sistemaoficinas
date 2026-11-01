@@ -52,7 +52,7 @@ function validOrigin(req: Request, res: Response) {
 type AdminContext = { id: string; email: string; display_name: string; role: PlatformRole; permissions: PlatformPermission[] };
 
 type InvitationView = {
-  invitation_status: "none" | "pending" | "sent" | "failed" | "expired" | "revoked" | "used" | "manual_link_created";
+  invitation_status: "none" | "pending" | "sent" | "failed" | "expired" | "cancelled" | "activated" | "manual_link_created";
   invitation_expires_at: Date | null;
   invitation_sent_at: Date | null;
 };
@@ -73,7 +73,7 @@ async function invitationViews(pool: Pool, tenantIds: string[]) {
   const views = new Map<string, InvitationView>();
   for (const row of result.rows) {
     const expired = row.used_at === null && row.revoked_at === null && new Date(row.expires_at).getTime() <= Date.now();
-    const invitation_status = row.used_at ? "used" : row.revoked_at ? "revoked" : expired ? "expired"
+    const invitation_status = row.used_at ? "activated" : row.revoked_at && new Date(row.revoked_at).getTime() < new Date(row.expires_at).getTime() ? "cancelled" : expired ? "expired" : row.revoked_at ? "cancelled"
       : row.manual_link_created ? "manual_link_created" : row.delivery_status;
     views.set(String(row.tenant_id), {
       invitation_status,
@@ -116,14 +116,14 @@ async function prepareWorkshopInvitation(
       return { status: 409 };
     }
     const recent = await client.query(`SELECT 1 FROM platform_admin.workshop_activation_invites
-      WHERE tenant_id=$1 AND delivery_status IN ('pending','sent') AND created_at>now()-interval '1 minute'
+      WHERE tenant_id=$1 AND delivery_status IN ('pending','sent','failed') AND created_at>now()-interval '1 minute'
       ORDER BY created_at DESC LIMIT 1`, [tenantId]);
     if (recent.rowCount) {
       await client.query("ROLLBACK");
       return { status: 429 };
     }
     await client.query(`UPDATE platform_admin.workshop_activation_invites SET revoked_at=now(),delivery_status='revoked'
-      WHERE tenant_id=$1 AND used_at IS NULL AND revoked_at IS NULL`, [tenantId]);
+      WHERE tenant_id=$1 AND used_at IS NULL AND revoked_at IS NULL AND expires_at>now()`, [tenantId]);
     await client.query(`INSERT INTO platform_admin.workshop_activation_invites
       (id,tenant_id,token_hash,responsible_email,created_by_admin_id,expires_at,delivery_status)
       VALUES($1,$2,$3,lower($4),$5,$6,'pending')`, [inviteId,tenantId,digestAdminToken(token),workshop.responsible_email,actor.id,expiresAt]);
@@ -156,8 +156,13 @@ async function sendWorkshopInvitation(pool: Pool, tenantId: string, actor: Admin
     deliveryStatus = "failed";
   }
   const sentAt = deliveryStatus === "sent" ? new Date() : null;
-  await pool.query(`UPDATE platform_admin.workshop_activation_invites
-    SET delivery_status=$1,sent_at=$2 WHERE id=$3`, [deliveryStatus,sentAt,prepared.inviteId]);
+  const deliveryUpdate = await pool.query(`UPDATE platform_admin.workshop_activation_invites
+    SET delivery_status=$1,sent_at=$2 WHERE id=$3 AND revoked_at IS NULL AND used_at IS NULL
+    RETURNING id`, [deliveryStatus,sentAt,prepared.inviteId]);
+  if (!deliveryUpdate.rowCount) {
+    return { status:200 as const, invitation_status:"cancelled" as const,
+      invitation_expires_at:prepared.expiresAt, invitation_sent_at:null };
+  }
   await writeAdminAudit(pool, { actorId:actor.id, actorEmail:actor.email, subjectTenantId:tenantId,
     action:deliveryStatus === "sent" ? "admin.workshop.invitation.sent" : "admin.workshop.invitation.delivery_failed",
     result:deliveryStatus === "sent" ? "success" : "failure",
@@ -207,12 +212,23 @@ export function createPlatformAdminApp(pool: Pool, encryptionKey: string, transf
 
   app.use(createPlatformAdminDataTransferRoutes(pool, transfer, requireSession, requirePermission));
 
+  const activationFailure = async (tokenHash: string) => {
+    const result = await pool.query(`SELECT used_at,revoked_at,expires_at
+      FROM platform_admin.workshop_activation_invites WHERE token_hash=$1`, [tokenHash]);
+    const row = result.rows[0];
+    if (!row) return "Convite inválido.";
+    if (row.used_at) return "Este convite já foi utilizado.";
+    if (row.revoked_at && new Date(row.revoked_at).getTime() < new Date(row.expires_at).getTime()) return "Este convite foi cancelado ou substituído.";
+    if (new Date(row.expires_at).getTime() <= Date.now()) return "Este convite expirou. Solicite um novo convite ao administrador.";
+    if (row.revoked_at) return "Este convite foi cancelado ou substituído.";
+    return "Este convite não está disponível para ativação.";
+  };
   app.post("/admin-api/workshop-activation/validate", async (req, res) => {
     const input = z.object({ token:z.string().regex(/^[a-f0-9]{64}$/) }).strict().safeParse(req.body);
     if (!input.success) { res.status(400).json({ error:"Convite inválido ou expirado." }); return; }
     const result = await pool.query(`SELECT * FROM platform_admin.inspect_workshop_activation($1)`, [digestAdminToken(input.data.token)]);
     const row = result.rows[0];
-    if (!row?.valid) { res.status(400).json({ error:"Convite inválido, expirado ou já utilizado." }); return; }
+    if (!row?.valid) { res.status(400).json({ error:await activationFailure(digestAdminToken(input.data.token)) }); return; }
     res.json({ workshop_name:row.workshop_name, masked_email:maskedEmail(String(row.responsible_email)), account_exists:!!row.account_exists, expires_at:row.expires_at });
   });
 
@@ -221,7 +237,7 @@ export function createPlatformAdminApp(pool: Pool, encryptionKey: string, transf
     if (!input.success) { res.status(400).json({ error:"Convite inválido ou expirado." }); return; }
     const tokenHash = digestAdminToken(input.data.token);
     const preview = await pool.query(`SELECT valid,account_exists FROM platform_admin.inspect_workshop_activation($1)`, [tokenHash]);
-    if (!preview.rows[0]?.valid) { res.status(400).json({ error:"Convite inválido, expirado ou já utilizado." }); return; }
+    if (!preview.rows[0]?.valid) { res.status(400).json({ error:await activationFailure(tokenHash) }); return; }
     if (!preview.rows[0].account_exists && !input.data.password) {
       res.status(400).json({ error:"Defina uma senha com pelo menos 12 caracteres." }); return;
     }
@@ -436,6 +452,25 @@ export function createPlatformAdminApp(pool: Pool, encryptionKey: string, transf
     const items = rows.rows.map(row => ({ ...row, ...(invitations.get(String(row.tenant_id)) || { invitation_status:"none", invitation_expires_at:null, invitation_sent_at:null }) }));
     res.json({ items, page, page_size: pageSize, total: Number(rows.rows[0]?.total_count || 0) });
   });
+  app.get("/admin-api/workshops/:id/invitations", requireSession, requirePermission("workshops:read"), async (req, res) => {
+    const tenantId = String(req.params.id);
+    const workshop = await pool.query("SELECT source FROM platform_admin.workshops WHERE tenant_id=$1", [tenantId]);
+    if (!workshop.rowCount || workshop.rows[0].source !== "admin") {
+      res.status(404).json({ error:"Oficina administrada não encontrada." }); return;
+    }
+    const result = await pool.query(`SELECT i.id,i.created_at,i.expires_at,i.sent_at,i.used_at,i.revoked_at,i.delivery_status,
+      EXISTS (SELECT 1 FROM platform_admin.audit_events a
+        WHERE a.subject_tenant_id=i.tenant_id AND a.action='admin.workshop.invitation.manual_link_created'
+        AND a.technical_context->>'invite_id'=i.id) AS manual_link_created
+      FROM platform_admin.workshop_activation_invites i WHERE i.tenant_id=$1
+      ORDER BY i.created_at DESC,i.id DESC LIMIT 50`, [tenantId]);
+    res.json(result.rows.map(row => ({
+      id:row.id, created_at:row.created_at, expires_at:row.expires_at, sent_at:row.sent_at,
+      status:row.used_at ? "activated" : row.revoked_at && new Date(row.revoked_at).getTime() < new Date(row.expires_at).getTime() ? "cancelled" :
+        new Date(row.expires_at).getTime() <= Date.now() ? "expired" : row.revoked_at ? "cancelled" :
+        row.manual_link_created ? "manual_link_created" : row.delivery_status,
+    })));
+  });
   app.get("/admin-api/workshops/:id/history", requireSession, requirePermission("workshops:read"), async (req, res) => {
     const tenantId = String(req.params.id);
     const rows = await pool.query(`SELECT id,actor_administrator_id,actor_email,action,result,technical_context,created_at
@@ -618,6 +653,39 @@ export function createPlatformAdminApp(pool: Pool, encryptionKey: string, transf
     if (result.status === 409) { res.status(409).json({ error:"Somente oficinas pendentes podem receber convite." }); return; }
     if (result.status === 429) { res.status(429).json({ error:"Um convite acabou de ser enviado. Aguarde um minuto antes de tentar novamente." }); return; }
     res.json({ invitation_status:result.invitation_status, invitation_expires_at:result.invitation_expires_at, invitation_sent_at:result.invitation_sent_at });
+  });
+
+  app.post("/admin-api/workshops/:id/invitation/cancel", requireSession, requirePermission("workshops:manage"), async (req, res) => {
+    const tenantId = String(req.params.id), actor = res.locals.admin as AdminContext;
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [tenantId]);
+      const workshop = await client.query("SELECT source,status FROM platform_admin.workshops WHERE tenant_id=$1", [tenantId]);
+      if (!workshop.rowCount || workshop.rows[0].source !== "admin") {
+        await client.query("ROLLBACK"); res.status(404).json({ error:"Oficina administrada não encontrada." }); return;
+      }
+      if (workshop.rows[0].status !== "pending_verification") {
+        await client.query("ROLLBACK"); res.status(409).json({ error:"A ativação desta oficina já foi concluída." }); return;
+      }
+      const cancelled = await client.query(`UPDATE platform_admin.workshop_activation_invites
+        SET revoked_at=now(), delivery_status='revoked'
+        WHERE id=(SELECT id FROM platform_admin.workshop_activation_invites
+          WHERE tenant_id=$1 AND used_at IS NULL AND revoked_at IS NULL AND expires_at>now()
+          ORDER BY created_at DESC,id DESC LIMIT 1)
+        RETURNING id`, [tenantId]);
+      if (!cancelled.rowCount) {
+        await client.query("ROLLBACK"); res.status(409).json({ error:"Não há convite ativo para cancelar." }); return;
+      }
+      await writeAdminAudit(client, { actorId:actor.id, actorEmail:actor.email, subjectTenantId:tenantId,
+        action:"admin.workshop.invitation.cancelled", result:"success",
+        technical:{ invite_id:cancelled.rows[0].id } });
+      await client.query("COMMIT");
+      res.json({ invitation_status:"cancelled" });
+    } catch (error) {
+      await client.query("ROLLBACK").catch(()=>{});
+      throw error;
+    } finally { client.release(); }
   });
 
   app.post("/admin-api/workshops/:id/manual-activation-link", requireSession, requirePermission("workshops:manage"), async (req, res) => {

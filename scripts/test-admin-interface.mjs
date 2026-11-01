@@ -16,7 +16,7 @@ try{
  let readOnly=false,failSave=true,failHistory=true,updates=0,planUpdates=0,memberUpdates=0;
  const modules=Object.fromEntries(["dashboard","orders","checklists","customers_vehicles","catalog","technical_catalog","professionals","suppliers","inventory","finance","settings"].map(k=>[k,true]));
  let ent={plan_code:null,effective_plan_code:null,plan_policy_activated_at:null,trial_active:false,plan_configured:false,plan_module_defaults:{},module_overrides:{},override_expires_at:{},modules,plate_lookup:{status:"unauthorized",enabled:false,configured:true,authorized:false},max_users_override:null,max_users:null,trial_days_override:null,trial_days:14,user_count:2};
- let workshop={tenant_id:"fictional-a",name:"Oficina Demonstração ADM",document:"",phone:"",status:"trial",source:"admin",responsible_name:"Responsável Fictício",responsible_email:"owner@example.test",created_at:"2026-10-01T12:00:00Z",updated_at:null,email_verified_at:"2026-10-01T12:00:00Z",trial_started_at:"2026-10-01T12:00:00Z",trial_ends_at:"2026-10-15T12:00:00Z",trial_days_remaining:7,status_reason:"Ativação fictícia",invitation_status:"used",invitation_expires_at:null,invitation_sent_at:null,catalog_access:{status:"active",enabled:true,valid_until:null,activated_at:null,grant_source:"commercial",updated_by_admin_id:null,updated_by_admin_email:"",updated_at:null,reason:"Autorização fictícia",catalog_installed:true}};
+ let workshop={tenant_id:"fictional-a",name:"Oficina Demonstração ADM",document:"",phone:"",status:"trial",source:"admin",responsible_name:"Responsável Fictício",responsible_email:"owner@example.test",created_at:"2026-10-01T12:00:00Z",updated_at:null,email_verified_at:"2026-10-01T12:00:00Z",trial_started_at:"2026-10-01T12:00:00Z",trial_ends_at:"2026-10-15T12:00:00Z",trial_days_remaining:7,status_reason:"Ativação fictícia",invitation_status:"activated",invitation_expires_at:null,invitation_sent_at:null,catalog_access:{status:"active",enabled:true,valid_until:null,activated_at:null,grant_source:"commercial",updated_by_admin_id:null,updated_by_admin_email:"",updated_at:null,reason:"Autorização fictícia",catalog_installed:true}};
  let members=[{user_id:"owner",name:"Responsável Fictício",email:"owner@example.test",role:"owner"},{user_id:"operator",name:"Colaborador Fictício",email:"operator@example.test",role:"operator"}];
  let events=[{id:"event1",action:"admin.workshop.membership_changed",result:"success",actor_email:"admin@example.test",created_at:"2026-10-01T12:00:00Z",technical_context:{reason:"Revisão fictícia de acesso"}}];
  await page.route("**/admin-api/**",async route=>{
@@ -36,6 +36,8 @@ try{
   if(path.endsWith("/status")){workshop={...workshop,status:body.status,status_reason:body.reason};return json({ok:true});}
   if(path.endsWith("/catalog-access")){workshop={...workshop,catalog_access:{...workshop.catalog_access,enabled:body.enabled,status:body.enabled?"active":"revoked"}};return json({ok:true});}
   if(path.endsWith("/manual-activation-link"))return json({activation_url:"http://127.0.0.1:5179/ativar#token=fictitious-ui-only",invitation_expires_at:"2026-11-01T12:00:00Z"});
+  if(path.endsWith("/invitations"))return json([]);
+  if(path.endsWith("/invitation/cancel"))return json({invitation_status:"cancelled"});
   if(path.endsWith("/invitation"))return json({invitation_status:"sent"});
   if(path.endsWith("/fictional-a")){
    if(method==="PUT"){if(failSave)return json({error:"Cadastro recusado para teste"},400);workshop={...workshop,...body};return json({ok:true});}return json(workshop);

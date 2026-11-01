@@ -80,7 +80,7 @@ test("PostgreSQL: convites de ativação, teste grátis, idempotência e isolame
     await owner.query(migration);
     await owner.query(`GRANT SELECT ON ${pa}.administrators,${pa}.sessions TO hp_platform_admin_app;
       GRANT SELECT ON ${pa}.workshops TO hp_platform_admin_app;
-      GRANT INSERT ON ${pa}.audit_events TO hp_platform_admin_app`);
+      GRANT INSERT, SELECT ON ${pa}.audit_events TO hp_platform_admin_app`);
 
     process.env.APP_ORIGINS = "http://127.0.0.1:5173";
     server = createPlatformAdminApp(appPool, "a".repeat(64)).listen(0,"127.0.0.1");
@@ -134,6 +134,31 @@ test("PostgreSQL: convites de ativação, teste grátis, idempotência e isolame
     assert.equal((await post("/admin-api/workshop-activation/complete",{token:fresh.token,password:"Another-Synthetic-Password"})).status,400);
     assert.equal((await post("/admin-api/workshop-activation/complete",{token:randomBytes(32).toString("hex"),password:"Synthetic-Invalid-Token"})).status,400);
 
+    const get = (path:string,cookie?:string) => fetch(base+path,{
+      headers:{Origin:"http://127.0.0.1:5173",...(cookie?{Cookie:`hp_platform_session=${cookie}`}:{})},
+    });
+    const cancelled = await addInvite("cancelled-owner@example.test");
+    assert.equal((await post(`/admin-api/workshops/${cancelled.tenantId}/invitation/cancel`, {})).status,401);
+    assert.equal((await post(`/admin-api/workshops/${cancelled.tenantId}/invitation/cancel`, {}, readOnlySessionToken)).status,403);
+    const cancelledResult = await post(`/admin-api/workshops/${cancelled.tenantId}/invitation/cancel`, {}, manageSessionToken);
+    assert.equal(cancelledResult.status,200);
+    assert.equal((await cancelledResult.json() as {invitation_status:string}).invitation_status,"cancelled");
+    assert.equal((await post("/admin-api/workshop-activation/validate",{token:cancelled.token})).status,400);
+    assert.equal((await post("/admin-api/workshop-activation/complete",{token:cancelled.token,password:"Synthetic-Cancelled-Password"})).status,400);
+    assert.equal((await post(`/admin-api/workshops/${cancelled.tenantId}/invitation/cancel`, {}, manageSessionToken)).status,409);
+    assert.equal((await ownerQuery(`SELECT count(*)::int AS n FROM ${pa}.audit_events
+      WHERE action='admin.workshop.invitation.cancelled' AND subject_tenant_id=$1`,[cancelled.tenantId])).rows[0].n,1);
+    assert.equal((await ownerQuery(`SELECT count(*)::int AS n FROM ${hp}.users WHERE email=$1`,["cancelled-owner@example.test"])).rows[0].n,0);
+    const cancelledHistory = await get(`/admin-api/workshops/${cancelled.tenantId}/invitations`, readOnlySessionToken);
+    assert.equal(cancelledHistory.status,200);
+    const cancelledItems = await cancelledHistory.json() as {id:string;status:string;token_hash?:string}[];
+    assert.equal(cancelledItems[0].status,"cancelled");
+    assert.equal(cancelledItems[0].token_hash,undefined);
+    const otherHistory = await get(`/admin-api/workshops/${fresh.tenantId}/invitations`, readOnlySessionToken);
+    assert.equal(otherHistory.status,200);
+    assert.equal((await otherHistory.json() as {id:string}[]).some(row=>row.id===cancelledItems[0]?.id),false);
+    assert.equal((await get(`/admin-api/workshops/${cancelled.tenantId}/invitations`)).status,401);
+
     const manualWorkshop = await addInvite("manual-owner@example.test");
     await ownerQuery(`UPDATE ${pa}.workshop_activation_invites SET created_at=now()-interval '2 minutes' WHERE tenant_id=$1`,[manualWorkshop.tenantId]);
     const manualUnauthenticated = await post(`/admin-api/workshops/${manualWorkshop.tenantId}/manual-activation-link`, {identity_verified:true,verification_method:"phone"});
@@ -152,7 +177,8 @@ test("PostgreSQL: convites de ativação, teste grátis, idempotência e isolame
     const manualToken = manualUrl.hash.slice(1);
     assert.ok(/^[a-f0-9]{64}$/.test(manualToken),"manual activation token has the expected format");
     assert.equal(manualUrl.origin,"http://127.0.0.1:5173");
-    assert.ok(new Date(manualBody.invitation_expires_at).getTime()>Date.now());
+    const remainingHours=(new Date(manualBody.invitation_expires_at).getTime()-Date.now())/3_600_000;
+    assert.ok(remainingHours>47 && remainingHours<=48,"new invitation expires after 48 hours");
     assert.equal((await post("/admin-api/workshop-activation/validate",{token:manualToken})).status,200);
     const manualStored = (await ownerQuery(`SELECT id,token_hash,delivery_status FROM ${pa}.workshop_activation_invites WHERE tenant_id=$1 AND token_hash=$2`,[manualWorkshop.tenantId,digestAdminToken(manualToken)])).rows[0];
     assert.equal(manualStored.token_hash,digestAdminToken(manualToken));

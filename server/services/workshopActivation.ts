@@ -1,7 +1,7 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { digestAdminToken } from "../auth/platformAdmin.js";
 
-export const workshopActivationTtlHours = 72;
+export const workshopActivationTtlHours = 48;
 export const newWorkshopActivationToken = () => randomBytes(32).toString("hex");
 export const newWorkshopActivationId = () => randomUUID();
 
@@ -60,7 +60,7 @@ export async function sendWorkshopActivationEmail(
       to: [input.email],
       subject: `Ative o acesso da oficina ${input.workshopName}`,
       text: `A oficina ${input.workshopName} foi cadastrada no Sistema Oficinas. Abra o link para confirmar seu e-mail e definir a senha: ${activationUrl}\n\nO convite expira em ${expires}. Se você não solicitou este acesso, ignore esta mensagem.`,
-      html: `<p>A oficina <strong>${name}</strong> foi cadastrada no Sistema Oficinas.</p><p>Confirme seu e-mail e configure o acesso em até 72 horas:</p><p><a href="${safeUrl}">Ativar acesso da oficina</a></p><p>O convite expira em ${escapeHtml(expires)}. Se você não solicitou este acesso, ignore esta mensagem.</p>`,
+      html: `<p>A oficina <strong>${name}</strong> foi cadastrada no Sistema Oficinas.</p><p>Confirme seu e-mail e configure o acesso em até 48 horas:</p><p><a href="${safeUrl}">Ativar acesso da oficina</a></p><p>O convite expira em ${escapeHtml(expires)}. Se você não solicitou este acesso, ignore esta mensagem.</p>`,
     }),
     signal: AbortSignal.timeout(10_000),
   });
