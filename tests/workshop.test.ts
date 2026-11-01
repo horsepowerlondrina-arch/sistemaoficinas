@@ -65,6 +65,7 @@ function fixture(path = ":memory:") {
     );
   }
   db.prepare("INSERT INTO memberships VALUES(?,?,?)").run("user", "a", "owner");
+  db.exec("INSERT INTO card_machines(id,tenant_id,name,name_key,operator,is_default,max_installments) VALUES('fixture-card','a','Máquina fictícia','máquina fictícia','Operadora fictícia',1,12);INSERT INTO card_machine_rates VALUES('a','fixture-card','Cartão de crédito',2,0);INSERT INTO card_machine_rates VALUES('a','fixture-card','Cartão de crédito',3,350);");
   return db;
 }
 const input = (extra: Record<string, any> = {}) => ({
@@ -1153,3 +1154,4 @@ test("edição explícita do cadastro atualiza descrição custo e venda só no 
     db.close();
   }
 });
+

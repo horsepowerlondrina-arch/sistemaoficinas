@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-30",
+  "generatedAt": "2026-11-01",
   "modules": [
     {
       "id": "01-login-acesso",
@@ -543,14 +543,14 @@
       "id": "config-geral-taxas",
       "module": "14-configuracoes",
       "title": "Taxas e parcelamento",
-      "description": "Taxas padrão, precedência por parcela e manutenção administrativa.",
+      "description": "Máquinas independentes, padrão da oficina e juros de parcelamento.",
       "route": "/configuracoes?aba=geral",
       "kind": "Configuração",
       "viewport": "mobile",
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/14-configuracoes/geral-e-taxas.png",
       "updatedAt": "2026-11-01",
-      "commit": "56b226764ee6420a52bdff3a41bd459113618460",
+      "commit": "26770cc4da2ccbf9de3620882b0a87066fdce927",
       "freshness": "atual",
       "reason": null
     },
@@ -1083,14 +1083,14 @@
       "id": "config-geral-taxas-desktop",
       "module": "14-configuracoes",
       "title": "Taxas e parcelamento",
-      "description": "Taxas padrão, precedência por parcela e manutenção administrativa.",
+      "description": "Máquinas independentes, padrão da oficina e juros de parcelamento.",
       "route": "/configuracoes?aba=geral",
       "kind": "Configuração",
       "viewport": "desktop",
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/14-configuracoes/geral-e-taxas-desktop.png",
       "updatedAt": "2026-11-01",
-      "commit": "56b226764ee6420a52bdff3a41bd459113618460",
+      "commit": "26770cc4da2ccbf9de3620882b0a87066fdce927",
       "freshness": "atual",
       "reason": null
     },
@@ -1881,6 +1881,66 @@
       "commit": "56b226764ee6420a52bdff3a41bd459113618460",
       "freshness": "atual",
       "reason": null
+    },
+    {
+      "id": "ops002-machine-editor-desktop",
+      "module": "14-configuracoes",
+      "title": "Máquina e taxas por parcela",
+      "description": "Cadastro e edição de máquinas fictícias, taxa por modalidade/parcela e limite configurável.",
+      "route": "/configuracoes?aba=geral",
+      "kind": "Configuração",
+      "viewport": "desktop",
+      "status": "capturada",
+      "image": "docs/mapeamento-visual/capturas/14-configuracoes/ops002-machine-editor-desktop.png",
+      "updatedAt": "2026-11-01",
+      "commit": "26770cc4da2ccbf9de3620882b0a87066fdce927",
+      "freshness": "atual",
+      "reason": null
+    },
+    {
+      "id": "ops002-receipt-desktop",
+      "module": "08-financeiro",
+      "title": "Recebimento com máquina e repasse",
+      "description": "Plano fictício salvo e reaberto: seleção da máquina, repasse e líquido preservado, sem efetivar recebimento.",
+      "route": "/financeiro/receber",
+      "kind": "Recebimento",
+      "viewport": "desktop",
+      "status": "capturada",
+      "image": "docs/mapeamento-visual/capturas/08-financeiro/ops002-receipt-desktop.png",
+      "updatedAt": "2026-11-01",
+      "commit": "26770cc4da2ccbf9de3620882b0a87066fdce927",
+      "freshness": "atual",
+      "reason": null
+    },
+    {
+      "id": "ops002-machine-editor-mobile",
+      "module": "14-configuracoes",
+      "title": "Máquina e taxas por parcela",
+      "description": "Cadastro e edição de máquinas fictícias, taxa por modalidade/parcela e limite configurável.",
+      "route": "/configuracoes?aba=geral",
+      "kind": "Configuração",
+      "viewport": "mobile",
+      "status": "capturada",
+      "image": "docs/mapeamento-visual/capturas/14-configuracoes/ops002-machine-editor-mobile.png",
+      "updatedAt": "2026-11-01",
+      "commit": "26770cc4da2ccbf9de3620882b0a87066fdce927",
+      "freshness": "atual",
+      "reason": null
+    },
+    {
+      "id": "ops002-receipt-mobile",
+      "module": "08-financeiro",
+      "title": "Recebimento com máquina e repasse",
+      "description": "Plano fictício salvo e reaberto: seleção da máquina, repasse e líquido preservado, sem efetivar recebimento.",
+      "route": "/financeiro/receber",
+      "kind": "Recebimento",
+      "viewport": "mobile",
+      "status": "capturada",
+      "image": "docs/mapeamento-visual/capturas/08-financeiro/ops002-receipt-mobile.png",
+      "updatedAt": "2026-11-01",
+      "commit": "26770cc4da2ccbf9de3620882b0a87066fdce927",
+      "freshness": "atual",
+      "reason": null
     }
   ],
   "flows": [
@@ -1968,6 +2028,17 @@
         "transferencia-validacao"
       ],
       "reason": "Executar somente em ambiente descartável; nunca usar o Supabase de homologação compartilhado."
+    },
+    {
+      "id": "FL-OPS002",
+      "name": "Máquina → plano de recebimento",
+      "description": "Editar taxas, selecionar máquina, simular repasse, salvar e reabrir plano fictício no PostgreSQL temporário.",
+      "status": "capturada",
+      "entryIds": [
+        "ops002-machine-editor-desktop",
+        "ops002-receipt-desktop"
+      ],
+      "reason": null
     }
   ]
 }

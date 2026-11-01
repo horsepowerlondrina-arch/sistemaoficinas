@@ -79,6 +79,7 @@ export function moduleForApiRequest(path: string, method = "GET"): WorkshopModul
   if (/^\/stock-invoices(?:\/|$)/.test(p)) return ["inventory","catalog","suppliers"];
   if (/^\/stock(?:\/|$)/.test(p)) return ["inventory"];
   if (/^\/(?:expenses|payables|expense-templates|cash-control|cash-accounts|cash-adjustments|receivables|installments|payment-settings)(?:\/|$)/.test(p)) return ["finance"];
+  if (/^\/card-machines(?:\/|$)/.test(p)) return method === "GET" ? ["finance"] : ["finance", "settings"];
   if (p === "/parts-pricing" || p.startsWith("/parts-pricing/") || p.startsWith("/workshop-profile")) return ["settings"];
   return null;
 }
@@ -114,3 +115,4 @@ export function workspaceForModules<T extends Record<string, unknown>>(workspace
 export function uiModuleForPath(path: string): WorkshopModuleKey | null {
   return moduleForUiPath(path);
 }
+

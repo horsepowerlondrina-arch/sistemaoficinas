@@ -31,6 +31,7 @@ export function migrate(db: DatabaseSync) {
     [28, "028-private-workshop-services.sql"],
     [29, "029-private-service-categories-references.sql"],
     [30, "030-vehicle-fipe-identity.sql"],
+    [31, "031-card-machines.sql"],
   ] as const) {
     if (db.prepare("SELECT 1 FROM migrations WHERE version=?").get(version))
       continue;
@@ -50,3 +51,4 @@ export function migrate(db: DatabaseSync) {
     }
   }
 }
+

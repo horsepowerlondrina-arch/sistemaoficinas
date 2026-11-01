@@ -1,3 +1,4 @@
+import {captureCardMachines,capturedOrders,capturedProducts} from "./capture-card-machines.mjs";
 import { spawn, execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
@@ -61,6 +62,10 @@ if (!selectedModules || selectedModules.has("14-configuracoes")) {
     }
   }
 }
+for (const viewport of ['desktop','mobile']) for(const [key,module,title,route] of [
+ ['machine-editor','14-configuracoes','Máquina e taxas por parcela','/configuracoes?aba=geral'],
+ ['receipt','08-financeiro','Recebimento com máquina e repasse','/financeiro/receber'],
+]) {if(selectedModules&&!selectedModules.has(module))continue;const id=`ops002-${key}-${viewport}`;if(!candidates.some(e=>e.id===id)){const entry={id,module,title,description:'Máquinas e taxas com dados fictícios em ambiente isolado.',route,kind:key==='receipt'?'Recebimento':'Configuração',viewport,image:`docs/mapeamento-visual/capturas/${module}/${id}.png`};candidates.push(entry);catalog.entries.push(entry);}}
 if (!candidates.length) throw new Error("Nenhuma interação com rota automatizável corresponde ao filtro.");
 if (!/^[a-z0-9-]+$/.test(fixtureTenant)) throw new Error("VISUAL_TEST_TENANT inválido.");
 if (!noWrite) {
@@ -161,6 +166,7 @@ try {
         await page.getByRole("heading", { name: "Tempos técnicos" }).click();
       }
     }
+    await captureCardMachines(page, entry);
     await captureSettings(page, entry);
     await captureCad005(page, entry);
     if (entry.route === "/catalogo") await captureProducts(page, entry);
@@ -217,6 +223,7 @@ try {
   console.log(`Capturas reais concluídas: ${captures}. Módulo: ${moduleFilter || (args.includes("--affected") ? "arquivos alterados" : "todos com rota automatizável")}.`);
 } finally {
   await browser?.close();
+  if(capturedOrders.length||capturedProducts.length)execFileSync(process.execPath,["--import","tsx","scripts/ops002-visual-cleanup.ts",JSON.stringify(capturedOrders),JSON.stringify(capturedProducts)],{stdio:"inherit"});
   if (cad005Fixture) execFileSync(process.execPath, ["--import", "tsx", "scripts/cad005-visual-fixture.ts", "cleanup"], { stdio: "inherit" });
   if (appProcess) {
     appProcess.kill("SIGTERM");
@@ -224,3 +231,4 @@ try {
     if (appProcess.exitCode === null) appProcess.kill("SIGKILL");
   }
 }
+

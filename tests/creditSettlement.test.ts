@@ -18,6 +18,7 @@ function fixture() {
   db.exec(
     "INSERT INTO tenants(id,name) VALUES('a','A'),('b','B'); INSERT INTO users VALUES('u','Admin','u@a.test','disabled'),('m','Mecânico','m@a.test','disabled'); INSERT INTO memberships VALUES('u','a','owner'),('m','a','operator'); INSERT INTO customers(id,tenant_id,name) VALUES('c','a','Cliente'); INSERT INTO vehicles(id,tenant_id,customer_id,plate,brand,model,year) VALUES('v','a','c','ABC1D23','Fiat','Uno',2020); INSERT INTO orders(id,tenant_id,number,kind,status,customer_id,vehicle_id,entered_on,due_on,km,total) VALUES('o','a',1,'order','completed','c','v','2026-10-09','2026-10-09',0,10001); INSERT INTO receivables(id,tenant_id,order_id,customer_id,description,amount,due_on) VALUES('r','a','o','c','OS #1',10001,'2026-10-09'); INSERT INTO cash_accounts(id,tenant_id,name,kind,opening_balance,opening_on) VALUES('bank','a','Banco','bank',10000,'2026-10-01'),('foreign','b','Outro','bank',0,'2026-10-01')",
   );
+  db.exec("INSERT INTO card_machines(id,tenant_id,name,name_key,operator,is_default,max_installments) VALUES('fixture-card','a','Máquina fictícia','máquina fictícia','Operadora fictícia',1,12);INSERT INTO card_machine_rates VALUES('a','fixture-card','Cartão de crédito',3,500);");
   return db;
 }
 const plan = {
@@ -264,3 +265,4 @@ test("credit receipt API enforces role and rejects duplicate confirmations", asy
     t.mock.timers.reset();
   }
 });
+

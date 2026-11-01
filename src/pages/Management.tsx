@@ -1,3 +1,4 @@
+import { CardMachines, InstallmentInterestSettings } from "../components/CardMachines";
 import { workshopDate } from "../lib/workflow";
 import { NumericInput } from "../components/NumericInput";
 import { PartsPricing } from "./PartsPricing";
@@ -557,18 +558,6 @@ export function Settings() {
   }, [requestedTab, activeTab, setParams]);
   const { session, data, refresh, notify } = useApp();
   const financeEnabled = session.modules?.finance !== false;
-  const [rates, setRates] = useState({
-    debit_fee_bps: data.payment_settings?.debit_fee_bps || 0,
-    credit_fee_bps: data.payment_settings?.credit_fee_bps || 0,
-    interest_bps: data.payment_settings?.interest_bps || 0,
-  });
-  const [savedRates,setSavedRates] = useState(() => JSON.stringify(rates));
-  const ratesDirty = JSON.stringify(rates) !== savedRates;
-  useUnsavedSettings(ratesDirty && activeTab === "geral");
-  useEffect(() => {
-    if (activeTab !== "geral") setRates(JSON.parse(savedRates));
-  }, [activeTab, savedRates]);
-  const [error, setError] = useState(""), [busy,setBusy] = useState(false);
   return <>
     <PageHeading eyebrow="ADMINISTRAÇÃO" title="Configurações" description="Dados, documentos e regras comerciais da sua oficina." />
     <div className="tabs settings-tabs" aria-label="Seções de configurações">
@@ -614,101 +603,7 @@ export function Settings() {
 
       </div> :
       !financeEnabled ? <section className="panel work-order-section"><h2>Financeiro não habilitado</h2><p>As taxas pertencem ao módulo Financeiro. Solicite a habilitação à administração da plataforma para consultar ou alterar estas configurações.</p></section> :
-      <>          <form
-            className="panel work-order-section"
-            onSubmit={async (e) => {
-              e.preventDefault();
-              setBusy(true);
-              setError("");
-              try {
-                await send("/payment-settings", rates, "PUT");
-                setSavedRates(JSON.stringify(rates));
-                await refresh();
-                notify("Taxas padrão salvas para esta oficina.");
-              } catch (e) {
-                setError((e as Error).message);
-              } finally {
-                setBusy(false);
-              }
-            }}
-          >
-            <h2>Taxas e parcelamento</h2>
-            <p className="muted">
-              Valores padrão da oficina. Você pode ajustá-los ao definir cada
-              recebimento.
-            </p>
-            <div className="form-grid">
-              {(
-                [
-                  ["debit_fee_bps", "Taxa da oficina — débito (%)"],
-                  ["credit_fee_bps", "Taxa da oficina — crédito (%)"],
-                  [
-                    "interest_bps",
-                    "Juros totais do cliente — parcelamento (%)",
-                  ],
-                ] as const
-              ).map(([key, label]) => (
-                <Field key={key} label={label}>
-                  <NumericInput
-                    type="number"
-                    min={0}
-                    max={100}
-                    step="0.01"
-                    required
-                    value={rates[key] / 100}
-                    onChange={(e) =>
-                      setRates({
-                        ...rates,
-                        [key]: Math.round(Number(e.target.value) * 100),
-                      })
-                    }
-                  />
-                </Field>
-              ))}
-            </div>
-            {error && (
-              <div role="alert" className="error-box">
-                {error}
-              </div>
-            )}
-            {ratesDirty && <p role="status">Alterações não salvas.</p>}
-            <button className="button primary" disabled={busy}>
-              Salvar taxas
-            </button>
-          </form>
-          {!!data.card_rates?.length && (
-            <section className="panel work-order-section">
-              <h2>Taxas cadastradas por parcela</h2>
-              <p className="muted">
-                Tabela de referência já cadastrada para esta oficina, mantida pela administração da plataforma. A origem contratual e a vigência não estão registradas nesta versão; confirme com a administração antes de usar. Esta tela é somente de consulta. No recebimento, a taxa é
-                aplicada conforme o número de parcelas e prevalece sobre a taxa padrão quando há correspondência. Sem correspondência, permanece a taxa do recebimento. Você pode revisá-la antes de confirmar. O repasse usa a taxa
-                real para preservar o líquido, evitando a diferença dos fatores
-                arredondados do PDF.
-              </p>
-              <div className="table-scroll">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Modalidade</th>
-                      <th>Parcelas</th>
-                      <th>Taxa da operadora</th>
-                      <th>Fator de referência do PDF</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.card_rates.map((r) => (
-                      <tr key={r.method + r.installments}>
-                        <td>{r.method}</td>
-                        <td>{r.installments}x</td>
-                        <td>{(r.fee_bps / 100).toFixed(2)}%</td>
-                        <td>{(r.factor_bps / 10000).toFixed(4)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          )}
-</>}
+      <><CardMachines /><InstallmentInterestSettings /></>}
   </>;
 }
+

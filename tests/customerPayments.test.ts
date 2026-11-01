@@ -11,6 +11,7 @@ const ctx={tenantId:'a',userId:'u',role:'owner'};
 test('issued customer links freeze mixed payment totals and revisions expose only gross data',async()=>{
  const db=createDatabase(':memory:');
  db.exec("INSERT INTO tenants(id,name) VALUES('a','Oficina'); INSERT INTO users VALUES('u','Admin','admin@test.invalid','disabled'); INSERT INTO memberships VALUES('u','a','owner'); INSERT INTO customers(id,tenant_id,name) VALUES('c','a','Cliente Completo'); INSERT INTO vehicles(id,tenant_id,customer_id,plate,brand,model,year) VALUES('v','a','c','ABC1D23','Fiat','Uno',2020); INSERT INTO orders(id,tenant_id,number,status,customer_id,vehicle_id,entered_on,due_on,km,total,notes) VALUES('o','a',1,'completed','c','v','2026-10-14','2026-10-14',0,10000,'INTERNAL SECRET'); INSERT INTO receivables(id,tenant_id,order_id,customer_id,description,amount,due_on) VALUES('r','a','o','c','OS #1',10000,'2026-10-14'); INSERT INTO cash_accounts(id,tenant_id,name,kind,opening_balance,opening_on) VALUES('bank','a','PRIVATE BANK','bank',0,'2026-10-01')");
+ db.exec("INSERT INTO card_machines(id,tenant_id,name,name_key,operator,is_default) VALUES('fixture-card','a','Máquina fictícia','máquina fictícia','Operadora fictícia',1); INSERT INTO card_machine_rates VALUES('a','fixture-card','Cartão de crédito',3,1000)");
  try{
   const share=await createShare(db,ctx,'o'),token=share.path.slice(3);
   assert.equal((await readShare(db,token))!.payment_summary,null);
@@ -43,3 +44,4 @@ test('print and public PDF markup contain the same paid summary and never label 
  assert.equal(customerPayments('quote',{id:'r',status:'paid'},[]),null);
  assert.equal(customerPayments('completed',undefined,[]),null);
 });
+

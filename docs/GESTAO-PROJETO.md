@@ -84,3 +84,8 @@ Esses papéis descrevem o processo acordado; não afirmam identidades ou permiss
 - Destinos das conexões confirmados por evidências indiretas, sem revelar credenciais; a role administrativa está segregada da operacional.
 - A lacuna de RLS identificada no banco histórico Horse Power permanece pendente e separada na frente de segurança.
 - Consulte [relatório de auditoria INF-004](INF-004-AUDITORIA-AMBIENTES.md) e [estado atual](ESTADO-ATUAL.md).
+
+
+## OPS-002 — Máquinas de cartão e taxas (01/11/2026)
+
+Implementação em revisão no PR #82, branch `feat/ops-002-maquinas-cartao`. Cadastro por oficina, tabelas independentes, padrão único, snapshots de recebimentos e migração aditiva. Testes usam somente dados fictícios e PostgreSQL 17 temporário. Integração/publicação aguardam aprovação pedida especificamente nesta tarefa; a migração remota exige autorização própria. Detalhes e procedimento: [OPS-002](OPS-002-maquinas-cartao.md).
