@@ -41,6 +41,8 @@ test("ADM-002.2: autorização, configuração, cache e consultas locais preserv
   assert.equal((await lookupVehicleExternal(scoped,"b","ABC1D23",provider)).source,"unavailable");
   delete flags.a;
   assert.equal((await lookupVehicleExternal(scoped,"a","ABC1D23",provider)).source,"external","restaurar padrão conserva allowlist anterior");
+  process.env.FIPEPLACA_ALLOWED_TENANT_IDS="a,c";
+  assert.equal(plateLookupStatus("c").status,"not_configured","allowlist sem chave é configuração ausente, não falta de autorização");
   assert.deepEqual(plateLookupStatus("c",true),{status:"not_configured",enabled:false,configured:false,authorized:true});
   assert.ok(!JSON.stringify(plateLookupStatus("a")).includes("fake-a"));
   flags.b=true;

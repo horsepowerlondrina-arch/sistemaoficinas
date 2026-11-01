@@ -48,14 +48,17 @@ export async function lookupFipeCandidates(
     return { status: "unavailable", candidates: [] as FipeCandidate[] };
   }
 }
-export function fipePlacaToken(tenant: string, authorized?: boolean): string | null {
+export function fipePlacaAllowed(tenant: string): boolean {
   const allowedTenants = new Set(
     (process.env.FIPEPLACA_ALLOWED_TENANT_IDS || "")
       .split(",")
       .map((value) => value.trim())
       .filter(Boolean),
   );
-  if (authorized === false || (authorized !== true && !allowedTenants.has(tenant))) return null;
+  return allowedTenants.has(tenant);
+}
+export function fipePlacaToken(tenant: string, authorized?: boolean): string | null {
+  if (!(authorized ?? fipePlacaAllowed(tenant))) return null;
   try {
     const entries = JSON.parse(process.env.FIPEPLACA_TOKENS_JSON || "{}");
     return typeof entries?.[tenant] === "string" && entries[tenant].trim()

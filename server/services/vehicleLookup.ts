@@ -1,4 +1,4 @@
-import { fipePlacaToken, lookupFipePlaca } from "./fipePlaca.js";
+import { fipePlacaAllowed, fipePlacaToken, lookupFipePlaca } from "./fipePlaca.js";
 import type { DB } from "../db/database.js";
 import { z } from "zod";
 type FipeLookup = Awaited<ReturnType<typeof lookupFipePlaca>>;
@@ -66,6 +66,9 @@ export function providerToken(tenant: string, authorized?: boolean) {
   if (authorized === false) return null;
   const current = fipePlacaToken(tenant, authorized);
   if (current) return current;
+  return legacyProviderToken(tenant);
+}
+function legacyProviderToken(tenant: string) {
   try {
     const entries = JSON.parse(process.env.PLACA_FIPE_TOKENS_JSON || "{}");
     return typeof entries[tenant] === "string" ? entries[tenant] : null;
@@ -75,7 +78,7 @@ export function providerToken(tenant: string, authorized?: boolean) {
 }
 export function plateLookupStatus(tenant: string, authorized?: boolean) {
   const configured = !!providerToken(tenant, true);
-  const allowed = authorized ?? !!providerToken(tenant);
+  const allowed = authorized ?? (fipePlacaAllowed(tenant) || !!legacyProviderToken(tenant));
   return {
     status: !allowed ? "unauthorized" : !configured ? "not_configured" : "available",
     enabled: allowed && configured,
