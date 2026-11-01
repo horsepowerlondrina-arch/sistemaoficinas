@@ -43,18 +43,18 @@ test("PostgreSQL: permissões administrativas por oficina, limites, período de 
     assert.equal(state.modules.orders,true);
     assert.equal(state.modules.finance,true);
     assert.equal(state.modules.technical_catalog,true);
-    assert.equal(state.plan_configured,false);
-    assert.equal(state.max_users,null);
+    assert.equal(state.plan_configured,true);
+    assert.equal(state.max_users,10,"teste ativo usa limite Premium");
     assert.equal(state.trial_days,14);
     assert.equal(state.user_count,1);
 
     await client.query("UPDATE platform_admin.plan_defaults SET configured=true,module_defaults='{\"finance\":false,\"technical_catalog\":false}'::jsonb,max_users=3,trial_days=7 WHERE plan_code='basic'");
-    await client.query("UPDATE platform_admin.workshops SET plan_code='basic' WHERE tenant_id=$1",[tenantId]);
+    await client.query("UPDATE platform_admin.workshops SET plan_code='basic',plan_policy_activated_at=now() WHERE tenant_id=$1",[tenantId]);
     state=(await client.query("SELECT platform_admin.workshop_entitlement_status($1) AS value",[tenantId])).rows[0].value;
-    assert.equal(state.modules.finance,false);
-    assert.equal(state.modules.technical_catalog,false);
-    assert.equal(state.max_users,3);
-    assert.equal(state.trial_days,7);
+    assert.equal(state.modules.finance,true,"teste ativo recebe recursos Premium");
+    assert.equal(state.modules.technical_catalog,true);
+    assert.equal(state.max_users,10);
+    assert.equal(state.trial_days,14);
 
     const rateCategory = (await client.query("SELECT id FROM horse_power.labor_categories ORDER BY sort_order,id LIMIT 1")).rows[0]?.id;
     if (rateCategory) await client.query("INSERT INTO horse_power.labor_commercial_rates(tenant_id,category_id,hourly_rate) VALUES($1,$2,13750) ON CONFLICT(tenant_id,category_id) DO UPDATE SET hourly_rate=EXCLUDED.hourly_rate",[tenantId,rateCategory]);
@@ -129,13 +129,19 @@ test("PostgreSQL: permissões administrativas por oficina, limites, período de 
     ]);
     state=(await client.query("SELECT platform_admin.workshop_entitlement_status($1) AS value",[tenantId])).rows[0].value;
     assert.equal(state.modules.orders,true);
-    assert.equal(state.modules.finance,false);
-    assert.equal(state.modules.technical_catalog,false);
-    assert.equal(state.max_users,3);
-    assert.equal(state.trial_days,7);
+    assert.equal(state.modules.finance,true);
+    assert.equal(state.modules.technical_catalog,true);
+    assert.equal(state.max_users,10);
+    assert.equal(state.trial_days,14);
     assert.deepEqual(state.module_overrides,{});
     const finalTrial=(await client.query("SELECT extract(epoch FROM (trial_ends_at-trial_started_at))/86400 AS days FROM platform_admin.workshops WHERE tenant_id=$1",[tenantId])).rows[0];
-    assert.equal(Math.round(Number(finalTrial.days)),7);
+    assert.equal(Math.round(Number(finalTrial.days)),14);
+
+    await client.query("UPDATE platform_admin.workshops SET status='active' WHERE tenant_id=$1",[tenantId]);
+    state=(await client.query("SELECT platform_admin.workshop_entitlement_status($1) AS value",[tenantId])).rows[0].value;
+    assert.equal(state.modules.finance,false,"fora do teste aplica o plano Básico");
+    assert.equal(state.modules.technical_catalog,false);
+    assert.equal(state.max_users,3);
 
     // ADM-002.2: the same audited entitlement mechanism controls plate queries.
     assert.equal(state.modules.external_plate_lookup,undefined,"ausência preserva autorização legada");

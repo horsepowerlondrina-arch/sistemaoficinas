@@ -46,10 +46,15 @@ export async function catalogAccessState(db:DB,ctx:Context):Promise<CatalogAcces
          FROM service_catalog.tenant_access a WHERE a.tenant_id=?`,
       )
       .get(ctx.tenantId);
-    if(!row)return "not_contracted";
+    const included=await db.getTenantCatalogIncluded?.(ctx.tenantId) || false;
+    if(!row){
+      if(!included)return "not_contracted";
+      const release=await db.prepare("SELECT EXISTS(SELECT 1 FROM service_catalog.releases WHERE status='active') AS catalog_installed").get();
+      return release?.catalog_installed?"active":"not_installed";
+    }
     if(!(row as any).catalog_installed)return "not_installed";
     if(!(row as any).enabled)return "revoked";
-    if((row as any).valid_until&&new Date((row as any).valid_until).getTime()<=Date.now())return "expired";
+    if((row as any).valid_until&&new Date((row as any).valid_until).getTime()<=Date.now()&&!included)return "expired";
     return "active";
   } catch (error) {
     if (/no such table/.test(String(error)) || (error as {code?:string}).code==="42P01") return "not_installed";
