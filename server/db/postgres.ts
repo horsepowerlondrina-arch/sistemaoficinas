@@ -169,6 +169,15 @@ export function createPostgresDatabase(url = process.env.DATABASE_URL, options: 
         throw error;
       }
     },
+    async getTenantCatalogIncluded(tenant: string) {
+      try {
+        const result = await query("SELECT horse_power.local_tenant_catalog_included($1) AS included", [tenant]);
+        return result.rows[0]?.included === true;
+      } catch (error) {
+        if ((error as { code?: string }).code === "42883") return false;
+        throw error;
+      }
+    },
     async lockTenantMutations(tenant: string) {
       if (!tenant) return;
       const client = context.getStore();
