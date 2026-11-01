@@ -30,11 +30,12 @@ const moduleByChangedPath = (path) => {
   if (/Order|Orders|Payment/i.test(path)) return ["06-orcamentos", "07-ordens-servico"];
   if (/Cash|Expenses|Profit/i.test(path)) return "08-financeiro";
   if (/Registers|RepairServicePicker/i.test(path)) return "09-cadastros-servicos";
-  if (/Stock|Management/i.test(path)) return "10-estoque";
+  if (/Management/i.test(path)) return ["10-estoque", "14-configuracoes"];
+  if (/Stock/i.test(path)) return "10-estoque";
   if (/Suppliers/i.test(path)) return "11-fornecedores";
   if (/PublicOrder|documents/i.test(path)) return "12-documentos";
   if (/dataTransfer|transfer/i.test(path)) return "13-transferencia-dados";
-  if (/Settings|workshop-profile/i.test(path)) return "14-configuracoes";
+  if (/Settings|PartsPricing|workshop-profile/i.test(path)) return "14-configuracoes";
   if (/extension/i.test(path)) return "15-integracoes";
   if (/PlatformAdmin/i.test(path)) return "17-painel-admin-central";
   return null;
@@ -54,7 +55,10 @@ const candidates = catalog.entries.filter((entry) => entry.driver !== "admin-int
 if (!selectedModules || selectedModules.has("14-configuracoes")) {
   for (const viewport of ["desktop","mobile"]) {
     const id = "config-conta-integracoes-" + viewport;
-    if (!candidates.some(entry=>entry.id===id)) candidates.push({id,module:"14-configuracoes",title:"Conta e integrações",description:"Responsabilidades administrativas e extensões disponíveis.",route:"/configuracoes?aba=conta",kind:"Configuração",viewport,image:"docs/mapeamento-visual/capturas/14-configuracoes/"+id+".png"});
+    if (!candidates.some(entry=>entry.id===id)) {
+      const entry = {id,module:"14-configuracoes",title:"Conta e integrações",description:"Responsabilidades administrativas e extensões disponíveis.",route:"/configuracoes?aba=conta",kind:"Configuração",viewport,image:"docs/mapeamento-visual/capturas/14-configuracoes/"+id+".png"};
+      candidates.push(entry); catalog.entries.push(entry);
+    }
   }
 }
 if (!candidates.length) throw new Error("Nenhuma interação com rota automatizável corresponde ao filtro.");

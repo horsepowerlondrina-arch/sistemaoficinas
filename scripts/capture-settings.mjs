@@ -14,6 +14,12 @@ export async function captureSettings(page,entry){
   await expect(page.locator('[data-settings-tab="oficina"]')).toHaveAttribute("aria-current","page");
  }
  if(entry.id==="config-geral-taxas-desktop"){
+  const debit=page.getByRole("spinbutton",{name:"Taxa da oficina — débito (%)",exact:true});
+  const initial=await debit.inputValue();await debit.fill(initial==="7"?"8":"7");
+  page.once("dialog",dialog=>dialog.accept());
+  await page.locator('[data-settings-tab="conta"]').click();
+  await page.locator('[data-settings-tab="geral"]').click();
+  await expect(debit).toHaveValue(initial);
   const sessionResponse=await page.request.get(new URL("/api/session",page.url()).toString());
   const session=await sessionResponse.json();
   const workspaceResponse=await page.request.get(new URL("/api/workspace",page.url()).toString());

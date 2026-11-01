@@ -565,6 +565,9 @@ export function Settings() {
   const [savedRates,setSavedRates] = useState(() => JSON.stringify(rates));
   const ratesDirty = JSON.stringify(rates) !== savedRates;
   useUnsavedSettings(ratesDirty && activeTab === "geral");
+  useEffect(() => {
+    if (activeTab !== "geral") setRates(JSON.parse(savedRates));
+  }, [activeTab, savedRates]);
   const [error, setError] = useState(""), [busy,setBusy] = useState(false);
   return <>
     <PageHeading eyebrow="ADMINISTRAÇÃO" title="Configurações" description="Dados, documentos e regras comerciais da sua oficina." />
