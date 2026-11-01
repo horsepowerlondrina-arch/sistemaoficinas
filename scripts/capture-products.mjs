@@ -11,7 +11,7 @@ export async function captureProducts(page, entry) {
     id: "visual-product-layout", kind: "product", active: 1, name,
     sku: "REFERENCIA-FICTICIA-ABCDEFGHIJKLMNOPQRSTUVWXYZ-1234567890",
     category: "Filtros e componentes de manutenção preventiva",
-    cost: 80.5, price: 125.9, stock: 12, minimum_stock: 2,
+    cost: 8050, price: 12590, stock: 12, minimum_stock: 2,
     cost_known: 1, stock_verified: 1, brand: "", manufacturer_code: "",
     application: "", usage_vehicles: "", search_aliases: "",
   };
