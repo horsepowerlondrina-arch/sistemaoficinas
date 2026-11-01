@@ -1,3 +1,4 @@
+import { respondAfterCommit } from "./db/responseCommit.js";
 import { documentHistory, readDocument, issueDocument, listArchivedDocuments, readArchivedDocument } from "./services/documents.js";
 import {
   partsPricingSchema,
@@ -274,20 +275,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
       next();
       return;
     }
-    let complete!: () => void;
-    const finished = new Promise<void>((resolve) => { complete = resolve; });
-    res.once("finish", complete);
-    res.once("close", complete);
-    void db.withRequestContext(
-      requestSecuritySettings(req),
-      async () => {
-        next();
-        await finished;
-      },
-      () => res.writableEnded && res.statusCode < 400,
-    ).catch((error) => {
-      if (!res.headersSent) next(error);
-    });
+    respondAfterCommit(db, requestSecuritySettings(req), res, next);
   });
   if (process.env.VERCEL) app.set("trust proxy", 1);
   app.post("/api/setup", async (req, res) => {

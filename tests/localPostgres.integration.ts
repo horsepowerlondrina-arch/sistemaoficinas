@@ -352,7 +352,9 @@ test("PostgreSQL local: autenticação, oficinas, transações e RLS do catálog
       const login=await request("/api/login","",{email:credential.email,password:credential.password});
       assert.equal(login.status,200);
       const cookie=login.headers.get("set-cookie")!.split(";")[0];sessions.push(cookie);
-      const session=await request("/api/session",cookie); assert.equal((await session.json()).tenant.id,credential.tenant);
+      const session=await request("/api/session",cookie);
+      assert.equal(session.status,200,"a sessão deve estar disponível imediatamente após o login");
+      assert.equal((await session.json()).tenant.id,credential.tenant);
       const workspace=await request("/api/workspace",cookie);assert.equal(workspace.status,200);
       const data=await workspace.json();
       assert.ok(data.customers.every((c:any)=>c.tenant_id===credential.tenant));

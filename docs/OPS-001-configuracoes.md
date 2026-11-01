@@ -22,3 +22,7 @@ As capturas ficam exclusivamente em docs/mapeamento-visual/. Os resultados finai
 ## Operações remotas
 
 Não há migração de schema, alteração de credenciais, permissões de infraestrutura ou dados persistentes. A homologação usa o deployment automático do projeto já conectado.
+
+## Regressão identificada no CI
+
+O teste PostgreSQL detectou uma corrida preexistente: a resposta HTTP de sucesso era enviada antes do COMMIT da requisição. A consulta de sessão imediatamente após o login podia não encontrar a gravação. A resposta agora aguarda o encerramento da transação; falhas de commit não enviam o corpo de sucesso nem um novo cookie. Testes determinísticos cobrem atraso, falha e rollback, além da suíte PostgreSQL real. As políticas RLS e as permissões permanecem inalteradas.
