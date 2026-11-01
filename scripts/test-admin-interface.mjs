@@ -30,6 +30,7 @@ try{
    if(method==="PUT"){updates++;ent={...ent,module_overrides:body.module_overrides,override_expires_at:body.override_expires_at,max_users_override:body.max_users,trial_days_override:body.trial_days,modules:{...modules,...body.module_overrides},plate_lookup:{status:body.module_overrides.external_plate_lookup===true?"available":"unauthorized",enabled:body.module_overrides.external_plate_lookup===true,configured:true,authorized:body.module_overrides.external_plate_lookup===true}};return json({entitlements:ent});}
    return json(ent);
   }
+  if(path.endsWith("/plan")){planUpdates++;ent={...ent,plan_code:body.plan_code,effective_plan_code:body.plan_code,plan_policy_activated_at:new Date().toISOString(),plan_configured:true};return json({entitlements:ent});}
   if(path.endsWith("/users"))return json({items:members});
   if(path.endsWith("/users/operator")){memberUpdates++;members=members.map(m=>m.user_id==="operator"?{...m,role:body.role}:m);return json({ok:true});}
   if(path.endsWith("/status")){workshop={...workshop,status:body.status,status_reason:body.reason};return json({ok:true});}
