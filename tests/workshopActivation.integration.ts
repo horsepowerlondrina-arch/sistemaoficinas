@@ -134,6 +134,9 @@ test("PostgreSQL: convites de ativação, teste grátis, idempotência e isolame
     assert.equal((await post("/admin-api/workshop-activation/complete",{token:fresh.token,password:"Another-Synthetic-Password"})).status,400);
     assert.equal((await post("/admin-api/workshop-activation/complete",{token:randomBytes(32).toString("hex"),password:"Synthetic-Invalid-Token"})).status,400);
 
+    const get = (path:string,cookie?:string) => fetch(base+path,{
+      headers:{Origin:"http://127.0.0.1:5173",...(cookie?{Cookie:`hp_platform_session=${cookie}`}:{})},
+    });
     const cancelled = await addInvite("cancelled-owner@example.test");
     assert.equal((await post(`/admin-api/workshops/${cancelled.tenantId}/invitation/cancel`, {})).status,401);
     assert.equal((await post(`/admin-api/workshops/${cancelled.tenantId}/invitation/cancel`, {}, readOnlySessionToken)).status,403);
@@ -146,6 +149,15 @@ test("PostgreSQL: convites de ativação, teste grátis, idempotência e isolame
     assert.equal((await ownerQuery(`SELECT count(*)::int AS n FROM ${pa}.audit_events
       WHERE action='admin.workshop.invitation.cancelled' AND subject_tenant_id=$1`,[cancelled.tenantId])).rows[0].n,1);
     assert.equal((await ownerQuery(`SELECT count(*)::int AS n FROM ${hp}.users WHERE email=$1`,["cancelled-owner@example.test"])).rows[0].n,0);
+    const cancelledHistory = await get(`/admin-api/workshops/${cancelled.tenantId}/invitations`, readOnlySessionToken);
+    assert.equal(cancelledHistory.status,200);
+    const cancelledItems = await cancelledHistory.json() as {status:string;token_hash?:string}[];
+    assert.equal(cancelledItems[0].status,"cancelled");
+    assert.equal(cancelledItems[0].token_hash,undefined);
+    const otherHistory = await get(`/admin-api/workshops/${fresh.tenantId}/invitations`, readOnlySessionToken);
+    assert.equal(otherHistory.status,200);
+    assert.equal((await otherHistory.json() as {id:string}[]).some(row=>row.id===cancelledItems[0]?.id),false);
+    assert.equal((await get(`/admin-api/workshops/${cancelled.tenantId}/invitations`)).status,401);
 
     const manualWorkshop = await addInvite("manual-owner@example.test");
     await ownerQuery(`UPDATE ${pa}.workshop_activation_invites SET created_at=now()-interval '2 minutes' WHERE tenant_id=$1`,[manualWorkshop.tenantId]);

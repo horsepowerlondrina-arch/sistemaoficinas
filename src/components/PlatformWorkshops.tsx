@@ -17,6 +17,7 @@ type Workshop = {
   invitation_expires_at: string | null; invitation_sent_at: string | null;
   catalog_access?: CatalogAccess;
 };
+type InvitationEvent = { id:string; created_at:string; expires_at:string; sent_at:string|null; status:Workshop["invitation_status"] };
 type HistoryEvent = { id: string; actor_email: string; action: string; result: string; technical_context: Record<string, unknown>; created_at: string };
 type CatalogAccess = { status:"active"|"not_contracted"|"expired"|"revoked"|"not_installed"; enabled:boolean; valid_until:string|null; activated_at:string|null; grant_source:string; updated_by_admin_id:string|null; updated_by_admin_email:string; updated_at:string|null; reason:string; catalog_installed:boolean };
 type CatalogTestAccess = { available:boolean; enabled:boolean; valid_until:string|null; updated_by_admin_email:string; updated_at:string|null; reason:string };
@@ -52,6 +53,7 @@ export function PlatformWorkshops({ canManage, canManageModules, canTransfer, ca
   const [status, setStatus] = useState("all");
   const [selected, setSelected] = useState<Workshop | null>(null);
   const [history, setHistory] = useState<HistoryEvent[]>([]);
+  const [invitations, setInvitations] = useState<InvitationEvent[]>([]);
   const [fields, setFields] = useState<FormFields>(blank);
   const [editing, setEditing] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -102,6 +104,7 @@ export function PlatformWorkshops({ canManage, canManageModules, canTransfer, ca
       const detail = await request<Workshop>(`/workshops/${encodeURIComponent(tenantId)}`);
       if(requestId!==detailRequest.current)return;
       setHistory([]); void loadHistory(tenantId);
+      setInvitations([]); void request<InvitationEvent[]>(`/workshops/${encodeURIComponent(tenantId)}/invitations`).then(setInvitations).catch(() => setInvitations([]));
       setSelected(detail); setFields(toFields(detail)); setEditing(false); setCreating(false); setReason(""); setNextStatus(""); setTrialDays("");
       setCatalogUntil(localDateTimeInput(detail.catalog_access?.valid_until||null));
       setCatalogReason("Autorização administrativa do módulo Catálogo Técnico.");
@@ -256,7 +259,7 @@ export function PlatformWorkshops({ canManage, canManageModules, canTransfer, ca
       <div role="tabpanel" id="workshop-panel-users" aria-labelledby="workshop-tab-users" hidden={tab!=="users"}><PlatformWorkshopUsers key={selected.tenant_id} tenantId={selected.tenant_id} canEdit={canManage} onSaved={()=>void loadHistory(selected.tenant_id)} primaryOwnerEmail={selected.responsible_email} /></div>
       <div role="tabpanel" id="workshop-panel-invitations" aria-labelledby="workshop-tab-invitations" hidden={tab!=="invitations"}><h3>Ativação e convites</h3><dl className="pa-workshop-data"><div><dt>Convite</dt><dd>{invitationLabels[selected.invitation_status]}{selected.invitation_sent_at ? ` · ${localDate(selected.invitation_sent_at)}` : ""}{selected.invitation_expires_at && selected.invitation_status !== "activated" ? ` · expira ${localDate(selected.invitation_expires_at)}` : ""}</dd></div><div><dt>E-mail confirmado</dt><dd>{localDate(selected.email_verified_at)}</dd></div></dl>      {canManage && selected.source === "admin" && selected.status === "pending_verification" && <div className="pa-workshop-actions"><button className="pa-primary pa-invitation-action" disabled={busy} onClick={() => void sendInvitation()}><RefreshCw size={15}/>{selected.invitation_status === "none" ? "Enviar convite" : "Reenviar convite"}</button><button type="button" className="pa-quiet pa-invitation-action" disabled={busy} onClick={() => { setIdentityVerified(false); setVerificationMethod("phone"); setManualActivation({ mode:"confirm" }); setError(""); setMessage(""); }}>Gerar link manual</button>{["pending","sent","failed","manual_link_created"].includes(selected.invitation_status) && <button type="button" className="pa-quiet pa-invitation-action" disabled={busy} onClick={() => void cancelInvitation()}>Cancelar convite</button>}</div>}
 
-        {selected.status!=="pending_verification"&&<p>O envio de convite de ativação está disponível para oficinas aguardando confirmação. Os acessos existentes são administrados na aba Usuários.</p>}</div>
+        {selected.status!=="pending_verification"&&<p>O envio de convite de ativação está disponível para oficinas aguardando confirmação. Os acessos existentes são administrados na aba Usuários.</p>}{invitations.length>0&&<div className="pa-audit-list"><h4>Histórico dos convites</h4>{invitations.map(invitation=><article className="pa-audit-event" key={invitation.id}><strong>{invitationLabels[invitation.status]}</strong><small>Criado em {localDate(invitation.created_at)} · expira em {localDate(invitation.expires_at)}{invitation.sent_at?` · enviado em ${localDate(invitation.sent_at)}`:""}</small></article>)}</div>}</div>
       <div role="tabpanel" id="workshop-panel-history" aria-labelledby="workshop-tab-history" hidden={tab!=="history"}>    <section><div className="pa-section-title"><div><h2>Histórico administrativo</h2><p>Eventos imutáveis associados à oficina.</p></div></div><button type="button" className="pa-quiet" disabled={historyLoading} onClick={()=>void loadHistory(selected.tenant_id)}>Atualizar histórico</button>{historyError&&<p role="alert">{historyError}</p>}{historyLoading&&<p role="status">Carregando histórico…</p>}<div className="pa-audit-list">{history.map(event => <article className="pa-audit-event" key={event.id}><span className={`pa-status ${event.result === "success" ? "is-active" : ""}`}>{adminResultLabel(event.result)}</span><div><strong>{adminActionLabel(event.action)}</strong><small>{event.actor_email || "Sistema"} · {localDate(event.created_at)}</small><small>Justificativa: {adminReason(event.technical_context)}</small></div></article>)}{!historyLoading&&!historyError&&history.length === 0 && <p>Nenhuma ação registrada.</p>}</div></section>
 </div>
       <div role="tabpanel" id="workshop-panel-transfer" aria-labelledby="workshop-tab-transfer" hidden={tab!=="transfer"}>    {canTransfer && selected && <section><PlatformDataTransfer showHistory={false} onChanged={()=>void loadHistory(selected.tenant_id)} tenantId={selected.tenant_id} workshopName={selected.name} environmentLabel={environmentLabel} canRequestCritical={canRequestCritical} canApproveCritical={canApproveCritical} /></section>}
