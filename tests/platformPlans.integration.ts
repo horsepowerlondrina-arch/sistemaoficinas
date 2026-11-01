@@ -48,6 +48,13 @@ test("PostgreSQL: planos, teste Premium, exceções, limites e isolamento", asyn
     state = await assign("premium");
     assert.equal(state.max_users,10);
     assert.equal(state.modules.technical_catalog,true);
+    await db.query("SELECT set_config('app.tenant_id',$1,true),set_config('app.user_id',$2,true)",[tenant,users[0]]);
+    await db.query("SET LOCAL ROLE hp_local_app");
+    assert.equal((await db.query("SELECT horse_power.local_tenant_catalog_included($1) AS included",[tenant])).rows[0].included,true);
+    await db.query("SAVEPOINT catalog_cross_tenant");
+    await assert.rejects(db.query("SELECT horse_power.local_tenant_catalog_included($1)",[other]),{code:"42501"});
+    await db.query("ROLLBACK TO SAVEPOINT catalog_cross_tenant");
+    await db.query("RESET ROLE");
 
     const expiration = new Date(Date.now()+3600000).toISOString();
     state=(await db.query("SELECT platform_admin.set_workshop_entitlements($1,$2,$3::jsonb,NULL,NULL,$4,$5::jsonb) AS entitlements",

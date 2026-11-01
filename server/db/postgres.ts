@@ -170,6 +170,8 @@ export function createPostgresDatabase(url = process.env.DATABASE_URL, options: 
       }
     },
     async getTenantCatalogIncluded(tenant: string) {
+      const identity = await query("SELECT current_setting('app.tenant_id',true) AS tenant_id,current_setting('app.user_id',true) AS user_id");
+      if (identity.rows[0]?.tenant_id !== tenant || !identity.rows[0]?.user_id) return false;
       try {
         const result = await query("SELECT horse_power.local_tenant_catalog_included($1) AS included", [tenant]);
         return result.rows[0]?.included === true;
