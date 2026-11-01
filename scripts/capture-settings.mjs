@@ -41,6 +41,15 @@ export async function captureSettings(page,entry){
   expect(submitted.rate_bps).toBe(2500);
   await page.unroute("**/api/parts-pricing",saveRoute);await page.unroute("**/api/workspace",route);await page.reload();
  }
+ if(entry.id==="config-dados-oficina"){
+  const dates=await page.locator(".profile-document-preview .hp-print-dates").boundingBox();
+  const totals=await page.locator(".profile-document-preview .hp-print-totalbox").boundingBox();
+  expect(dates).not.toBeNull();expect(totals).not.toBeNull();
+  expect(totals.y).toBeGreaterThanOrEqual(dates.y+dates.height);
+  const monogram=await page.locator(".profile-document-preview .document-monogram").boundingBox();
+  const company=await page.locator(".profile-document-preview .document-company").boundingBox();
+  if(monogram&&company)expect(company.x).toBeGreaterThanOrEqual(monogram.x+monogram.width);
+ }
  if(entry.route.includes("aba=servicos"))await expect(page.getByRole("button",{name:"Salvar valores da hora"})).toBeEnabled();
  await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
 }
