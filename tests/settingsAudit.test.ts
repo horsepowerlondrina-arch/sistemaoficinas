@@ -13,7 +13,7 @@ test("OPS-001 payment settings preserve finance authorization, isolation and aud
  db.prepare("INSERT INTO sessions VALUES(?,?,?,?)").run(digest("owner"),"u","a",Date.now()+60000);
  db.prepare("INSERT INTO sessions VALUES(?,?,?,?)").run(digest("operator"),"m","a",Date.now()+60000);
  let finance=true;
- db.getTenantModuleAccess=async()=>({...defaultWorkshopModules,finance});
+ Object.assign(db,{getTenantModuleAccess:async()=>({...defaultWorkshopModules,finance})});
  const server=createApp(db).listen(0,"127.0.0.1");
  await new Promise<void>(resolve=>server.once("listening",resolve));
  const base="http://127.0.0.1:"+(server.address() as {port:number}).port+"/api";
