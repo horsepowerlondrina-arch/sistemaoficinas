@@ -1,3 +1,4 @@
+import { plateLookupStatus } from "./services/vehicleLookup.js";
 import express, { type NextFunction, type Request, type Response } from "express";
 import { randomBytes, randomUUID } from "node:crypto";
 import type { Pool } from "pg";
@@ -480,7 +481,8 @@ export function createPlatformAdminApp(pool: Pool, encryptionKey: string, transf
   app.get("/admin-api/workshops/:id/entitlements", requireSession, requirePermission("workshops:read"), async (req,res) => {
     try {
       const result = await pool.query("SELECT platform_admin.workshop_entitlement_status($1) AS entitlements", [String(req.params.id)]);
-      res.json(result.rows[0]?.entitlements || {});
+      const entitlements = result.rows[0]?.entitlements || {};
+      res.json({...entitlements,plate_lookup:plateLookupStatus(String(req.params.id),entitlements.modules?.external_plate_lookup)});
     } catch (error) {
       if ((error as {code?:string}).code === "P0002") { res.status(404).json({error:"Oficina não encontrada."}); return; }
       throw error;
@@ -504,7 +506,8 @@ export function createPlatformAdminApp(pool: Pool, encryptionKey: string, transf
         [String(req.params.id),digestAdminToken(token),JSON.stringify(input.data.module_overrides),input.data.max_users,input.data.trial_days,input.data.reason],
       );
       await client.query("COMMIT");
-      res.json({ok:true,entitlements:result.rows[0]?.entitlements||{}});
+      const entitlements = result.rows[0]?.entitlements || {};
+      res.json({ok:true,entitlements:{...entitlements,plate_lookup:plateLookupStatus(String(req.params.id),entitlements.modules?.external_plate_lookup)}});
     } catch (error) {
       await client.query("ROLLBACK").catch(()=>{});
       const code=(error as {code?:string}).code;

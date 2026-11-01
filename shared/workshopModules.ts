@@ -5,6 +5,7 @@ export const workshopModuleKeys = [
   "customers_vehicles",
   "catalog",
   "technical_catalog",
+  "external_plate_lookup",
   "professionals",
   "suppliers",
   "inventory",
@@ -13,7 +14,7 @@ export const workshopModuleKeys = [
 ] as const;
 
 export type WorkshopModuleKey = typeof workshopModuleKeys[number];
-export type WorkshopModules = Record<WorkshopModuleKey, boolean>;
+export type WorkshopModules = Record<Exclude<WorkshopModuleKey, "external_plate_lookup">, boolean> & { external_plate_lookup?: boolean };
 
 export const workshopModuleLabels: Record<WorkshopModuleKey, string> = {
   dashboard: "Visão geral",
@@ -22,6 +23,7 @@ export const workshopModuleLabels: Record<WorkshopModuleKey, string> = {
   customers_vehicles: "Clientes e veículos",
   catalog: "Produtos e serviços da oficina",
   technical_catalog: "Catálogo Técnico de Tempos",
+  external_plate_lookup: "Consulta externa de placas",
   professionals: "Profissionais",
   suppliers: "Fornecedores",
   inventory: "Estoque",
@@ -30,7 +32,7 @@ export const workshopModuleLabels: Record<WorkshopModuleKey, string> = {
 };
 
 export const defaultWorkshopModules: WorkshopModules = Object.fromEntries(
-  workshopModuleKeys.map((key) => [key, true]),
+  workshopModuleKeys.filter((key) => key !== "external_plate_lookup").map((key) => [key, true]),
 ) as WorkshopModules;
 
 const moduleForUiPath = (path: string): WorkshopModuleKey | null => {

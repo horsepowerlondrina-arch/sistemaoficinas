@@ -62,8 +62,9 @@ async function cachedFipeLookup(
 }
 export const normalizePlate = (value: string) =>
   value.toUpperCase().replace(/[^A-Z0-9]/g, "");
-export function providerToken(tenant: string) {
-  const current = fipePlacaToken(tenant);
+export function providerToken(tenant: string, authorized?: boolean) {
+  if (authorized === false) return null;
+  const current = fipePlacaToken(tenant, authorized);
   if (current) return current;
   try {
     const entries = JSON.parse(process.env.PLACA_FIPE_TOKENS_JSON || "{}");
@@ -71,6 +72,30 @@ export function providerToken(tenant: string) {
   } catch {
     return null;
   }
+}
+export function plateLookupStatus(tenant: string, authorized?: boolean) {
+  const configured = !!providerToken(tenant, true);
+  const allowed = authorized ?? !!providerToken(tenant);
+  return {
+    status: !allowed ? "unauthorized" : !configured ? "not_configured" : "available",
+    enabled: allowed && configured,
+    configured,
+    authorized: allowed,
+  };
+}
+export async function vehicleLookupAccess(db: DB, tenant: string) {
+  const modules = await db.getTenantModuleAccess?.(tenant);
+  return plateLookupStatus(tenant, modules?.external_plate_lookup);
+}
+function unavailableLookup(status: string) {
+  return {
+    source: "unavailable",
+    vehicle: null,
+    code: status === "unauthorized" ? "plate_lookup_forbidden" : "plate_lookup_not_configured",
+    message: status === "unauthorized"
+      ? "A consulta externa de placas não está autorizada para esta oficina. Solicite a liberação ao administrador; o cadastro manual continua disponível."
+      : "A integração de consulta de placas não está configurada para esta oficina. Solicite a configuração ao administrador; o cadastro manual continua disponível.",
+  };
 }
 const responseSchema = z.object({
   codigo: z.number(),
@@ -94,14 +119,10 @@ export async function lookupVehicleExternal(
   const plate = normalizePlate(rawPlate);
   if (!/^[A-Z]{3}\d[A-Z0-9]\d{2}$/.test(plate))
     throw new Error("Informe uma placa válida.");
-  const token = providerToken(tenant);
-  if (!token)
-    return {
-      source: "unavailable",
-      vehicle: null,
-      message: "A consulta externa não está ativada para esta oficina.",
-    };
-  if (fipePlacaToken(tenant))
+  const access = await vehicleLookupAccess(db, tenant);
+  if (!access.enabled) return unavailableLookup(access.status);
+  const token = providerToken(tenant, true)!;
+  if (fipePlacaToken(tenant, true))
     return cachedFipeLookup(db, tenant, plate, token, fetcher);
   const saved = await db.prepare(
     "SELECT result_json FROM vehicle_lookup_cache WHERE tenant_id=? AND plate=? AND expires_at>?",
@@ -177,54 +198,5 @@ export async function lookupVehicle(
       vehicle: local,
       message: "Veículo encontrado no cadastro desta oficina.",
     };
-  const token = providerToken(tenant);
-  if (!token)
-    return {
-      source: "unavailable",
-      vehicle: null,
-      message:
-        "Placa não cadastrada. A consulta externa ainda não foi ativada para esta oficina; preencha os dados manualmente.",
-    };
-  const currentToken = fipePlacaToken(tenant);
-  if (currentToken)
-    return cachedFipeLookup(db, tenant, plate, currentToken, fetcher);
-  try {
-    const response = await fetcher("https://api.placafipe.com.br/getplaca", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ placa: plate, token }),
-      signal: AbortSignal.timeout(10000),
-    });
-    if (!response.ok) throw new Error("provider");
-    const result = responseSchema.parse(await response.json());
-    if (result.codigo !== 1 || !result.informacoes_veiculo)
-      return {
-        source: "not_found",
-        vehicle: null,
-        message:
-          "Placa não localizada pelo provedor. Confira a placa ou preencha os dados.",
-      };
-    const v = result.informacoes_veiculo;
-    const year = Number(v.ano_modelo || v.ano);
-    return {
-      source: "external",
-      vehicle: {
-        plate,
-        brand: v.marca,
-        model: v.modelo,
-        year: Number.isInteger(Number(v.ano)) && Number(v.ano) >= 1900 ? Number(v.ano) : Number.isInteger(year) && year >= 1900 && year <= 2100 ? year : null,
-        model_year: Number.isInteger(year) && year >= 1900 && year <= 2100 ? year : null,
-        fuel: v.combustivel || "",
-        color: v.cor || "",
-      },
-      message: "Dados consultados via Placa FIPE. Confira antes de salvar.",
-    };
-  } catch {
-    throw Object.assign(
-      new Error(
-        "A consulta externa não respondeu. Tente novamente ou preencha os dados manualmente.",
-      ),
-      { status: 502 },
-    );
-  }
+  return lookupVehicleExternal(db, tenant, plate, fetcher);
 }
