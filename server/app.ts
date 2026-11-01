@@ -79,7 +79,7 @@ import { previewStockInvoice, importStockInvoice } from "./services/stockInvoice
 import { listSuppliers, supplierDetails, saveSupplier } from "./services/suppliers.js";
 import { getWorkshopProfile, saveWorkshopProfile } from "./services/workshopProfile.js";
 import { calculatePaymentPlan, paymentMethods } from "./domain/payments.js";
-import { lookupVehicle, lookupVehicleExternal, normalizePlate, providerToken } from "./services/vehicleLookup.js";
+import { lookupVehicle, lookupVehicleExternal, normalizePlate, vehicleLookupAccess } from "./services/vehicleLookup.js";
 import { vehicleFipeFields } from "./services/vehicleFipeFields.js";
 import { serviceInfo, saveLaborRates, searchBrands, searchModels, repairModel, identifyVehicleModel, confirmVehicleModel, catalogAccessState, searchRepairServices, listWorkshopServices, saveWorkshopService, setWorkshopServiceActive, listWorkshopServiceCategories, saveWorkshopServiceCategory, setWorkshopServiceCategoryActive, resolveService, serviceSelectionSchema, withTenantScope, previewVehicleCatalogReview } from './services/repairCatalog.js';
 const text = z.string().trim().max(500).default("");
@@ -514,7 +514,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
         credit_fee_bps: 0,
         interest_bps: 0,
       },
-      plate_lookup_enabled: !!providerToken(tenant),
+      plate_lookup_enabled: (await vehicleLookupAccess(db, tenant)).enabled,
       customers: await db
         .prepare("SELECT * FROM customers WHERE tenant_id=? ORDER BY name")
         .all(tenant),
@@ -1076,6 +1076,9 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
     const vehicleId = String(req.params.id);
     const rejectConfirmation = (message: string) => Object.assign(new Error(message), { status: 409 });
     const current = await scoped(db, "vehicles", tenant, vehicleId);
+    if (!(await vehicleLookupAccess(db, tenant)).enabled) {
+      res.status(403).json({error:"A consulta externa de placas não está autorizada ou configurada para esta oficina."}); return;
+    }
     const plate = normalizePlate(String(current.plate));
     const cached = await db.prepare(
       "SELECT result_json FROM vehicle_lookup_cache WHERE tenant_id=? AND plate=? AND expires_at>?"
@@ -1155,7 +1158,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
     }).parse(req.query);
     res.json(await previewVehicleCatalogReview(db, res.locals.context, {
       ...query,
-      plateLookupEnabled: !!providerToken(res.locals.context.tenantId),
+      plateLookupEnabled: (await vehicleLookupAccess(db, res.locals.context.tenantId)).enabled,
     }));
   });
   app.get('/api/repair-services/access', async (_req, res) => {

@@ -1788,7 +1788,7 @@
       "id": "adm0021-oficina-permissoes-desktop",
       "module": "17-painel-admin-central",
       "title": "Acessos e permissões da oficina",
-      "description": "Interface real da ADM-002.1 em Chromium, com API fictícia interceptada; integração PostgreSQL validada separadamente.",
+      "description": "ADM-002.2: consulta externa de placas liberada independentemente do catálogo. Interface real em Chromium com API fictícia; backend validado separadamente.",
       "route": "/admin",
       "navigation": "Oficinas → selecionar oficina → Acessos e permissões da oficina",
       "driver": "admin-interface",
@@ -1796,10 +1796,10 @@
       "viewport": "desktop",
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/17-painel-admin-central/adm0021-oficina-permissoes-desktop.png",
-      "updatedAt": "2026-10-30",
-      "commit": "fdbee764e0dfdcaeb7698131779d52a4a8a6a4a8",
+      "updatedAt": "2026-11-01",
+      "commit": "2708c7c44e1db1c0938fbf03b17ff9ab8e7f1069",
       "freshness": "atual",
-      "reason": "Dados fictícios de navegador, sem credenciais, tokens ou acesso ao banco persistente. CI #273."
+      "reason": "Dados fictícios, sem chaves ou banco persistente. CI #277; captura revisada visualmente."
     },
     {
       "id": "adm0021-oficina-convites-mobile",

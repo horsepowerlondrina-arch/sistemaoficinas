@@ -1,4 +1,4 @@
-import { fipePlacaToken, lookupFipePlaca } from "./fipePlaca.js";
+import { fipePlacaAllowed, fipePlacaToken, lookupFipePlaca } from "./fipePlaca.js";
 import type { DB } from "../db/database.js";
 import { z } from "zod";
 type FipeLookup = Awaited<ReturnType<typeof lookupFipePlaca>>;
@@ -62,15 +62,43 @@ async function cachedFipeLookup(
 }
 export const normalizePlate = (value: string) =>
   value.toUpperCase().replace(/[^A-Z0-9]/g, "");
-export function providerToken(tenant: string) {
-  const current = fipePlacaToken(tenant);
+export function providerToken(tenant: string, authorized?: boolean) {
+  if (authorized === false) return null;
+  const current = fipePlacaToken(tenant, authorized);
   if (current) return current;
+  return legacyProviderToken(tenant);
+}
+function legacyProviderToken(tenant: string) {
   try {
     const entries = JSON.parse(process.env.PLACA_FIPE_TOKENS_JSON || "{}");
     return typeof entries[tenant] === "string" ? entries[tenant] : null;
   } catch {
     return null;
   }
+}
+export function plateLookupStatus(tenant: string, authorized?: boolean) {
+  const configured = !!providerToken(tenant, true);
+  const allowed = authorized ?? (fipePlacaAllowed(tenant) || !!legacyProviderToken(tenant));
+  return {
+    status: !allowed ? "unauthorized" : !configured ? "not_configured" : "available",
+    enabled: allowed && configured,
+    configured,
+    authorized: allowed,
+  };
+}
+export async function vehicleLookupAccess(db: DB, tenant: string) {
+  const modules = await db.getTenantModuleAccess?.(tenant);
+  return {...plateLookupStatus(tenant, modules?.external_plate_lookup), override: modules?.external_plate_lookup};
+}
+function unavailableLookup(status: string) {
+  return {
+    source: "unavailable",
+    vehicle: null,
+    code: status === "unauthorized" ? "plate_lookup_forbidden" : "plate_lookup_not_configured",
+    message: status === "unauthorized"
+      ? "A consulta externa de placas não está autorizada para esta oficina. Solicite a liberação ao administrador; o cadastro manual continua disponível."
+      : "A integração de consulta de placas não está configurada para esta oficina. Solicite a configuração ao administrador; o cadastro manual continua disponível.",
+  };
 }
 const responseSchema = z.object({
   codigo: z.number(),
@@ -94,14 +122,10 @@ export async function lookupVehicleExternal(
   const plate = normalizePlate(rawPlate);
   if (!/^[A-Z]{3}\d[A-Z0-9]\d{2}$/.test(plate))
     throw new Error("Informe uma placa válida.");
-  const token = providerToken(tenant);
-  if (!token)
-    return {
-      source: "unavailable",
-      vehicle: null,
-      message: "A consulta externa não está ativada para esta oficina.",
-    };
-  if (fipePlacaToken(tenant))
+  const access = await vehicleLookupAccess(db, tenant);
+  if (!access.enabled) return unavailableLookup(access.status);
+  const token = providerToken(tenant, access.override)!;
+  if (fipePlacaToken(tenant, access.override))
     return cachedFipeLookup(db, tenant, plate, token, fetcher);
   const saved = await db.prepare(
     "SELECT result_json FROM vehicle_lookup_cache WHERE tenant_id=? AND plate=? AND expires_at>?",
@@ -177,15 +201,10 @@ export async function lookupVehicle(
       vehicle: local,
       message: "Veículo encontrado no cadastro desta oficina.",
     };
-  const token = providerToken(tenant);
-  if (!token)
-    return {
-      source: "unavailable",
-      vehicle: null,
-      message:
-        "Placa não cadastrada. A consulta externa ainda não foi ativada para esta oficina; preencha os dados manualmente.",
-    };
-  const currentToken = fipePlacaToken(tenant);
+  const access = await vehicleLookupAccess(db, tenant);
+  if (!access.enabled) return unavailableLookup(access.status);
+  const token = providerToken(tenant, access.override)!;
+  const currentToken = fipePlacaToken(tenant, access.override);
   if (currentToken)
     return cachedFipeLookup(db, tenant, plate, currentToken, fetcher);
   try {

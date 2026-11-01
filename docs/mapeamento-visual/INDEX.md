@@ -520,11 +520,11 @@ Estado: capturada · mobile · captura 2026-10-22 · commit de origem: não regi
 
 ### Acessos e permissões da oficina
 
-Interface real da ADM-002.1 em Chromium, com API fictícia interceptada; integração PostgreSQL validada separadamente.
+ADM-002.2: consulta externa de placas liberada independentemente do catálogo. Interface real em Chromium com API fictícia; backend validado separadamente.
 
 [![Acessos e permissões da oficina](./capturas/17-painel-admin-central/adm0021-oficina-permissoes-desktop.png)](./capturas/17-painel-admin-central/adm0021-oficina-permissoes-desktop.png)
 
-Estado: capturada · desktop · captura 2026-10-30 · commit de origem: fdbee764e0dfdcaeb7698131779d52a4a8a6a4a8 · [arquivo completo](./capturas/17-painel-admin-central/adm0021-oficina-permissoes-desktop.png)
+Estado: capturada · desktop · captura 2026-11-01 · commit de origem: 2708c7c44e1db1c0938fbf03b17ff9ab8e7f1069 · [arquivo completo](./capturas/17-painel-admin-central/adm0021-oficina-permissoes-desktop.png)
 
 ### Convites e ativação no celular
 

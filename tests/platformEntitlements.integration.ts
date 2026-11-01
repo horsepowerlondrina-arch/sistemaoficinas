@@ -1,3 +1,5 @@
+import {lookupVehicleExternal} from "../server/services/vehicleLookup.js";
+import type {DB} from "../server/db/database.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { randomBytes, randomUUID } from "node:crypto";
@@ -134,6 +136,66 @@ test("PostgreSQL: permissões administrativas por oficina, limites, período de 
     assert.deepEqual(state.module_overrides,{});
     const finalTrial=(await client.query("SELECT extract(epoch FROM (trial_ends_at-trial_started_at))/86400 AS days FROM platform_admin.workshops WHERE tenant_id=$1",[tenantId])).rows[0];
     assert.equal(Math.round(Number(finalTrial.days)),7);
+
+    // ADM-002.2: the same audited entitlement mechanism controls plate queries.
+    assert.equal(state.modules.external_plate_lookup,undefined,"ausência preserva autorização legada");
+    const oldTokens=process.env.FIPEPLACA_TOKENS_JSON,oldAllowed=process.env.FIPEPLACA_ALLOWED_TENANT_IDS;
+    const oldLegacy=process.env.PLACA_FIPE_TOKENS_JSON;
+    process.env.FIPEPLACA_TOKENS_JSON=JSON.stringify({[tenantId]:"fictional-key-a",[otherTenantId]:"fictional-key-b"});
+    process.env.FIPEPLACA_ALLOWED_TENANT_IDS=otherTenantId;
+    delete process.env.PLACA_FIPE_TOKENS_JSON;
+    const query=(sql:string,values:unknown[])=>{
+      let i=0;return client.query(sql.replace(/\?/g,()=>"$"+(++i)),values);
+    };
+    const adapter:DB={
+      exec:async(sql)=>{await client.query(sql);},
+      prepare:(sql)=>({
+        get:async(...values)=>(await query(sql,values)).rows[0],
+        all:async(...values)=>(await query(sql,values)).rows,
+        run:async(...values)=>({changes:(await query(sql,values)).rowCount||0}),
+      }),
+      getTenantModuleAccess:async(tenant)=>(await client.query("SELECT horse_power.local_tenant_module_access($1) AS modules",[tenant])).rows[0].modules,
+    };
+    let providerCalls=0;
+    const provider=(async(url)=>{
+      providerCalls++;return Response.json(String(url).endsWith("/fipe")?[]:{marca:"Marca Fictícia",modelo:"Modelo Fictício",anoFabricacao:2020,anoModelo:2021,cor:"Prata"});
+    }) as typeof fetch;
+    const lookup=async(tenant:string,user:string)=>{
+      await client.query("SET LOCAL search_path=horse_power,pg_catalog");
+      await client.query("SELECT set_config('app.tenant_id',$1,true),set_config('app.user_id',$2,true)",[tenant,user]);
+      await client.query("SET LOCAL ROLE hp_local_app");
+      try{return await lookupVehicleExternal(adapter,tenant,"ADM2A22",provider);}finally{await client.query("RESET ROLE");}
+    };
+    const setPlate=async(value:boolean|undefined)=>{
+      await client.query("SELECT platform_admin.set_workshop_entitlements($1,$2,$3::jsonb,NULL,NULL,$4)",[
+        tenantId,sessionHash,JSON.stringify(value===undefined?{}:{external_plate_lookup:value,technical_catalog:false}),
+        "ADM-002.2 ajuste fictício de consulta externa",
+      ]);
+    };
+    try{
+      assert.equal((await lookup(tenantId,ownerId)).source,"unavailable");
+      assert.equal(providerCalls,0);
+      await setPlate(true);
+      assert.equal((await lookup(tenantId,ownerId)).source,"external","liberação independente do catálogo");
+      assert.equal(providerCalls,2);
+      await setPlate(false);
+      assert.equal((await lookup(tenantId,ownerId)).source,"unavailable","revogação bloqueia cache");
+      assert.equal(providerCalls,2);
+      assert.equal((await lookup(otherTenantId,secondUserId)).source,"external","outra oficina conserva acesso legado");
+      assert.equal(providerCalls,4);
+      await setPlate(undefined);
+      assert.equal((await lookup(tenantId,ownerId)).source,"unavailable","restaurar não concede acesso");
+      const plateAudit=await client.query("SELECT technical_context FROM platform_admin.audit_events WHERE subject_tenant_id=$1 AND technical_context->>'reason'=$2",[tenantId,"ADM-002.2 ajuste fictício de consulta externa"]);
+      assert.equal(plateAudit.rowCount,3);
+      assert.ok(plateAudit.rows.some(row=>row.technical_context.after.modules.external_plate_lookup===true));
+      assert.ok(plateAudit.rows.some(row=>row.technical_context.after.modules.external_plate_lookup===false));
+      assert.equal((await client.query("SELECT count(*)::int AS count FROM platform_admin.workshop_entitlements WHERE tenant_id=$1",[otherTenantId])).rows[0].count,0);
+    }finally{
+      for(const [key,value] of [["FIPEPLACA_TOKENS_JSON",oldTokens],["FIPEPLACA_ALLOWED_TENANT_IDS",oldAllowed],["PLACA_FIPE_TOKENS_JSON",oldLegacy]] as const){
+        if(value===undefined)delete process.env[key];else process.env[key]=value;
+      }
+    }
+
     await client.query("ROLLBACK");
   } catch (error) {
     await client.query("ROLLBACK").catch(()=>{});

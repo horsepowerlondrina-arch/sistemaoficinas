@@ -15,7 +15,7 @@ try{
  const errors=[];page.on("pageerror",e=>errors.push(e.message));
  let readOnly=false,failSave=true,failHistory=true,updates=0,memberUpdates=0;
  const modules=Object.fromEntries(["dashboard","orders","checklists","customers_vehicles","catalog","technical_catalog","professionals","suppliers","inventory","finance","settings"].map(k=>[k,true]));
- let ent={plan_code:null,plan_configured:false,plan_module_defaults:{},module_overrides:{},modules,max_users_override:null,max_users:null,trial_days_override:null,trial_days:14,user_count:2};
+ let ent={plan_code:null,plan_configured:false,plan_module_defaults:{},module_overrides:{},modules,plate_lookup:{status:"unauthorized",enabled:false,configured:true,authorized:false},max_users_override:null,max_users:null,trial_days_override:null,trial_days:14,user_count:2};
  let workshop={tenant_id:"fictional-a",name:"Oficina Demonstração ADM",document:"",phone:"",status:"trial",source:"admin",responsible_name:"Responsável Fictício",responsible_email:"owner@example.test",created_at:"2026-10-01T12:00:00Z",updated_at:null,email_verified_at:"2026-10-01T12:00:00Z",trial_started_at:"2026-10-01T12:00:00Z",trial_ends_at:"2026-10-15T12:00:00Z",trial_days_remaining:7,status_reason:"Ativação fictícia",invitation_status:"used",invitation_expires_at:null,invitation_sent_at:null,catalog_access:{status:"active",enabled:true,valid_until:null,activated_at:null,grant_source:"commercial",updated_by_admin_id:null,updated_by_admin_email:"",updated_at:null,reason:"Autorização fictícia",catalog_installed:true}};
  let members=[{user_id:"owner",name:"Responsável Fictício",email:"owner@example.test",role:"owner"},{user_id:"operator",name:"Colaborador Fictício",email:"operator@example.test",role:"operator"}];
  let events=[{id:"event1",action:"admin.workshop.membership_changed",result:"success",actor_email:"admin@example.test",created_at:"2026-10-01T12:00:00Z",technical_context:{reason:"Revisão fictícia de acesso"}}];
@@ -27,7 +27,7 @@ try{
   if(path.includes("/data-transfer/"))return json([]);
   if(path.endsWith("/history")){if(failHistory)return json({error:"Histórico temporariamente indisponível"},503);return json(events);}
   if(path.endsWith("/entitlements")){
-   if(method==="PUT"){updates++;ent={...ent,module_overrides:body.module_overrides,max_users_override:body.max_users,trial_days_override:body.trial_days,modules:{...modules,...body.module_overrides}};return json({entitlements:ent});}
+   if(method==="PUT"){updates++;ent={...ent,module_overrides:body.module_overrides,max_users_override:body.max_users,trial_days_override:body.trial_days,modules:{...modules,...body.module_overrides},plate_lookup:{status:body.module_overrides.external_plate_lookup===true?"available":"unauthorized",enabled:body.module_overrides.external_plate_lookup===true,configured:true,authorized:body.module_overrides.external_plate_lookup===true}};return json({entitlements:ent});}
    return json(ent);
   }
   if(path.endsWith("/users"))return json({items:members});
@@ -63,6 +63,7 @@ try{
  await page.getByRole("tab",{name:"Acessos e permissões",exact:true}).click();
  await expect(page.getByLabel("Exceção: Catálogo Técnico de Tempos",{exact:true})).toBeEnabled();
  await page.getByLabel("Exceção: Catálogo Técnico de Tempos",{exact:true}).selectOption("deny");
+ await page.getByLabel("Exceção: Consulta externa de placas",{exact:true}).selectOption("allow");
  await page.getByLabel("Justificativa das permissões",{exact:true}).fill("Bloqueio fictício para regressão");
  await page.getByRole("tab",{name:"Usuários",exact:true}).click();
  await page.getByRole("tab",{name:"Acessos e permissões",exact:true}).click();
@@ -73,6 +74,7 @@ try{
  await page.getByRole("button",{name:"Salvar permissões",exact:true}).click();
  await expect(page.getByText("Permissões e limites salvos e auditados.")).toBeVisible();
  if(updates!==1)throw Error("Duplicate entitlement update");
+ await expect(page.getByRole("row").filter({hasText:"Consulta externa de placas"})).toContainText("Liberado");
  await expect(page.getByRole("row").filter({hasText:"Catálogo Técnico de Tempos"})).toContainText("Bloqueado");
  await page.getByText("Estrutura comercial planejada",{exact:true}).click();
  await expect(page.getByText("Premium",{exact:true})).toBeVisible();
@@ -81,6 +83,7 @@ try{
  page.once("dialog",d=>d.accept());
  await page.getByRole("button",{name:"Restaurar padrões",exact:true}).click();
  await expect(page.getByLabel("Exceção: Catálogo Técnico de Tempos",{exact:true})).toHaveValue("inherit");
+ await expect(page.getByLabel("Exceção: Consulta externa de placas",{exact:true})).toHaveValue("inherit");
  page.once("dialog",d=>d.dismiss());
  await page.getByRole("button",{name:"Desabilitar catálogo",exact:true}).click();
  await expect(page.getByRole("row").filter({hasText:"Catálogo Técnico de Tempos"})).toContainText("Liberado");
