@@ -5,16 +5,16 @@ export const workshopTabs = [
 ] as const;
 export type WorkshopTab = typeof workshopTabs[number][0];
 
-// Commercial roadmap only: these labels never grant or revoke runtime access.
 export const plannedWorkshopPlans = [
-  { code: "basic", label: "Básico", description: "Funcionalidades a definir." },
-  { code: "professional", label: "Profissional", description: "Funcionalidades a definir." },
-  { code: "premium", label: "Premium", description: "Inclui Catálogo Técnico de Tempos; demais funcionalidades a definir." },
+  { code: "basic", label: "Básico", users: 2, description: "Atendimento, cadastros, orçamentos, OS, checklists e configurações essenciais." },
+  { code: "professional", label: "Profissional", users: 5, description: "Básico, estoque, fornecedores, financeiro e consulta externa de placas." },
+  { code: "premium", label: "Premium", users: 10, description: "Profissional e Catálogo Técnico de Tempos." },
 ] as const;
 const actions: Record<string,string> = {
  "admin.workshop.created":"Oficina cadastrada", "admin.workshop.updated":"Dados cadastrais atualizados",
  "admin.workshop.status_changed":"Situação de acesso alterada", "admin.workshop.membership_changed":"Vínculo de usuário alterado",
  "admin.workshop.entitlements_changed":"Permissões e limites alterados",
+ "admin.workshop.plan_changed":"Plano comercial alterado",
  "admin.catalog_access.enabled":"Catálogo técnico habilitado", "admin.catalog_access.disabled":"Catálogo técnico desabilitado",
  "admin.catalog_access.granted":"Catálogo técnico autorizado", "admin.catalog_access.revoked":"Catálogo técnico revogado",
  "admin.catalog_access.renewed":"Validade do catálogo renovada",

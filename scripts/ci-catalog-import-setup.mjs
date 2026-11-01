@@ -59,7 +59,7 @@ try {
     .filter((name) => /^\d{3}-.*\.sql$/.test(name))
     .sort();
   if (
-    files.length !== 29 ||
+    files.length !== 30 ||
     !files.includes("021-vehicle-update-audit-metadata.sql") ||
     !files.includes("022-admin-workshop-entitlements.sql") ||
     !files.includes("023-private-workshop-services.sql") ||
@@ -68,10 +68,11 @@ try {
     !files.includes("026-vehicle-fipe-identity.sql") ||
     !files.includes("027-admin-workshop-management.sql") ||
     !files.includes("028-admin-external-plate-entitlement.sql") ||
-    !files.includes("029-card-machines.sql")
+    !files.includes("029-card-machines.sql") ||
+    !files.includes("030-adm003-plan-entitlements.sql")
   )
     throw new Error(
-      "A série completa de 29 migrações locais, incluindo identificação FIPE, gestão de oficinas, consulta externa e máquinas de cartão, não está presente.",
+      "A série completa de 30 migrações locais, incluindo gestão de oficinas, planos comerciais e catálogo técnico, não está presente.",
     );
   for (const file of files)
     await target.query(readFileSync(join("local-postgres", file), "utf8"));

@@ -488,11 +488,34 @@ export function createPlatformAdminApp(pool: Pool, encryptionKey: string, transf
       throw error;
     }
   });
+  app.put("/admin-api/workshops/:id/plan", requireSession, requirePermission("workshops:manage"), async (req,res) => {
+    const input=z.object({plan_code:z.enum(["basic","professional","premium"]),reason:z.string().trim().min(10).max(500)}).strict().safeParse(req.body);
+    if(!input.success){res.status(400).json({error:"Informe o plano e uma justificativa de 10 a 500 caracteres."});return;}
+    const token=cookieValue(req);
+    if(!token){res.status(401).json({error:"Entre no painel central."});return;}
+    const client=await pool.connect();
+    try{
+      await client.query("BEGIN");
+      const result=await client.query("SELECT platform_admin.set_workshop_plan($1,$2,$3,$4) AS entitlements",
+        [String(req.params.id),digestAdminToken(token),input.data.plan_code,input.data.reason]);
+      await client.query("COMMIT");
+      const entitlements=result.rows[0]?.entitlements||{};
+      res.json({ok:true,entitlements:{...entitlements,plate_lookup:plateLookupStatus(String(req.params.id),entitlements.modules?.external_plate_lookup)}});
+    }catch(error){
+      await client.query("ROLLBACK").catch(()=>{});
+      const code=(error as {code?:string}).code;
+      if(code==="42501"){res.status(403).json({error:"Permissão administrativa insuficiente."});return;}
+      if(code==="P0002"){res.status(404).json({error:"Oficina gerenciada não encontrada."});return;}
+      if(code==="22023"){res.status(400).json({error:"Plano ou justificativa inválida."});return;}
+      throw error;
+    }finally{client.release();}
+  });
   app.put("/admin-api/workshops/:id/entitlements", requireSession, requirePermission("workshops:manage"), async (req,res) => {
     const input = z.object({
       module_overrides: z.record(z.string(),z.boolean()),
       max_users: z.number().int().min(1).max(10000).nullable(),
       trial_days: z.number().int().min(1).max(90).nullable(),
+      override_expires_at: z.record(z.string(),z.string().datetime()).default({}),
       reason: z.string().trim().min(10).max(500),
     }).strict().safeParse(req.body);
     if (!input.success) { res.status(400).json({error:"Confira as permissões, limites e justificativa informados."}); return; }
@@ -502,8 +525,8 @@ export function createPlatformAdminApp(pool: Pool, encryptionKey: string, transf
     try {
       await client.query("BEGIN");
       const result = await client.query(
-        "SELECT platform_admin.set_workshop_entitlements($1,$2,$3::jsonb,$4,$5,$6) AS entitlements",
-        [String(req.params.id),digestAdminToken(token),JSON.stringify(input.data.module_overrides),input.data.max_users,input.data.trial_days,input.data.reason],
+        "SELECT platform_admin.set_workshop_entitlements($1,$2,$3::jsonb,$4,$5,$6,$7::jsonb) AS entitlements",
+        [String(req.params.id),digestAdminToken(token),JSON.stringify(input.data.module_overrides),input.data.max_users,input.data.trial_days,input.data.reason,JSON.stringify(input.data.override_expires_at)],
       );
       await client.query("COMMIT");
       const entitlements = result.rows[0]?.entitlements || {};
