@@ -3,9 +3,14 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import {
   newWorkshopActivationToken,
+  workshopActivationTtlHours,
   sendWorkshopActivationEmail,
   workshopActivationUrl,
 } from "../server/services/workshopActivation.js";
+
+test("new activation invitations expire after 48 hours", () => {
+  assert.equal(workshopActivationTtlHours,48);
+});
 
 test("workshop activation links use a 256-bit token in the URL fragment", () => {
   const token = newWorkshopActivationToken();

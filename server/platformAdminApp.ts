@@ -52,7 +52,7 @@ function validOrigin(req: Request, res: Response) {
 type AdminContext = { id: string; email: string; display_name: string; role: PlatformRole; permissions: PlatformPermission[] };
 
 type InvitationView = {
-  invitation_status: "none" | "pending" | "sent" | "failed" | "expired" | "revoked" | "used" | "manual_link_created";
+  invitation_status: "none" | "pending" | "sent" | "failed" | "expired" | "cancelled" | "activated" | "manual_link_created";
   invitation_expires_at: Date | null;
   invitation_sent_at: Date | null;
 };
@@ -73,7 +73,7 @@ async function invitationViews(pool: Pool, tenantIds: string[]) {
   const views = new Map<string, InvitationView>();
   for (const row of result.rows) {
     const expired = row.used_at === null && row.revoked_at === null && new Date(row.expires_at).getTime() <= Date.now();
-    const invitation_status = row.used_at ? "used" : row.revoked_at ? "revoked" : expired ? "expired"
+    const invitation_status = row.used_at ? "activated" : row.revoked_at ? "cancelled" : expired ? "expired"
       : row.manual_link_created ? "manual_link_created" : row.delivery_status;
     views.set(String(row.tenant_id), {
       invitation_status,
@@ -116,7 +116,7 @@ async function prepareWorkshopInvitation(
       return { status: 409 };
     }
     const recent = await client.query(`SELECT 1 FROM platform_admin.workshop_activation_invites
-      WHERE tenant_id=$1 AND delivery_status IN ('pending','sent') AND created_at>now()-interval '1 minute'
+      WHERE tenant_id=$1 AND delivery_status IN ('pending','sent','failed') AND created_at>now()-interval '1 minute'
       ORDER BY created_at DESC LIMIT 1`, [tenantId]);
     if (recent.rowCount) {
       await client.query("ROLLBACK");
@@ -618,6 +618,39 @@ export function createPlatformAdminApp(pool: Pool, encryptionKey: string, transf
     if (result.status === 409) { res.status(409).json({ error:"Somente oficinas pendentes podem receber convite." }); return; }
     if (result.status === 429) { res.status(429).json({ error:"Um convite acabou de ser enviado. Aguarde um minuto antes de tentar novamente." }); return; }
     res.json({ invitation_status:result.invitation_status, invitation_expires_at:result.invitation_expires_at, invitation_sent_at:result.invitation_sent_at });
+  });
+
+  app.post("/admin-api/workshops/:id/invitation/cancel", requireSession, requirePermission("workshops:manage"), async (req, res) => {
+    const tenantId = String(req.params.id), actor = res.locals.admin as AdminContext;
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [tenantId]);
+      const workshop = await client.query("SELECT source,status FROM platform_admin.workshops WHERE tenant_id=$1", [tenantId]);
+      if (!workshop.rowCount || workshop.rows[0].source !== "admin") {
+        await client.query("ROLLBACK"); res.status(404).json({ error:"Oficina administrada não encontrada." }); return;
+      }
+      if (workshop.rows[0].status !== "pending_verification") {
+        await client.query("ROLLBACK"); res.status(409).json({ error:"A ativação desta oficina já foi concluída." }); return;
+      }
+      const cancelled = await client.query(`UPDATE platform_admin.workshop_activation_invites
+        SET revoked_at=now(), delivery_status='revoked'
+        WHERE id=(SELECT id FROM platform_admin.workshop_activation_invites
+          WHERE tenant_id=$1 AND used_at IS NULL AND revoked_at IS NULL AND expires_at>now()
+          ORDER BY created_at DESC,id DESC LIMIT 1)
+        RETURNING id`, [tenantId]);
+      if (!cancelled.rowCount) {
+        await client.query("ROLLBACK"); res.status(409).json({ error:"Não há convite ativo para cancelar." }); return;
+      }
+      await writeAdminAudit(client, { actorId:actor.id, actorEmail:actor.email, subjectTenantId:tenantId,
+        action:"admin.workshop.invitation.cancelled", result:"success",
+        technical:{ invite_id:cancelled.rows[0].id } });
+      await client.query("COMMIT");
+      res.json({ invitation_status:"cancelled" });
+    } catch (error) {
+      await client.query("ROLLBACK").catch(()=>{});
+      throw error;
+    } finally { client.release(); }
   });
 
   app.post("/admin-api/workshops/:id/manual-activation-link", requireSession, requirePermission("workshops:manage"), async (req, res) => {

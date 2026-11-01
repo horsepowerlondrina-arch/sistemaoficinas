@@ -134,6 +134,19 @@ test("PostgreSQL: convites de ativação, teste grátis, idempotência e isolame
     assert.equal((await post("/admin-api/workshop-activation/complete",{token:fresh.token,password:"Another-Synthetic-Password"})).status,400);
     assert.equal((await post("/admin-api/workshop-activation/complete",{token:randomBytes(32).toString("hex"),password:"Synthetic-Invalid-Token"})).status,400);
 
+    const cancelled = await addInvite("cancelled-owner@example.test");
+    assert.equal((await post(`/admin-api/workshops/${cancelled.tenantId}/invitation/cancel`, {})).status,401);
+    assert.equal((await post(`/admin-api/workshops/${cancelled.tenantId}/invitation/cancel`, {}, readOnlySessionToken)).status,403);
+    const cancelledResult = await post(`/admin-api/workshops/${cancelled.tenantId}/invitation/cancel`, {}, manageSessionToken);
+    assert.equal(cancelledResult.status,200);
+    assert.equal((await cancelledResult.json() as {invitation_status:string}).invitation_status,"cancelled");
+    assert.equal((await post("/admin-api/workshop-activation/validate",{token:cancelled.token})).status,400);
+    assert.equal((await post("/admin-api/workshop-activation/complete",{token:cancelled.token,password:"Synthetic-Cancelled-Password"})).status,400);
+    assert.equal((await post(`/admin-api/workshops/${cancelled.tenantId}/invitation/cancel`, {}, manageSessionToken)).status,409);
+    assert.equal((await ownerQuery(`SELECT count(*)::int AS n FROM ${pa}.audit_events
+      WHERE action='admin.workshop.invitation.cancelled' AND subject_tenant_id=$1`,[cancelled.tenantId])).rows[0].n,1);
+    assert.equal((await ownerQuery(`SELECT count(*)::int AS n FROM ${hp}.users WHERE email=$1`,["cancelled-owner@example.test"])).rows[0].n,0);
+
     const manualWorkshop = await addInvite("manual-owner@example.test");
     await ownerQuery(`UPDATE ${pa}.workshop_activation_invites SET created_at=now()-interval '2 minutes' WHERE tenant_id=$1`,[manualWorkshop.tenantId]);
     const manualUnauthenticated = await post(`/admin-api/workshops/${manualWorkshop.tenantId}/manual-activation-link`, {identity_verified:true,verification_method:"phone"});
