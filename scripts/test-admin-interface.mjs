@@ -36,6 +36,8 @@ try{
   if(path.endsWith("/status")){workshop={...workshop,status:body.status,status_reason:body.reason};return json({ok:true});}
   if(path.endsWith("/catalog-access")){workshop={...workshop,catalog_access:{...workshop.catalog_access,enabled:body.enabled,status:body.enabled?"active":"revoked"}};return json({ok:true});}
   if(path.endsWith("/manual-activation-link"))return json({activation_url:"http://127.0.0.1:5179/ativar#token=fictitious-ui-only",invitation_expires_at:"2026-11-01T12:00:00Z"});
+  if(path.endsWith("/invitations"))return json([]);
+  if(path.endsWith("/invitation/cancel"))return json({invitation_status:"cancelled"});
   if(path.endsWith("/invitation"))return json({invitation_status:"sent"});
   if(path.endsWith("/fictional-a")){
    if(method==="PUT"){if(failSave)return json({error:"Cadastro recusado para teste"},400);workshop={...workshop,...body};return json({ok:true});}return json(workshop);
