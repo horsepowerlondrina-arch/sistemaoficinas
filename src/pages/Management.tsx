@@ -7,7 +7,8 @@ import { RegisterModal } from "./Registers";
 import { CapturePanel } from "../components/CapturePanel";
 import { StockEntry } from "../components/StockEntry";
 import { StockInvoiceImport } from "../components/StockInvoiceImport";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useUnsavedSettings } from "../lib/useUnsavedSettings";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Package,
@@ -548,45 +549,69 @@ export function Finance() {
 }
 export function Settings() {
   const [params, setParams] = useSearchParams();
+  const tabs = [["oficina","Dados da oficina"],["geral","Taxas e parcelamento"],["servicos","Mão de obra por porte"],["pecas","Lucro de peças e terceiros"],["conta","Conta e integrações"]];
   const requestedTab = params.get("aba");
-  const activeTab = requestedTab === "transferencia" ? "oficina" : requestedTab || "oficina";
+  const activeTab = tabs.some(([id]) => id === requestedTab) ? requestedTab! : "oficina";
+  useEffect(() => {
+    if (requestedTab && requestedTab !== activeTab) setParams({aba: activeTab}, {replace: true});
+  }, [requestedTab, activeTab, setParams]);
   const { session, data, refresh, notify } = useApp();
+  const financeEnabled = session.modules?.finance !== false;
   const [rates, setRates] = useState({
     debit_fee_bps: data.payment_settings?.debit_fee_bps || 0,
     credit_fee_bps: data.payment_settings?.credit_fee_bps || 0,
     interest_bps: data.payment_settings?.interest_bps || 0,
   });
-  const [error, setError] = useState(""),
-    [busy, setBusy] = useState(false);
-  return (
-    <>
-      <PageHeading
-        eyebrow="ADMINISTRAÇÃO"
-        title="Configurações"
-        description="Sua oficina e a base para os próximos passos."
-      />
-      <div className="tabs">
-        <button className={activeTab === "oficina" ? "active" : ""} onClick={() => setParams({aba:"oficina"})}>Dados da oficina</button>
-        <button
-          className={activeTab === "geral" ? "active" : ""}
-          onClick={() => setParams({aba:"geral"})}
-        >
-          Geral e taxas
-        </button>
+  const [savedRates,setSavedRates] = useState(() => JSON.stringify(rates));
+  const ratesDirty = JSON.stringify(rates) !== savedRates;
+  useUnsavedSettings(ratesDirty && activeTab === "geral");
+  const [error, setError] = useState(""), [busy,setBusy] = useState(false);
+  return <>
+    <PageHeading eyebrow="ADMINISTRAÇÃO" title="Configurações" description="Dados, documentos e regras comerciais da sua oficina." />
+    <div className="tabs settings-tabs" aria-label="Seções de configurações">
+      {tabs.map(([id,label]) => <button key={id} type="button" data-settings-tab={id} aria-current={activeTab === id ? "page" : undefined} className={activeTab === id ? "active" : ""} onClick={() => setParams({aba:id})}>{label}</button>)}
+    </div>
+    {activeTab === "oficina" ? <WorkshopProfile key={session.tenant.id} /> :
+      activeTab === "servicos" ? <LaborRates /> :
+      activeTab === "pecas" ? <PartsPricing /> :
+      activeTab === "conta" ? <div className="settings-grid">
+        <section className="panel settings-card"><ShieldCheck size={23}/><h2>Acesso e conta</h2><p>{session.user.name} · Administrador</p><p>{session.user.email}</p><p>Usuários, permissões de módulos e situação de acesso da oficina são administrados pelo painel central. Solicite alterações ao responsável pela plataforma.</p></section>
+                    <section className="panel settings-card">
+              <Download size={23} />
+              <h2>Extensão Horse Power — versão comercial</h2>
+              <p>
+                A extensão existente continua disponível na Chrome Web Store e mantém identidade, dados e conexões próprios. A extensão de teste do Sistema Oficinas é separada e não a substitui.
+              </p>
+              <a className="button" href="https://chromewebstore.google.com/detail/ddmnjpmldgnjefjkachlpicngaphlobf" target="_blank" rel="noopener noreferrer">
+                <Download size={16} />
+                Abrir Chrome Web Store
+              </a>
+            </section>
+            {window.location.hostname === "sistema-oficinas-homologacao.vercel.app" && (
+              <section className="panel settings-card">
+                <Download size={23} />
+                <h2>Extensão de teste INT-015</h2>
+                <p>
+                  Capture peças do Sky Peças e revise os itens antes de concluir a captura. Esta versão de teste conecta somente à homologação.
+                </p>
+                <a className="button primary" href="/downloads/sistema-oficinas-test-extension.zip" download>
+                  <Download size={16} />
+                  Baixar extensão de teste (.zip)
+                </a>
+                <ol>
+                  <li>Extraia o ZIP em uma pasta permanente.</li>
+                  <li>Abra <code>chrome://extensions</code> e ative o modo desenvolvedor.</li>
+                  <li>Clique em “Carregar sem compactação” e selecione a pasta extraída.</li>
+                </ol>
+                <p className="muted">
+                  A extensão tem nome, armazenamento e conexão próprios e pode ficar instalada ao lado da extensão Horse Power da Chrome Web Store. Não substitua nem remova a versão comercial.
+                </p>
+              </section>
+            )}
 
-        <button className={params.get('aba')==='servicos'?'active':''} onClick={()=>setParams({aba:'servicos'})}>Mão de obra por porte</button>
-        <button
-          className={params.get("aba") === "pecas" ? "active" : ""}
-          onClick={() => setParams({ aba: "pecas" })}
-        >
-          Lucro de peças e terceiros
-        </button>
-      </div>
-      {params.get('aba')==='servicos'?<LaborRates/>:activeTab === "oficina" ? <WorkshopProfile key={session.tenant.id} /> : params.get("aba") === "pecas" ? (
-        <PartsPricing />
-      ) : (
-        <>
-          <form
+      </div> :
+      !financeEnabled ? <section className="panel work-order-section"><h2>Financeiro não habilitado</h2><p>As taxas pertencem ao módulo Financeiro. Solicite a habilitação à administração da plataforma para consultar ou alterar estas configurações.</p></section> :
+      <>          <form
             className="panel work-order-section"
             onSubmit={async (e) => {
               e.preventDefault();
@@ -594,6 +619,7 @@ export function Settings() {
               setError("");
               try {
                 await send("/payment-settings", rates, "PUT");
+                setSavedRates(JSON.stringify(rates));
                 await refresh();
                 notify("Taxas padrão salvas para esta oficina.");
               } catch (e) {
@@ -642,16 +668,17 @@ export function Settings() {
                 {error}
               </div>
             )}
+            {ratesDirty && <p role="status">Alterações não salvas.</p>}
             <button className="button primary" disabled={busy}>
               Salvar taxas
             </button>
           </form>
           {!!data.card_rates?.length && (
             <section className="panel work-order-section">
-              <h2>Taxas Banco Inter por parcela</h2>
+              <h2>Taxas cadastradas por parcela</h2>
               <p className="muted">
-                Tabela configurada para a oficina. No recebimento, a taxa é
-                aplicada conforme o número de parcelas. O repasse usa a taxa
+                Tabela de referência já cadastrada para esta oficina, mantida pela administração da plataforma. A origem contratual e a vigência não estão registradas nesta versão; confirme com a administração antes de usar. Esta tela é somente de consulta. No recebimento, a taxa é
+                aplicada conforme o número de parcelas e prevalece sobre a taxa padrão quando há correspondência. Sem correspondência, permanece a taxa do recebimento. Você pode revisá-la antes de confirmar. O repasse usa a taxa
                 real para preservar o líquido, evitando a diferença dos fatores
                 arredondados do PDF.
               </p>
@@ -679,100 +706,6 @@ export function Settings() {
               </div>
             </section>
           )}
-          <div className="settings-grid">
-            <section className="panel settings-card">
-              <Building2 size={23} />
-              <h2>{session.tenant.name}</h2>
-              <p>{session.tenant.address}</p>
-              <p>{session.tenant.phone}</p>
-              <div className="info-box">
-                Edite o nome, contatos e logotipo em Dados da oficina. Essas
-                informações identificam os documentos e a página do cliente.
-              </div>
-            </section>
-            <section className="panel settings-card">
-              <ShieldCheck size={23} />
-              <h2>Acesso e conta</h2>
-              <p>{session.user.name} · Administrador</p>
-              <p>{session.user.email}</p>
-              <p className="muted">
-                Convites e permissões detalhadas serão adicionados em uma próxima etapa.
-              </p>
-            </section>
-            <section className="panel settings-card">
-              <Download size={23} />
-              <h2>Extensão Horse Power — versão comercial</h2>
-              <p>
-                A extensão existente continua disponível na Chrome Web Store e mantém identidade, dados e conexões próprios. A extensão de teste do Sistema Oficinas é separada e não a substitui.
-              </p>
-              <a className="button" href="https://chromewebstore.google.com/detail/ddmnjpmldgnjefjkachlpicngaphlobf" target="_blank" rel="noopener noreferrer">
-                <Download size={16} />
-                Abrir Chrome Web Store
-              </a>
-            </section>
-            {window.location.hostname === "sistema-oficinas-homologacao.vercel.app" && (
-              <section className="panel settings-card">
-                <Download size={23} />
-                <h2>Extensão de teste INT-015</h2>
-                <p>
-                  Capture peças do Sky Peças e revise os itens antes de concluir a captura. Esta versão de teste conecta somente à homologação.
-                </p>
-                <a className="button primary" href="/downloads/sistema-oficinas-test-extension.zip" download>
-                  <Download size={16} />
-                  Baixar extensão de teste (.zip)
-                </a>
-                <ol>
-                  <li>Extraia o ZIP em uma pasta permanente.</li>
-                  <li>Abra <code>chrome://extensions</code> e ative o modo desenvolvedor.</li>
-                  <li>Clique em “Carregar sem compactação” e selecione a pasta extraída.</li>
-                </ol>
-                <p className="muted">
-                  A extensão tem nome, armazenamento e conexão próprios e pode ficar instalada ao lado da extensão Horse Power da Chrome Web Store. Não substitua nem remova a versão comercial.
-                </p>
-              </section>
-            )}
-            <section className="panel settings-card full">
-              <Layers3 size={23} />
-              <h2>Evolução dos módulos</h2>
-              <p>
-                A fundação concentra o atendimento, os cadastros e os
-                recebimentos. Os próximos incrementos serão desenvolvidos por
-                fluxo.
-              </p>
-              <div className="roadmap-grid">
-                {[
-                  [
-                    "01",
-                    "Atendimento ampliado",
-                    "Checklist, comissões e diagnóstico detalhado.",
-                  ],
-                  [
-                    "02",
-                    "Compras e vendas",
-                    "Fornecedores, compras e venda rápida integradas ao estoque.",
-                  ],
-                  [
-                    "03",
-                    "Gestão financeira",
-                    "Plano de contas, retiradas e relatórios ampliados.",
-                  ],
-                  [
-                    "04",
-                    "Organização e SaaS",
-                    "Agenda, convites, configurações e preparação comercial.",
-                  ],
-                ].map(([n, t, d]) => (
-                  <div key={n}>
-                    <span>{n}</span>
-                    <h3>{t}</h3>
-                    <p>{d}</p>
-                  </div>
-                ))}
-              </div>
-            </section>
-          </div>
-        </>
-      )}
-    </>
-  );
+</>}
+  </>;
 }

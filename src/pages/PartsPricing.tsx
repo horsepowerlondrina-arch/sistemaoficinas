@@ -1,3 +1,5 @@
+import { salePrice, type PricingPolicy } from "../../shared/pricing";
+import { useUnsavedSettings } from "../lib/useUnsavedSettings";
 import { NumericInput } from "../components/NumericInput";
 import { useState } from "react";
 import { useApp } from "../lib/context";
@@ -12,18 +14,19 @@ export function PartsPricing() {
   const [rules, setRules] = useState(() =>
     data.parts_pricing!.rules.map((r) => ({ ...r })),
   );
+  const [mode,setMode] = useState<PricingPolicy["mode"]>(data.parts_pricing?.mode ?? "legacy");
+  const [rate,setRate] = useState(data.parts_pricing?.rate_bps ?? 4000);
+  const policy = {mode,rate_bps:rate,rules,service_markup_bps:serviceMarkup};
+  const [savedPolicy,setSavedPolicy] = useState(() => JSON.stringify(policy));
+  const dirty = JSON.stringify(policy) !== savedPolicy;
+  useUnsavedSettings(dirty);
   const [cost, setCost] = useState(10000),
     [freight, setFreight] = useState(0),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
-  const base = cost + freight,
-    rule = rules.find((r) => r.up_to === null || base <= r.up_to);
-  const price = rule
-    ? Math.max(
-        Math.round((base * (10000 + rule.markup_bps)) / 10000),
-        base + rule.minimum_profit,
-      )
-    : 0;
+  const base = cost + freight;
+  let price = 0, simulationError = "";
+  try { price = salePrice(base, policy); } catch (e) { simulationError = (e as Error).message; }
   return (
     <form
       className="panel work-order-section"
@@ -35,13 +38,14 @@ export function PartsPricing() {
           await send(
             "/parts-pricing",
             {
-              mode: "legacy",
-              rate_bps: 4000,
+              mode,
+              rate_bps: rate,
               rules,
               service_markup_bps: serviceMarkup,
             },
             "PUT",
           );
+          setSavedPolicy(JSON.stringify(policy));
           await refresh();
           notify("Política de preços de peças e terceiros salva.");
         } catch (e) {
@@ -53,12 +57,14 @@ export function PartsPricing() {
     >
       <h2>Lucro das peças</h2>
       <p className="muted">
-        A base é o custo unitário mais o frete por unidade. A venda usa o maior
-        valor entre o acréscimo da faixa e o ganho mínimo. A regra vale para
+        A base é o custo unitário mais o frete por unidade. No modo por faixas, a venda usa o maior
+        valor entre o acréscimo da faixa e o ganho mínimo. Nos demais modos, usa o percentual selecionado. A regra vale para
         novas importações do Sky e ao confirmar custo ou frete nos cadastros.
         Você pode ajustar o preço de venda manualmente após o cálculo.
       </p>
-      <div className="table-scroll">
+      <Field label="Regra de preço das peças"><select value={mode} disabled={busy} onChange={e=>setMode(e.target.value as PricingPolicy["mode"])}><option value="legacy">Faixas de custo e ganho mínimo</option><option value="markup">Acréscimo sobre o custo</option><option value="margin">Margem sobre a venda</option></select></Field>
+      {mode !== "legacy" && <Field label={mode === "margin" ? "Margem sobre a venda (%)" : "Acréscimo sobre o custo (%)"}><NumericInput type="number" required min="0" max={mode === "margin" ? "99.99" : "1000"} step="0.01" value={rate/100} onChange={e=>setRate(Math.round(Number(e.target.value)*100))}/></Field>}
+      {mode === "legacy" && <div className="table-scroll">
         <table>
           <thead>
             <tr>
@@ -152,6 +158,7 @@ export function PartsPricing() {
           </tbody>
         </table>
       </div>
+      }
       <h3>Serviços de terceiros</h3>
       <p className="muted">
         Ao confirmar o custo de um serviço, o preço de venda será o custo mais
@@ -198,6 +205,7 @@ export function PartsPricing() {
           />
         </Field>
       </div>
+      {simulationError && <p role="alert">{simulationError}</p>}
       <p>
         Base: <strong>{money(base)}</strong> · Venda:{" "}
         <strong>{money(price)}</strong> · Ganho bruto:{" "}
@@ -212,6 +220,7 @@ export function PartsPricing() {
           {error}
         </div>
       )}
+      {dirty && <p role="status">Alterações não salvas.</p>}
       <Submit busy={busy}>Salvar política de preços</Submit>
     </form>
   );

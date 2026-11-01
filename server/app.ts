@@ -1279,6 +1279,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
         interest_bps: z.number().int().min(0).max(10000),
       })
       .parse(req.body);
+    await transaction(db, async () => {
     await db
       .prepare(
         "INSERT INTO payment_settings(tenant_id,debit_fee_bps,credit_fee_bps,interest_bps) VALUES(?,?,?,?) ON CONFLICT(tenant_id) DO UPDATE SET debit_fee_bps=excluded.debit_fee_bps,credit_fee_bps=excluded.credit_fee_bps,interest_bps=excluded.interest_bps",
@@ -1289,6 +1290,8 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
         input.credit_fee_bps,
         input.interest_bps,
       );
+    await audit(db, res.locals.context, "payment_settings.updated", res.locals.context.tenantId);
+    });
     res.json({ ok: true });
   });
   app.post("/api/receivables/:id/preview", async (req, res) => {

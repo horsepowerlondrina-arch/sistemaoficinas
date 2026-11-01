@@ -5272,3 +5272,11 @@ body { padding-top: 36px; }
 .app-shell :is(input,select,textarea):focus{border-color:var(--red)}
 .app-shell :is(button,a,input,select,textarea):focus-visible{outline-color:var(--red)}
 .app-shell .search-field:focus-within{border-color:var(--red);outline-color:var(--red)}
+
+/* OPS-001: workshop settings navigation and save state. */
+.settings-tabs { flex-wrap: wrap; }
+.settings-section-links { display:flex; flex-wrap:wrap; gap:12px; margin:16px 0; }
+.settings-section-links a { color:inherit; text-decoration:underline; }
+.settings-save-bar { display:flex; align-items:center; justify-content:space-between; gap:12px; position:sticky; top:0; z-index:5; }
+.workshop-profile-form section[id] { scroll-margin-top:100px; }
+@media(max-width:600px){.settings-save-bar{position:static;flex-wrap:wrap}.settings-tabs button{white-space:normal}.settings-section-links{gap:8px}}

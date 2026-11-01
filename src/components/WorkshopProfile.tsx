@@ -1,7 +1,8 @@
+import { useUnsavedSettings } from "../lib/useUnsavedSettings";
 import { useState, useEffect, useRef, type FormEvent } from "react";
 import { useApp } from "../lib/context";
 import { send } from "../lib/api";
-import { workshopIdentity, DAYS, type BusinessDay, type WorkshopIdentity } from "../../shared/workshopIdentity";
+import { workshopIdentity, workshopAddress, DAYS, type BusinessDay, type WorkshopIdentity } from "../../shared/workshopIdentity";
 import { OrderPrint } from "./OrderPrint";
 import { Field, Submit } from "./ui";
 async function logoFromFile(file:File) {
@@ -31,6 +32,9 @@ async function logoFromFile(file:File) {
 export function WorkshopProfile() {
  const {session,refreshSession,notify}=useApp();
  const [draft,setDraft]=useState<WorkshopIdentity>(()=>workshopIdentity(session.tenant));
+ const [savedDraft,setSavedDraft]=useState(()=>JSON.stringify(draft));
+ const dirty=JSON.stringify(draft)!==savedDraft;
+ useUnsavedSettings(dirty);
  const [busy,setBusy]=useState(false),[uploading,setUploading]=useState(false),[error,setError]=useState("");
  const [cepBusy,setCepBusy]=useState(false),[cepMessage,setCepMessage]=useState("");
  const cepRequest=useRef<AbortController|null>(null);
@@ -52,28 +56,38 @@ export function WorkshopProfile() {
  }
  async function save(e:FormEvent){
   e.preventDefault();if(busy||uploading)return;setBusy(true);setError("");
-  try{const saved=await send("/workshop-profile",{...draft,tenant_id:session.tenant.id},"PUT");setDraft(saved);await refreshSession();notify("Dados da oficina salvos. Documentos já emitidos foram preservados.");}
+  try{const saved=await send("/workshop-profile",{...draft,tenant_id:session.tenant.id},"PUT");setDraft(saved);setSavedDraft(JSON.stringify(saved));await refreshSession();notify("Dados da oficina salvos. Documentos já emitidos foram preservados.");}
   catch(e){setError((e as Error).message);}finally{setBusy(false);}
  }
  function setDay(index:number,key:keyof BusinessDay,value:string|boolean){setDraft(v=>({...v,business_hours:v.business_hours.map((day,i)=>i===index?{...day,[key]:value}:day)}));}
  return <form className="workshop-profile-form" onSubmit={save}>
-  <section className="panel work-order-section"><h2>Identificação</h2><div className="form-grid">
+  <div className="panel work-order-section settings-save-bar">
+    <p role="status">{dirty ? "Alterações não salvas." : "Dados salvos da oficina."}</p>
+    <Submit busy={busy||uploading}>Salvar dados da oficina</Submit>
+  </div>
+  <nav className="settings-section-links" aria-label="Seções dos dados da oficina">
+    {[["identificacao","Identificação"],["contatos","Contatos"],["endereco","Endereço"],["identidade","Identidade visual"],["horarios","Horários"],["documentos","Documentos"]].map(([id,label])=><a key={id} href={"#perfil-"+id}>{label}</a>)}
+  </nav>
+  <section id="perfil-identificacao" className="panel work-order-section"><h2>Identificação</h2><div className="form-grid">
    {input("name","Nome fantasia *",150)}{input("legal_name","Razão social",200)}
    {input("document","CPF ou CNPJ",30)}{input("state_registration","Inscrição estadual",40)}{input("municipal_registration","Inscrição municipal",40)}
   </div></section>
-  <section className="panel work-order-section"><h2>Contatos</h2><div className="form-grid">
+  <section id="perfil-contatos" className="panel work-order-section"><h2>Contatos</h2><div className="form-grid">
    {input("phone","Telefone",80,"tel")}{input("whatsapp","WhatsApp",80,"tel")}
    <button type="button" className="button" disabled={busy} onClick={()=>setDraft(v=>({...v,whatsapp:v.phone}))}>Copiar telefone para WhatsApp</button>
    {input("email","E-mail comercial",200,"email")}{input("website","Site (http:// ou https://)",300,"url")}{input("instagram","Instagram (URL do perfil)",300,"url")}
    {area("social_links","Outras redes sociais (um endereço http(s) por linha)",1000)}
   </div></section>
-  <section className="panel work-order-section"><h2>Endereço</h2><div className="form-grid">
+  <section id="perfil-endereco" className="panel work-order-section"><h2>Endereço</h2><div className="form-grid">
    {input("postal_code","CEP",9)}<button type="button" className="button" disabled={busy||cepBusy} onClick={()=>void lookupCep()}>{cepBusy?"Consultando CEP…":"Consultar CEP"}</button>
    {cepMessage&&<p role="status">{cepMessage}</p>}
    {input("street","Logradouro",200)}{input("number","Número (opcional; pode usar s/n)",30)}{input("district","Bairro",120)}{input("complement","Complemento",150)}{input("city","Cidade",100)}{input("state","UF",2)}
    {input("address","Endereço completo (opcional; preserva o cadastro anterior)",300)}{input("maps_url","Link do Google Maps (opcional)",300,"url")}
-  </div><p className="muted">O endereço completo, se informado, será usado nos documentos. A consulta envia somente o CEP ao ViaCEP e nunca impede o preenchimento manual.</p></section>
-  <section className="panel work-order-section"><h2>Identidade visual</h2><div className="form-grid">
+  </div>
+   <div className="info-box"><strong>Endereço que será usado nos novos documentos</strong><p>{workshopAddress(draft)||"Endereço não informado."}</p>
+   {draft.address.trim() && <><p>O endereço completo tem prioridade sobre rua, número e demais campos.</p><button type="button" className="button" disabled={busy} onClick={()=>setDraft(v=>({...v,address:""}))}>Usar endereço dos campos acima</button></>}
+   </div><p className="muted">O endereço completo, se informado, será usado nos documentos. A consulta envia somente o CEP ao ViaCEP e nunca impede o preenchimento manual.</p></section>
+  <section id="perfil-identidade" className="panel work-order-section"><h2>Identidade visual</h2><div className="form-grid">
    <Field label="Logotipo da oficina (PNG, JPG ou WebP · até 5 MB)" full><input type="file" accept="image/png,image/jpeg,image/webp" disabled={busy||uploading} onChange={async e=>{
     const file=e.target.files?.[0];e.target.value="";if(!file)return;setUploading(true);setError("");
     try{const logo=await logoFromFile(file);setDraft(v=>({...v,document_logo:logo}));}catch(e){setError((e as Error).message);}finally{setUploading(false);}
@@ -81,7 +95,7 @@ export function WorkshopProfile() {
    {draft.document_logo&&<button type="button" className="button" disabled={busy||uploading} onClick={()=>setDraft(v=>({...v,document_logo:""}))}>Remover logotipo</button>}
    <Field label="Cor de destaque"><input type="color" disabled={busy} value={draft.accent_color} onChange={e=>setDraft(v=>({...v,accent_color:e.target.value}))}/></Field>
   </div><p className="muted">Uma única logo para interface e documentos. Sem imagem, serão exibidos nome e iniciais. O contraste do texto sobre a cor é ajustado automaticamente.</p></section>
-  <section className="panel work-order-section"><h2>Horários</h2>
+  <section id="perfil-horarios" className="panel work-order-section"><h2>Horários</h2>
    <label className="schedule-enabled"><input type="checkbox" disabled={busy} checked={draft.business_hours.length>0} onChange={e=>setDraft(v=>({...v,business_hours:e.target.checked?DAYS.map((_,day)=>({day,closed:true,open:"",close:"",break_start:"",break_end:""})):[]}))}/>Informar horários de atendimento</label>
    <p className="muted">Informativos, sem bloquear o acesso ao sistema. Sem feriados ou horários especiais.</p>
    {draft.business_hours.map((day,index)=><fieldset className="business-day" key={day.day}><legend>{DAYS[day.day]}</legend>
@@ -89,7 +103,7 @@ export function WorkshopProfile() {
     {!day.closed&&<div className="form-grid">{([["open","Abertura"],["close","Fechamento"],["break_start","Início do intervalo (opcional)"],["break_end","Fim do intervalo (opcional)"]] as const).map(([key,label])=><Field key={key} label={DAYS[day.day]+" · "+label}><input type="time" disabled={busy} required={key==="open"||key==="close"} value={day[key]} onChange={e=>setDay(index,key,e.target.value)}/></Field>)}</div>}
    </fieldset>)}
   </section>
-  <section className="panel work-order-section"><h2>Documentos</h2>
+  <section id="perfil-documentos" className="panel work-order-section"><h2>Documentos</h2>
    <p>Aplicados somente às novas emissões. Revisões emitidas são imutáveis; a validade comercial do orçamento não altera a validade do link compartilhado.</p><div className="form-grid">
     {area("payment_terms","Condições de pagamento",2000)}{area("warranty_text","Texto de garantia",3000)}
     <p className="muted">As condições comerciais não afastam os direitos e garantias previstos na legislação aplicável. Esse aviso acompanha os documentos e não é editável.</p>
