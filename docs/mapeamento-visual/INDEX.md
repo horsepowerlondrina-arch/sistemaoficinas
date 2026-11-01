@@ -336,11 +336,11 @@ Produtos, serviços, profissionais e tempos.
 
 ### Produtos
 
-Catálogo particular de produtos vazio.
+Tabela de produtos com descrição e referência extensas; largura contida e rolagem interna em telas pequenas. Dados fictícios.
 
 [![Produtos](./capturas/09-cadastros-servicos/produtos.png)](./capturas/09-cadastros-servicos/produtos.png)
 
-Estado: capturada · mobile · captura 2026-10-22 · commit de origem: não registrado · [arquivo completo](./capturas/09-cadastros-servicos/produtos.png)
+Estado: capturada · mobile · captura 2026-11-01 · commit de origem: 7ee1fc0f725d2eb39e46c2f4c4c8d8feba33f739 · [arquivo completo](./capturas/09-cadastros-servicos/produtos.png)
 
 ### Catálogo de tempos
 
@@ -373,6 +373,14 @@ Lista vazia na demonstração.
 [![Profissionais](./capturas/09-cadastros-servicos/profissionais.png)](./capturas/09-cadastros-servicos/profissionais.png)
 
 Estado: capturada · mobile · captura 2026-10-22 · commit de origem: não registrado · [arquivo completo](./capturas/09-cadastros-servicos/profissionais.png)
+
+### Produtos
+
+Tabela de produtos com descrição e referência extensas; largura contida e rolagem interna em telas pequenas. Dados fictícios.
+
+[![Produtos](./capturas/09-cadastros-servicos/produtos-desktop.png)](./capturas/09-cadastros-servicos/produtos-desktop.png)
+
+Estado: capturada · desktop · captura 2026-11-01 · commit de origem: 7ee1fc0f725d2eb39e46c2f4c4c8d8feba33f739 · [arquivo completo](./capturas/09-cadastros-servicos/produtos-desktop.png)
 
 ### Catálogo de tempos
 
