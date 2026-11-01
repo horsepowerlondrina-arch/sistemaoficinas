@@ -360,6 +360,40 @@ test("PostgreSQL local: autenticação, oficinas, transações e RLS do catálog
     const localAIndex=credentials.findIndex((credential:any)=>credential.tenant==="local-a");
     assert.ok(localAIndex>=0);
     const localACookie=sessions[localAIndex];
+    await t.test("ADM-002.2: API e workspace respeitam liberação de placas por oficina",async()=>{
+      const {adminClient}=await import("../scripts/local-admin");
+      const admin=adminClient();await admin.connect();
+      const originalTokens=process.env.FIPEPLACA_TOKENS_JSON,originalAllow=process.env.FIPEPLACA_ALLOWED_TENANT_IDS;
+      const originalLegacy=process.env.PLACA_FIPE_TOKENS_JSON;
+      const prior=await admin.query("SELECT module_overrides FROM platform_admin.workshop_entitlements WHERE tenant_id='local-a'");
+      try{
+        process.env.FIPEPLACA_TOKENS_JSON=JSON.stringify({"local-a":"fixture-only"});
+        delete process.env.FIPEPLACA_ALLOWED_TENANT_IDS;delete process.env.PLACA_FIPE_TOKENS_JSON;
+        const change=async(enabled:boolean)=>admin.query("INSERT INTO platform_admin.workshop_entitlements(tenant_id,module_overrides,reason) VALUES('local-a',$1::jsonb,'Teste fictício de autorização') ON CONFLICT(tenant_id) DO UPDATE SET module_overrides=EXCLUDED.module_overrides",[JSON.stringify({...prior.rows[0]?.module_overrides,external_plate_lookup:enabled})]);
+        await admin.query("INSERT INTO horse_power.vehicle_lookup_cache(tenant_id,plate,result_json,expires_at) VALUES('local-a','ADM2B22',$1,$2) ON CONFLICT(tenant_id,plate) DO UPDATE SET result_json=EXCLUDED.result_json,expires_at=EXCLUDED.expires_at",[JSON.stringify({source:"external",vehicle:{plate:"ADM2B22",brand:"Marca Fictícia"},message:"Prévia fictícia"}),Date.now()+60000]);
+        await change(false);
+        const blocked=await request("/api/vehicles/lookup",localACookie,{plate:"ADM2B22",tenant_id:"local-b"});
+        assert.equal(blocked.status,200);
+        const denied=await blocked.json();assert.equal(denied.code,"plate_lookup_forbidden");assert.equal(denied.vehicle,null);
+        assert.equal((await (await request("/api/workspace",localACookie)).json()).plate_lookup_enabled,false);
+        await change(true);
+        const allowed=await request("/api/vehicles/lookup",localACookie,{plate:"ADM2B22"});
+        assert.equal(allowed.status,200);assert.equal((await allowed.json()).source,"external");
+        assert.equal((await (await request("/api/workspace",localACookie)).json()).plate_lookup_enabled,true);
+        const otherIndex=credentials.findIndex((credential:{tenant:string})=>credential.tenant==="local-b");
+        assert.ok(otherIndex>=0);
+        const other=await request("/api/vehicles/lookup",sessions[otherIndex],{plate:"ADM2B22",tenant_id:"local-a"});
+        assert.equal((await other.json()).vehicle,null,"cache e autorização não cruzam oficina");
+      }finally{
+        if(prior.rowCount)await admin.query("UPDATE platform_admin.workshop_entitlements SET module_overrides=$1::jsonb WHERE tenant_id='local-a'",[JSON.stringify(prior.rows[0].module_overrides)]);
+        else await admin.query("DELETE FROM platform_admin.workshop_entitlements WHERE tenant_id='local-a'");
+        await admin.query("DELETE FROM horse_power.vehicle_lookup_cache WHERE tenant_id='local-a' AND plate='ADM2B22'");
+        for(const [key,value] of [["FIPEPLACA_TOKENS_JSON",originalTokens],["FIPEPLACA_ALLOWED_TENANT_IDS",originalAllow],["PLACA_FIPE_TOKENS_JSON",originalLegacy]] as const){
+          if(value===undefined)delete process.env[key];else process.env[key]=value;
+        }
+        await admin.end();
+      }
+    });
     const sample=await db.withTenantRead("local-a",async()=>db.prepare(`SELECT m.id,m.name,b.name brand,m.fipe_code FROM service_catalog.models m JOIN service_catalog.brands b ON b.id=m.brand_id
       WHERE m.complete=1 AND NOT EXISTS(SELECT 1 FROM service_catalog.models x WHERE x.brand_id=m.brand_id AND x.name=m.name AND x.id<>m.id)
       AND (COALESCE(m.fipe_code,'')='' OR (SELECT count(*) FROM service_catalog.models x WHERE x.brand_id=m.brand_id AND x.fipe_code=m.fipe_code)=1)

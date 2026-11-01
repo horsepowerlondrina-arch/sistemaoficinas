@@ -85,7 +85,7 @@ export function plateLookupStatus(tenant: string, authorized?: boolean) {
 }
 export async function vehicleLookupAccess(db: DB, tenant: string) {
   const modules = await db.getTenantModuleAccess?.(tenant);
-  return plateLookupStatus(tenant, modules?.external_plate_lookup);
+  return {...plateLookupStatus(tenant, modules?.external_plate_lookup), override: modules?.external_plate_lookup};
 }
 function unavailableLookup(status: string) {
   return {
@@ -121,8 +121,8 @@ export async function lookupVehicleExternal(
     throw new Error("Informe uma placa válida.");
   const access = await vehicleLookupAccess(db, tenant);
   if (!access.enabled) return unavailableLookup(access.status);
-  const token = providerToken(tenant, true)!;
-  if (fipePlacaToken(tenant, true))
+  const token = providerToken(tenant, access.override)!;
+  if (fipePlacaToken(tenant, access.override))
     return cachedFipeLookup(db, tenant, plate, token, fetcher);
   const saved = await db.prepare(
     "SELECT result_json FROM vehicle_lookup_cache WHERE tenant_id=? AND plate=? AND expires_at>?",
