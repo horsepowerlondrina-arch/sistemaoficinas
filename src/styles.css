@@ -5242,3 +5242,22 @@ body { padding-top: 36px; }
 @media (max-width: 600px) {
   .vehicle-identity-fields { grid-template-columns: minmax(0, 1fr); gap: 16px; }
 }
+
+/* Keep long product identities from pushing prices and actions off the panel. */
+.products-register-panel .table-scroll { position: relative; max-width: 100%; }
+.products-register-panel .table-scroll:focus-visible { outline: 2px solid var(--red); outline-offset: -2px; }
+.products-register-table { table-layout: fixed; min-width: 900px; white-space: normal; }
+.products-register-table .product-col-description { width: 35%; }
+.products-register-table .product-col-reference { width: 21%; }
+.products-register-table .product-col-cost { width: 12%; }
+.products-register-table .product-col-price { width: 14%; }
+.products-register-table .product-col-stock { width: 11%; }
+.products-register-table .product-col-edit { width: 7%; }
+.products-register-table th, .products-register-table td { padding: 14px 12px; vertical-align: middle; }
+.products-register-table td:nth-child(-n+2),
+.products-register-table .cell-link { white-space: normal; overflow-wrap: anywhere; }
+.products-register-table .person-cell, .products-register-table .person-cell > div { min-width: 0; }
+.products-register-table .person-cell .square-icon { flex-shrink: 0; }
+.products-register-table .person-cell small { max-width: none; white-space: normal; overflow-wrap: anywhere; }
+.products-register-table td:nth-child(n+3) { white-space: nowrap; }
+.products-register-table th:last-child, .products-register-table td:last-child { text-align: center; }
