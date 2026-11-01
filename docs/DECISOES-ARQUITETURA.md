@@ -7,8 +7,10 @@ Este documento consolida as decisões vigentes acordadas para desenvolvimento. U
 1. `horsepowerlondrina-arch/sistemaoficinas` é a fonte oficial de código; `main` é a branch de integração.
 2. `horse-power` é repositório histórico. Mudanças novas não são feitas nele sem decisão explícita.
 3. Cada tarefa trabalha em branch própria derivada da versão atualizada de `main`; a integração ocorre por PR.
-4. Somente um Codex implementa no repositório por vez. O planejamento funcional fica nas conversas específicas do ChatGPT; Codex executa o escopo aprovado.
+4. Até dois Codex podem implementar simultaneamente tarefas independentes, cada um em branch e ambiente isolado (worktree próprio ou execução remota independente), sem modificar o mesmo diretório. Antes de iniciar, ambos verificam a `main` atualizada e evitam arquivos, configurações, migrações e fluxos compartilhados. O planejamento funcional fica nas conversas específicas do ChatGPT; Codex executa o escopo aprovado.
 5. A solicitação de implementação do responsável autoriza, dentro do escopo pedido, branch, desenvolvimento, testes, PR, integração após CI obrigatório aprovado e proteções satisfeitas, e publicação automática na homologação. Não se pede autorização rotineira adicional para essas etapas. Migrações/alterações persistentes remotas, operações destrutivas, mudanças sensíveis de credenciais, segredos, autenticação ou permissões, produção e ações fora do escopo exigem autorização específica.
+
+6. Cada tarefa mantém PR e testes próprios. Integrações na `main` são coordenadas e sequenciais. Se outro PR entrar primeiro, o PR remanescente verifica conflitos, atualiza a branch com segurança e repete testes invalidados. Depois do deployment correspondente, confirma que seu commit está presente na homologação. Capturas visuais compartilhadas exigem coordenação para não sobrescrever imagens/índices recentes.
 
 ## Ambientes
 
@@ -28,7 +30,7 @@ Este documento consolida as decisões vigentes acordadas para desenvolvimento. U
 
 - Preservar dados existentes e históricos. Não apagar/recriar bancos para simplificar testes ou implantação.
 - Preferir migrações aditivas, compatíveis e revisáveis. Operações destrutivas ou que possam remover/reatribuir dados exigem análise explícita e plano de recuperação.
-- Não alterar banco de produção. Migrações em qualquer Supabase remoto exigem revisão do SQL, identificação inequívoca do ambiente, impacto/recuperação documentados e autorização específica antes da execução.
+- Não alterar banco de produção. Migrações em qualquer Supabase remoto exigem revisão do SQL, identificação inequívoca do ambiente, impacto/recuperação documentados e autorização específica antes da execução. Alterações em bancos remotos persistentes são sempre sequenciais, mesmo com duas tarefas em andamento.
 - Dados financeiros e documentos emitidos devem manter precisão, vínculos e snapshots históricos; não reconstruir história com configuração atual.
 
 ## Qualidade e liberação

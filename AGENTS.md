@@ -7,9 +7,19 @@ Estas instruções se aplicam a todo o repositório, salvo instruções mais esp
 - Para novas funcionalidades, trabalhe exclusivamente em `horsepowerlondrina-arch/sistemaoficinas`. O repositório `horsepowerlondrina-arch/horse-power` é histórico e contém o sistema Horse Power em produção; não o altere como parte de tarefas deste projeto.
 - Use GitHub como fonte da versão atual. Antes de implementar, confira a `main`, as branches existentes, a branch de trabalho e o estado dos arquivos quando houver checkout. Não suponha que uma branch antiga esteja atualizada.
 - Crie uma branch específica a partir da `main` atualizada. Não trabalhe diretamente na `main`; integre por Pull Request.
-- Respeite o acordo de um único Codex implementando no repositório por vez. Se houver outra implementação ativa que possa tocar os mesmos arquivos ou branches, não faça alterações concorrentes.
+- Podem trabalhar até dois Codex simultaneamente em tarefas independentes, cada um em sua própria branch e em ambiente isolado (worktree próprio ou execução remota independente). Nunca modifiquem o mesmo diretório de trabalho ao mesmo tempo nem compartilhem uma branch de tarefa.
 - Mantenha o escopo aprovado. Preserve mudanças existentes, histórico, funcionalidades, dados e configurações; não descarte trabalho nem amplie a tarefa sem necessidade.
 - Planejamento funcional e prioridades pertencem às conversas de planejamento do ChatGPT. Execute a tarefa aprovada e registre decisões técnicas no local apropriado.
+
+## Coordenação de tarefas paralelas
+
+- Antes de iniciar, cada Codex confere a `main` atualizada e as branches/PRs em andamento. Evite paralelismo quando as tarefas alterarem os mesmos componentes, configurações, estruturas de banco ou fluxos compartilhados. Se houver dependência ou conflito provável, execute as tarefas em sequência.
+- Cada Codex implementa, testa, corrige e abre seu próprio PR. Testes usam PostgreSQL 17 temporário e dados fictícios, isolados por execução; nenhum PostgreSQL local é exigido.
+- Coordene os merges na `main` para não integrar PRs conflitantes ao mesmo tempo. Se outro PR entrar antes, confira a nova `main`, atualize a branch por avanço/merge seguro, resolva conflitos e repita os testes obrigatórios sempre que a atualização invalidar resultados anteriores. Não use force push para ocultar divergências.
+- Nunca faça alterações simultâneas em bancos remotos persistentes. Migrações e mudanças de dados remotos mantêm a exigência de autorização específica e devem ser executadas de forma coordenada e sequencial.
+- Em tarefas de interface, coordene arquivos compartilhados de `docs/mapeamento-visual/` (imagens, índices e metadados) para preservar a captura mais recente; atualize e confira o índice após integrar alterações concorrentes.
+- Após o deployment da sua integração, confirme que o commit da tarefa está presente na versão online antes de declarar a funcionalidade publicada. Um deployment READY de outro PR não comprova a sua tarefa.
+- Exemplo de paralelismo aceitável: documentação de um módulo e correção isolada de outro, sem arquivos, migrações ou interfaces compartilhadas. Exemplos que exigem sequência: duas migrações no mesmo schema; duas tarefas no mesmo formulário ou nos mesmos arquivos de captura; duas mudanças simultâneas em autenticação ou permissões.
 
 ## Fluxo de desenvolvimento
 
