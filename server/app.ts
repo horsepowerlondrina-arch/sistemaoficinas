@@ -1,7 +1,8 @@
+import {thirdPartySalePrice} from "../shared/pricing.js";
 import { respondAfterCommit } from "./db/responseCommit.js";
 import { documentHistory, readDocument, issueDocument, listArchivedDocuments, readArchivedDocument } from "./services/documents.js";
 import {
-  partsPricingSchema,
+  savePartsPricing,
   workshopPrice,
   getPartsPricing,
 } from "./services/partsPricing.js";
@@ -928,33 +929,15 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
     );
   });
   app.put("/api/parts-pricing", async (req, res) => {
-    const v = partsPricingSchema.parse(req.body),
-      ctx: Context = res.locals.context;
-    await transaction(db, async () => {
-      await db
-        .prepare(
-          "UPDATE tenants SET parts_pricing_mode=?,parts_pricing_bps=?,parts_pricing_rules=? WHERE id=?",
-        )
-        .run(
-          v.mode,
-          v.rate_bps,
-          JSON.stringify({
-            rules: v.rules,
-            service_markup_bps:
-              v.service_markup_bps ??
-              (await getPartsPricing(db, ctx.tenantId)).service_markup_bps ??
-              3000,
-          }),
-          ctx.tenantId,
-        );
-      await audit(db, ctx, "parts_pricing.updated", ctx.tenantId);
-    });
+    await savePartsPricing(db,res.locals.context,req.body);
     res.json({ ok: true });
   });
   app.post("/api/parts-pricing/preview", async (req, res) => {
     const cost = integer.parse(req.body.cost);
     res.json({
-      price: await workshopPrice(db, res.locals.context.tenantId, cost),
+      price: req.body.kind === "service"
+        ? thirdPartySalePrice(cost, await getPartsPricing(db,res.locals.context.tenantId))
+        : await workshopPrice(db, res.locals.context.tenantId, cost),
     });
   });
   app.post("/api/catalog-capture/:id/start", async (req, res) =>

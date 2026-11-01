@@ -89,3 +89,7 @@ Esses papéis descrevem o processo acordado; não afirmam identidades ou permiss
 ## OPS-002 — Máquinas de cartão e taxas (01/11/2026)
 
 Implementação em revisão no PR #82, branch `feat/ops-002-maquinas-cartao`. Cadastro por oficina, tabelas independentes, padrão único, snapshots de recebimentos e migração aditiva. Testes usam somente dados fictícios e PostgreSQL 17 temporário. Integração/publicação aguardam aprovação pedida especificamente nesta tarefa; a migração remota exige autorização própria. Detalhes e procedimento: [OPS-002](OPS-002-maquinas-cartao.md).
+
+## OPS-003 — Tabelas de lucro (01/11/2026)
+
+Edição independente de faixas para peças/produtos e terceiros, preservando modos de cálculo, permissões e preços históricos. Sem migração de banco. Implementação na branch `feat/ops-003-tabelas-lucro`; integração depende da aprovação específica solicitada nesta tarefa. Regras e testes: [OPS-003](OPS-003-tabelas-lucro.md).

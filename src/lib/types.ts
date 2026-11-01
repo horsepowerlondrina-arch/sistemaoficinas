@@ -22,16 +22,7 @@ export type Order = Entity & {
 };
 export interface Workspace {
   modules?: Record<string, boolean>;
-  parts_pricing?: {
-    mode: "legacy" | "markup" | "margin";
-    rate_bps: number;
-    service_markup_bps?: number;
-    rules: {
-      up_to: number | null;
-      markup_bps: number;
-      minimum_profit: number;
-    }[];
-  };
+  parts_pricing?: import("../../shared/pricing").PricingPolicy;
   catalog_mode?: "standard" | "extension";
   customers: Entity[];
   vehicles: Entity[];
@@ -87,3 +78,4 @@ export const initials = (name: string) =>
     .slice(0, 2)
     .map((n) => n[0])
     .join("");
+
