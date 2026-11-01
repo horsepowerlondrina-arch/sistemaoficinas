@@ -73,7 +73,7 @@ async function invitationViews(pool: Pool, tenantIds: string[]) {
   const views = new Map<string, InvitationView>();
   for (const row of result.rows) {
     const expired = row.used_at === null && row.revoked_at === null && new Date(row.expires_at).getTime() <= Date.now();
-    const invitation_status = row.used_at ? "activated" : row.revoked_at ? "cancelled" : expired ? "expired"
+    const invitation_status = row.used_at ? "activated" : row.revoked_at && new Date(row.revoked_at).getTime() < new Date(row.expires_at).getTime() ? "cancelled" : expired ? "expired" : row.revoked_at ? "cancelled"
       : row.manual_link_created ? "manual_link_created" : row.delivery_status;
     views.set(String(row.tenant_id), {
       invitation_status,
@@ -218,8 +218,9 @@ export function createPlatformAdminApp(pool: Pool, encryptionKey: string, transf
     const row = result.rows[0];
     if (!row) return "Convite inválido.";
     if (row.used_at) return "Este convite já foi utilizado.";
-    if (row.revoked_at) return "Este convite foi cancelado ou substituído.";
+    if (row.revoked_at && new Date(row.revoked_at).getTime() < new Date(row.expires_at).getTime()) return "Este convite foi cancelado ou substituído.";
     if (new Date(row.expires_at).getTime() <= Date.now()) return "Este convite expirou. Solicite um novo convite ao administrador.";
+    if (row.revoked_at) return "Este convite foi cancelado ou substituído.";
     return "Este convite não está disponível para ativação.";
   };
   app.post("/admin-api/workshop-activation/validate", async (req, res) => {
@@ -465,8 +466,8 @@ export function createPlatformAdminApp(pool: Pool, encryptionKey: string, transf
       ORDER BY i.created_at DESC,i.id DESC LIMIT 50`, [tenantId]);
     res.json(result.rows.map(row => ({
       id:row.id, created_at:row.created_at, expires_at:row.expires_at, sent_at:row.sent_at,
-      status:row.used_at ? "activated" : row.revoked_at ? "cancelled" :
-        new Date(row.expires_at).getTime() <= Date.now() ? "expired" :
+      status:row.used_at ? "activated" : row.revoked_at && new Date(row.revoked_at).getTime() < new Date(row.expires_at).getTime() ? "cancelled" :
+        new Date(row.expires_at).getTime() <= Date.now() ? "expired" : row.revoked_at ? "cancelled" :
         row.manual_link_created ? "manual_link_created" : row.delivery_status,
     })));
   });

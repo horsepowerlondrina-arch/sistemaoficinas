@@ -177,7 +177,8 @@ test("PostgreSQL: convites de ativação, teste grátis, idempotência e isolame
     const manualToken = manualUrl.hash.slice(1);
     assert.ok(/^[a-f0-9]{64}$/.test(manualToken),"manual activation token has the expected format");
     assert.equal(manualUrl.origin,"http://127.0.0.1:5173");
-    assert.ok(new Date(manualBody.invitation_expires_at).getTime()>Date.now());
+    const remainingHours=(new Date(manualBody.invitation_expires_at).getTime()-Date.now())/3_600_000;
+    assert.ok(remainingHours>47 && remainingHours<=48,"new invitation expires after 48 hours");
     assert.equal((await post("/admin-api/workshop-activation/validate",{token:manualToken})).status,200);
     const manualStored = (await ownerQuery(`SELECT id,token_hash,delivery_status FROM ${pa}.workshop_activation_invites WHERE tenant_id=$1 AND token_hash=$2`,[manualWorkshop.tenantId,digestAdminToken(manualToken)])).rows[0];
     assert.equal(manualStored.token_hash,digestAdminToken(manualToken));
