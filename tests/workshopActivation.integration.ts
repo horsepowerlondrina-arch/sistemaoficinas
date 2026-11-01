@@ -151,7 +151,7 @@ test("PostgreSQL: convites de ativação, teste grátis, idempotência e isolame
     assert.equal((await ownerQuery(`SELECT count(*)::int AS n FROM ${hp}.users WHERE email=$1`,["cancelled-owner@example.test"])).rows[0].n,0);
     const cancelledHistory = await get(`/admin-api/workshops/${cancelled.tenantId}/invitations`, readOnlySessionToken);
     assert.equal(cancelledHistory.status,200);
-    const cancelledItems = await cancelledHistory.json() as {status:string;token_hash?:string}[];
+    const cancelledItems = await cancelledHistory.json() as {id:string;status:string;token_hash?:string}[];
     assert.equal(cancelledItems[0].status,"cancelled");
     assert.equal(cancelledItems[0].token_hash,undefined);
     const otherHistory = await get(`/admin-api/workshops/${fresh.tenantId}/invitations`, readOnlySessionToken);
