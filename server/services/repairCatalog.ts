@@ -790,7 +790,7 @@ export async function resolveService(
   if (!existing) {
     snapshot.porte_name = snapshot.classification_name || snapshot.commercial_category_name || category?.name || "";
     rate = await commercialRate(db, ctx, categoryId);
-
+    markup = (await getPartsPricing(db, ctx.tenantId)).service_markup_bps ?? 3000;
   } else if (categoryChanged) {
     rate = await commercialRate(db, ctx, categoryId);
   }

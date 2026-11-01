@@ -799,3 +799,24 @@ test("CAD-005: associação manual independente da FIPE é preservada e ausênci
     assert.equal(f.db.prepare("SELECT service_model_id FROM vehicles WHERE plate='CAD0A05'").get()?.service_model_id, "");
   } finally { f.db.close(); }
 });
+
+
+
+test('OPS-003: novo terceiro usa a faixa vigente e snapshot mantém taxa após mudança da tabela',async()=>{
+ const f=fixture();
+ try {
+  const {savePartsPricing}=await import('../server/services/partsPricing');
+  const service_rules=[{from:0,up_to:10000,markup_bps:5000,minimum_profit:0},{from:10001,up_to:null,markup_bps:1000,minimum_profit:0}];
+  await savePartsPricing(f.db,ctx,{service_rules});
+  const selection={repair_service_id:f.service,repair_model_id:f.model,service_execution:'outsourced' as const,service_cost:10000};
+  const first=await resolveService(f.db,ctx,selection);
+  assert.equal(first.price,15000);
+  assert.equal(JSON.parse(first.service_snapshot).markup_bps,5000);
+  await savePartsPricing(f.db,ctx,{service_rules:[{from:0,up_to:null,markup_bps:9000,minimum_profit:0}]});
+  const preserved=await resolveService(f.db,ctx,selection,{service_snapshot:first.service_snapshot});
+  assert.equal(preserved.price,15000);
+  assert.equal(JSON.parse(preserved.service_snapshot).markup_bps,5000);
+  assert.equal((await resolveService(f.db,ctx,selection)).price,19000);
+  assert.equal((await resolveService(f.db,ctx,{repair_service_id:f.service,repair_model_id:f.model})).price,12000);
+ }finally{f.db.close();}
+});
