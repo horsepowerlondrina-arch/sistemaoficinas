@@ -330,6 +330,22 @@ Relatório sem vendas no período demonstrado.
 
 Estado: capturada · mobile · captura 2026-10-22 · commit de origem: não registrado · [arquivo completo](./capturas/08-financeiro/lucro-servicos.png)
 
+### Recebimento com máquina e repasse
+
+Plano fictício salvo e reaberto: seleção da máquina, repasse e líquido preservado, sem efetivar recebimento.
+
+[![Recebimento com máquina e repasse](./capturas/08-financeiro/ops002-receipt-desktop.png)](./capturas/08-financeiro/ops002-receipt-desktop.png)
+
+Estado: capturada · desktop · captura 2026-11-01 · commit de origem: 26770cc4da2ccbf9de3620882b0a87066fdce927 · [arquivo completo](./capturas/08-financeiro/ops002-receipt-desktop.png)
+
+### Recebimento com máquina e repasse
+
+Plano fictício salvo e reaberto: seleção da máquina, repasse e líquido preservado, sem efetivar recebimento.
+
+[![Recebimento com máquina e repasse](./capturas/08-financeiro/ops002-receipt-mobile.png)](./capturas/08-financeiro/ops002-receipt-mobile.png)
+
+Estado: capturada · mobile · captura 2026-11-01 · commit de origem: 26770cc4da2ccbf9de3620882b0a87066fdce927 · [arquivo completo](./capturas/08-financeiro/ops002-receipt-mobile.png)
+
 ## 09 — Cadastros e serviços
 
 Produtos, serviços, profissionais e tempos.
@@ -480,11 +496,11 @@ Estado: capturada · mobile · captura 2026-11-01 · commit de origem: 56b226764
 
 ### Taxas e parcelamento
 
-Taxas padrão, precedência por parcela e manutenção administrativa.
+Máquinas independentes, padrão da oficina e juros de parcelamento.
 
 [![Taxas e parcelamento](./capturas/14-configuracoes/geral-e-taxas.png)](./capturas/14-configuracoes/geral-e-taxas.png)
 
-Estado: capturada · mobile · captura 2026-11-01 · commit de origem: 56b226764ee6420a52bdff3a41bd459113618460 · [arquivo completo](./capturas/14-configuracoes/geral-e-taxas.png)
+Estado: capturada · mobile · captura 2026-11-01 · commit de origem: 26770cc4da2ccbf9de3620882b0a87066fdce927 · [arquivo completo](./capturas/14-configuracoes/geral-e-taxas.png)
 
 ### Mão de obra por porte
 
@@ -512,11 +528,11 @@ Estado: capturada · desktop · captura 2026-11-01 · commit de origem: 56b22676
 
 ### Taxas e parcelamento
 
-Taxas padrão, precedência por parcela e manutenção administrativa.
+Máquinas independentes, padrão da oficina e juros de parcelamento.
 
 [![Taxas e parcelamento](./capturas/14-configuracoes/geral-e-taxas-desktop.png)](./capturas/14-configuracoes/geral-e-taxas-desktop.png)
 
-Estado: capturada · desktop · captura 2026-11-01 · commit de origem: 56b226764ee6420a52bdff3a41bd459113618460 · [arquivo completo](./capturas/14-configuracoes/geral-e-taxas-desktop.png)
+Estado: capturada · desktop · captura 2026-11-01 · commit de origem: 26770cc4da2ccbf9de3620882b0a87066fdce927 · [arquivo completo](./capturas/14-configuracoes/geral-e-taxas-desktop.png)
 
 ### Mão de obra por porte
 
@@ -549,6 +565,22 @@ Responsabilidades administrativas e extensões disponíveis.
 [![Conta e integrações](./capturas/14-configuracoes/config-conta-integracoes-mobile.png)](./capturas/14-configuracoes/config-conta-integracoes-mobile.png)
 
 Estado: capturada · mobile · captura 2026-11-01 · commit de origem: 56b226764ee6420a52bdff3a41bd459113618460 · [arquivo completo](./capturas/14-configuracoes/config-conta-integracoes-mobile.png)
+
+### Máquina e taxas por parcela
+
+Cadastro e edição de máquinas fictícias, taxa por modalidade/parcela e limite configurável.
+
+[![Máquina e taxas por parcela](./capturas/14-configuracoes/ops002-machine-editor-desktop.png)](./capturas/14-configuracoes/ops002-machine-editor-desktop.png)
+
+Estado: capturada · desktop · captura 2026-11-01 · commit de origem: 26770cc4da2ccbf9de3620882b0a87066fdce927 · [arquivo completo](./capturas/14-configuracoes/ops002-machine-editor-desktop.png)
+
+### Máquina e taxas por parcela
+
+Cadastro e edição de máquinas fictícias, taxa por modalidade/parcela e limite configurável.
+
+[![Máquina e taxas por parcela](./capturas/14-configuracoes/ops002-machine-editor-mobile.png)](./capturas/14-configuracoes/ops002-machine-editor-mobile.png)
+
+Estado: capturada · mobile · captura 2026-11-01 · commit de origem: 26770cc4da2ccbf9de3620882b0a87066fdce927 · [arquivo completo](./capturas/14-configuracoes/ops002-machine-editor-mobile.png)
 
 ## 15 — Integrações e extensão Chrome
 
@@ -684,3 +716,12 @@ Pré-visualizar fixture fictícia e validar resultado sem gravar em ambiente rem
 2. Validação e confirmação da transferência (pendente)
 
 Estado: pendente — Executar somente em ambiente descartável; nunca usar o Supabase de homologação compartilhado.
+
+### FL-OPS002 — Máquina → plano de recebimento
+
+Editar taxas, selecionar máquina, simular repasse, salvar e reabrir plano fictício no PostgreSQL temporário.
+
+1. Máquina e taxas por parcela (capturada) — [imagem](./capturas/14-configuracoes/ops002-machine-editor-desktop.png)
+2. Recebimento com máquina e repasse (capturada) — [imagem](./capturas/08-financeiro/ops002-receipt-desktop.png)
+
+Estado: capturada

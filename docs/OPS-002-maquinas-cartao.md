@@ -28,4 +28,6 @@ Pacotes de transferência incluem máquinas e taxas e remapeiam os vínculos das
 
 `tests/cardMachines.test.ts` cobre cálculos, snapshots, isolamento, campos ausentes, taxa desatualizada e permissões de APIs. `tests/cardMachines.postgres.integration.ts` verifica backfill, precedência, histórico e RLS em PostgreSQL temporário. Regressões de caixa, pagamentos mistos, crédito, descontos e relatórios são mantidas.
 
-`capture-card-machines.mjs` valida seleção padrão, modalidade sem taxa, repasse, edição/salvamento e descarte de rascunho, com dados fictícios e URLs loopback. A biblioteca permanece exclusivamente em `docs/mapeamento-visual/` no GitHub privado.
+`capture-card-machines.mjs` valida seleção padrão, troca de máquina, modalidade sem taxa, repasse, edição/salvamento e descarte de rascunho, com dados fictícios e URLs loopback. Salva um plano de três parcelas no PostgreSQL descartável, confere máquina/taxa/repasse e líquido de R$ 100,00, e reabre a edição. `ops002-visual-cleanup.ts` remove somente as OS e o produto criados pela captura, após verificar oficina, identificação da fixture e ausência de pagamentos recebidos. A biblioteca permanece exclusivamente em `docs/mapeamento-visual/` no GitHub privado.
+
+Validação local: build e 299 testes gerais aprovados. O CI executa as mesmas verificações, capturas desktop/mobile, migração, RLS e integrações no PostgreSQL 17 temporário. As evidências e o resultado final ficam vinculados ao PR #82.
