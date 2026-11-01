@@ -1,4 +1,4 @@
-import {captureCardMachines} from "./capture-card-machines.mjs";
+import {captureCardMachines,capturedOrders,capturedProducts} from "./capture-card-machines.mjs";
 import { spawn, execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
@@ -223,6 +223,7 @@ try {
   console.log(`Capturas reais concluídas: ${captures}. Módulo: ${moduleFilter || (args.includes("--affected") ? "arquivos alterados" : "todos com rota automatizável")}.`);
 } finally {
   await browser?.close();
+  if(capturedOrders.length||capturedProducts.length)execFileSync(process.execPath,["--import","tsx","scripts/ops002-visual-cleanup.ts",JSON.stringify(capturedOrders),JSON.stringify(capturedProducts)],{stdio:"inherit"});
   if (cad005Fixture) execFileSync(process.execPath, ["--import", "tsx", "scripts/cad005-visual-fixture.ts", "cleanup"], { stdio: "inherit" });
   if (appProcess) {
     appProcess.kill("SIGTERM");

@@ -28,7 +28,7 @@ test("OPS-002 PostgreSQL 17: additive legacy migration, precedence and unchanged
     await admin.query(migration);
     assert.equal(
       (await admin.query("SELECT count(*) n FROM card_machines")).rows[0].n,
-      "2",
+      2,
     );
     const rate = await admin.query(
       "SELECT fee_bps FROM card_machine_rates WHERE tenant_id='a' AND method='Cartão de crédito' AND installments=1",

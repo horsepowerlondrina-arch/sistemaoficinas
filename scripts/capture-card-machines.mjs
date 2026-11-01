@@ -1,4 +1,6 @@
 import { expect } from "@playwright/test";
+export const capturedOrders=[];
+export const capturedProducts=[];
 export async function captureCardMachines(page, entry) {
   if (!entry.route.includes("aba=geral") && !entry.id.startsWith("ops002-"))
     return;
@@ -31,6 +33,8 @@ export async function captureCardMachines(page, entry) {
     const created = await request("/card-machines", input);
     machine = { ...input, id: created.id };
   }
+  let secondary=machines.find(m=>m.name==='Máquina Secundária Fictícia');
+  if(!secondary){const input={name:'Máquina Secundária Fictícia',operator:'Outra Operadora Fictícia',active:true,is_default:false,max_installments:3,rates:[{method:'Cartão de crédito',installments:1,fee_bps:400},{method:'Cartão de crédito',installments:3,fee_bps:500}]};secondary={...input,...await request('/card-machines',input)};}
   if (entry.route.includes("aba=geral")) {
     await page.reload();
     await expect(
@@ -107,9 +111,11 @@ export async function captureCardMachines(page, entry) {
   const vehicle = workspace.vehicles.find((v) =>
     workspace.customers.some((c) => c.id === v.customer_id),
   );
-  const product = workspace.catalog.find(
-    (p) => p.kind === "product" && p.active,
-  );
+  let product = workspace.catalog.find(p => p.sku === 'OPS002-VISUAL');
+  if (!product) {
+    product = await request('/catalog', {kind:'product',name:'Produto Fictício OPS-002',sku:'OPS002-VISUAL',category:'',cost:1000,price:10000,stock:0,minimum_stock:0});
+    capturedProducts.push(product.id);
+  }
   if (!vehicle || !product)
     throw new Error("Fixture fictícia de recebimento ausente.");
   const order = await request("/orders", {
@@ -124,6 +130,7 @@ export async function captureCardMachines(page, entry) {
     discount: 0,
     items: [{ catalog_id: product.id, quantity: 1, price: 10000 }],
   });
+  capturedOrders.push(order.id);
   for (const status of ["working", "ready", "completed"])
     await request("/orders/" + order.id + "/status", { status });
   await page.goto(
@@ -153,6 +160,10 @@ export async function captureCardMachines(page, entry) {
     .getByRole("spinbutton", { name: "Parcelas", exact: true })
     .fill("3");
   await expect(page.getByText("Taxa total da operação: 3.50%")).toBeVisible();
+  await page.getByRole('combobox',{name:'Máquina de cartão',exact:true}).selectOption(secondary.id);
+  await expect(page.getByText('Taxa total da operação: 5.00%')).toBeVisible();
+  await page.getByRole('combobox',{name:'Máquina de cartão',exact:true}).selectOption(machine.id);
+  await expect(page.getByText('Taxa total da operação: 3.50%')).toBeVisible();
   await page
     .getByRole("checkbox", { name: "Repassar taxa ao cliente", exact: true })
     .check();
