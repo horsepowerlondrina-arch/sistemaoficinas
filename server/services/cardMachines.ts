@@ -191,7 +191,7 @@ export async function resolveCardPayments(
       );
     if (rate !== p.card_fee_bps)
       throw new Error(
-        "A taxa da máquina mudou. Selecione novamente a máquina para revisar o recebimento.",
+        "A taxa da máquina mudou. Atualize as máquinas e taxas para revisar o recebimento.",
       );
     return {
       ...p,

@@ -8,8 +8,11 @@ import { machineRate, type CardMachine } from "../../shared/cardMachines";
 export function useCardMachines() {
   const [machines, setMachines] = useState<CardMachine[]>([]),
     [error, setError] = useState("");
+  const {session}=useApp();
+  const [revision,setRevision]=useState(0);
   useEffect(() => {
     let active = true;
+    setError("");
     api<CardMachine[]>("/card-machines")
       .then((rows) => {
         if (active) setMachines(rows);
@@ -20,8 +23,8 @@ export function useCardMachines() {
     return () => {
       active = false;
     };
-  }, []);
-  return { machines, error };
+  }, [revision,session.tenant.id]);
+  return { machines, error, reload:()=>setRevision(n=>n+1) };
 }
 export function CardMachineChoice({
   machines,
@@ -29,6 +32,7 @@ export function CardMachineChoice({
   method,
   installments,
   onChange,
+  onRefresh,
   error,
 }: {
   machines: CardMachine[];
@@ -36,6 +40,7 @@ export function CardMachineChoice({
   method: string;
   installments: number;
   onChange: (id: string) => void;
+  onRefresh: () => void;
   error?: string;
 }) {
   const machine = machines.find((m) => m.id === machineId),
@@ -55,6 +60,7 @@ export function CardMachineChoice({
             ))}
         </select>
       </Field>
+      <button type="button" className="button small" onClick={onRefresh}>Atualizar máquinas e taxas</button>
       <p role={rate === undefined ? "alert" : undefined}>
         {error ||
           (rate === undefined

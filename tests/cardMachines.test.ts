@@ -143,6 +143,7 @@ test("OPS-002 installment snapshots survive machine edits and disabling; failed 
     assert.equal(before[0].machine_name, "Máquina A");
     assert.equal(before[0].card_fee_bps, 350);
     assert.equal(before[0].pass_card_fee, 1);
+    assert.equal(before[0].interest_bps, 0);
     await saveCardMachine(
       db,
       ctx,

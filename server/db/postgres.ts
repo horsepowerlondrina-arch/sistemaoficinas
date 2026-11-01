@@ -55,6 +55,8 @@ export function postgresSql(input: string) {
     "cash_accounts",
     "cash_movements",
     "card_rates",
+    "card_machines",
+    "card_machine_rates",
     "public_shares",
     "import_batches",
     "service_aliases",
@@ -248,3 +250,4 @@ export function createPostgresDatabase(url = process.env.DATABASE_URL, options: 
   };
   return db;
 }
+

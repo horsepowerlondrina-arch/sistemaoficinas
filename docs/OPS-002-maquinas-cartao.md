@@ -22,6 +22,8 @@ Permissões atuais preservadas: recebimentos são exclusivos de owner com Financ
 - Recuperação: rollback da transação se a aplicação falhar. Depois de uso, preferir correção aditiva; não remover tabelas/colunas com histórico. Código anterior pode operar sobre as tabelas originais, mas não administra as novas taxas; evitar rollback operacional após novos recebimentos sem análise.
 - Migração remota, merge e publicação aguardam autorização conforme a solicitação OPS-002. Nenhum dado persistente remoto foi alterado.
 
+Pacotes de transferência incluem máquinas e taxas e remapeiam os vínculos das parcelas. A mesclagem bloqueia conflitos de máquina padrão; a substituição utiliza o fluxo existente de backup e autorização. Pacotes legados continuam preservando suas taxas originais; quando não trazem máquinas, cadastre-as antes de configurar novos recebimentos.
+
 ## Verificação
 
 `tests/cardMachines.test.ts` cobre cálculos, snapshots, isolamento, campos ausentes, taxa desatualizada e permissões de APIs. `tests/cardMachines.postgres.integration.ts` verifica backfill, precedência, histórico e RLS em PostgreSQL temporário. Regressões de caixa, pagamentos mistos, crédito, descontos e relatórios são mantidas.

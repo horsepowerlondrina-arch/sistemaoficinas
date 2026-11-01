@@ -43,6 +43,7 @@ ALTER TABLE payment_installments ADD COLUMN machine_name TEXT NOT NULL DEFAULT '
 ALTER TABLE payment_installments ADD COLUMN machine_operator TEXT NOT NULL DEFAULT '';
 ALTER TABLE payment_installments ADD COLUMN card_fee_bps INTEGER;
 ALTER TABLE payment_installments ADD COLUMN pass_card_fee INTEGER;
+ALTER TABLE payment_installments ADD COLUMN interest_bps INTEGER;
 ALTER TABLE payment_installments ADD COLUMN installment_count INTEGER;
 -- Existing installment values and unknown historical machine/rate remain untouched.
 ALTER TABLE payment_installments ADD CONSTRAINT installment_machine_tenant_fk
@@ -50,7 +51,8 @@ ALTER TABLE payment_installments ADD CONSTRAINT installment_machine_tenant_fk
 ALTER TABLE card_machines ENABLE ROW LEVEL SECURITY;
 ALTER TABLE card_machine_rates ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON card_machines,card_machine_rates FROM PUBLIC;
-GRANT SELECT,INSERT,UPDATE ON card_machines TO hp_local_app;
+-- DELETE is used only by the existing authorized full-workshop replace flow. No machine delete API.
+GRANT SELECT,INSERT,UPDATE,DELETE ON card_machines TO hp_local_app;
 GRANT SELECT,INSERT,UPDATE,DELETE ON card_machine_rates TO hp_local_app;
 CREATE POLICY card_machine_read ON card_machines FOR SELECT TO hp_local_app
  USING(tenant_id=NULLIF(current_setting('app.tenant_id',true),''));
@@ -62,3 +64,4 @@ CREATE POLICY card_machine_update ON card_machines FOR UPDATE TO hp_local_app
 CREATE POLICY card_machine_rate_scope ON card_machine_rates FOR ALL TO hp_local_app
  USING(tenant_id=NULLIF(current_setting('app.tenant_id',true),''))
  WITH CHECK(tenant_id=NULLIF(current_setting('app.tenant_id',true),''));
+CREATE POLICY card_machine_replace ON card_machines FOR DELETE TO hp_local_app USING(tenant_id=NULLIF(current_setting('app.tenant_id',true),''));

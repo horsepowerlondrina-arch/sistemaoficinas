@@ -108,7 +108,8 @@ test("OPS-002 PostgreSQL 17: RLS, composite tenant keys, unique default and auth
           saveCardMachine(db, { ...ctx, role: "operator" }, body),
           /administrador/,
         );
-        // A failed nested transaction rolls back to a savepoint and leaves the outer fixture valid.
+        // PostgreSQL errors abort the transaction; explicit savepoints isolate negative checks.
+        await db.exec("SAVEPOINT ops002_negative");
         await assert.rejects(
           db.transaction(async () => {
             await db
@@ -119,6 +120,7 @@ test("OPS-002 PostgreSQL 17: RLS, composite tenant keys, unique default and auth
           }),
           /row-level security/,
         );
+        await db.exec("ROLLBACK TO SAVEPOINT ops002_negative");
         await assert.rejects(
           db.transaction(async () => {
             await db
@@ -129,6 +131,7 @@ test("OPS-002 PostgreSQL 17: RLS, composite tenant keys, unique default and auth
           }),
           /foreign key/,
         );
+        await db.exec("ROLLBACK TO SAVEPOINT ops002_negative; RELEASE SAVEPOINT ops002_negative");
         const second = await saveCardMachine(db, ctx, {
           ...body,
           name: "OPS002 Segunda",

@@ -13,7 +13,7 @@ export type WorkshopImportMode = "empty" | "merge" | "replace";
 const insertOrder: TransferTable[] = [
   "product_categories", "professionals", "suppliers", "catalog", "workshop_services",
   "labor_rates", "labor_commercial_rates", "customers", "vehicles", "expense_templates",
-  "payment_settings", "card_rates", "cash_accounts", "orders", "order_items",
+  "payment_settings", "card_rates", "card_machines", "card_machine_rates", "cash_accounts", "orders", "order_items",
   "stock_invoices", "stock_invoice_products", "stock_movements", "receivables",
   "payment_installments", "cash_entries", "payables", "cash_movements", "service_aliases",
   "service_merge_history", "external_catalog_links", "external_captures", "service_times", "checklists",
@@ -45,7 +45,8 @@ const linkedIdFields: Partial<Record<TransferTable, Record<string, TransferTable
   stock_movements: { catalog_id: "catalog", order_id: "orders" },
   service_times: { catalog_id: "catalog" },
   receivables: { order_id: "orders", customer_id: "customers" },
-  payment_installments: { receivable_id: "receivables" },
+  card_machine_rates: { machine_id: "card_machines" },
+  payment_installments: { receivable_id: "receivables", machine_id: "card_machines" },
   cash_entries: { receivable_id: "receivables", installment_id: "payment_installments" },
   payables: { template_id: "expense_templates" },
   cash_movements: { account_id: "cash_accounts" },
@@ -88,6 +89,7 @@ function trackedLookup(table: TransferTable, trackedId: string, sourceRow: Trans
 }
 
 const uniqueKeys: Partial<Record<TransferTable, string[][]>> = {
+  card_machines: [["name_key"]],
   vehicles: [["plate"]], catalog: [["sku"]], orders: [["number"]], receivables: [["order_id"]],
   cash_entries: [["installment_id"]], payment_installments: [["receivable_id", "sequence"]],
   product_categories: [["name_key"]], suppliers: [["document"]],
@@ -98,6 +100,7 @@ const uniqueKeys: Partial<Record<TransferTable, string[][]>> = {
   payables: [["template_id", "due_on"]], document_revisions: [["kind", "entity_id", "revision"]],
 };
 const primaryFields: Partial<Record<TransferTable, string[]>> = {
+  card_machine_rates: ["machine_id", "method", "installments"],
   card_rates: ["method", "installments"], labor_rates: ["porte_id"],
   labor_commercial_rates: ["category_id"], payment_settings: [], service_aliases: ["alias_key"],
   external_catalog_links: ["source", "external_key"], data_transfer_archived_documents: ["revision_id"],
@@ -211,6 +214,12 @@ async function buildPlan(db: DB, tenantId: string, payload: TransferPayload, mod
     entitySummaries[table] = summary;
     if (mode === "empty" && existingRows.length) issues.push(`A oficina de destino já possui registros em ${table}; escolha Mesclar ou Substituir.`);
 
+    if (table === "card_machines") {
+      const defaults = sourceRows.filter(row => Number(row.is_default) === 1);
+      if (defaults.length > 1) issues.push("O pacote possui mais de uma máquina padrão.");
+      if (mode === "merge" && defaults.length && existingRows.some(row => Number(row.is_default) === 1 && String(row.id) !== String(defaults[0].id)))
+        issues.push("Conflito de máquina padrão: revise a seleção na origem ou no destino antes de mesclar.");
+    }
     const packageKeys = new Set<string>();
     for (const sourceRow of sourceRows) {
       const keys = [...new Set([recordKey(table, sourceRow), ...(uniqueKeys[table] || []).map((fields) => stable(fields.map((field) => sourceRow[field])))])];

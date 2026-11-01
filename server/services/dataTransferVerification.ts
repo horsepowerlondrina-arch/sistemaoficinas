@@ -22,6 +22,7 @@ export class TransferVerificationError extends Error {
 
 const AUTHOR_FIELDS = new Set(["user_id", "issued_by", "created_by"]);
 const IDENTITY_FIELDS: Partial<Record<TransferTable, string[]>> = {
+  card_machine_rates: ["machine_id", "method", "installments"],
   card_rates: ["method", "installments"],
   labor_rates: ["porte_id"],
   labor_commercial_rates: ["category_id"],
@@ -31,6 +32,7 @@ const IDENTITY_FIELDS: Partial<Record<TransferTable, string[]>> = {
   data_transfer_archived_documents: ["revision_id"],
 };
 const UNIQUE_FIELDS: Partial<Record<TransferTable, string[][]>> = {
+  card_machines: [["name_key"]],
   vehicles: [["plate"]],
   catalog: [["sku"]],
   orders: [["number"]],
@@ -563,3 +565,4 @@ export async function verifyWorkshopImport(
     financial: sumMoneyByField(entities), referentialIntegrity: referential, historicalDocuments, backups, policy: policyCounts, notes,
   };
 }
+

@@ -19,7 +19,7 @@ export const TRANSFER_TABLES = [
   "workshop_services", "labor_rates", "labor_commercial_rates", "orders",
   "order_items", "stock_movements", "stock_invoices", "stock_invoice_products",
   "suppliers", "receivables", "cash_entries", "payment_installments",
-  "payment_settings", "card_rates", "expense_templates", "payables",
+  "payment_settings", "card_rates", "card_machines", "card_machine_rates", "expense_templates", "payables",
   "cash_accounts", "cash_movements", "service_aliases", "service_merge_history",
   "external_catalog_links", "external_captures", "service_times", "checklists", "checklist_photos",
   "document_revisions", "data_transfer_archived_documents", "audit_events",
@@ -193,3 +193,4 @@ export function openTransferPackage(file: Buffer, passphrase: string): TransferP
 export function transferFileSha256(file: Buffer) {
   return createHash("sha256").update(file).digest("hex");
 }
+

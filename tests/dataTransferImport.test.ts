@@ -296,3 +296,20 @@ test("ADM: falhas de importação são classificadas sem expor detalhes do banco
   assert.equal(classifyPlatformAdminImportFailure(stale).code, "stale_preview");
   assert.doesNotMatch(classifyPlatformAdminImportFailure(unique).message, /product_categories|constraint|23505/);
 });
+
+
+test('OPS-002 transfer carries machines and rates and rejects conflicting defaults before writes',async()=>{
+ const db=new MemoryDb();
+ db.columns.card_machines=['id','tenant_id','name','name_key','operator','active','is_default','max_installments'];
+ db.columns.card_machine_rates=['tenant_id','machine_id','method','installments','fee_bps'];
+ const machine={id:'machine-source',tenant_id:sourceTenant,name:'Máquina fictícia',name_key:'máquina fictícia',operator:'Fictícia',active:1,is_default:1,max_installments:3};
+ const file=makePackage({records:{card_machines:[machine],card_machine_rates:[{tenant_id:sourceTenant,machine_id:machine.id,method:'Cartão de crédito',installments:3,fee_bps:350}]}});
+ const preview=await previewWorkshopImport(db as unknown as DB,targetTenant,file,phrase,'target-owner','empty');
+ assert.equal(preview.canImport,true,preview.issues.join(';'));
+ await importWorkshopPackage(db as unknown as DB,targetTenant,file,phrase,preview.confirmationId,'target-owner','empty');
+ assert.equal(db.tables.card_machines[0].tenant_id,targetTenant);
+ assert.equal(db.tables.card_machine_rates[0].machine_id,db.tables.card_machines[0].id);
+ assert.equal(db.tables.card_machine_rates[0].fee_bps,350);
+ const other=makePackage({records:{card_machines:[{...machine,id:'another',name:'Outra',name_key:'outra'}]}});
+ const conflict=await previewWorkshopImport(db as unknown as DB,targetTenant,other,phrase,'target-owner','merge');assert.equal(conflict.canImport,false);assert.ok(conflict.issues.some(i=>i.includes('máquina padrão')));
+});

@@ -34,7 +34,7 @@ export function calculatePaymentPlan(base:number,input:PaymentInput|MixedPayment
     gross:plans.reduce((s,p)=>s+p.gross,0),
     fee:plans.reduce((s,p)=>s+p.fee,0),
     net:plans.reduce((s,p)=>s+p.net,0),
-    installments:plans.flatMap(p=>p.installments.map(i=>({...i,sequence:++sequence,method:p.method,machine_id:p.input.machine_id,machine_name:p.input.machine_name,machine_operator:p.input.machine_operator,card_fee_bps:p.input.card_fee_bps,pass_card_fee:!!p.input.pass_card_fee,installment_count:p.input.installments}))),
+    installments:plans.flatMap(p=>p.installments.map(i=>({...i,sequence:++sequence,method:p.method,machine_id:p.input.machine_id,machine_name:p.input.machine_name,machine_operator:p.input.machine_operator,card_fee_bps:p.input.card_fee_bps,interest_bps:p.input.interest_bps,pass_card_fee:!!p.input.pass_card_fee,installment_count:p.input.installments}))),
     plans,
   };
 }

@@ -148,7 +148,7 @@ export async function configurePlan(
     for (const part of plan.installments)
       await db
         .prepare(
-          "INSERT INTO payment_installments(id,tenant_id,receivable_id,sequence,due_on,principal,interest,gross,fee,net,method,machine_id,machine_name,machine_operator,card_fee_bps,pass_card_fee,installment_count) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+          "INSERT INTO payment_installments(id,tenant_id,receivable_id,sequence,due_on,principal,interest,gross,fee,net,method,machine_id,machine_name,machine_operator,card_fee_bps,pass_card_fee,installment_count,interest_bps) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         )
         .run(
           id(),
@@ -168,6 +168,7 @@ export async function configurePlan(
           part.card_fee_bps,
           Number(part.pass_card_fee),
           part.installment_count,
+          part.interest_bps,
         );
     await db
       .prepare(

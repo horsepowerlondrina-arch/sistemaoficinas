@@ -42,6 +42,7 @@ ALTER TABLE payment_installments ADD COLUMN machine_name TEXT NOT NULL DEFAULT '
 ALTER TABLE payment_installments ADD COLUMN machine_operator TEXT NOT NULL DEFAULT '';
 ALTER TABLE payment_installments ADD COLUMN card_fee_bps INTEGER;
 ALTER TABLE payment_installments ADD COLUMN pass_card_fee INTEGER;
+ALTER TABLE payment_installments ADD COLUMN interest_bps INTEGER;
 ALTER TABLE payment_installments ADD COLUMN installment_count INTEGER;
 -- Existing installment values and unknown historical machine/rate remain untouched.
 INSERT INTO migrations(version) VALUES(31);

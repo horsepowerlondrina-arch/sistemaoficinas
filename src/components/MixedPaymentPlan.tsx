@@ -55,7 +55,7 @@ export function MixedPaymentPlan({
   onSaved?: () => void;
 }) {
   const { data, refresh, notify } = useApp();
-  const {machines,error:machineError}=useCardMachines();
+  const {machines,error:machineError,reload:reloadMachines}=useCardMachines();
   useEffect(()=>{if(machines.length)setParts(old=>old.map(p=>selectCardMachine(p,machines)));},[machines]);
   const [parts, setParts] = useState<Part[]>(() => initialPayments?.length
     ? initialPayments.map((part) => ({ ...part, key: crypto.randomUUID() }))
@@ -202,7 +202,7 @@ export function MixedPaymentPlan({
             {(p.method.startsWith("Cartão") || p.installments > 1) && (
               <div className="form-grid">
               {p.method.startsWith("Cartão") && (
-                <CardMachineChoice machines={machines} machineId={p.machine_id} method={p.method} installments={p.installments} error={machineError} onChange={id=>change(p.key,selectCardMachine(p,machines,id))}/>
+                <CardMachineChoice machines={machines} machineId={p.machine_id} method={p.method} installments={p.installments} error={machineError} onRefresh={reloadMachines} onChange={id=>change(p.key,selectCardMachine(p,machines,id))}/>
               )}
               {p.installments > 1 && (
                 <Field label="Juros totais do parcelamento (%)">

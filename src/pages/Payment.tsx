@@ -22,7 +22,7 @@ export function Payment() {
   const { id } = useParams();
   const { data, refresh, notify } = useApp();
   const navigate = useNavigate();
-  const {machines,error:machineError}=useCardMachines();
+  const {machines,error:machineError,reload:reloadMachines}=useCardMachines();
   const [editingPlan, setEditingPlan] = useState(false);
   const original = data.receivables.find((r) => r.order_id === id);
   const r = original && editingPlan ? {...original,plan_configured:0} : original;
@@ -149,7 +149,7 @@ export function Payment() {
           amount: principal,
           installments: methodParts.length,
           card_fee_bps: methodParts[0]?.card_fee_bps ?? (method.startsWith("Cartão") && gross > 0 ? Math.round((fee * 10000) / gross) : 0),
-          interest_bps: principal > 0 ? Math.round((interest * 10000) / principal) : 0,
+          interest_bps: methodParts[0]?.interest_bps ?? (principal > 0 ? Math.round((interest * 10000) / principal) : 0),
           first_due_on: methodParts.map((part) => part.due_on).sort()[0] || today(),
           sale_on: original.card_sale_on || today(),
           pass_card_fee: methodParts[0]?.pass_card_fee != null ? !!methodParts[0].pass_card_fee : methodParts.some((part) => Number(part.gross) > Number(part.principal) + Number(part.interest)),
@@ -161,14 +161,17 @@ export function Payment() {
   const settlementOn = nextBankingDay(saleOn || today());
   const openParts = parts.filter((p) => p.status === "open" && p.method === "Cartão de crédito");
   const creditTotal = openParts.reduce((v,p) => ({gross:v.gross+p.gross,fee:v.fee+p.fee,net:v.net+p.net}),{gross:0,fee:0,net:0});
+  const configuredInterest=parts.length&&parts.every(p=>p.interest_bps!=null)
+    ? [...new Set(parts.map(p=>p.method))].reduce((total,method)=>{const group=parts.filter(p=>p.method===method);return total+Math.round(group.reduce((s,p)=>s+Number(p.principal),0)*Number(group[0].interest_bps)/10000);},0)
+    : Math.round((r.amount*r.interest_bps)/10000);
   const plan = r.plan_configured
     ? {
         base: r.amount,
-        interest: Math.round((r.amount * r.interest_bps) / 10000),
+        interest: configuredInterest,
         surcharge:
           r.gross_total -
           r.amount -
-          Math.round((r.amount * r.interest_bps) / 10000),
+          configuredInterest,
         gross: r.gross_total,
         fee: r.fee_total,
         net: r.net_total,
@@ -306,7 +309,7 @@ export function Payment() {
           {card && <h2 className="receipt-subheading">Taxas do cartão</h2>}
           {!card && form.installments > 1 && <h2 className="receipt-subheading">Juros do parcelamento</h2>}
           {(card || form.installments > 1) && <div className="form-grid">
-            {card && <CardMachineChoice machines={machines} machineId={form.machine_id} method={form.method} installments={form.installments} error={machineError} onChange={id=>setForm(current=>selectCardMachine(current,machines,id))}/>}
+            {card && <CardMachineChoice machines={machines} machineId={form.machine_id} method={form.method} installments={form.installments} error={machineError} onRefresh={reloadMachines} onChange={id=>setForm(current=>selectCardMachine(current,machines,id))}/>}
             {form.installments > 1 && <Field label="Juros totais do parcelamento — cliente (%)">
               <NumericInput
                 type="number"
