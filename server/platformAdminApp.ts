@@ -123,7 +123,7 @@ async function prepareWorkshopInvitation(
       return { status: 429 };
     }
     await client.query(`UPDATE platform_admin.workshop_activation_invites SET revoked_at=now(),delivery_status='revoked'
-      WHERE tenant_id=$1 AND used_at IS NULL AND revoked_at IS NULL`, [tenantId]);
+      WHERE tenant_id=$1 AND used_at IS NULL AND revoked_at IS NULL AND expires_at>now()`, [tenantId]);
     await client.query(`INSERT INTO platform_admin.workshop_activation_invites
       (id,tenant_id,token_hash,responsible_email,created_by_admin_id,expires_at,delivery_status)
       VALUES($1,$2,$3,lower($4),$5,$6,'pending')`, [inviteId,tenantId,digestAdminToken(token),workshop.responsible_email,actor.id,expiresAt]);
@@ -156,8 +156,13 @@ async function sendWorkshopInvitation(pool: Pool, tenantId: string, actor: Admin
     deliveryStatus = "failed";
   }
   const sentAt = deliveryStatus === "sent" ? new Date() : null;
-  await pool.query(`UPDATE platform_admin.workshop_activation_invites
-    SET delivery_status=$1,sent_at=$2 WHERE id=$3`, [deliveryStatus,sentAt,prepared.inviteId]);
+  const deliveryUpdate = await pool.query(`UPDATE platform_admin.workshop_activation_invites
+    SET delivery_status=$1,sent_at=$2 WHERE id=$3 AND revoked_at IS NULL AND used_at IS NULL
+    RETURNING id`, [deliveryStatus,sentAt,prepared.inviteId]);
+  if (!deliveryUpdate.rowCount) {
+    return { status:200 as const, invitation_status:"cancelled" as const,
+      invitation_expires_at:prepared.expiresAt, invitation_sent_at:null };
+  }
   await writeAdminAudit(pool, { actorId:actor.id, actorEmail:actor.email, subjectTenantId:tenantId,
     action:deliveryStatus === "sent" ? "admin.workshop.invitation.sent" : "admin.workshop.invitation.delivery_failed",
     result:deliveryStatus === "sent" ? "success" : "failure",
