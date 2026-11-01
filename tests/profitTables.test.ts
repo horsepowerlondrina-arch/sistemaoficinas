@@ -38,7 +38,7 @@ const policy = {
 function fixture() {
   const db = createDatabase(":memory:");
   db.exec(
-    "INSERT INTO tenants(id,name) VALUES('a','Fictícia A'),('b','Fictícia B'); INSERT INTO users VALUES('u','Admin','a@example.test','disabled'),('m','Operador','m@example.test','disabled'); INSERT INTO memberships VALUES('u','a','owner'),('m','a','operator'); INSERT INTO catalog(id,tenant_id,kind,name,sku,cost,price) VALUES('p','a','product','Peça fictícia','FIC',1000,2000); INSERT INTO orders(id,tenant_id,number,kind,status,entered_on,due_on,km,total) VALUES('o','a',1,'quote','quote','2026-11-01','2026-11-01',0,2000); INSERT INTO order_items(id,tenant_id,order_id,catalog_id,kind,name,quantity,cost,price) VALUES('i','a','o','p','product','Peça fictícia',1,1000,2000)",
+    "INSERT INTO tenants(id,name) VALUES('a','Fictícia A'),('b','Fictícia B'); INSERT INTO users VALUES('u','Admin','a@example.test','disabled'),('m','Operador','m@example.test','disabled'),('ub','Admin B','b@example.test','disabled'); INSERT INTO memberships VALUES('u','a','owner'),('m','a','operator'),('ub','b','owner'); INSERT INTO catalog(id,tenant_id,kind,name,sku,cost,price) VALUES('p','a','product','Peça fictícia','FIC',1000,2000); INSERT INTO orders(id,tenant_id,number,kind,status,entered_on,due_on,km,total) VALUES('o','a',1,'quote','quote','2026-11-01','2026-11-01',0,2000); INSERT INTO order_items(id,tenant_id,order_id,catalog_id,kind,name,quantity,cost,price) VALUES('i','a','o','p','product','Peça fictícia',1,1000,2000)",
   );
   return db;
 }
@@ -153,6 +153,12 @@ test("OPS-003 API: permissões, oficina autenticada e simuladores sem gravação
       "a",
       Date.now() + 60000,
     );
+  db.prepare("INSERT INTO sessions VALUES(?,?,?,?)").run(
+    digest("owner-b"),
+    "ub",
+    "b",
+    Date.now() + 60000,
+  );
   const server = createApp(db).listen(0, "127.0.0.1");
   await new Promise<void>((r) => server.once("listening", r));
   const base = "http://127.0.0.1:" + (server.address() as any).port + "/api";
@@ -179,6 +185,13 @@ test("OPS-003 API: permissões, oficina autenticada e simuladores sem gravação
     );
     assert.deepEqual((await getPartsPricing(db, "a")).rules, rules);
     assert.equal((await getPartsPricing(db, "b")).service_rules, undefined);
+    const readB = await fetch(base + "/workspace", {
+      headers: { Cookie: "hp_session=owner-b" },
+    });
+    assert.equal(readB.status, 200);
+    const policyB = (await readB.json()).parts_pricing;
+    assert.equal(policyB.service_rules, undefined);
+    assert.deepEqual(policyB.rules, defaultRules);
     const stored = db
       .prepare("SELECT parts_pricing_rules FROM tenants WHERE id='a'")
       .get();

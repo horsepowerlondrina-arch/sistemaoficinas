@@ -17,8 +17,10 @@ A API mantém a exigência de administração e acesso ao módulo de configuraç
 ## Validação
 
 - `tests/profitTables.test.ts`: limites, arredondamento, modos, tabelas independentes, compatibilidade, persistência, permissões, tenant da sessão, simuladores e preservação histórica.
-- `tests/profitTables.postgres.integration.ts`: PostgreSQL 17 temporário, persistência, RLS entre oficinas, permissões e rollback.
+- `tests/profitTables.postgres.integration.ts`: PostgreSQL 17 temporário, persistência, preservação da configuração da outra oficina, permissões e rollback.
 - `scripts/capture-settings.mjs`: navegador isolado, inclusão/edição/exclusão, lacunas/sobreposições, proteção de rascunho, salvamento real e recarga. Integra o workflow visual existente.
 - Capturas afetadas: `config-lucro-pecas` e `config-lucro-pecas-desktop`, módulo 14. A biblioteca permanece exclusivamente em `docs/mapeamento-visual/` no GitHub.
 
 A validação de gravação utiliza somente dados fictícios em bancos temporários. Integração na main depende da aprovação solicitada na OPS-003; publicação e validação online ocorrem depois dela.
+
+A política preexistente de `tenants` permite acesso da role de backend às oficinas; esta tabela não oferece uma segunda barreira de RLS por tenant. O isolamento da configuração é aplicado pela API, usando a oficina autenticada e ignorando tenant enviado no corpo. Testes verificam sessões A/B e preservação da configuração B ao salvar A. Esta tarefa não amplia permissões nem altera políticas; endurecer essa política requer uma revisão específica que preserve login e seleção de oficina.

@@ -8,7 +8,7 @@ import {
   savePartsPricing,
 } from "../server/services/partsPricing";
 import { catalogSalePrice } from "../shared/pricing";
-test("OPS-003 PostgreSQL 17: faixas persistidas, isolamento RLS e rollback sem alterar históricos", async () => {
+test("OPS-003 PostgreSQL 17: faixas persistidas, isolamento por oficina e rollback sem alterar históricos", async () => {
   const credentials = JSON.parse(
     readFileSync(
       process.env.LOCAL_TEST_CREDENTIALS_FILE || "data/local-credentials.json",
@@ -34,6 +34,7 @@ test("OPS-003 PostgreSQL 17: faixas persistidas, isolamento RLS e rollback sem a
     await db.withRequestContext!(
       { "app.tenant_id": "local-a", "app.user_id": user },
       async () => {
+        const otherBefore = await getPartsPricing(db, "local-b");
         const history = await db
           .prepare(
             "SELECT id,price,cost FROM order_items WHERE tenant_id='local-a' ORDER BY id",
@@ -56,11 +57,7 @@ test("OPS-003 PostgreSQL 17: faixas persistidas, isolamento RLS e rollback sem a
         assert.deepEqual(saved.service_rules, service_rules);
         assert.equal(catalogSalePrice("product", 10000, 0, saved), 12000);
         assert.equal(catalogSalePrice("service", 10000, 0, saved), 17000);
-        assert.equal(
-          (await db.prepare("SELECT id FROM tenants WHERE id='local-b'").all())
-            .length,
-          0,
-        );
+        assert.deepEqual(await getPartsPricing(db, "local-b"), otherBefore);
         assert.deepEqual(
           await db
             .prepare(
