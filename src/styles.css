@@ -4595,11 +4595,6 @@ body {
 .product-batch-totals { display: grid; gap: 8px; margin-top: 16px; padding: 12px; border-radius: 8px; background: #f6f7fa; }
 .product-batch-totals span { overflow-wrap: anywhere; }
 
-/* Identificação permanente do ambiente isolado. */
-body { padding-top: 36px; }
-.development-notice { position: fixed; top: 0; left: 0; right: 0; z-index: 100000; height: 36px; display: flex; align-items: center; justify-content: center; padding: 4px 8px; background: #202022; color: white; font: 600 12px/1.2 system-ui, sans-serif; text-align: center; }
-.sidebar { top: 36px; height: calc(100dvh - 36px); }
-@media print { body { padding-top: 0; } .development-notice { position: static; height: auto; color: black; background: white; border-bottom: 1px solid; } }
 .repair-picker {display:grid;gap:16px;min-width:0;margin:18px 0;}
 .repair-results {display:grid;gap:8px;max-height:360px;overflow:auto;min-width:0;}
 .repair-result {display:grid;gap:6px;min-width:0;}
@@ -5288,3 +5283,27 @@ body { padding-top: 36px; }
   .settings-tabs { gap:4px; }
   .settings-tabs button { padding:12px 10px; }
 }
+
+/* The workshop login shares the OSDrive administrative login's light visual language. */
+.office-auth{min-height:100dvh;display:grid;place-items:center;padding:32px 18px;background:radial-gradient(ellipse at top,#fbeaec 0,#f7f5f5 58%);color:#202022}
+.office-auth-card{width:min(100%,460px);display:flex;flex-direction:column;gap:18px;padding:32px;background:#fff;border:1px solid #e2e7ec;border-top:4px solid #a31c28;border-radius:14px;box-shadow:0 6px 22px #172b3a0a}
+.office-auth-kicker{font-size:11px;font-weight:750;letter-spacing:.11em;text-transform:uppercase;color:#758391}
+.office-auth-card h1{font-size:clamp(25px,3vw,34px);letter-spacing:-.04em;line-height:1.12;margin:0}
+.office-auth-card>p:not(.office-auth-note){color:#687584;line-height:1.55;margin:-6px 0 0}
+.office-auth-form{display:grid;gap:10px}
+.office-auth-form>label:not(.office-auth-remember){font-size:13px;font-weight:650;color:#475465}
+.office-auth-form>input,.office-auth-password{width:100%;height:44px;border:1px solid #cbd4dc;border-radius:8px;background:#fff;color:#202022}
+.office-auth-form>input{padding:0 12px}
+.office-auth-password{display:flex;align-items:center}
+.office-auth-password input{flex:1;min-width:0;height:100%;border:0;outline:none;box-shadow:none;padding:0 12px;background:transparent;color:#202022}
+.office-auth-password button{width:44px;height:42px;flex:none;display:grid;place-items:center;border:0;background:transparent;color:#52616f}
+.office-auth-password button:hover{color:#a31c28}
+.office-auth-form>input:focus,.office-auth-password:focus-within{border-color:#a31c28;outline:none;box-shadow:0 0 0 3px #a31c2822}
+.office-auth-password input:focus{border:0;outline:0;box-shadow:none}
+.office-auth-remember{display:flex;align-items:center;gap:8px;margin:5px 0;color:#52616f;font-size:12px;cursor:pointer}
+.office-auth-remember input{width:16px;height:16px;min-height:0;margin:0;accent-color:#a31c28}
+.office-auth-error{padding:10px 12px;border-radius:8px;background:#fff0ed;color:#a73528;font-size:13px;line-height:1.5}
+.office-auth-submit{min-height:44px;border:0;border-radius:8px;background:#a31c28;color:white;font-size:13px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.office-auth-submit:hover:not(:disabled){background:#7d111b}
+.office-auth-note{padding-top:16px;border-top:1px solid #e7ebee;color:#687584;font-size:12px;line-height:1.5}
+@media(max-width:480px){.office-auth{padding:20px 14px}.office-auth-card{padding:24px 18px;gap:16px}}
