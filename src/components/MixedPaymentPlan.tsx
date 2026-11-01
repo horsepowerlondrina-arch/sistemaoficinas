@@ -1,3 +1,5 @@
+import { useCardMachines, CardMachineChoice } from "./CardMachines";
+import { selectCardMachine } from "../../shared/cardMachines";
 import { useEffect, useState } from "react";
 import { useApp } from "../lib/context";
 import { send } from "../lib/api";
@@ -14,6 +16,7 @@ const methods = [
   "Boleto",
 ];
 type Part = {
+  machine_id: string;
   key: string;
   amount: number;
   method: string;
@@ -25,6 +28,7 @@ type Part = {
   pass_card_fee: boolean;
 };
 const fresh = (method: string, amount: number): Part => ({
+  machine_id: "",
   key: crypto.randomUUID(),
   amount,
   method,
@@ -51,6 +55,8 @@ export function MixedPaymentPlan({
   onSaved?: () => void;
 }) {
   const { data, refresh, notify } = useApp();
+  const {machines,error:machineError}=useCardMachines();
+  useEffect(()=>{if(machines.length)setParts(old=>old.map(p=>selectCardMachine(p,machines)));},[machines]);
   const [parts, setParts] = useState<Part[]>(() => initialPayments?.length
     ? initialPayments.map((part) => ({ ...part, key: crypto.randomUUID() }))
     : [fresh("Pix", receivable.amount), fresh("Dinheiro", 0)]);
@@ -123,15 +129,7 @@ export function MixedPaymentPlan({
                     const method = e.target.value;
                     change(
                       p.key,
-                      selectPaymentMethod(
-                        p,
-                        method,
-                        method === "Cartão de crédito"
-                          ? data.payment_settings?.credit_fee_bps || 0
-                          : method === "Cartão de débito"
-                            ? data.payment_settings?.debit_fee_bps || 0
-                            : 0,
-                      ),
+                      selectCardMachine(selectPaymentMethod(p,method,0),machines),
                     );
                   }}
                 >
@@ -163,19 +161,15 @@ export function MixedPaymentPlan({
               <Field label="Parcelas">
                 <NumericInput
                   min={1}
-                  max={p.method === "Cartão de crédito" ? 12 : 24}
+                  max={p.method === "Cartão de crédito" ? machines.find(m=>m.id===p.machine_id)?.max_installments || 24 : 24}
                   disabled={!["Cartão de crédito", "Boleto"].includes(p.method)}
                   value={p.installments}
                   onChange={(e) => {
                     const n = Number(e.target.value);
                     change(p.key, {
                       installments: n,
-                      card_fee_bps:
-                        data.card_rates?.find(
-                          (r) => r.method === p.method && r.installments === n,
-                        )?.fee_bps ?? p.card_fee_bps,
-                      interest_bps:
-                        n > 1 ? data.payment_settings?.interest_bps || 0 : 0,
+                      card_fee_bps:selectCardMachine({...p,installments:n},machines).card_fee_bps,
+                      interest_bps:n>1&&p.method==='Boleto'?data.payment_settings?.interest_bps||0:0,
                     });
                   }}
                 />
@@ -208,19 +202,7 @@ export function MixedPaymentPlan({
             {(p.method.startsWith("Cartão") || p.installments > 1) && (
               <div className="form-grid">
               {p.method.startsWith("Cartão") && (
-                <Field label="Taxa da operadora (%)">
-                  <NumericInput
-                    min={0}
-                    max={100}
-                    step="0.01"
-                    value={p.card_fee_bps / 100}
-                    onChange={(e) =>
-                      change(p.key, {
-                        card_fee_bps: Math.round(Number(e.target.value) * 100),
-                      })
-                    }
-                  />
-                </Field>
+                <CardMachineChoice machines={machines} machineId={p.machine_id} method={p.method} installments={p.installments} error={machineError} onChange={id=>change(p.key,selectCardMachine(p,machines,id))}/>
               )}
               {p.installments > 1 && (
                 <Field label="Juros totais do parcelamento (%)">
@@ -281,7 +263,7 @@ export function MixedPaymentPlan({
             )!;
             setParts((old) => [
               ...old,
-              fresh(method, Math.max(0, receivable.amount - total)),
+              selectCardMachine(fresh(method, Math.max(0, receivable.amount - total)),machines),
             ]);
           }}
         >
@@ -341,3 +323,4 @@ export function MixedPaymentPlan({
     </div>
   );
 }
+

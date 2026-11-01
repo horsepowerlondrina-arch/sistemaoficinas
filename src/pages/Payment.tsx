@@ -1,3 +1,5 @@
+import { useCardMachines, CardMachineChoice } from "../components/CardMachines";
+import { selectCardMachine } from "../../shared/cardMachines";
 import { nextBankingDay } from "../../shared/bankingDays";
 import { selectPaymentMethod } from "../../shared/paymentMethod";
 import { NumericInput } from "../components/NumericInput";
@@ -20,10 +22,12 @@ export function Payment() {
   const { id } = useParams();
   const { data, refresh, notify } = useApp();
   const navigate = useNavigate();
+  const {machines,error:machineError}=useCardMachines();
   const [editingPlan, setEditingPlan] = useState(false);
   const original = data.receivables.find((r) => r.order_id === id);
   const r = original && editingPlan ? {...original,plan_configured:0} : original;
   const [form, setForm] = useState({
+    machine_id: "",
     method: "Pix",
     installments: 1,
     card_fee_bps: 0,
@@ -76,6 +80,7 @@ export function Payment() {
     setMixed(original.method === "Misto");
     setForm((current) => ({
       ...current,
+      machine_id: data.installments.find(p=>p.receivable_id===original.id)?.machine_id || "",
       method: original.method === "Misto" ? current.method : original.method,
       installments: Number(original.installment_count || 1),
       card_fee_bps: Number(original.card_fee_bps || 0),
@@ -113,6 +118,9 @@ export function Payment() {
       clearTimeout(timer);
     };
   }, [r?.id, r?.plan_configured, form, mixed, editingPlan, discountMode, discountInputValue, discountedTotal]);
+  useEffect(()=>{
+    if(!r?.plan_configured&&machines.length)setForm(current=>selectCardMachine(current,machines));
+  },[machines,r?.plan_configured]);
   if (!r)
     return (
       <Empty
@@ -137,13 +145,14 @@ export function Payment() {
         const interest = methodParts.reduce((sum, part) => sum + Number(part.interest || 0), 0);
         return {
           method,
+          machine_id: methodParts[0]?.machine_id || "",
           amount: principal,
           installments: methodParts.length,
-          card_fee_bps: method.startsWith("Cartão") && gross > 0 ? Math.round((fee * 10000) / gross) : 0,
+          card_fee_bps: methodParts[0]?.card_fee_bps ?? (method.startsWith("Cartão") && gross > 0 ? Math.round((fee * 10000) / gross) : 0),
           interest_bps: principal > 0 ? Math.round((interest * 10000) / principal) : 0,
           first_due_on: methodParts.map((part) => part.due_on).sort()[0] || today(),
           sale_on: original.card_sale_on || today(),
-          pass_card_fee: methodParts.some((part) => Number(part.gross) > Number(part.principal) + Number(part.interest)),
+          pass_card_fee: methodParts[0]?.pass_card_fee != null ? !!methodParts[0].pass_card_fee : methodParts.some((part) => Number(part.gross) > Number(part.principal) + Number(part.interest)),
         };
       })
     : undefined;
@@ -167,18 +176,7 @@ export function Payment() {
     : preview;
   const card = form.method.startsWith("Cartão"),
     canSplit = ["Cartão de crédito", "Boleto"].includes(form.method);
-  const changeMethod = (method: string) =>
-    setForm((current) =>
-      selectPaymentMethod(
-        current,
-        method,
-        method === "Cartão de crédito"
-          ? data.payment_settings?.credit_fee_bps || 0
-          : method === "Cartão de débito"
-            ? data.payment_settings?.debit_fee_bps || 0
-            : 0,
-      ),
-    );
+  const changeMethod = (method:string) => setForm(current=>selectCardMachine(selectPaymentMethod(current,method,0),machines));
   const updateDiscountValue = (value: number, mode = discountMode) => {
     setDiscountValue(value);
     const nextDiscount = Math.min(
@@ -207,6 +205,7 @@ export function Payment() {
         description={r.customer_name}
       />
       <section className="panel work-order-section receipt-panel">
+        {!!r.plan_configured && parts.filter((p,i,rows)=>p.machine_name&&rows.findIndex(x=>x.machine_id===p.machine_id&&x.method===p.method)===i).map(p=><p key={p.id}>Máquina: {p.machine_name} · {p.machine_operator} · {p.method} · {p.installment_count}x · Taxa utilizada: {(Number(p.card_fee_bps)/100).toFixed(2)}%</p>)}
         {error && <div className="error-box" role="alert">{error}</div>}
       {order && (
         <div className="receipt-section">
@@ -278,23 +277,15 @@ export function Payment() {
               <NumericInput
                 type="number"
                 min={1}
-                max={form.method === "Cartão de crédito" ? 12 : 24}
+                max={form.method === "Cartão de crédito" ? machines.find(m=>m.id===form.machine_id)?.max_installments || 24 : 24}
                 disabled={!canSplit}
                 value={form.installments}
                 onChange={(e) =>
                   setForm((f) => ({
                     ...f,
                     installments: Number(e.target.value),
-                    card_fee_bps:
-                      data.card_rates?.find(
-                        (r) =>
-                          r.method === f.method &&
-                          r.installments === Number(e.target.value),
-                      )?.fee_bps ?? f.card_fee_bps,
-                    interest_bps:
-                      Number(e.target.value) > 1
-                        ? data.payment_settings?.interest_bps || 0
-                        : 0,
+                    card_fee_bps: selectCardMachine({...f,installments:Number(e.target.value)},machines).card_fee_bps,
+                    interest_bps: Number(e.target.value)>1 && f.method==='Boleto' ? data.payment_settings?.interest_bps || 0 : 0,
                   }))
                 }
               />
@@ -315,21 +306,7 @@ export function Payment() {
           {card && <h2 className="receipt-subheading">Taxas do cartão</h2>}
           {!card && form.installments > 1 && <h2 className="receipt-subheading">Juros do parcelamento</h2>}
           {(card || form.installments > 1) && <div className="form-grid">
-            {card && <Field label="Taxa da operadora — custo da oficina (%)">
-              <NumericInput
-                type="number"
-                min={0}
-                max={100}
-                step="0.01"
-                value={form.card_fee_bps / 100}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    card_fee_bps: Math.round(Number(e.target.value) * 100),
-                  })
-                }
-              />
-            </Field>}
+            {card && <CardMachineChoice machines={machines} machineId={form.machine_id} method={form.method} installments={form.installments} error={machineError} onChange={id=>setForm(current=>selectCardMachine(current,machines,id))}/>}
             {form.installments > 1 && <Field label="Juros totais do parcelamento — cliente (%)">
               <NumericInput
                 type="number"
@@ -538,3 +515,4 @@ export function Payment() {
     </>
   );
 }
+

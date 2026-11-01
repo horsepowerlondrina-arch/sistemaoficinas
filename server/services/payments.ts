@@ -1,3 +1,4 @@
+import { resolveCardPayments } from "./cardMachines.js";
 import { transaction, type DB } from "../db/database.js";
 import type { Context } from "../auth/session.js";
 import { calculatePaymentPlan, type PaymentInput, type MixedPaymentInput } from "../domain/payments.js";
@@ -129,7 +130,7 @@ export async function configurePlan(
         .get(ctx.tenantId, record))
     )
       throw new Error("O plano não pode mudar após um recebimento.");
-    const plan = calculatePaymentPlan(r.amount, input);
+    const plan = calculatePaymentPlan(r.amount, await resolveCardPayments(db, ctx, input));
     const credit = plan.plans.find(p=>p.method==='Cartão de crédito');
     const saleOn = credit ? credit.input.sale_on || cashToday() : '';
     const method = plan.plans.length>1 ? 'Misto' : plan.plans[0].method;
@@ -147,7 +148,7 @@ export async function configurePlan(
     for (const part of plan.installments)
       await db
         .prepare(
-          "INSERT INTO payment_installments(id,tenant_id,receivable_id,sequence,due_on,principal,interest,gross,fee,net,method) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+          "INSERT INTO payment_installments(id,tenant_id,receivable_id,sequence,due_on,principal,interest,gross,fee,net,method,machine_id,machine_name,machine_operator,card_fee_bps,pass_card_fee,installment_count) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         )
         .run(
           id(),
@@ -161,6 +162,12 @@ export async function configurePlan(
           part.fee,
           part.net,
           part.method,
+          part.machine_id || null,
+          part.machine_name || "",
+          part.machine_operator || "",
+          part.card_fee_bps,
+          Number(part.pass_card_fee),
+          part.installment_count,
         );
     await db
       .prepare(
@@ -356,3 +363,4 @@ export async function settleCredit(
     return { ok: true, settlement_on: day, net: totals.net };
   });
 }
+

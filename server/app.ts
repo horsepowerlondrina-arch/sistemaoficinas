@@ -79,6 +79,7 @@ import { requireAdmin } from "./services/payments.js";
 import { previewStockInvoice, importStockInvoice } from "./services/stockInvoices.js";
 import { listSuppliers, supplierDetails, saveSupplier } from "./services/suppliers.js";
 import { getWorkshopProfile, saveWorkshopProfile } from "./services/workshopProfile.js";
+import { listCardMachines, saveCardMachine, resolveCardPayments } from "./services/cardMachines.js";
 import { calculatePaymentPlan, paymentMethods } from "./domain/payments.js";
 import { lookupVehicle, lookupVehicleExternal, normalizePlate, vehicleLookupAccess } from "./services/vehicleLookup.js";
 import { vehicleFipeFields } from "./services/vehicleFipeFields.js";
@@ -187,6 +188,7 @@ const orderSchema = z.object({
     .max(200),
 });
 const paymentSchema = z.object({
+  machine_id: z.string().max(100).optional(),
   pass_card_fee: z.boolean().default(false),
   method: z.enum(paymentMethods),
   installments: z.number().int().min(1).max(24),
@@ -1259,6 +1261,9 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
     });
     res.json({ ok: true });
   });
+  app.get("/api/card-machines", async (_req,res) => res.json(await listCardMachines(db,res.locals.context)));
+  app.post("/api/card-machines", async (req,res) => res.status(201).json(await saveCardMachine(db,res.locals.context,req.body)));
+  app.put("/api/card-machines/:id", async (req,res) => res.json(await saveCardMachine(db,res.locals.context,req.body,String(req.params.id))));
   app.put("/api/payment-settings", async (req, res) => {
     const input = z
       .object({
@@ -1293,7 +1298,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
     const amount = discount
       ? (await previewReceivableDiscount(db, res.locals.context, String(req.params.id), discount)).total
       : Number(r.amount);
-    res.json(calculatePaymentPlan(amount, receiptPlanSchema.parse(req.body)));
+    res.json(calculatePaymentPlan(amount, await resolveCardPayments(db,res.locals.context,receiptPlanSchema.parse(req.body))));
   });
   app.post("/api/receivables/:id/discount", async (req, res) => {
     res.json(
@@ -1721,3 +1726,4 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
   );
   return app;
 }
+

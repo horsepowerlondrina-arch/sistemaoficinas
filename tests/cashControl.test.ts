@@ -23,6 +23,7 @@ function fixture() {
       "a",
       Date.now() + 3600000,
     );
+  db.exec("INSERT INTO card_machines(id,tenant_id,name,name_key,operator,is_default,max_installments) VALUES('fixture-card','a','Máquina fictícia','máquina fictícia','Operadora fictícia',1,12);INSERT INTO card_machine_rates VALUES('a','fixture-card','Cartão de crédito',1,300);");
   return db;
 }
 test("recorrentes podem ser criados editados e excluídos sem apagar contas já geradas", async () => {
@@ -398,3 +399,4 @@ test("relatório usa datas inclusivas e distingue implantação de saldo e entra
   assert.equal(new DataView(bytes.buffer).getUint32(0, true), 0x04034b50);
   assert.ok(new TextDecoder().decode(bytes).includes('t="inlineStr"'));
 });
+

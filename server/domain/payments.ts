@@ -7,6 +7,9 @@ export const paymentMethods = [
   "Boleto",
 ] as const;
 export type PaymentInput = {
+  machine_id?: string;
+  machine_name?: string;
+  machine_operator?: string;
   method: string;
   installments: number;
   card_fee_bps: number;
@@ -31,7 +34,7 @@ export function calculatePaymentPlan(base:number,input:PaymentInput|MixedPayment
     gross:plans.reduce((s,p)=>s+p.gross,0),
     fee:plans.reduce((s,p)=>s+p.fee,0),
     net:plans.reduce((s,p)=>s+p.net,0),
-    installments:plans.flatMap(p=>p.installments.map(i=>({...i,sequence:++sequence,method:p.method}))),
+    installments:plans.flatMap(p=>p.installments.map(i=>({...i,sequence:++sequence,method:p.method,machine_id:p.input.machine_id,machine_name:p.input.machine_name,machine_operator:p.input.machine_operator,card_fee_bps:p.input.card_fee_bps,pass_card_fee:!!p.input.pass_card_fee,installment_count:p.input.installments}))),
     plans,
   };
 }
@@ -78,18 +81,19 @@ export function calculatePlan(base: number, input: PaymentInput) {
     throw new Error(
       "Juros de parcelamento só se aplicam a pagamentos parcelados.",
     );
-  const interest = Math.round((base * input.interest_bps) / 10000);
-  if (
-    input.pass_card_fee &&
-    (!input.method.startsWith("Cartão") || input.card_fee_bps >= 10000)
-  )
+  const roundRatio = (amount: bigint, rate: bigint, denominator=10000n) => (amount*rate+denominator/2n)/denominator;
+  const interestExact=roundRatio(BigInt(base),BigInt(input.interest_bps));
+  if(input.pass_card_fee && (!input.method.startsWith("Cartão") || input.card_fee_bps>=10000))
     throw new Error("Repasse requer cartão e taxa inferior a 100%.");
-  const gross = input.pass_card_fee
-    ? Math.round(((base + interest) * 10000) / (10000 - input.card_fee_bps))
-    : base + interest;
-  const surcharge = gross - base - interest;
-  const fee = Math.round((gross * input.card_fee_bps) / 10000);
-  const net = gross - fee;
+  const target=BigInt(base)+interestExact, rate=BigInt(input.card_fee_bps);
+  let grossExact=input.pass_card_fee?roundRatio(target,10000n,10000n-rate):target;
+  // At cent boundaries preserve the requested net after rounding the operation's fee.
+  if(input.pass_card_fee && grossExact-roundRatio(grossExact,rate)<target)grossExact++;
+  if(grossExact>BigInt(Number.MAX_SAFE_INTEGER))throw new Error("Valor excede o limite monetário seguro.");
+  const interest=Number(interestExact), gross=Number(grossExact);
+  const surcharge=gross-base-interest;
+  const fee=Number(roundRatio(grossExact,rate));
+  const net=gross-fee;
   // Allocate fees against each installment's gross to avoid negative net values.
   const principals = split(base, input.installments),
     grossParts = split(gross, input.installments);
@@ -106,7 +110,7 @@ export function calculatePlan(base: number, input: PaymentInput) {
         fee - allocated - remainingGross,
         index === input.installments - 1
           ? fee - allocated
-          : Math.round((installmentGross * input.card_fee_bps) / 10000),
+          : Number(roundRatio(BigInt(installmentGross), rate)),
       ),
     );
     allocated += partFee;
@@ -122,3 +126,4 @@ export function calculatePlan(base: number, input: PaymentInput) {
   });
   return { base, interest, surcharge, gross, fee, net, installments };
 }
+

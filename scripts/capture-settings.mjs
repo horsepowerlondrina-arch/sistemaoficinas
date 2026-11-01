@@ -13,26 +13,6 @@ export async function captureSettings(page,entry){
   await page.goto(new URL("/configuracoes?aba=inexistente",page.url()).toString());
   await expect(page.locator('[data-settings-tab="oficina"]')).toHaveAttribute("aria-current","page");
  }
- if(entry.id==="config-geral-taxas-desktop"){
-  const debit=page.getByRole("spinbutton",{name:"Taxa da oficina — débito (%)",exact:true});
-  const initial=await debit.inputValue();await debit.fill(initial==="7"?"8":"7");
-  page.once("dialog",dialog=>dialog.accept());
-  await page.locator('[data-settings-tab="conta"]').click();
-  await page.locator('[data-settings-tab="geral"]').click();
-  await expect(debit).toHaveValue(initial);
-  const sessionResponse=await page.request.get(new URL("/api/session",page.url()).toString());
-  const session=await sessionResponse.json();
-  const workspaceResponse=await page.request.get(new URL("/api/workspace",page.url()).toString());
-  const workspace=await workspaceResponse.json();
-  const sessionRoute=route=>route.fulfill({json:{...session,modules:{...session.modules,finance:false}}});
-  const workspaceRoute=route=>route.fulfill({json:{...workspace,payment_settings:null,card_rates:[],modules:{...workspace.modules,finance:false}}});
-  await page.route("**/api/session",sessionRoute);await page.route("**/api/workspace",workspaceRoute);
-  await page.reload();
-  await expect(page.getByRole("heading",{name:"Financeiro não habilitado"})).toBeVisible();
-  await expect(page.getByRole("button",{name:"Salvar taxas"})).toHaveCount(0);
-  await page.unroute("**/api/session",sessionRoute);await page.unroute("**/api/workspace",workspaceRoute);
-  await page.reload();
- }
  if(entry.id==="config-lucro-pecas-desktop"){
   const response=await page.request.get(new URL("/api/workspace",page.url()).toString());
   const workspace=await response.json();
@@ -59,3 +39,4 @@ export async function captureSettings(page,entry){
  if(entry.route.includes("aba=servicos"))await expect(page.getByRole("button",{name:"Salvar valores da hora"})).toBeEnabled();
  await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
 }
+
