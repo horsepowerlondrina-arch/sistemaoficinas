@@ -7,14 +7,15 @@ import { PlatformBrand } from "../src/components/PlatformBrand";
 import { Login } from "../src/pages/Login";
 import { PLATFORM, platformTitle } from "../shared/platformIdentity";
 import { workshopLogo } from "./fixtures/workshopLogo";
-test("software compartilhado não adota a identidade de uma oficina ou um nome definitivo",()=>{
+test("marca OSDrive compartilhada não adota a identidade de uma oficina",()=>{
   const html=renderToStaticMarkup(createElement(Login,{onLogin:async()=>{}}));
-  assert.ok(html.includes(PLATFORM.name));assert.ok(html.includes(PLATFORM.icon));
+  assert.ok(html.includes(PLATFORM.name));assert.ok(html.includes(PLATFORM.logo));
   for(const text of ["Horse Power","Boxmotor","Londrina","horse-power.jpg","login-logo.jpg"])assert.ok(!html.includes(text));
   const compact=renderToStaticMarkup(createElement(PlatformBrand,{compact:true}));
   assert.ok(compact.includes("platform-brand--compact"));
-  assert.equal(platformTitle(),"Sistema Oficinas");
-  assert.equal(platformTitle("Oficina A"),"Oficina A · Sistema Oficinas");
+  assert.ok(compact.includes(PLATFORM.icon));
+  assert.equal(platformTitle(),"OSDrive");
+  assert.equal(platformTitle("Oficina A"),"Oficina A · OSDrive");
 });
 test("barra lateral usa exclusivamente a logo e o nome da oficina informada",()=>{
   const a={name:"Oficina A",document_logo:workshopLogo(20,110,130)};

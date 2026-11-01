@@ -1,8 +1,9 @@
-/** Descriptive placeholder, independent of every workshop and of a future product name. */
+/** Product identity shared by all workshops; workshop accents remain independent. */
 export const PLATFORM = Object.freeze({
-  name: "Sistema Oficinas",
+  name: "OSDrive",
   description: "Gestão para oficinas",
-  icon: "/brand/platform.svg",
+  icon: "/brand/osdrive-icon.png",
+  logo: "/brand/osdrive-logo.png",
 });
 export function platformTitle(workshopName?: string) {
   const name = workshopName?.trim();

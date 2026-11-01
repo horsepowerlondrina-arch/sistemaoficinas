@@ -1,4 +1,5 @@
 import { platformTitle } from "../shared/platformIdentity";
+import { workshopTheme } from "../shared/workshopTheme";
 import { uiModuleForPath } from "../shared/workshopModules";
 import { PlatformBrand } from "./components/PlatformBrand";
 import { WorkshopBrand } from "./components/WorkshopBrand";
@@ -13,7 +14,7 @@ import { PartsProfit } from "./pages/PartsProfit";
 import { Home } from "./pages/Home";
 import { Login } from "./pages/Login";
 import { Expenses, FinanceNav } from "./pages/Expenses";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import {
   NavLink,
   Route,
@@ -286,7 +287,7 @@ export function App() {
     : [];
   return (
     <AppContext.Provider value={{ data, session, refresh, refreshSession: async () => setSession(await api<Session>("/session")), notify: setToast }}>
-      <div className="app-shell">
+      <div className="app-shell" style={workshopTheme(session.tenant) as CSSProperties}>
         {mobile && (
           <button
             aria-label="Fechar menu"
