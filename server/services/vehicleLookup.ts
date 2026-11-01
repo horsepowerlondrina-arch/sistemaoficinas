@@ -201,5 +201,49 @@ export async function lookupVehicle(
       vehicle: local,
       message: "Veículo encontrado no cadastro desta oficina.",
     };
-  return lookupVehicleExternal(db, tenant, plate, fetcher);
+  const access = await vehicleLookupAccess(db, tenant);
+  if (!access.enabled) return unavailableLookup(access.status);
+  const token = providerToken(tenant, access.override)!;
+  const currentToken = fipePlacaToken(tenant, access.override);
+  if (currentToken)
+    return cachedFipeLookup(db, tenant, plate, currentToken, fetcher);
+  try {
+    const response = await fetcher("https://api.placafipe.com.br/getplaca", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ placa: plate, token }),
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!response.ok) throw new Error("provider");
+    const result = responseSchema.parse(await response.json());
+    if (result.codigo !== 1 || !result.informacoes_veiculo)
+      return {
+        source: "not_found",
+        vehicle: null,
+        message:
+          "Placa não localizada pelo provedor. Confira a placa ou preencha os dados.",
+      };
+    const v = result.informacoes_veiculo;
+    const year = Number(v.ano_modelo || v.ano);
+    return {
+      source: "external",
+      vehicle: {
+        plate,
+        brand: v.marca,
+        model: v.modelo,
+        year: Number.isInteger(Number(v.ano)) && Number(v.ano) >= 1900 ? Number(v.ano) : Number.isInteger(year) && year >= 1900 && year <= 2100 ? year : null,
+        model_year: Number.isInteger(year) && year >= 1900 && year <= 2100 ? year : null,
+        fuel: v.combustivel || "",
+        color: v.cor || "",
+      },
+      message: "Dados consultados via Placa FIPE. Confira antes de salvar.",
+    };
+  } catch {
+    throw Object.assign(
+      new Error(
+        "A consulta externa não respondeu. Tente novamente ou preencha os dados manualmente.",
+      ),
+      { status: 502 },
+    );
+  }
 }
