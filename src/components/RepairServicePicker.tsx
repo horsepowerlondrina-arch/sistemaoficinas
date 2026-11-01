@@ -153,8 +153,8 @@ function WorkshopServiceManagerForm({ initial, categories, onClose, onSaved, onC
     }
     setCalculating(true); setError("");
     try {
-      const pricing = await api<{ service_markup_bps: number }>("/repair-services/config");
-      setPrice(thirdPartySalePrice(enteredCost, pricing.service_markup_bps));
+      const pricing = await api<{ service_markup_bps: number; service_rules?: import("../../shared/pricing").PricingRule[] }>("/repair-services/config");
+      setPrice(thirdPartySalePrice(enteredCost, pricing));
     } catch (e) { setError(`Não foi possível calcular o preço de venda: ${(e as Error).message}`); }
     finally { setCalculating(false); }
   }
@@ -833,3 +833,4 @@ export function ServiceExecutionFields({
     </>
   );
 }
+

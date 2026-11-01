@@ -1,6 +1,9 @@
 import { z } from "zod";
-import { salePrice } from "../../shared/pricing.js";
-import type { DB } from "../db/database.js";
+import { salePrice, normalizePricingRules } from "../../shared/pricing.js";
+import { transaction, type DB } from "../db/database.js";
+import type { Context } from "../auth/session.js";
+import { requireAdmin } from "./payments.js";
+import { audit } from "./workshop.js";
 export const defaultRules = [
   { up_to: 2000, markup_bps: 8000, minimum_profit: 800 },
   { up_to: 5000, markup_bps: 6000, minimum_profit: 1000 },
@@ -13,28 +16,33 @@ export const defaultRules = [
 const rulesSchema = z
   .array(
     z.object({
-      up_to: z.number().int().min(1).max(100000000).nullable(),
+      from: z.number().int().min(0).max(100000000).optional(),
+      up_to: z.number().int().min(0).max(100000000).nullable(),
       markup_bps: z.number().int().min(0).max(100000),
       minimum_profit: z.number().int().min(0).max(100000000),
     }),
   )
   .min(1)
   .max(20)
-  .refine(
-    (r) =>
-      r.every((v, i) =>
-        i === r.length - 1
-          ? v.up_to === null
-          : v.up_to !== null && v.up_to > (i ? r[i - 1].up_to! : 0),
-      ),
-    "As faixas devem ser crescentes e a última sem limite.",
-  );
+  .superRefine((rules, ctx) => {
+    try {
+      normalizePricingRules(rules);
+    } catch (e) {
+      ctx.addIssue({ code: "custom", message: (e as Error).message });
+    }
+  });
 export const partsPricingSchema = z
   .object({
     mode: z.enum(["legacy", "markup", "margin"]).default("legacy"),
     rate_bps: z.number().int().min(0).max(100000).default(4000),
     rules: rulesSchema.default(defaultRules),
     service_markup_bps: z.number().int().min(0).max(100000).optional(),
+    service_rules: rulesSchema
+      .refine(
+        (r) => r.every((v) => v.minimum_profit === 0),
+        "Terceiros usam somente o percentual sobre o custo.",
+      )
+      .optional(),
   })
   .refine(
     (v) => v.mode !== "margin" || v.rate_bps < 10000,
@@ -72,9 +80,43 @@ export async function getPartsPricing(db: DB, tenant: string) {
   return partsPricingSchema.parse({
     ...r,
     rules: Array.isArray(stored) ? stored : stored.rules,
+    service_rules: Array.isArray(stored) ? undefined : stored.service_rules,
     service_markup_bps: Array.isArray(stored)
       ? 3000
       : (stored.service_markup_bps ?? 3000),
+  });
+}
+export async function savePartsPricing(db: DB, ctx: Context, body: unknown) {
+  requireAdmin(ctx);
+  if (ctx.modules?.settings === false)
+    throw Object.assign(new Error("Módulo não habilitado."), { status: 403 });
+  const patch = z
+    .object({
+      mode: z.unknown().optional(),
+      rate_bps: z.unknown().optional(),
+      rules: z.unknown().optional(),
+      service_markup_bps: z.unknown().optional(),
+      service_rules: z.unknown().optional(),
+    })
+    .parse(body);
+  return transaction(db, async () => {
+    const current = await getPartsPricing(db, ctx.tenantId);
+    const policy = partsPricingSchema.parse({ ...current, ...patch });
+    await db
+      .prepare(
+        "UPDATE tenants SET parts_pricing_mode=?,parts_pricing_bps=?,parts_pricing_rules=? WHERE id=?",
+      )
+      .run(
+        policy.mode,
+        policy.rate_bps,
+        JSON.stringify({
+          rules: policy.rules,
+          service_markup_bps: policy.service_markup_bps,
+          service_rules: policy.service_rules,
+        }),
+        ctx.tenantId,
+      );
+    await audit(db, ctx, "parts_pricing.updated", ctx.tenantId);
   });
 }
 export async function workshopPrice(db: DB, tenant: string, cost: number) {

@@ -1,3 +1,4 @@
+import {thirdPartyMarkup} from "../../shared/pricing.js";
 import { PORTE_RATE_IDS, porteRateId } from "../../shared/vehiclePorte.js";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
@@ -90,6 +91,7 @@ export async function serviceInfo(db: DB, ctx: Context) {
     enabled:catalog_status==="active",
     catalog_status,
     service_markup_bps: pricing.service_markup_bps ?? 3000,
+    service_rules: pricing.service_rules,
   };
 }
 export async function saveLaborRates(db: DB, ctx: Context, body: unknown) {
@@ -625,7 +627,7 @@ export async function saveWorkshopService(
   } else
     v.price = outsourcedPrice(
       v.cost,
-      (await getPartsPricing(db, ctx.tenantId)).service_markup_bps ?? 3000,
+      thirdPartyMarkup(v.cost, await getPartsPricing(db, ctx.tenantId)),
     );
   // Legacy porte_id values stay untouched; private services select only a tariff key.
   const key = record || randomUUID();
@@ -788,8 +790,7 @@ export async function resolveService(
   if (!existing) {
     snapshot.porte_name = snapshot.classification_name || snapshot.commercial_category_name || category?.name || "";
     rate = await commercialRate(db, ctx, categoryId);
-    markup =
-      (await getPartsPricing(db, ctx.tenantId)).service_markup_bps ?? 3000;
+
   } else if (categoryChanged) {
     rate = await commercialRate(db, ctx, categoryId);
   }
@@ -799,6 +800,7 @@ export async function resolveService(
       execution === "internal"
         ? 0
         : Number(selected.service_cost ?? snapshot.cost);
+  if (!existing && execution === "outsourced") markup=thirdPartyMarkup(cost,await getPartsPricing(db,ctx.tenantId));
   let calculated = Number(snapshot.calculated_price || 0);
   if (execution === "outsourced") calculated = outsourcedPrice(cost, markup);
   else if (!existing) {
@@ -853,3 +855,4 @@ export async function resolveService(
     catalog_id: null,
   };
 }
+
