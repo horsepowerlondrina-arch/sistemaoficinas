@@ -7,6 +7,10 @@
 
 Este inventário descreve evidências consultadas nessa referência e não se atualiza automaticamente quando `main` avança.
 
+## Atualização de governança GOV-003 — 01/11/2026
+
+**Base consultada para a alteração documental:** `main` em `55a148ab5fda21dc59ae160c2e74ef58efd62d2e`. Esta seção registra apenas a política de colaboração; as seções de código, testes e deployment abaixo permanecem um inventário histórico da auditoria de 24/10/2026. A GOV-003 substitui o limite de um Codex por até dois em tarefas independentes, branches e ambientes isolados, com merges coordenados e alterações remotas persistentes sequenciais. As autorizações e exceções da GOV-002 permanecem vigentes. O estado de CI, PR, merge e deployment desta atualização deve ser comprovado pelo próprio PR, não inferido deste inventário.
+
 ## Confirmado no código
 
 - Aplicação React/TypeScript com backend Express, API própria e persistência PostgreSQL na configuração de nuvem.

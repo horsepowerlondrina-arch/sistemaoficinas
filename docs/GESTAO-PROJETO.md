@@ -5,11 +5,20 @@
 - O repositório oficial de código é `horsepowerlondrina-arch/sistemaoficinas`; `main` é a referência de integração.
 - O repositório histórico `horse-power` não é fonte de alterações novas. Esta decisão não autoriza operações nele.
 - O planejamento funcional e a priorização ficam nas conversas específicas do ChatGPT. O Codex executa tarefas já definidas, registra evidências e não cria escopo adicional.
-- Apenas um Codex deve implementar mudanças no repositório por vez. Revisões independentes podem ocorrer sem alterar arquivos.
+- **GOV-003 — Execução paralela controlada:** até dois Codex podem implementar tarefas independentes ao mesmo tempo, em branches e ambientes de trabalho isolados (worktrees próprios ou execuções remotas independentes). Nunca compartilham o mesmo diretório ou branch de trabalho. Tarefas que toquem os mesmos componentes, arquivos, configurações, estruturas de banco ou fluxos compartilhados são sequenciais.
 - Todo trabalho começa conferindo `main`, branches, estado do checkout e documentação atual. Cada tarefa usa branch própria derivada da versão atual de `main`; não se reutiliza uma branch antiga sem conferir sua base.
 - Cada solicitação de implementação do responsável autoriza o fluxo completo no escopo solicitado: branch, implementação, testes, PR e integração após CI aprovado e proteções satisfeitas. Não se pede aprovação rotineira adicional para merge nem para a publicação automática na homologação.
 - Migrações remotas, alterações persistentes/destrutivas de dados, mudanças sensíveis de credenciais, segredos, autenticação ou permissões e publicação em produção continuam exigindo autorização específica.
 - **GOV-002 — Padronização de autorizações e publicação:** registrar como política de governança a execução ponta a ponta por tarefa, mantendo as exceções de segurança e os controles obrigatórios da plataforma.
+- **GOV-003 — Desenvolvimento paralelo:** conservar integralmente a autorização padrão da GOV-002 e suas exceções. Coordenar merges e publicações para que cada PR seja validado sobre uma `main` compatível. Nunca executar alterações simultâneas em bancos remotos persistentes.
+
+## Coordenação de até dois Codex
+
+- Antes de iniciar, cada execução consulta a `main` e os PRs/branches existentes; usa sua própria branch, ambiente isolado, CI PostgreSQL 17 temporário e dados fictícios. Não há dependência obrigatória do computador do responsável.
+- Cada tarefa tem implementação, correções, testes e PR próprios. Se outro PR entrar primeiro, a tarefa remanescente verifica conflitos, atualiza sua branch de forma segura e repete testes cujo resultado foi invalidado pela atualização.
+- A integração é serializada: confirme a base e as verificações obrigatórias imediatamente antes do merge. Após o deployment automático da sua integração, confira o commit na homologação e valide o fluxo que o acesso permitir.
+- Capturas e índices em `docs/mapeamento-visual/` exigem coordenação quando duas tarefas atingem as mesmas telas; preserve a versão mais recente e refaça a verificação visual aplicável.
+- Podem ocorrer em paralelo, por exemplo, documentação de um módulo e correção isolada de outro. Exigem sequência duas alterações de migração no mesmo schema, duas edições do mesmo formulário ou dos mesmos índices/capturas, e mudanças concorrentes em autenticação/permissões. Bancos remotos persistentes nunca recebem alterações simultâneas.
 
 ## Frentes e módulos
 
