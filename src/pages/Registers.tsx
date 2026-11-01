@@ -162,7 +162,7 @@ export function Registers({ kind }: { kind: Kind }) {
           }}
         />
       )}
-      <section className="panel register-panel">
+      <section className={`panel register-panel${kind === "catalog" ? " products-register-panel" : ""}`}>
         {kind === "catalog" && (
           <div className="tabs">
             {[
@@ -201,8 +201,9 @@ export function Registers({ kind }: { kind: Kind }) {
           </div>
         </div>
         {rows.length ? (
-          <div className="table-scroll">
-            <table>
+          <div className="table-scroll" tabIndex={kind === "catalog" ? 0 : undefined} role={kind === "catalog" ? "region" : undefined} aria-label={kind === "catalog" ? "Tabela de produtos" : undefined}>
+            <table className={kind === "catalog" ? "products-register-table" : undefined}>
+              {kind === "catalog" && <colgroup><col className="product-col-description" /><col className="product-col-reference" /><col className="product-col-cost" /><col className="product-col-price" /><col className="product-col-stock" /><col className="product-col-edit" /></colgroup>}
               <thead>
                 <tr>
                   {(kind === "customers"

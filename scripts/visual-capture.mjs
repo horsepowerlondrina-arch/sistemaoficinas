@@ -4,6 +4,7 @@ import { resolve, dirname, join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { chromium, expect } from "@playwright/test";
 import { captureCad005 } from "./capture-cad005.mjs";
+import { captureProducts } from "./capture-products.mjs";
 
 const root = process.cwd();
 const catalogPath = resolve(root, "docs/mapeamento-visual/catalog.json");
@@ -150,6 +151,7 @@ try {
       }
     }
     await captureCad005(page, entry);
+    if (entry.route === "/catalogo") await captureProducts(page, entry);
     await page.waitForTimeout(300);
     const path = outputFor(entry);
     mkdirSync(dirname(path), { recursive: true });
