@@ -15,7 +15,7 @@ Permissões atuais preservadas: recebimentos são exclusivos de owner com Financ
 - SQLite: `server/db/migrations/031-card-machines.sql`.
 - PostgreSQL descartável: `local-postgres/029-card-machines.sql`.
 - Homologação, somente após autorização específica: `supabase/migrations/20261101123801_ops_002_card_machines.sql`.
-- Backfill cria uma máquina legada por oficina que já possui taxas. Taxas por parcela têm precedência sobre os padrões de débito/crédito 1x. Não inventa taxas para parcelas sem cadastro. Taxa antiga de 100% fica preservada na tabela original, mas indisponível na nova máquina por inviabilizar repasse.
+- Backfill cria uma máquina legada por oficina que já possui taxas. Taxas por parcela têm precedência sobre os padrões de débito/crédito 1x. Não inventa taxas para parcelas sem cadastro. Taxa antiga de 100% também é migrada: pode ser usada sem repasse (líquido zero); o cálculo rejeita seu repasse, que não preservaria o líquido.
 - Juros padrão continuam preservados e editáveis; são sugeridos para boleto parcelado. Cartão inicia sem juros e sem repasse; alterações explícitas de juros permanecem disponíveis no recebimento.
 - Recebimentos históricos não são atualizados: máquina/taxa desconhecidas permanecem nulas, valores existentes intactos.
 - Aplicar uma vez via histórico de migrações, em transação, antes de publicar o código. Não executar manualmente duas vezes. Não existem migrações automáticas remotas no runtime.

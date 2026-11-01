@@ -17,7 +17,7 @@ CREATE TABLE card_machine_rates (
  machine_id TEXT NOT NULL,
  method TEXT NOT NULL CHECK(method IN ('Cartão de débito','Cartão de crédito')),
  installments INTEGER NOT NULL CHECK(installments BETWEEN 1 AND 24),
- fee_bps INTEGER NOT NULL CHECK(fee_bps BETWEEN 0 AND 9999),
+ fee_bps INTEGER NOT NULL CHECK(fee_bps BETWEEN 0 AND 10000),
  CHECK(method<>'Cartão de débito' OR installments=1),
  PRIMARY KEY(tenant_id,machine_id,method,installments),
  FOREIGN KEY(tenant_id,machine_id) REFERENCES card_machines(tenant_id,id)
@@ -34,10 +34,10 @@ SELECT c.tenant_id,'legacy-card-'||c.tenant_id,c.method,c.installments,c.fee_bps
 WHERE c.method IN ('Cartão de débito','Cartão de crédito');
 INSERT INTO card_machine_rates(tenant_id,machine_id,method,installments,fee_bps)
 SELECT p.tenant_id,'legacy-card-'||p.tenant_id,'Cartão de débito',1,p.debit_fee_bps FROM payment_settings p
-WHERE p.debit_fee_bps<10000 AND NOT EXISTS(SELECT 1 FROM card_rates c WHERE c.tenant_id=p.tenant_id AND c.method='Cartão de débito' AND c.installments=1);
+WHERE NOT EXISTS(SELECT 1 FROM card_rates c WHERE c.tenant_id=p.tenant_id AND c.method='Cartão de débito' AND c.installments=1);
 INSERT INTO card_machine_rates(tenant_id,machine_id,method,installments,fee_bps)
 SELECT p.tenant_id,'legacy-card-'||p.tenant_id,'Cartão de crédito',1,p.credit_fee_bps FROM payment_settings p
-WHERE p.credit_fee_bps<10000 AND NOT EXISTS(SELECT 1 FROM card_rates c WHERE c.tenant_id=p.tenant_id AND c.method='Cartão de crédito' AND c.installments=1);
+WHERE NOT EXISTS(SELECT 1 FROM card_rates c WHERE c.tenant_id=p.tenant_id AND c.method='Cartão de crédito' AND c.installments=1);
 ALTER TABLE payment_installments ADD COLUMN machine_id TEXT;
 ALTER TABLE payment_installments ADD COLUMN machine_name TEXT NOT NULL DEFAULT '';
 ALTER TABLE payment_installments ADD COLUMN machine_operator TEXT NOT NULL DEFAULT '';

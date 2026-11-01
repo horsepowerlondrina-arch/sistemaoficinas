@@ -130,7 +130,7 @@ export function CardMachines() {
         <input
           type="number"
           min="0"
-          max="99.99"
+          max="100"
           step="0.01"
           placeholder="Não cadastrada"
           value={form!.rates[key] ?? ""}

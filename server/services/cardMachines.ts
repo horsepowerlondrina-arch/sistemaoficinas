@@ -9,7 +9,7 @@ import type { PaymentInput, MixedPaymentInput } from "../domain/payments.js";
 const rateSchema = z.object({
   method: z.enum(["Cartão de débito", "Cartão de crédito"]),
   installments: z.number().int().min(1).max(24),
-  fee_bps: z.number().int().min(0).max(9999),
+  fee_bps: z.number().int().min(0).max(10000),
 });
 const schema = z.object({
   name: z.string().trim().min(1).max(80),

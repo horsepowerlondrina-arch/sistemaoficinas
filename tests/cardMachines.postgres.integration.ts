@@ -15,7 +15,7 @@ test("OPS-002 PostgreSQL 17: additive legacy migration, precedence and unchanged
     await admin.query("BEGIN");
     await admin.query(`CREATE SCHEMA ops002_migration_fixture; SET search_path=ops002_migration_fixture,pg_catalog;
  CREATE TABLE tenants(id text primary key); INSERT INTO tenants VALUES('a'),('b'),('empty');
- CREATE TABLE payment_settings(tenant_id text primary key,debit_fee_bps integer,credit_fee_bps integer); INSERT INTO payment_settings VALUES('a',150,250),('b',0,0);
+ CREATE TABLE payment_settings(tenant_id text primary key,debit_fee_bps integer,credit_fee_bps integer); INSERT INTO payment_settings VALUES('a',150,250),('b',0,10000);
  CREATE TABLE card_rates(tenant_id text,method text,installments integer,fee_bps integer); INSERT INTO card_rates VALUES('a','Cartão de crédito',1,300),('a','Cartão de crédito',3,450);
  CREATE TABLE payment_installments(id text primary key,tenant_id text,gross integer,fee integer,net integer); INSERT INTO payment_installments VALUES('old','a',10000,350,9650);`);
     const migration = readFileSync(
@@ -34,6 +34,14 @@ test("OPS-002 PostgreSQL 17: additive legacy migration, precedence and unchanged
       "SELECT fee_bps FROM card_machine_rates WHERE tenant_id='a' AND method='Cartão de crédito' AND installments=1",
     );
     assert.equal(rate.rows[0].fee_bps, 300);
+    assert.equal(
+      (
+        await admin.query(
+          "SELECT fee_bps FROM card_machine_rates WHERE tenant_id='b' AND method='Cartão de crédito'",
+        )
+      ).rows[0].fee_bps,
+      10000,
+    );
     assert.equal(
       (
         await admin.query(

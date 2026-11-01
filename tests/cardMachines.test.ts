@@ -81,6 +81,27 @@ test("OPS-002 machines, unique default, disabled history, missing rates and tena
     });
     assert.equal("machine_id" in resolved && resolved.machine_id, a.id);
     const c = await saveCardMachine(db, ctx, machine("Máquina C"));
+    const fullFee = await saveCardMachine(db, ctx, {
+      ...machine("Taxa limite"),
+      is_default: false,
+      rates: [{ method: "Cartão de crédito", installments: 3, fee_bps: 10000 }],
+    });
+    const fullFeeInput = await resolveCardPayments(db, ctx, {
+      ...terms,
+      machine_id: fullFee.id,
+      card_fee_bps: 10000,
+    });
+    const fullFeePlan = await configurePlan(db, ctx, "r", fullFeeInput);
+    assert.equal(fullFeePlan.net, 0);
+    await assert.rejects(
+      configurePlan(db, ctx, "r", {
+        ...terms,
+        machine_id: fullFee.id,
+        card_fee_bps: 10000,
+        pass_card_fee: true,
+      }),
+      /inferior a 100%/,
+    );
     assert.equal(
       (await listCardMachines(db, ctx)).filter((m) => m.is_default).length,
       1,
@@ -95,7 +116,7 @@ test("OPS-002 machines, unique default, disabled history, missing rates and tena
       { ...machine("Máquina C"), active: false, is_default: false },
       c.id,
     );
-    assert.equal((await listCardMachines(db, ctx)).length, 2);
+    assert.equal((await listCardMachines(db, ctx)).length, 3);
     await assert.rejects(
       resolveCardPayments(db, ctx, { ...terms, machine_id: c.id }),
       /máquina ativa/,
