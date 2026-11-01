@@ -188,9 +188,9 @@ try {
     const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 1 });
     const page = await context.newPage();
     await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
-    await page.getByPlaceholder("E-mail").fill(credential.email);
-    await page.getByPlaceholder("Senha", { exact: true }).fill(credential.password);
-    const [loginResponse] = await Promise.all([page.waitForResponse((response) => response.url().endsWith("/api/login") && response.request().method() === "POST"), page.getByRole("button", { name: "Entrar" }).click()]);
+    await page.getByLabel("E-mail", { exact: true }).fill(credential.email);
+    await page.getByLabel("Senha", { exact: true }).fill(credential.password);
+    const [loginResponse] = await Promise.all([page.waitForResponse((response) => response.url().endsWith("/api/login") && response.request().method() === "POST"), page.getByRole("button", { name: "Entrar na oficina" }).click()]);
     if (loginResponse.status() !== 200) throw new Error("A autenticação com a conta fictícia de teste falhou; nenhuma credencial foi exibida.");
     await page.getByRole("heading", { name: "Início" }).waitFor({ state: "visible", timeout: 15000 }).catch(() => {});
     for (const entry of entries) {

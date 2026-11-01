@@ -19,9 +19,6 @@ const platformAdminAvailable = isPlatformAdminAvailable({
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <div className="development-notice" role="status">
-      Ambiente de testes · Dados de demonstração
-    </div>
     <BrowserRouter>
       <Routes>
         <Route path="/ativar" element={<Activate />} />

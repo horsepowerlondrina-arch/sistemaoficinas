@@ -1,17 +1,6 @@
 import { PlatformBrand } from "../components/PlatformBrand";
 import { useState, type FormEvent } from "react";
-import {
-  Mail,
-  LockKeyhole,
-  Eye,
-  EyeOff,
-  ArrowRight,
-  LoaderCircle,
-  CircleDot,
-  ChartNoAxesCombined,
-  ShieldCheck,
-  Users,
-} from "lucide-react";
+import { Eye, EyeOff, LoaderCircle } from "lucide-react";
 import { send } from "../lib/api";
 export function Login({ onLogin }: { onLogin: () => Promise<void> }) {
   const [email, setEmail] = useState(() => {
@@ -52,102 +41,60 @@ export function Login({ onLogin }: { onLogin: () => Promise<void> }) {
     }
   }
   return (
-    <main className="hp-login">
-      <div className="hp-login-scenery" aria-hidden="true" />
-      <div className="hp-login-center">
-        <section className="hp-login-card" aria-label="Acesso ao OSDrive">
-          <div className="platform-login-heading"><PlatformBrand /></div>
-          <h1>Sua oficina organizada, todos os dias</h1>
-          <form onSubmit={login}>
-            <label className="hp-login-field">
-              <span className="sr-only">E-mail</span>
-              <Mail size={21} aria-hidden="true" />
-              <input
-                type="email"
-                placeholder="E-mail"
-                autoComplete="username"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                disabled={busy}
-              />
-            </label>
-            <label className="hp-login-field">
-              <span className="sr-only">Senha</span>
-              <LockKeyhole size={21} aria-hidden="true" />
-              <input
-                type={visible ? "text" : "password"}
-                aria-label="Senha"
-                placeholder="Senha"
-                autoComplete="current-password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={busy}
-              />
-              <button
-                type="button"
-                className="hp-login-reveal"
-                aria-label={visible ? "Ocultar senha" : "Mostrar senha"}
-                aria-pressed={visible}
-                onClick={() => setVisible(!visible)}
-              >
-                {visible ? <EyeOff size={20} /> : <Eye size={20} />}
-              </button>
-            </label>
-            <div className="hp-login-options">
-              <label>
-                <input
-                  type="checkbox"
-                  checked={remember}
-                  onChange={(e) => setRemember(e.target.checked)}
-                />
-                Lembrar meu e-mail
-              </label>
-              <span>
-                <ShieldCheck size={13} />
-                Acesso seguro
-              </span>
-            </div>
-            {error && (
-              <div className="hp-login-error" role="alert">
-                {error}
-              </div>
-            )}
-            <button className="hp-login-submit" type="submit" disabled={busy}>
-              {busy ? (
-                <>
-                  <LoaderCircle size={20} className="spin" />
-                  Entrando...
-                </>
-              ) : (
-                <>
-                  Entrar
-                  <ArrowRight size={22} />
-                </>
-              )}
+    <main className="office-auth">
+      <section className="office-auth-card" aria-label="Acesso ao OSDrive">
+        <PlatformBrand />
+        <span className="office-auth-kicker">Acesso à oficina</span>
+        <h1>Entre na sua oficina</h1>
+        <p>Use o e-mail e a senha da sua conta para continuar.</p>
+        <form className="office-auth-form" onSubmit={login}>
+          <label htmlFor="office-auth-email">E-mail</label>
+          <input
+            id="office-auth-email"
+            type="email"
+            autoComplete="username"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            disabled={busy}
+          />
+          <label htmlFor="office-auth-password">Senha</label>
+          <div className="office-auth-password">
+            <input
+              id="office-auth-password"
+              type={visible ? "text" : "password"}
+              autoComplete="current-password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              disabled={busy}
+            />
+            <button
+              type="button"
+              aria-label={visible ? "Ocultar senha" : "Mostrar senha"}
+              aria-pressed={visible}
+              onClick={() => setVisible(!visible)}
+              disabled={busy}
+            >
+              {visible ? <EyeOff size={19} /> : <Eye size={19} />}
             </button>
-          </form>
-          <p className="hp-login-location">Entre para acessar sua oficina.</p>
-        </section>
-        <footer className="hp-login-benefits">
-          {[
-            [CircleDot, "Organização"],
-            [ChartNoAxesCombined, "Produtividade"],
-            [ShieldCheck, "Controle"],
-            [Users, "Resultados"],
-          ].map(([Icon, label]) => {
-            const Symbol = Icon as typeof CircleDot;
-            return (
-              <div key={String(label)}>
-                <Symbol size={23} strokeWidth={1.4} />
-                <span>{String(label)}</span>
-              </div>
-            );
-          })}
-        </footer>
-      </div>
-
+          </div>
+          <label className="office-auth-remember">
+            <input
+              type="checkbox"
+              checked={remember}
+              onChange={(e) => setRemember(e.target.checked)}
+              disabled={busy}
+            />
+            Lembrar meu e-mail
+          </label>
+          {error && <p className="office-auth-error" role="alert">{error}</p>}
+          <button className="office-auth-submit" type="submit" disabled={busy}>
+            {busy ? <><LoaderCircle size={18} className="spin" /> Entrando...</> : "Entrar na oficina"}
+          </button>
+        </form>
+        <p className="office-auth-note">Acesso exclusivo à sua oficina.</p>
+      </section>
     </main>
   );
 }
