@@ -8,8 +8,8 @@ import { machineRate, type CardMachine } from "../../shared/cardMachines";
 export function useCardMachines() {
   const [machines, setMachines] = useState<CardMachine[]>([]),
     [error, setError] = useState("");
-  const {session}=useApp();
-  const [revision,setRevision]=useState(0);
+  const { session } = useApp();
+  const [revision, setRevision] = useState(0);
   useEffect(() => {
     let active = true;
     setError("");
@@ -23,8 +23,8 @@ export function useCardMachines() {
     return () => {
       active = false;
     };
-  }, [revision,session.tenant.id]);
-  return { machines, error, reload:()=>setRevision(n=>n+1) };
+  }, [revision, session.tenant.id]);
+  return { machines, error, reload: () => setRevision((n) => n + 1) };
 }
 export function CardMachineChoice({
   machines,
@@ -46,7 +46,7 @@ export function CardMachineChoice({
   const machine = machines.find((m) => m.id === machineId),
     rate = machineRate(machine, method, installments);
   return (
-    <>
+    <div className="card-machine-choice">
       <Field label="Máquina de cartão">
         <select value={machineId} onChange={(e) => onChange(e.target.value)}>
           <option value="">Selecione uma máquina</option>
@@ -60,14 +60,16 @@ export function CardMachineChoice({
             ))}
         </select>
       </Field>
-      <button type="button" className="button small" onClick={onRefresh}>Atualizar máquinas e taxas</button>
+      <button type="button" className="button small" onClick={onRefresh}>
+        Atualizar máquinas e taxas
+      </button>
       <p role={rate === undefined ? "alert" : undefined}>
         {error ||
           (rate === undefined
             ? "Cadastre ou selecione uma máquina ativa com taxa para esta modalidade e parcelas."
             : `Taxa total da operação: ${(rate / 100).toFixed(2)}%`)}
       </p>
-    </>
+    </div>
   );
 }
 const blank = () => ({
@@ -143,7 +145,7 @@ export function CardMachines() {
     );
   };
   return (
-    <section className="panel work-order-section">
+    <section className="panel work-order-section card-machines">
       <h2>Máquinas de cartão</h2>
       <p>
         Taxas percentuais totais por operação. Campo vazio deixa a modalidade
@@ -181,9 +183,10 @@ export function CardMachines() {
                 <button
                   type="button"
                   className="button"
+                  aria-label={`Editar ${m.name}`}
                   onClick={() => open(m)}
                 >
-                  Editar {m.name}
+                  Editar
                 </button>
               </section>
             ))}

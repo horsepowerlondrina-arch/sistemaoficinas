@@ -1,6 +1,6 @@
 import { expect } from "@playwright/test";
-export const capturedOrders=[];
-export const capturedProducts=[];
+export const capturedOrders = [];
+export const capturedProducts = [];
 export async function captureCardMachines(page, entry) {
   if (!entry.route.includes("aba=geral") && !entry.id.startsWith("ops002-"))
     return;
@@ -33,8 +33,23 @@ export async function captureCardMachines(page, entry) {
     const created = await request("/card-machines", input);
     machine = { ...input, id: created.id };
   }
-  let secondary=machines.find(m=>m.name==='Máquina Secundária Fictícia');
-  if(!secondary){const input={name:'Máquina Secundária Fictícia',operator:'Outra Operadora Fictícia',active:true,is_default:false,max_installments:3,rates:[{method:'Cartão de crédito',installments:1,fee_bps:400},{method:'Cartão de crédito',installments:3,fee_bps:500}]};secondary={...input,...await request('/card-machines',input)};}
+  let secondary = machines.find(
+    (m) => m.name === "Máquina Secundária Fictícia",
+  );
+  if (!secondary) {
+    const input = {
+      name: "Máquina Secundária Fictícia",
+      operator: "Outra Operadora Fictícia",
+      active: true,
+      is_default: false,
+      max_installments: 3,
+      rates: [
+        { method: "Cartão de crédito", installments: 1, fee_bps: 400 },
+        { method: "Cartão de crédito", installments: 3, fee_bps: 500 },
+      ],
+    };
+    secondary = { ...input, ...(await request("/card-machines", input)) };
+  }
   if (entry.route.includes("aba=geral")) {
     await page.reload();
     await expect(
@@ -111,9 +126,18 @@ export async function captureCardMachines(page, entry) {
   const vehicle = workspace.vehicles.find((v) =>
     workspace.customers.some((c) => c.id === v.customer_id),
   );
-  let product = workspace.catalog.find(p => p.sku === 'OPS002-VISUAL');
+  let product = workspace.catalog.find((p) => p.sku === "OPS002-VISUAL");
   if (!product) {
-    product = await request('/catalog', {kind:'product',name:'Produto Fictício OPS-002',sku:'OPS002-VISUAL',category:'',cost:1000,price:10000,stock:0,minimum_stock:0});
+    product = await request("/catalog", {
+      kind: "product",
+      name: "Produto Fictício OPS-002",
+      sku: "OPS002-VISUAL",
+      category: "",
+      cost: 1000,
+      price: 10000,
+      stock: 0,
+      minimum_stock: 0,
+    });
     capturedProducts.push(product.id);
   }
   if (!vehicle || !product)
@@ -160,16 +184,64 @@ export async function captureCardMachines(page, entry) {
     .getByRole("spinbutton", { name: "Parcelas", exact: true })
     .fill("3");
   await expect(page.getByText("Taxa total da operação: 3.50%")).toBeVisible();
-  await page.getByRole('combobox',{name:'Máquina de cartão',exact:true}).selectOption(secondary.id);
-  await expect(page.getByText('Taxa total da operação: 5.00%')).toBeVisible();
-  await page.getByRole('combobox',{name:'Máquina de cartão',exact:true}).selectOption(machine.id);
-  await expect(page.getByText('Taxa total da operação: 3.50%')).toBeVisible();
+  await page
+    .getByRole("combobox", { name: "Máquina de cartão", exact: true })
+    .selectOption(secondary.id);
+  await expect(page.getByText("Taxa total da operação: 5.00%")).toBeVisible();
+  await page
+    .getByRole("combobox", { name: "Máquina de cartão", exact: true })
+    .selectOption(machine.id);
+  await expect(page.getByText("Taxa total da operação: 3.50%")).toBeVisible();
   await page
     .getByRole("checkbox", { name: "Repassar taxa ao cliente", exact: true })
     .check();
   await expect(
     page.getByRole("button", { name: "Salvar condições de pagamento" }),
   ).toBeEnabled();
+  const [savedPlan] = await Promise.all([
+    page.waitForResponse(
+      (r) => r.url().includes("/plan") && r.request().method() === "POST",
+    ),
+    page
+      .getByRole("button", {
+        name: "Salvar condições de pagamento",
+        exact: true,
+      })
+      .click(),
+  ]);
+  expect(savedPlan.status()).toBe(200);
+  await expect(
+    page.getByText(/Máquina: Máquina Fictícia Visual/),
+  ).toBeVisible();
+  const savedWorkspace = await request("/workspace", undefined, "GET");
+  const receivable = savedWorkspace.receivables.find(
+    (r) => r.order_id === order.id,
+  );
+  const installments = savedWorkspace.installments.filter(
+    (p) => p.receivable_id === receivable.id,
+  );
+  expect(installments).toHaveLength(3);
+  expect(installments.reduce((sum, p) => sum + p.net, 0)).toBe(10000);
+  for (const part of installments) {
+    expect(part.machine_id).toBe(machine.id);
+    expect(part.card_fee_bps).toBe(350);
+    expect(part.pass_card_fee).toBe(1);
+  }
+  await page
+    .getByRole("button", {
+      name: "Alterar condições de pagamento",
+      exact: true,
+    })
+    .click();
+  await expect(
+    page.getByRole("combobox", { name: "Máquina de cartão", exact: true }),
+  ).toHaveValue(machine.id);
+  await expect(
+    page.getByRole("checkbox", {
+      name: "Repassar taxa ao cliente",
+      exact: true,
+    }),
+  ).toBeChecked();
   await expect
     .poll(() =>
       page.evaluate(

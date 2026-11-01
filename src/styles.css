@@ -5307,3 +5307,10 @@ body {
 .office-auth-submit:hover:not(:disabled){background:#7d111b}
 .office-auth-note{padding-top:16px;border-top:1px solid #e7ebee;color:#687584;font-size:12px;line-height:1.5}
 @media(max-width:480px){.office-auth{padding:20px 14px}.office-auth-card{padding:24px 18px;gap:16px}}
+
+.card-machines .form-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); }
+.card-machines form { margin-top: 20px; }
+.card-machines .settings-card { min-width: 0; overflow-wrap: anywhere; }
+.card-machine-choice { grid-column: 1 / -1; display: grid; gap: 12px; min-width: 0; }
+.card-machine-choice > .button { justify-self: start; }
+
