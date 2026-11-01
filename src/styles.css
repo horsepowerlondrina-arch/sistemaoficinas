@@ -5244,7 +5244,7 @@ body { padding-top: 36px; }
 }
 
 /* Keep long product identities from pushing prices and actions off the panel. */
-.products-register-panel .table-scroll { max-width: 100%; }
+.products-register-panel .table-scroll { position: relative; max-width: 100%; }
 .products-register-panel .table-scroll:focus-visible { outline: 2px solid var(--red); outline-offset: -2px; }
 .products-register-table { table-layout: fixed; min-width: 900px; white-space: normal; }
 .products-register-table .product-col-description { width: 35%; }

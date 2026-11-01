@@ -29,7 +29,6 @@ export async function captureProducts(page, entry) {
       viewport: document.documentElement.clientWidth,
       pageWidth: document.documentElement.scrollWidth,
     }));
-    if (dimensions.pageWidth > dimensions.viewport) console.log("Overflow diagnostics", await page.locator("body *").evaluateAll(elements => elements.filter(el => el.getBoundingClientRect().right > document.documentElement.clientWidth && !el.closest(".table-scroll")).map(el => ({tag:el.tagName,cls:el.className,right:el.getBoundingClientRect().right,width:el.getBoundingClientRect().width})).slice(0,30)));
     expect(dimensions.right).toBeLessThanOrEqual(dimensions.viewport);
     expect(dimensions.pageWidth).toBeLessThanOrEqual(dimensions.viewport);
     if (entry.viewport === "desktop") expect(dimensions.scroll).toBeLessThanOrEqual(dimensions.client + 1);
