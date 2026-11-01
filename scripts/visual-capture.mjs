@@ -4,6 +4,7 @@ import { resolve, dirname, join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { chromium, expect } from "@playwright/test";
 import { captureCad005 } from "./capture-cad005.mjs";
+import { captureSettings } from "./capture-settings.mjs";
 import { captureProducts } from "./capture-products.mjs";
 
 const root = process.cwd();
@@ -29,11 +30,12 @@ const moduleByChangedPath = (path) => {
   if (/Order|Orders|Payment/i.test(path)) return ["06-orcamentos", "07-ordens-servico"];
   if (/Cash|Expenses|Profit/i.test(path)) return "08-financeiro";
   if (/Registers|RepairServicePicker/i.test(path)) return "09-cadastros-servicos";
-  if (/Stock|Management/i.test(path)) return "10-estoque";
+  if (/Management/i.test(path)) return ["10-estoque", "14-configuracoes"];
+  if (/Stock/i.test(path)) return "10-estoque";
   if (/Suppliers/i.test(path)) return "11-fornecedores";
   if (/PublicOrder|documents/i.test(path)) return "12-documentos";
   if (/dataTransfer|transfer/i.test(path)) return "13-transferencia-dados";
-  if (/Settings|workshop-profile/i.test(path)) return "14-configuracoes";
+  if (/Settings|PartsPricing|workshop-profile/i.test(path)) return "14-configuracoes";
   if (/extension/i.test(path)) return "15-integracoes";
   if (/PlatformAdmin/i.test(path)) return "17-painel-admin-central";
   return null;
@@ -50,6 +52,15 @@ if (args.includes("--affected")) {
 if (moduleFilter && !catalog.modules.some((module) => module.id === moduleFilter)) throw new Error(`Módulo desconhecido: ${moduleFilter}`);
 
 const candidates = catalog.entries.filter((entry) => entry.driver !== "admin-interface" && entry.image && entry.route.startsWith("/") && (!selectedModules || selectedModules.has(entry.module)) && entry.id !== "login-painel-central");
+if (!selectedModules || selectedModules.has("14-configuracoes")) {
+  for (const viewport of ["desktop","mobile"]) {
+    const id = "config-conta-integracoes-" + viewport;
+    if (!candidates.some(entry=>entry.id===id)) {
+      const entry = {id,module:"14-configuracoes",title:"Conta e integrações",description:"Responsabilidades administrativas e extensões disponíveis.",route:"/configuracoes?aba=conta",kind:"Configuração",viewport,image:"docs/mapeamento-visual/capturas/14-configuracoes/"+id+".png"};
+      candidates.push(entry); catalog.entries.push(entry);
+    }
+  }
+}
 if (!candidates.length) throw new Error("Nenhuma interação com rota automatizável corresponde ao filtro.");
 if (!/^[a-z0-9-]+$/.test(fixtureTenant)) throw new Error("VISUAL_TEST_TENANT inválido.");
 if (!noWrite) {
@@ -150,6 +161,7 @@ try {
         await page.getByRole("heading", { name: "Tempos técnicos" }).click();
       }
     }
+    await captureSettings(page, entry);
     await captureCad005(page, entry);
     if (entry.route === "/catalogo") await captureProducts(page, entry);
     await page.waitForTimeout(300);

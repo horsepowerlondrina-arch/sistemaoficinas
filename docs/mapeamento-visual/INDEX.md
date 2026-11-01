@@ -472,19 +472,19 @@ Identidade, taxas, mão de obra e preços.
 
 ### Dados da Oficina Fictícia A
 
-Identificação e prévia da oficina de teste.
+Identificação, endereço efetivo, navegação por seções e prévia de documento.
 
 [![Dados da Oficina Fictícia A](./capturas/14-configuracoes/dados-oficina-a.png)](./capturas/14-configuracoes/dados-oficina-a.png)
 
-Estado: capturada · mobile · captura 2026-10-22 · commit de origem: não registrado · [arquivo completo](./capturas/14-configuracoes/dados-oficina-a.png)
+Estado: capturada · mobile · captura 2026-11-01 · commit de origem: 56b226764ee6420a52bdff3a41bd459113618460 · [arquivo completo](./capturas/14-configuracoes/dados-oficina-a.png)
 
-### Geral e taxas
+### Taxas e parcelamento
 
-Configurações gerais da conta local, sem alteração.
+Taxas padrão, precedência por parcela e manutenção administrativa.
 
-[![Geral e taxas](./capturas/14-configuracoes/geral-e-taxas.png)](./capturas/14-configuracoes/geral-e-taxas.png)
+[![Taxas e parcelamento](./capturas/14-configuracoes/geral-e-taxas.png)](./capturas/14-configuracoes/geral-e-taxas.png)
 
-Estado: capturada · mobile · captura 2026-10-22 · commit de origem: não registrado · [arquivo completo](./capturas/14-configuracoes/geral-e-taxas.png)
+Estado: capturada · mobile · captura 2026-11-01 · commit de origem: 56b226764ee6420a52bdff3a41bd459113618460 · [arquivo completo](./capturas/14-configuracoes/geral-e-taxas.png)
 
 ### Mão de obra por porte
 
@@ -492,15 +492,63 @@ Valores de referência sem alteração.
 
 [![Mão de obra por porte](./capturas/14-configuracoes/mao-de-obra.png)](./capturas/14-configuracoes/mao-de-obra.png)
 
-Estado: capturada · mobile · captura 2026-10-22 · commit de origem: não registrado · [arquivo completo](./capturas/14-configuracoes/mao-de-obra.png)
+Estado: capturada · mobile · captura 2026-11-01 · commit de origem: 56b226764ee6420a52bdff3a41bd459113618460 · [arquivo completo](./capturas/14-configuracoes/mao-de-obra.png)
 
 ### Lucro de peças e terceiros
 
-Regras e simulação exibidas no ambiente local.
+Modos de precificação, regras de terceiros e simulador compartilhado.
 
 [![Lucro de peças e terceiros](./capturas/14-configuracoes/lucro-pecas-terceiros.png)](./capturas/14-configuracoes/lucro-pecas-terceiros.png)
 
-Estado: capturada · mobile · captura 2026-10-22 · commit de origem: não registrado · [arquivo completo](./capturas/14-configuracoes/lucro-pecas-terceiros.png)
+Estado: capturada · mobile · captura 2026-11-01 · commit de origem: 56b226764ee6420a52bdff3a41bd459113618460 · [arquivo completo](./capturas/14-configuracoes/lucro-pecas-terceiros.png)
+
+### Dados da Oficina Fictícia A
+
+Identificação, endereço efetivo, navegação por seções e prévia de documento.
+
+[![Dados da Oficina Fictícia A](./capturas/14-configuracoes/dados-oficina-a-desktop.png)](./capturas/14-configuracoes/dados-oficina-a-desktop.png)
+
+Estado: capturada · desktop · captura 2026-11-01 · commit de origem: 56b226764ee6420a52bdff3a41bd459113618460 · [arquivo completo](./capturas/14-configuracoes/dados-oficina-a-desktop.png)
+
+### Taxas e parcelamento
+
+Taxas padrão, precedência por parcela e manutenção administrativa.
+
+[![Taxas e parcelamento](./capturas/14-configuracoes/geral-e-taxas-desktop.png)](./capturas/14-configuracoes/geral-e-taxas-desktop.png)
+
+Estado: capturada · desktop · captura 2026-11-01 · commit de origem: 56b226764ee6420a52bdff3a41bd459113618460 · [arquivo completo](./capturas/14-configuracoes/geral-e-taxas-desktop.png)
+
+### Mão de obra por porte
+
+Valores de referência sem alteração.
+
+[![Mão de obra por porte](./capturas/14-configuracoes/mao-de-obra-desktop.png)](./capturas/14-configuracoes/mao-de-obra-desktop.png)
+
+Estado: capturada · desktop · captura 2026-11-01 · commit de origem: 56b226764ee6420a52bdff3a41bd459113618460 · [arquivo completo](./capturas/14-configuracoes/mao-de-obra-desktop.png)
+
+### Lucro de peças e terceiros
+
+Modos de precificação, regras de terceiros e simulador compartilhado.
+
+[![Lucro de peças e terceiros](./capturas/14-configuracoes/lucro-pecas-terceiros-desktop.png)](./capturas/14-configuracoes/lucro-pecas-terceiros-desktop.png)
+
+Estado: capturada · desktop · captura 2026-11-01 · commit de origem: 56b226764ee6420a52bdff3a41bd459113618460 · [arquivo completo](./capturas/14-configuracoes/lucro-pecas-terceiros-desktop.png)
+
+### Conta e integrações
+
+Responsabilidades administrativas e extensões disponíveis.
+
+[![Conta e integrações](./capturas/14-configuracoes/config-conta-integracoes-desktop.png)](./capturas/14-configuracoes/config-conta-integracoes-desktop.png)
+
+Estado: capturada · desktop · captura 2026-11-01 · commit de origem: 56b226764ee6420a52bdff3a41bd459113618460 · [arquivo completo](./capturas/14-configuracoes/config-conta-integracoes-desktop.png)
+
+### Conta e integrações
+
+Responsabilidades administrativas e extensões disponíveis.
+
+[![Conta e integrações](./capturas/14-configuracoes/config-conta-integracoes-mobile.png)](./capturas/14-configuracoes/config-conta-integracoes-mobile.png)
+
+Estado: capturada · mobile · captura 2026-11-01 · commit de origem: 56b226764ee6420a52bdff3a41bd459113618460 · [arquivo completo](./capturas/14-configuracoes/config-conta-integracoes-mobile.png)
 
 ## 15 — Integrações e extensão Chrome
 

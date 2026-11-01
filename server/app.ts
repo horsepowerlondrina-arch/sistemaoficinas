@@ -1,3 +1,4 @@
+import { respondAfterCommit } from "./db/responseCommit.js";
 import { documentHistory, readDocument, issueDocument, listArchivedDocuments, readArchivedDocument } from "./services/documents.js";
 import {
   partsPricingSchema,
@@ -274,20 +275,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
       next();
       return;
     }
-    let complete!: () => void;
-    const finished = new Promise<void>((resolve) => { complete = resolve; });
-    res.once("finish", complete);
-    res.once("close", complete);
-    void db.withRequestContext(
-      requestSecuritySettings(req),
-      async () => {
-        next();
-        await finished;
-      },
-      () => res.writableEnded && res.statusCode < 400,
-    ).catch((error) => {
-      if (!res.headersSent) next(error);
-    });
+    respondAfterCommit(db, requestSecuritySettings(req), res, next);
   });
   if (process.env.VERCEL) app.set("trust proxy", 1);
   app.post("/api/setup", async (req, res) => {
@@ -1279,6 +1267,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
         interest_bps: z.number().int().min(0).max(10000),
       })
       .parse(req.body);
+    await transaction(db, async () => {
     await db
       .prepare(
         "INSERT INTO payment_settings(tenant_id,debit_fee_bps,credit_fee_bps,interest_bps) VALUES(?,?,?,?) ON CONFLICT(tenant_id) DO UPDATE SET debit_fee_bps=excluded.debit_fee_bps,credit_fee_bps=excluded.credit_fee_bps,interest_bps=excluded.interest_bps",
@@ -1289,6 +1278,8 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
         input.credit_fee_bps,
         input.interest_bps,
       );
+    await audit(db, res.locals.context, "payment_settings.updated", res.locals.context.tenantId);
+    });
     res.json({ ok: true });
   });
   app.post("/api/receivables/:id/preview", async (req, res) => {

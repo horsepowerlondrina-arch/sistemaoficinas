@@ -1,3 +1,4 @@
+import { useUnsavedSettings } from "../lib/useUnsavedSettings";
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 import { Pencil, Plus, Tags } from "lucide-react";
@@ -23,10 +24,14 @@ export function LaborRates() {
     [error, setError] = useState(""),
     [message, setMessage] = useState(""),
     [busy, setBusy] = useState(false);
+  const [savedRates,setSavedRates] = useState("");
+  const currentRates = JSON.stringify(info?.categories.map(p=>({id:p.id,hourly_rate:p.hourly_rate})) || []);
+  const dirty = !!info && !!savedRates && currentRates !== savedRates;
+  useUnsavedSettings(dirty);
   useEffect(() => {
     let active = true;
     api<Info>("/repair-services/config")
-      .then((v) => active && setInfo(v))
+      .then((v) => { if(active) {setInfo(v);setSavedRates(JSON.stringify(v.categories.map(p=>({id:p.id,hourly_rate:p.hourly_rate}))));} })
       .catch((e) => active && setError(e.message));
     return () => {
       active = false;
@@ -39,6 +44,8 @@ export function LaborRates() {
         O preço dos serviços internos é o tempo em minutos ÷ 60 × valor da hora
         do porte. Defina os valores usados pela oficina.
       </p>
+      <p className="muted">Valor zero remove a tarifa deste porte. Serviços sem tarifa exigem revisão do preço antes da inclusão no atendimento.</p>
+      {dirty && <p role="status">Alterações não salvas.</p>}
       {error && (
         <p className="form-error" role="alert">
           {error}
@@ -89,6 +96,7 @@ export function LaborRates() {
               },
               "PUT",
             );
+            setSavedRates(currentRates);
             setMessage("Valores da hora salvos para esta oficina.");
           } catch (e) {
             setError((e as Error).message);
