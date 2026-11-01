@@ -51,6 +51,12 @@ if (args.includes("--affected")) {
 if (moduleFilter && !catalog.modules.some((module) => module.id === moduleFilter)) throw new Error(`Módulo desconhecido: ${moduleFilter}`);
 
 const candidates = catalog.entries.filter((entry) => entry.driver !== "admin-interface" && entry.image && entry.route.startsWith("/") && (!selectedModules || selectedModules.has(entry.module)) && entry.id !== "login-painel-central");
+if (!selectedModules || selectedModules.has("14-configuracoes")) {
+  for (const viewport of ["desktop","mobile"]) {
+    const id = "config-conta-integracoes-" + viewport;
+    if (!candidates.some(entry=>entry.id===id)) candidates.push({id,module:"14-configuracoes",title:"Conta e integrações",description:"Responsabilidades administrativas e extensões disponíveis.",route:"/configuracoes?aba=conta",kind:"Configuração",viewport,image:"docs/mapeamento-visual/capturas/14-configuracoes/"+id+".png"});
+  }
+}
 if (!candidates.length) throw new Error("Nenhuma interação com rota automatizável corresponde ao filtro.");
 if (!/^[a-z0-9-]+$/.test(fixtureTenant)) throw new Error("VISUAL_TEST_TENANT inválido.");
 if (!noWrite) {
