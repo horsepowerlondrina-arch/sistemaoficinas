@@ -161,6 +161,7 @@ test("PostgreSQL: permissões administrativas por oficina, limites, período de 
       providerCalls++;return Response.json(String(url).endsWith("/fipe")?[]:{marca:"Marca Fictícia",modelo:"Modelo Fictício",anoFabricacao:2020,anoModelo:2021,cor:"Prata"});
     }) as typeof fetch;
     const lookup=async(tenant:string,user:string)=>{
+      await client.query("SET LOCAL search_path=horse_power,pg_catalog");
       await client.query("SELECT set_config('app.tenant_id',$1,true),set_config('app.user_id',$2,true)",[tenant,user]);
       await client.query("SET LOCAL ROLE hp_local_app");
       try{return await lookupVehicleExternal(adapter,tenant,"ADM2A22",provider);}finally{await client.query("RESET ROLE");}

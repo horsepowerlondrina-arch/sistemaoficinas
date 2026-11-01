@@ -1073,12 +1073,12 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
     }).strict().parse(req.body);
     const fields = [...new Set(input.fields)];
     const tenant = res.locals.context.tenantId;
-    if (!(await vehicleLookupAccess(db, tenant)).enabled) {
-      res.status(403).json({error:"A consulta externa de placas não está autorizada ou configurada para esta oficina."}); return;
-    }
     const vehicleId = String(req.params.id);
     const rejectConfirmation = (message: string) => Object.assign(new Error(message), { status: 409 });
     const current = await scoped(db, "vehicles", tenant, vehicleId);
+    if (!(await vehicleLookupAccess(db, tenant)).enabled) {
+      res.status(403).json({error:"A consulta externa de placas não está autorizada ou configurada para esta oficina."}); return;
+    }
     const plate = normalizePlate(String(current.plate));
     const cached = await db.prepare(
       "SELECT result_json FROM vehicle_lookup_cache WHERE tenant_id=? AND plate=? AND expires_at>?"
