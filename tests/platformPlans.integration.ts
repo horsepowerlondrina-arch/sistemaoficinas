@@ -26,6 +26,14 @@ test("PostgreSQL: planos, teste Premium, exceções, limites e isolamento", asyn
     const assign = async (plan: string) => (await db.query("SELECT platform_admin.set_workshop_plan($1,$2,$3,$4) AS entitlements",
       [tenant,token,plan,`Atribuir plano ${plan} à oficina fictícia`])).rows[0].entitlements;
 
+    await db.query("SAVEPOINT invalid_plan");
+    await assert.rejects(assign("enterprise"),{code:"22023"});
+    await db.query("ROLLBACK TO SAVEPOINT invalid_plan");
+    await db.query("SAVEPOINT invalid_session");
+    await assert.rejects(db.query("SELECT platform_admin.set_workshop_plan($1,$2,'basic',$3)",
+      [tenant,"invalid-session","Alteração fictícia não autorizada"]),{code:"42501"});
+    await db.query("ROLLBACK TO SAVEPOINT invalid_session");
+
     let state = await status();
     assert.equal(state.max_users,null,"oficina existente não recebe limite antes da atribuição");
     assert.equal(state.modules.finance,true,"acesso legado é preservado");
