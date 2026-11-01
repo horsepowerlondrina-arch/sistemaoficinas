@@ -80,7 +80,7 @@ test("PostgreSQL: convites de ativação, teste grátis, idempotência e isolame
     await owner.query(migration);
     await owner.query(`GRANT SELECT ON ${pa}.administrators,${pa}.sessions TO hp_platform_admin_app;
       GRANT SELECT ON ${pa}.workshops TO hp_platform_admin_app;
-      GRANT INSERT ON ${pa}.audit_events TO hp_platform_admin_app`);
+      GRANT INSERT, SELECT ON ${pa}.audit_events TO hp_platform_admin_app`);
 
     process.env.APP_ORIGINS = "http://127.0.0.1:5173";
     server = createPlatformAdminApp(appPool, "a".repeat(64)).listen(0,"127.0.0.1");
