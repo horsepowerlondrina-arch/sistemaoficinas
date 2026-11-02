@@ -59,7 +59,7 @@ try {
     .filter((name) => /^\d{3}-.*\.sql$/.test(name))
     .sort();
   if (
-    files.length !== 30 ||
+    files.length < 31 ||
     !files.includes("021-vehicle-update-audit-metadata.sql") ||
     !files.includes("022-admin-workshop-entitlements.sql") ||
     !files.includes("023-private-workshop-services.sql") ||
@@ -69,10 +69,11 @@ try {
     !files.includes("027-admin-workshop-management.sql") ||
     !files.includes("028-admin-external-plate-entitlement.sql") ||
     !files.includes("029-card-machines.sql") ||
-    !files.includes("030-adm003-plan-entitlements.sql")
+    !files.includes("030-adm003-plan-entitlements.sql") ||
+    !files.includes("031-retire-bulk-catalog-test-access.sql")
   )
     throw new Error(
-      "A série completa de 30 migrações locais, incluindo gestão de oficinas, planos comerciais e catálogo técnico, não está presente.",
+      "A sequência de migrações locais até a 031, incluindo a retirada do acesso coletivo ao catálogo, não está presente.",
     );
   for (const file of files)
     await target.query(readFileSync(join("local-postgres", file), "utf8"));
