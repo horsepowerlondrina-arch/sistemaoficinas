@@ -9,6 +9,30 @@ const expectedCatalogModels = process.env.CATALOG_EXPECT_FULL === "1" ? 7534 : 1
 test("PostgreSQL local: autenticação, oficinas, transações e RLS do catálogo", async t => {
   const db = await createLocalDatabase();
   t.after(()=>db.close());
+  await t.test("controle coletivo aposentado não concede catálogo em futuras ativações", async () => {
+    const { adminClient } = await import("../scripts/local-admin");
+    const admin = adminClient(); await admin.connect();
+    try {
+      const state = await admin.query(`SELECT
+        NOT EXISTS (
+          SELECT 1 FROM pg_trigger
+          WHERE tgrelid='platform_admin.workshops'::regclass
+            AND tgname='catalog_test_access_after_activation'
+            AND NOT tgisinternal
+        ) AS no_bulk_activation_trigger,
+        to_regprocedure('platform_admin.set_catalog_test_access(text,text,boolean,timestamptz,text)') IS NULL AS no_bulk_setter,
+        to_regprocedure('platform_admin.apply_catalog_test_access(text,text)') IS NULL AS no_bulk_applier,
+        to_regprocedure('platform_admin.manage_catalog_access(text,text,boolean,timestamptz,text)') IS NOT NULL AS individual_control_available,
+        to_regclass('service_catalog.tenant_access') IS NOT NULL AS workshop_access_preserved`);
+      assert.deepEqual(state.rows[0], {
+        no_bulk_activation_trigger: true,
+        no_bulk_setter: true,
+        no_bulk_applier: true,
+        individual_control_available: true,
+        workshop_access_preserved: true,
+      });
+    } finally { await admin.end(); }
+  });
   await t.test("CAD-005: campos FIPE e vínculo manual permanecem no veículo da oficina", async () => {
     const { adminClient } = await import("../scripts/local-admin");
     const admin = adminClient(); await admin.connect();
