@@ -81,3 +81,147 @@
  .workshop-document .hp-print-grand-total span { font-size:10pt!important; }
  .workshop-document .hp-print-grand-total strong { font-size:13pt!important; }
 }
+
+
+/* Compact OS print layout so routine orders fit on one A4 page. Item tables
+   still flow naturally onto following pages when an order has many entries. */
+@media print {
+  .workshop-document.hp-print-order {
+    font-size: 8.5pt;
+    line-height: 1.22;
+  }
+
+  .workshop-document.hp-print-order .document-header {
+    grid-template-columns: 21mm minmax(0, 1fr) 38mm;
+    gap: 3mm;
+    padding: 1mm 0 2.5mm;
+  }
+
+  .workshop-document.hp-print-order .document-header .document-logo,
+  .workshop-document.hp-print-order .document-monogram {
+    width: 20mm;
+    height: 20mm;
+  }
+
+  .workshop-document.hp-print-order .document-header .document-company h1 {
+    margin-bottom: 1mm;
+    font-size: 16pt;
+  }
+
+  .workshop-document.hp-print-order .document-header .document-company p {
+    margin: 0.5mm 0;
+    font-size: 7.5pt;
+    line-height: 1.2;
+  }
+
+  .workshop-document.hp-print-order .document-header .document-contact {
+    gap: 1mm;
+    max-width: 38mm;
+  }
+
+  .workshop-document.hp-print-order .document-contact small {
+    font-size: 7pt;
+  }
+
+  .workshop-document.hp-print-order .document-contact strong {
+    font-size: 8.5pt;
+  }
+
+  .workshop-document.hp-print-order .hp-print-titlebar {
+    gap: 4px;
+    margin: 2mm 0;
+    padding: 1.5mm 2mm;
+    font-size: 8pt;
+  }
+
+  .workshop-document.hp-print-order .hp-print-customer {
+    gap: 1.5mm;
+    padding: 2mm 0 2.5mm;
+  }
+
+  .workshop-document.hp-print-order .hp-print-two {
+    gap: 3mm;
+  }
+
+  .workshop-document.hp-print-order .hp-print-section {
+    margin-top: 2.5mm;
+  }
+
+  .workshop-document.hp-print-order .hp-print-section h2 {
+    margin: 2mm 0 1mm;
+    font-size: 8.5pt;
+    break-after: avoid;
+  }
+
+  .workshop-document.hp-print-order .hp-print-table th,
+  .workshop-document.hp-print-order .hp-print-table td {
+    padding: 1.1mm 1.5mm;
+    font-size: 8pt;
+    line-height: 1.15;
+  }
+
+  .workshop-document.hp-print-order .hp-print-notes {
+    margin: 3mm 0;
+    padding: 2mm 0;
+    font-size: 8pt;
+  }
+
+  .workshop-document.hp-print-order .customer-document-terms,
+  .workshop-document.hp-print-order .document-terms {
+    margin: 3mm 0;
+    font-size: 7.5pt;
+    line-height: 1.25;
+  }
+
+  .workshop-document.hp-print-order .hp-print-footer {
+    grid-template-columns: minmax(0, 1fr) 70mm;
+    gap: 4mm;
+    margin-top: 3mm;
+  }
+
+  .workshop-document.hp-print-order .hp-print-dates p {
+    margin: 0 0 1.5mm;
+    font-size: 8pt;
+  }
+
+  .workshop-document.hp-print-order .hp-print-signature {
+    margin-top: 7mm;
+    font-size: 8pt;
+  }
+
+  .workshop-document.hp-print-order .hp-print-signature span {
+    margin-bottom: 1mm;
+  }
+
+  .workshop-document.hp-print-order .hp-print-totalbox {
+    min-width: 65mm;
+    padding: 2.5mm;
+  }
+
+  .workshop-document.hp-print-order .hp-print-totalbox h2 {
+    margin-bottom: 1.5mm;
+    font-size: 9pt;
+  }
+
+  .workshop-document.hp-print-order .hp-print-totalbox > div {
+    padding: 1mm 0;
+    font-size: 8pt;
+  }
+
+  .workshop-document.hp-print-order .hp-print-grand-total {
+    margin-top: 1.5mm;
+    padding-top: 2mm !important;
+  }
+
+  .workshop-document.hp-print-order .hp-print-grand-total strong {
+    font-size: 11pt !important;
+  }
+
+  .workshop-document.hp-print-order .hp-print-table thead {
+    display: table-header-group;
+  }
+
+  .workshop-document.hp-print-order .hp-print-table tr {
+    break-inside: avoid;
+  }
+}
