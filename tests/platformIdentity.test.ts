@@ -2,13 +2,14 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { MemoryRouter } from "react-router-dom";
 import { WorkshopBrand } from "../src/components/WorkshopBrand";
 import { PlatformBrand } from "../src/components/PlatformBrand";
 import { Login } from "../src/pages/Login";
 import { PLATFORM, platformTitle } from "../shared/platformIdentity";
 import { workshopLogo } from "./fixtures/workshopLogo";
 test("marca OSDrive compartilhada não adota a identidade de uma oficina",()=>{
-  const html=renderToStaticMarkup(createElement(Login,{onLogin:async()=>{}}));
+  const html=renderToStaticMarkup(createElement(MemoryRouter,null,createElement(Login,{onLogin:async()=>{}})));
   assert.ok(html.includes(PLATFORM.name));assert.ok(html.includes(PLATFORM.logo));
   for(const text of ["Horse Power","Boxmotor","Londrina","horse-power.jpg","login-logo.jpg"])assert.ok(!html.includes(text));
   const compact=renderToStaticMarkup(createElement(PlatformBrand,{compact:true}));
