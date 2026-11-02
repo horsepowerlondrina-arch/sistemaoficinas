@@ -56,11 +56,11 @@ Lista, pesquisa, cadastro e edição de clientes.
 
 ### Clientes da Oficina Fictícia A
 
-Lista de clientes sem rótulo repetido abaixo das abas.
+Lista de clientes com abas abaixo do cabeçalho.
 
 [![Clientes da Oficina Fictícia A](./capturas/03-clientes/clientes-lista-oficina-a.png)](./capturas/03-clientes/clientes-lista-oficina-a.png)
 
-Estado: capturada · mobile · captura 2026-11-02 · commit de origem: 862d4707a324e69538296a9f4de90fd6d4f36fd4 · [arquivo completo](./capturas/03-clientes/clientes-lista-oficina-a.png)
+Estado: capturada · mobile · captura 2026-11-02 · commit de origem: 1ff8b23afa9003fed6f1135c110aeb02920c9a8e · [arquivo completo](./capturas/03-clientes/clientes-lista-oficina-a.png)
 
 ### Clientes da Oficina Fictícia B
 
@@ -70,17 +70,25 @@ Lista da segunda oficina fictícia; não contém registros da Oficina A.
 
 Estado: capturada · mobile · captura 2026-10-22 · commit de origem: não registrado · [arquivo completo](./capturas/03-clientes/clientes-lista-oficina-b.png)
 
+### Clientes da Oficina Fictícia A
+
+Lista de clientes com abas abaixo do cabeçalho.
+
+[![Clientes da Oficina Fictícia A](./capturas/03-clientes/clientes-lista-oficina-a-desktop.png)](./capturas/03-clientes/clientes-lista-oficina-a-desktop.png)
+
+Estado: capturada · desktop · captura 2026-11-02 · commit de origem: 1ff8b23afa9003fed6f1135c110aeb02920c9a8e · [arquivo completo](./capturas/03-clientes/clientes-lista-oficina-a-desktop.png)
+
 ## 04 — Veículos
 
 Lista, pesquisa, seleção e edição de veículos.
 
 ### Veículos da Oficina Fictícia A
 
-Lista de veículos sem rótulo repetido abaixo das abas.
+Lista de veículos com abas abaixo do cabeçalho.
 
 [![Veículos da Oficina Fictícia A](./capturas/04-veiculos/veiculos-lista-oficina-a.png)](./capturas/04-veiculos/veiculos-lista-oficina-a.png)
 
-Estado: capturada · mobile · captura 2026-11-02 · commit de origem: 862d4707a324e69538296a9f4de90fd6d4f36fd4 · [arquivo completo](./capturas/04-veiculos/veiculos-lista-oficina-a.png)
+Estado: capturada · mobile · captura 2026-11-02 · commit de origem: 1ff8b23afa9003fed6f1135c110aeb02920c9a8e · [arquivo completo](./capturas/04-veiculos/veiculos-lista-oficina-a.png)
 
 ### Veículos da Oficina Fictícia B
 
@@ -89,6 +97,14 @@ Lista de veículos da segunda oficina fictícia.
 [![Veículos da Oficina Fictícia B](./capturas/04-veiculos/veiculos-lista-oficina-b.png)](./capturas/04-veiculos/veiculos-lista-oficina-b.png)
 
 Estado: capturada · mobile · captura 2026-10-22 · commit de origem: não registrado · [arquivo completo](./capturas/04-veiculos/veiculos-lista-oficina-b.png)
+
+### Veículos da Oficina Fictícia A
+
+Lista de veículos com abas abaixo do cabeçalho.
+
+[![Veículos da Oficina Fictícia A](./capturas/04-veiculos/veiculos-lista-oficina-a-desktop.png)](./capturas/04-veiculos/veiculos-lista-oficina-a-desktop.png)
+
+Estado: capturada · desktop · captura 2026-11-02 · commit de origem: 1ff8b23afa9003fed6f1135c110aeb02920c9a8e · [arquivo completo](./capturas/04-veiculos/veiculos-lista-oficina-a-desktop.png)
 
 ### CAD-005 — Novo veículo (desktop)
 
