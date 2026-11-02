@@ -98,7 +98,7 @@ export function Registers({ kind }: { kind: Kind }) {
   return (
     <>
       <PageHeading
-        eyebrow="CADASTROS"
+        eyebrow={kind === "customers" || kind === "vehicles" ? undefined : "CADASTROS"}
         title={c.title}
         description={c.description}
         actions={
