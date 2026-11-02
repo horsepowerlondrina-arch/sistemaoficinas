@@ -37,7 +37,7 @@ test("PostgreSQL platform admin: login, MFA, separated sessions, roles, audit an
     const liveRole = await assertPlatformAdminDatabase(rawPool);
     assert.equal(liveRole.workshop_schema,false);
     assert.equal(liveRole.catalog_schema,false);
-    const migration = ["004-platform-admin.sql","006-platform-admin-constraints.sql"]
+    const migration = ["004-platform-admin.sql","006-platform-admin-constraints.sql","033-critical-approval-column-grants.sql"]
       .map(file=>readFileSync(`local-postgres/${file}`,"utf8").replace(/\bplatform_admin\b/g,schema)).join("\n");
     await owner.query(migration);
     await owner.query(`ALTER TABLE ${schema}.administrators DROP CONSTRAINT platform_admin_permissions_allowlist;
