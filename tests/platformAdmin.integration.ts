@@ -47,6 +47,8 @@ test("PostgreSQL platform admin: login, MFA, separated sessions, roles, audit an
     assert.equal(role.role, "hp_platform_admin_app");
     assert.equal(role.workshop_schema, false);
     assert.equal(role.catalog_schema, false);
+    const criticalUpdate=await testPool.query("SELECT has_column_privilege(current_user,'platform_admin.critical_operation_requests','status','UPDATE') AS status_update,has_column_privilege(current_user,'platform_admin.critical_operation_requests','approved_by','UPDATE') AS approved_by_update,has_column_privilege(current_user,'platform_admin.critical_operation_requests','decided_at','UPDATE') AS decided_at_update");
+    assert.deepEqual(criticalUpdate.rows[0],{status_update:true,approved_by_update:true,decided_at_update:true});
 
     const key = encryptionKey, principalSecret = newTotpSecret(), financeSecret = newTotpSecret();
     const principalPassword = randomBytes(32).toString("base64url"), financePassword = randomBytes(32).toString("base64url");
