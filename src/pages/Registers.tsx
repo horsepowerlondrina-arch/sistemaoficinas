@@ -61,7 +61,7 @@ const config = {
     icon: UserRound,
   },
 };
-export function Registers({ kind }: { kind: Kind }) {
+export function Registers({ kind, tabs }: { kind: Kind; tabs?: ReactNode }) {
   const { data, session, refresh } = useApp();
   const [params] = useSearchParams();
   const [search, setSearch] = useState(params.get("q") || "");
@@ -160,6 +160,7 @@ export function Registers({ kind }: { kind: Kind }) {
         />
       )}
       <section className={`panel register-panel${kind === "catalog" ? " products-register-panel" : ""}`}>
+        {tabs}
         <div className="table-toolbar">
           <SearchBox
             value={search}
