@@ -161,12 +161,26 @@ export function createPlatformAdminDataTransferRoutes(
     try {
       await target(tenantId);
       const operation="data_transfer_replace:"+tenantId+":"+sha;
-      const prior=await pool.query("SELECT id,status FROM platform_admin.critical_operation_requests WHERE operation=$1 AND status IN ('requested','approved') ORDER BY requested_at DESC LIMIT 1",[operation]);
-      if(prior.rowCount){res.json({id:String(prior.rows[0].id),status:prior.rows[0].status});return;}
-      const id=randomUUID();
-      await pool.query("INSERT INTO platform_admin.critical_operation_requests(id,operation,requested_by,status) VALUES($1,$2,$3,'requested')",[id,operation,actor.id]);
-      await audit(actor,tenantId,"admin.data_transfer.replace_requested","success",{critical_request_id:id,package_sha256:sha});
-      res.status(201).json({id,status:"requested"});
+      const client=await pool.connect();
+      let outcome:{id:string;status:string;created:boolean};
+      try {
+        await client.query("BEGIN");
+        await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",[operation]);
+        const prior=await client.query("SELECT id,status FROM platform_admin.critical_operation_requests WHERE operation=$1 AND status IN ('requested','approved') ORDER BY requested_at DESC LIMIT 1",[operation]);
+        if(prior.rowCount){
+          outcome={id:String(prior.rows[0].id),status:String(prior.rows[0].status),created:false};
+        } else {
+          const id=randomUUID();
+          await client.query("INSERT INTO platform_admin.critical_operation_requests(id,operation,requested_by,status) VALUES($1,$2,$3,'requested')",[id,operation,actor.id]);
+          await writeAdminAudit(client,{actorId:actor.id,actorEmail:actor.email,subjectTenantId:tenantId,action:"admin.data_transfer.replace_requested",result:"success",technical:{critical_request_id:id,package_sha256:sha}});
+          outcome={id,status:"requested",created:true};
+        }
+        await client.query("COMMIT");
+      } catch(error) {
+        await client.query("ROLLBACK").catch(()=>{});
+        throw error;
+      } finally {client.release();}
+      res.status(outcome.created?201:200).json({id:outcome.id,status:outcome.status});
     } catch { await audit(actor,tenantId,"admin.data_transfer.replace_request_failed","failure",{package_sha256:sha}).catch(()=>{}); res.status(400).json({error:"Não foi possível solicitar aprovação para a substituição."}); }
   });
   router.post("/admin-api/workshops/:id/data-transfer/critical-requests/:requestId/approve",requireSession,requirePermission("data-transfer:manage"),requirePermission("critical:approve"),async(req,res)=>{
@@ -176,9 +190,19 @@ export function createPlatformAdminDataTransferRoutes(
     try {
       await target(tenantId);
       const prefix="data_transfer_replace:"+tenantId+":";
-      const result=await pool.query("UPDATE platform_admin.critical_operation_requests SET status='approved',approved_by=$1,decided_at=now() WHERE id=$2 AND operation LIKE $3 AND status='requested' AND requested_by<>$1 RETURNING id",[actor.id,requestId,prefix+"%"]);
-      if(!result.rowCount){res.status(409).json({error:"A solicitação não pode ser aprovada por esta conta ou já foi decidida."});return;}
-      await audit(actor,tenantId,"admin.data_transfer.replace_approved","success",{critical_request_id:requestId});
+      const client=await pool.connect();
+      let approved=false;
+      try {
+        await client.query("BEGIN");
+        const result=await client.query("UPDATE platform_admin.critical_operation_requests SET status='approved',approved_by=$1,decided_at=now() WHERE id=$2 AND operation LIKE $3 AND status='requested' AND requested_by<>$1 RETURNING id",[actor.id,requestId,prefix+"%"]);
+        approved=Boolean(result.rowCount);
+        if(approved) await writeAdminAudit(client,{actorId:actor.id,actorEmail:actor.email,subjectTenantId:tenantId,action:"admin.data_transfer.replace_approved",result:"success",technical:{critical_request_id:requestId}});
+        await client.query("COMMIT");
+      } catch(error) {
+        await client.query("ROLLBACK").catch(()=>{});
+        throw error;
+      } finally {client.release();}
+      if(!approved){res.status(409).json({error:"A solicitação não pode ser aprovada por esta conta ou já foi decidida."});return;}
       res.json({ok:true});
     } catch { await audit(actor,tenantId,"admin.data_transfer.replace_approval_failed","failure",{critical_request_id:requestId}).catch(()=>{}); res.status(400).json({error:"Não foi possível aprovar a substituição."}); }
   });

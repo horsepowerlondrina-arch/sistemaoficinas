@@ -37,7 +37,7 @@ test("PostgreSQL platform admin: login, MFA, separated sessions, roles, audit an
     const liveRole = await assertPlatformAdminDatabase(rawPool);
     assert.equal(liveRole.workshop_schema,false);
     assert.equal(liveRole.catalog_schema,false);
-    const migration = ["004-platform-admin.sql","006-platform-admin-constraints.sql"]
+    const migration = ["004-platform-admin.sql","006-platform-admin-constraints.sql","033-critical-approval-column-grants.sql"]
       .map(file=>readFileSync(`local-postgres/${file}`,"utf8").replace(/\bplatform_admin\b/g,schema)).join("\n");
     await owner.query(migration);
     await owner.query(`ALTER TABLE ${schema}.administrators DROP CONSTRAINT platform_admin_permissions_allowlist;
@@ -47,6 +47,8 @@ test("PostgreSQL platform admin: login, MFA, separated sessions, roles, audit an
     assert.equal(role.role, "hp_platform_admin_app");
     assert.equal(role.workshop_schema, false);
     assert.equal(role.catalog_schema, false);
+    const criticalUpdate=await testPool.query("SELECT has_column_privilege(current_user,'platform_admin.critical_operation_requests','status','UPDATE') AS status_update,has_column_privilege(current_user,'platform_admin.critical_operation_requests','approved_by','UPDATE') AS approved_by_update,has_column_privilege(current_user,'platform_admin.critical_operation_requests','decided_at','UPDATE') AS decided_at_update");
+    assert.deepEqual(criticalUpdate.rows[0],{status_update:true,approved_by_update:true,decided_at_update:true});
 
     const key = encryptionKey, principalSecret = newTotpSecret(), financeSecret = newTotpSecret();
     const principalPassword = randomBytes(32).toString("base64url"), financePassword = randomBytes(32).toString("base64url");
@@ -124,6 +126,39 @@ test("PostgreSQL platform admin: login, MFA, separated sessions, roles, audit an
     const transferExport = await request("/admin-api/workshops/00000000-0000-4000-8000-000000000001/data-transfer/export",{method:"POST",cookie:principalCookie,body:{passphrase:randomBytes(24).toString("base64url")}});
     assert.equal(transferExport.status,200);
     assert.equal(await transferExport.text(),"00000000-0000-4000-8000-000000000001");
+    const approvalSecret = newTotpSecret(), approvalPassword = randomBytes(32).toString("base64url");
+    await testPool.query(`INSERT INTO platform_admin.administrators(id,email,display_name,role,permissions,password_hash,totp_secret_ciphertext,active,enrolled)
+      VALUES($1,'approver@example.test','Aprovador Fictício','commercial',$2::jsonb,$3,$4,true,true)`,
+      ["admin-approver-test",JSON.stringify(["data-transfer:manage","critical:approve"]),hashAdminPassword(approvalPassword),encryptTotpSecret(approvalSecret,key)]);
+    const approverLogin=await login("approver@example.test",approvalPassword,approvalSecret);
+    assert.equal(approverLogin.status,200);
+    const approverCookie=approverLogin.headers.get("set-cookie")?.split(";")[0] || "";
+    const requestPath=`/admin-api/workshops/${fakeTenant}/data-transfer/critical-requests`;
+    const packageSha=randomBytes(32).toString("hex"), operation=`data_transfer_replace:${fakeTenant}:${packageSha}`;
+    await owner.query(`CREATE FUNCTION ${schema}.reject_success_audit() RETURNS trigger LANGUAGE plpgsql AS $audit$
+      BEGIN IF NEW.action IN ('admin.data_transfer.replace_requested','admin.data_transfer.replace_approved')
+        THEN RAISE EXCEPTION 'synthetic audit failure'; END IF; RETURN NEW; END $audit$;
+      CREATE TRIGGER reject_success_audit BEFORE INSERT ON ${schema}.audit_events
+      FOR EACH ROW EXECUTE FUNCTION ${schema}.reject_success_audit()`);
+    const failedRequest=await request(requestPath,{method:"POST",cookie:principalCookie,body:{packageSha256:packageSha}});
+    assert.equal(failedRequest.status,400);
+    assert.equal((await testPool.query("SELECT count(*)::int AS n FROM platform_admin.critical_operation_requests WHERE operation=$1",[operation])).rows[0].n,0);
+    await owner.query(`DROP TRIGGER reject_success_audit ON ${schema}.audit_events`);
+    const createdRequest=await request(requestPath,{method:"POST",cookie:principalCookie,body:{packageSha256:packageSha}});
+    assert.equal(createdRequest.status,201);
+    const criticalRequestId=(await createdRequest.json() as {id:string}).id;
+    assert.equal((await testPool.query("SELECT count(*)::int AS n FROM platform_admin.audit_events WHERE action='admin.data_transfer.replace_requested' AND technical_context->>'critical_request_id'=$1",[criticalRequestId])).rows[0].n,1);
+    await owner.query(`CREATE TRIGGER reject_success_audit BEFORE INSERT ON ${schema}.audit_events
+      FOR EACH ROW EXECUTE FUNCTION ${schema}.reject_success_audit()`);
+    const approvePath=`${requestPath}/${criticalRequestId}/approve`;
+    const failedApproval=await request(approvePath,{method:"POST",cookie:approverCookie});
+    assert.equal(failedApproval.status,400);
+    assert.equal((await testPool.query("SELECT status FROM platform_admin.critical_operation_requests WHERE id=$1",[criticalRequestId])).rows[0].status,"requested");
+    await owner.query(`DROP TRIGGER reject_success_audit ON ${schema}.audit_events`);
+    const approved=await request(approvePath,{method:"POST",cookie:approverCookie});
+    assert.equal(approved.status,200);
+    assert.equal((await testPool.query("SELECT status FROM platform_admin.critical_operation_requests WHERE id=$1",[criticalRequestId])).rows[0].status,"approved");
+    assert.equal((await testPool.query("SELECT count(*)::int AS n FROM platform_admin.audit_events WHERE action='admin.data_transfer.replace_approved' AND technical_context->>'critical_request_id'=$1",[criticalRequestId])).rows[0].n,1);
     const verifyPath="/admin-api/workshops/00000000-0000-4000-8000-000000000001/data-transfer/verify";
     const verifyBody={packageText:"synthetic-package-fake",passphrase:"frase-secreta-ficticia",mode:"empty"};
     const verifySuccess=await request(verifyPath,{method:"POST",cookie:principalCookie,body:verifyBody});
