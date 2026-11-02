@@ -66,7 +66,6 @@ export function Registers({ kind }: { kind: Kind }) {
   const [params] = useSearchParams();
   const [search, setSearch] = useState(params.get("q") || "");
   const [filter, setFilter] = useState("active");
-  const [type, setType] = useState("product");
   const [editing, setEditing] = useState<Entity | null | undefined>();
   const c = config[kind];
   const [categoriesOpen, setCategoriesOpen] = useState(false);
@@ -108,17 +107,15 @@ export function Registers({ kind }: { kind: Kind }) {
               <button
                 className="button primary"
                 onClick={() => {
-                  setType("product");
                   setEditing(null);
                 }}
               >
                 <Package size={18} />
                 Cadastrar produto
               </button>
-              <button className="button" onClick={() => { setType("product"); setBatchOpen(true); }}>
+              <button className="button" onClick={() => { setBatchOpen(true); }}>
                 <Plus size={18} /> Cadastrar produtos
               </button>
-              <Link className="button" to="/servicos">Serviços da oficina</Link>
             </div>
           ) : kind === "vehicles" ? (
             <div className="capture-actions">
@@ -163,21 +160,6 @@ export function Registers({ kind }: { kind: Kind }) {
         />
       )}
       <section className={`panel register-panel${kind === "catalog" ? " products-register-panel" : ""}`}>
-        {kind === "catalog" && (
-          <div className="tabs">
-            {[
-              ["product", "Produtos"],
-            ].map(([value, label]) => (
-              <button
-                key={value}
-                className={type === value ? "active" : ""}
-                onClick={() => setType(value)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        )}
         <div className="table-toolbar">
           <SearchBox
             value={search}
@@ -391,28 +373,10 @@ export function Registers({ kind }: { kind: Kind }) {
           <Empty
             action={
               kind === "catalog" ? (
-                <div className="capture-actions">
-                  <button
-                    className="button"
-                    onClick={() => {
-                      setType("product");
-                      setEditing(null);
-                    }}
-                  >
-                    <Package size={16} />
-                    Cadastrar produto
-                  </button>
-                  <button
-                    className="button"
-                    onClick={() => {
-                      setType("service");
-                      setEditing(null);
-                    }}
-                  >
-                    <Wrench size={16} />
-                    Cadastrar serviço
-                  </button>
-                </div>
+                <button className="button" onClick={() => setEditing(null)}>
+                  <Package size={16} />
+                  Cadastrar produto
+                </button>
               ) : (
                 <button className="button" onClick={() => setEditing(null)}>
                   <Icon size={16} />
@@ -432,7 +396,7 @@ export function Registers({ kind }: { kind: Kind }) {
           kind={kind}
           initial={
             kind === "catalog"
-              ? { kind: type === "service" ? "service" : "product" }
+              ? { kind: "product" }
               : undefined
           }
           record={editing}
