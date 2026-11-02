@@ -33,7 +33,7 @@ export function Suppliers() {
     catch(e) {setError((e as Error).message);}
   }
   return <>
-    <PageHeading eyebrow="CADASTROS" title="Fornecedores" description="Dados de contato e vínculos com os produtos comprados."
+    <PageHeading title="Fornecedores" description="Dados de contato e vínculos com os produtos comprados."
       actions={<button className="button primary" onClick={()=>edit(null)}><Plus size={17}/>Cadastrar fornecedor</button>} />
     <div className="panel">
       <div className="table-toolbar">
