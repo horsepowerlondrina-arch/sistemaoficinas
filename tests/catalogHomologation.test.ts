@@ -7,6 +7,8 @@ const host="sistema-oficinas-homologacao.vercel.app";
 
 test("temporary catalog access is bound to the verified homologation deployment",()=>{
   assert.equal(catalogHomologationProjectId(host,environment),environment.VERCEL_PROJECT_ID);
+  assert.equal(catalogHomologationProjectId("osdrive.com.br",environment),environment.VERCEL_PROJECT_ID);
+  assert.equal(catalogHomologationProjectId("evil.osdrive.com.br",environment),null);
   assert.equal(catalogHomologationProjectId("localhost",environment),null);
   assert.equal(catalogHomologationProjectId(host,{...environment,VERCEL_ENV:"preview"}),null);
   assert.equal(catalogHomologationProjectId(host,{...environment,VERCEL_PROJECT_ID:"prj_production"}),null);
