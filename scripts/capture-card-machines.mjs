@@ -163,6 +163,7 @@ export async function captureCardMachines(page, entry) {
   await page
     .getByRole("combobox", { name: "Forma de pagamento", exact: true })
     .selectOption("Cartão de crédito");
+  await page.getByLabel("Data da venda no cartão").fill("2026-10-01");
   await expect(
     page.getByRole("combobox", { name: "Máquina de cartão", exact: true }),
   ).toHaveValue(machine.id);
@@ -209,7 +210,7 @@ export async function captureCardMachines(page, entry) {
       })
       .click(),
   ]);
-  expect(savedPlan.status()).toBe(200);
+  expect(savedPlan.status(), await savedPlan.text()).toBe(200);
   await expect(
     page.getByText(/Máquina: Máquina Fictícia Visual/),
   ).toBeVisible();
