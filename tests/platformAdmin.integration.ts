@@ -124,6 +124,39 @@ test("PostgreSQL platform admin: login, MFA, separated sessions, roles, audit an
     const transferExport = await request("/admin-api/workshops/00000000-0000-4000-8000-000000000001/data-transfer/export",{method:"POST",cookie:principalCookie,body:{passphrase:randomBytes(24).toString("base64url")}});
     assert.equal(transferExport.status,200);
     assert.equal(await transferExport.text(),"00000000-0000-4000-8000-000000000001");
+    const approvalSecret = newTotpSecret(), approvalPassword = randomBytes(32).toString("base64url");
+    await testPool.query(`INSERT INTO platform_admin.administrators(id,email,display_name,role,permissions,password_hash,totp_secret_ciphertext,active,enrolled)
+      VALUES($1,'approver@example.test','Aprovador Fictício','commercial',$2::jsonb,$3,$4,true,true)`,
+      ["admin-approver-test",JSON.stringify(["data-transfer:manage","critical:approve"]),hashAdminPassword(approvalPassword),encryptTotpSecret(approvalSecret,key)]);
+    const approverLogin=await login("approver@example.test",approvalPassword,approvalSecret);
+    assert.equal(approverLogin.status,200);
+    const approverCookie=approverLogin.headers.get("set-cookie")?.split(";")[0] || "";
+    const requestPath=`/admin-api/workshops/${fakeTenant}/data-transfer/critical-requests`;
+    const packageSha=randomBytes(32).toString("hex"), operation=`data_transfer_replace:${fakeTenant}:${packageSha}`;
+    await owner.query(`CREATE FUNCTION ${schema}.reject_success_audit() RETURNS trigger LANGUAGE plpgsql AS $
+      BEGIN IF NEW.action IN ('admin.data_transfer.replace_requested','admin.data_transfer.replace_approved')
+        THEN RAISE EXCEPTION 'synthetic audit failure'; END IF; RETURN NEW; END $;
+      CREATE TRIGGER reject_success_audit BEFORE INSERT ON ${schema}.audit_events
+      FOR EACH ROW EXECUTE FUNCTION ${schema}.reject_success_audit()`);
+    const failedRequest=await request(requestPath,{method:"POST",cookie:principalCookie,body:{packageSha256:packageSha}});
+    assert.equal(failedRequest.status,400);
+    assert.equal((await testPool.query("SELECT count(*)::int AS n FROM platform_admin.critical_operation_requests WHERE operation=$1",[operation])).rows[0].n,0);
+    await owner.query(`DROP TRIGGER reject_success_audit ON ${schema}.audit_events`);
+    const createdRequest=await request(requestPath,{method:"POST",cookie:principalCookie,body:{packageSha256:packageSha}});
+    assert.equal(createdRequest.status,201);
+    const criticalRequestId=(await createdRequest.json() as {id:string}).id;
+    assert.equal((await testPool.query("SELECT count(*)::int AS n FROM platform_admin.audit_events WHERE action='admin.data_transfer.replace_requested' AND technical_context->>'critical_request_id'=$1",[criticalRequestId])).rows[0].n,1);
+    await owner.query(`CREATE TRIGGER reject_success_audit BEFORE INSERT ON ${schema}.audit_events
+      FOR EACH ROW EXECUTE FUNCTION ${schema}.reject_success_audit()`);
+    const approvePath=`${requestPath}/${criticalRequestId}/approve`;
+    const failedApproval=await request(approvePath,{method:"POST",cookie:approverCookie});
+    assert.equal(failedApproval.status,400);
+    assert.equal((await testPool.query("SELECT status FROM platform_admin.critical_operation_requests WHERE id=$1",[criticalRequestId])).rows[0].status,"requested");
+    await owner.query(`DROP TRIGGER reject_success_audit ON ${schema}.audit_events`);
+    const approved=await request(approvePath,{method:"POST",cookie:approverCookie});
+    assert.equal(approved.status,200);
+    assert.equal((await testPool.query("SELECT status FROM platform_admin.critical_operation_requests WHERE id=$1",[criticalRequestId])).rows[0].status,"approved");
+    assert.equal((await testPool.query("SELECT count(*)::int AS n FROM platform_admin.audit_events WHERE action='admin.data_transfer.replace_approved' AND technical_context->>'critical_request_id'=$1",[criticalRequestId])).rows[0].n,1);
     const verifyPath="/admin-api/workshops/00000000-0000-4000-8000-000000000001/data-transfer/verify";
     const verifyBody={packageText:"synthetic-package-fake",passphrase:"frase-secreta-ficticia",mode:"empty"};
     const verifySuccess=await request(verifyPath,{method:"POST",cookie:principalCookie,body:verifyBody});
