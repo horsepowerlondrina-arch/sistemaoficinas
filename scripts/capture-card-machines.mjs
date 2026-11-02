@@ -163,6 +163,7 @@ export async function captureCardMachines(page, entry) {
   await page
     .getByRole("combobox", { name: "Forma de pagamento", exact: true })
     .selectOption("Cartão de crédito");
+  await page.getByLabel("Data da venda no cartão").fill("2026-10-01");
   await expect(
     page.getByRole("combobox", { name: "Máquina de cartão", exact: true }),
   ).toHaveValue(machine.id);
