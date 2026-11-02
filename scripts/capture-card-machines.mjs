@@ -209,7 +209,7 @@ export async function captureCardMachines(page, entry) {
       })
       .click(),
   ]);
-  expect(savedPlan.status()).toBe(200);
+  expect(savedPlan.status(), await savedPlan.text()).toBe(200);
   await expect(
     page.getByText(/Máquina: Máquina Fictícia Visual/),
   ).toBeVisible();
