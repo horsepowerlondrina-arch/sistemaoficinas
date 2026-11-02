@@ -168,16 +168,16 @@
       "id": "clientes-lista-a",
       "module": "03-clientes",
       "title": "Clientes da Oficina Fictícia A",
-      "description": "Lista e pesquisa com dados de demonstração.",
+      "description": "Lista de clientes sem rótulo repetido abaixo das abas.",
       "route": "/cadastros?aba=clientes",
       "kind": "Lista e pesquisa",
       "viewport": "mobile",
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/03-clientes/clientes-lista-oficina-a.png",
-      "updatedAt": "2026-10-22",
-      "commit": null,
-      "freshness": "revisar",
-      "reason": "Captura real com dados fictícios feita em 22/10/2026. O commit de origem não foi registrado; recaptura Playwright e atualização do commit estão pendentes."
+      "updatedAt": "2026-11-02",
+      "commit": "862d4707a324e69538296a9f4de90fd6d4f36fd4",
+      "freshness": "atual",
+      "reason": null
     },
     {
       "id": "clientes-lista-b",
@@ -198,16 +198,16 @@
       "id": "veiculos-lista-a",
       "module": "04-veiculos",
       "title": "Veículos da Oficina Fictícia A",
-      "description": "Lista de veículos e vínculo com cliente fictício.",
+      "description": "Lista de veículos sem rótulo repetido abaixo das abas.",
       "route": "/cadastros?aba=veiculos",
       "kind": "Lista e pesquisa",
       "viewport": "mobile",
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/04-veiculos/veiculos-lista-oficina-a.png",
-      "updatedAt": "2026-10-22",
-      "commit": null,
-      "freshness": "revisar",
-      "reason": "Captura real com dados fictícios feita em 22/10/2026. O commit de origem não foi registrado; recaptura Playwright e atualização do commit estão pendentes."
+      "updatedAt": "2026-11-02",
+      "commit": "862d4707a324e69538296a9f4de90fd6d4f36fd4",
+      "freshness": "atual",
+      "reason": null
     },
     {
       "id": "veiculos-lista-b",
