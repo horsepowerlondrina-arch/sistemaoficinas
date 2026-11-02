@@ -133,9 +133,9 @@ test("PostgreSQL platform admin: login, MFA, separated sessions, roles, audit an
     const approverCookie=approverLogin.headers.get("set-cookie")?.split(";")[0] || "";
     const requestPath=`/admin-api/workshops/${fakeTenant}/data-transfer/critical-requests`;
     const packageSha=randomBytes(32).toString("hex"), operation=`data_transfer_replace:${fakeTenant}:${packageSha}`;
-    await owner.query(`CREATE FUNCTION ${schema}.reject_success_audit() RETURNS trigger LANGUAGE plpgsql AS $
+    await owner.query(`CREATE FUNCTION ${schema}.reject_success_audit() RETURNS trigger LANGUAGE plpgsql AS $audit$
       BEGIN IF NEW.action IN ('admin.data_transfer.replace_requested','admin.data_transfer.replace_approved')
-        THEN RAISE EXCEPTION 'synthetic audit failure'; END IF; RETURN NEW; END $;
+        THEN RAISE EXCEPTION 'synthetic audit failure'; END IF; RETURN NEW; END $audit$;
       CREATE TRIGGER reject_success_audit BEFORE INSERT ON ${schema}.audit_events
       FOR EACH ROW EXECUTE FUNCTION ${schema}.reject_success_audit()`);
     const failedRequest=await request(requestPath,{method:"POST",cookie:principalCookie,body:{packageSha256:packageSha}});
