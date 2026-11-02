@@ -2,6 +2,7 @@ import { PlatformBrand } from "../components/PlatformBrand";
 import { useState, type FormEvent } from "react";
 import { Eye, EyeOff, LoaderCircle } from "lucide-react";
 import { send } from "../lib/api";
+import { Link } from "react-router-dom";
 export function Login({ onLogin }: { onLogin: () => Promise<void> }) {
   const [email, setEmail] = useState(() => {
     try {
@@ -79,6 +80,7 @@ export function Login({ onLogin }: { onLogin: () => Promise<void> }) {
               {visible ? <EyeOff size={19} /> : <Eye size={19} />}
             </button>
           </div>
+          <Link className="office-auth-link" to="/recuperar-senha">Esqueci minha senha</Link>
           <label className="office-auth-remember">
             <input
               type="checkbox"

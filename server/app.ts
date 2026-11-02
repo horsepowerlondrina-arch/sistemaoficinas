@@ -35,6 +35,7 @@ import {
 } from "./services/checklists.js";
 import express from "express";
 import { randomBytes } from "node:crypto";
+import { cancelPasswordReset, completePasswordReset, issuePasswordReset, newPasswordResetToken, passwordResetRequestId, sendPasswordResetEmail, type PasswordResetMailConfig } from "./services/passwordReset.js";
 import { z } from "zod";
 import { normalizeVehicleModelLink, serviceModelIdSchema } from "./services/vehicleModelLink.js";
 import { resolve } from "node:path";
@@ -227,7 +228,7 @@ function requestSecuritySettings(req: express.Request) {
   };
 }
 
-export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
+export function createApp(db: DB, platformAdminApp?: express.RequestHandler, passwordResetMailConfig: PasswordResetMailConfig = {}) {
   const app = express();
   app.disable("x-powered-by");
   app.use("/api/stock-invoices", express.json({ limit: "3mb" }));
@@ -274,7 +275,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
     next();
   });
   app.use("/api", (req, res, next) => {
-    if (!db.withRequestContext || req.path.startsWith("/admin-api")) {
+    if (!db.withRequestContext || req.path.startsWith("/admin-api") || req.path.startsWith("/password-reset/")) {
       next();
       return;
     }
@@ -311,6 +312,39 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler) {
         .run(setup.user_id);
     });
     res.json({ ok: true });
+  });
+  app.post("/api/password-reset/request", async (req, res) => {
+    res.set("Referrer-Policy", "no-referrer");
+    const input = z.object({ email: z.string().trim().email().max(254) }).strict().safeParse(req.body);
+    if (!input.success) { res.status(400).json({ error: "Informe um e-mail válido." }); return; }
+    if (!(passwordResetMailConfig.apiKey ?? process.env.RESEND_API_KEY) ||
+        !(passwordResetMailConfig.from ?? process.env.WORKSHOP_ACTIVATION_FROM) ||
+        !(passwordResetMailConfig.appOrigin ?? process.env.APP_ORIGIN)) {
+      res.status(503).json({ error: "O envio de e-mail está temporariamente indisponível." }); return;
+    }
+    const token = newPasswordResetToken(), tokenHash = digest(token);
+    const recipient = await issuePasswordReset(db, input.data.email.toLowerCase(), digest(req.ip || "unknown"), tokenHash);
+    if (recipient) {
+      try {
+        await sendPasswordResetEmail({ email: recipient, token, requestId: passwordResetRequestId() }, passwordResetMailConfig);
+      } catch {
+        try { await cancelPasswordReset(db, tokenHash); }
+        catch { console.warn("Não foi possível revogar um link de recuperação não entregue."); }
+        console.warn("Falha ao enviar e-mail de recuperação de senha da oficina.");
+      }
+    }
+    res.status(202).json({ message: "Se esse e-mail possui acesso a uma oficina, enviaremos um link para redefinir a senha." });
+  });
+  app.post("/api/password-reset/complete", async (req, res) => {
+    res.set("Referrer-Policy", "no-referrer");
+    const input = z.object({
+      token: z.string().regex(/^[a-f0-9]{64}$/),
+      password: z.string().min(12).max(200),
+    }).strict().safeParse(req.body);
+    if (!input.success) { res.status(400).json({ error: "Link inválido ou senha fora dos limites permitidos." }); return; }
+    const completed = await completePasswordReset(db, digest(input.data.token), input.data.password);
+    if (!completed) { res.status(400).json({ error: "O link é inválido, expirou ou já foi utilizado. Solicite outro." }); return; }
+    res.json({ ok: true, message: "Senha alterada. Entre novamente na sua oficina." });
   });
   app.post("/api/login", async (req, res) => {
     const input = z
