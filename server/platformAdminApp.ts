@@ -597,36 +597,6 @@ export function createPlatformAdminApp(pool: Pool, encryptionKey: string, transf
       throw error;
     }finally{client.release();}
   });
-  app.get("/admin-api/catalog-test-access",requireSession,requirePermission("modules:manage"),async(req,res)=>{
-    const projectId=catalogHomologationProjectId(req.hostname);
-    if(!projectId){res.status(403).json({error:"A liberação coletiva está disponível somente no projeto autorizado de homologação."});return;}
-    const state=await pool.query("SELECT * FROM platform_admin.catalog_test_access_status()");
-    res.json({available:true,...state.rows[0]});
-  });
-  app.put("/admin-api/catalog-test-access",requireSession,requirePermission("modules:manage"),async(req,res)=>{
-    const input=z.object({enabled:z.boolean(),valid_until:z.string().datetime().nullable().optional(),reason:z.string().trim().min(10).max(500)}).strict().safeParse(req.body);
-    if(!input.success){res.status(400).json({error:"Informe a validade temporária e a justificativa."});return;}
-    const projectId=catalogHomologationProjectId(req.hostname);
-    if(!projectId){res.status(403).json({error:"A liberação coletiva está disponível somente no projeto autorizado de homologação."});return;}
-    const token=cookieValue(req);if(!token){res.status(401).json({error:"Entre no painel central."});return;}
-    const client=await pool.connect();
-    try{
-      await client.query("BEGIN");
-      await client.query("SELECT set_config('app.vercel_project_id',$1,true),set_config('app.vercel_env',$2,true)",[projectId,process.env.VERCEL_ENV||""]);
-      const result=await client.query("SELECT * FROM platform_admin.set_catalog_test_access($1,$2,$3,$4,$5)",[
-        digestAdminToken(token),projectId,input.data.enabled,input.data.enabled?input.data.valid_until||null:null,input.data.reason,
-      ]);
-      await writeAdminAudit(client,{actorId:result.rows[0]?.actor_id,actorEmail:result.rows[0]?.actor_email,action:input.data.enabled?"admin.catalog_test_access.enabled":"admin.catalog_test_access.disabled",result:"success",technical:{changed_count:result.rows[0]?.changed_count,valid_until:input.data.enabled?input.data.valid_until||null:null,reason:input.data.reason}});
-      await client.query("COMMIT");
-      res.json({ok:true,changed_count:result.rows[0]?.changed_count||0});
-    }catch(error){
-      await client.query("ROLLBACK").catch(()=>{});
-      const code=(error as {code?:string}).code;
-      if(code==="42501"){res.status(403).json({error:"Permissão ou ambiente não autorizado."});return;}
-      if(code==="22023"){res.status(400).json({error:"Período ou justificativa inválidos."});return;}
-      throw error;
-    }finally{client.release();}
-  });
   app.post("/admin-api/workshops", requireSession, requirePermission("workshops:manage"), async (req, res) => {
     const input = workshopRegistrationSchema.safeParse(req.body);
     if (!input.success) { res.status(400).json({ error: "Confira os dados cadastrais da oficina." }); return; }
