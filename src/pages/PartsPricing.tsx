@@ -49,10 +49,7 @@ function ProfitTable({
   const error = rangeError(rows);
   return (
     <>
-      <p className="muted">
-        Custos inicial e final são inclusivos. A primeira faixa começa em R$
-        0,00; a seguinte começa um centavo após o fim da anterior.
-      </p>
+      <p className="muted">Faixas de custo em reais, sem lacunas ou sobreposições.</p>
       <div className="table-scroll">
         <table
           aria-label={
@@ -188,11 +185,7 @@ function ProfitTable({
           {thirdParty ? "Serviços de Terceiros" : "Peças e Produtos"}: {error}
         </p>
       )}
-      <p className="muted">
-        Mantenha ao menos uma faixa. Ao excluir uma linha, revise os limites
-        para evitar lacunas. Sem uma faixa correspondente, o cálculo será
-        bloqueado.
-      </p>
+
     </>
   );
 }
@@ -277,14 +270,7 @@ export function PartsPricing() {
     >
       <fieldset disabled={busy} className="product-batch-fields">
         <h2>Peças e Produtos</h2>
-        <p className="muted">
-          A base é o custo unitário mais o frete por unidade. No modo por
-          faixas, a venda usa o maior valor entre o acréscimo da faixa e o ganho
-          mínimo. Nos demais modos, usa o percentual selecionado. A regra vale
-          para novas importações do Sky e ao confirmar custo ou frete nos
-          cadastros. Você pode ajustar o preço de venda manualmente após o
-          cálculo.
-        </p>
+        <p className="muted">Defina o lucro sugerido conforme o custo de cada peça.</p>
         <Field label="Regra de preço das peças">
           <select
             value={mode}
@@ -317,13 +303,10 @@ export function PartsPricing() {
           </Field>
         )}
         {mode !== "legacy" && (
-          <p className="muted">
-            A tabela abaixo fica preservada e só será utilizada no modo Faixas
-            de custo e ganho mínimo.
-          </p>
+          <p className="muted">As faixas ficam guardadas para quando este modo for selecionado.</p>
         )}
         <ProfitTable rows={rules} setRows={setRules} />
-        <h3>Simular uma peça</h3>
+        <h3>Simular preço de peça</h3>
         <div className="form-grid">
           <Field label="Custo sem frete (R$)">
             <NumericInput
@@ -352,20 +335,13 @@ export function PartsPricing() {
           <p role="alert">{simulationError}</p>
         ) : (
           <p data-testid="product-price-simulation">
-            Base: <strong>{money(base)}</strong> · Venda:{" "}
-            <strong>{money(price)}</strong> · Ganho bruto:{" "}
-            <strong>{money(price - base)}</strong>
+            Preço sugerido: <strong>{money(price)}</strong>
           </p>
         )}
         <h3>Serviços de Terceiros</h3>
-        <p className="muted">
-          Tabela independente: a venda é o custo do serviço mais o percentual da
-          faixa. Serviços próprios mantêm seus preços definidos; mão de obra do
-          Catálogo Técnico mantém tempo e valor da hora. O cálculo por custo só
-          é aplicado quando solicitado.
-        </p>
+        <p className="muted">Defina o lucro sugerido para serviços contratados de terceiros.</p>
         <ProfitTable rows={serviceRules} setRows={setServiceRules} thirdParty />
-        <h3>Simular um serviço de terceiros</h3>
+        <h3>Simular preço de serviço</h3>
         <Field label="Custo do serviço de terceiros (R$)">
           <NumericInput
             type="number"
@@ -381,15 +357,10 @@ export function PartsPricing() {
           <p role="alert">{serviceError}</p>
         ) : (
           <p data-testid="service-price-simulation">
-            Custo: <strong>{money(serviceCost)}</strong> · Venda:{" "}
-            <strong>{money(servicePrice)}</strong> · Ganho bruto:{" "}
-            <strong>{money(servicePrice - serviceCost)}</strong>
+            Preço sugerido: <strong>{money(servicePrice)}</strong>
           </p>
         )}
-        <p className="muted">
-          Orçamentos e OS já lançados preservam seus valores. Ganho bruto não
-          desconta taxas de cartão nem despesas da oficina.
-        </p>
+
         {error && (
           <div role="alert" className="error-box">
             {error}
