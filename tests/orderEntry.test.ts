@@ -65,7 +65,7 @@ test("new quote and OS open directly with customer and plate fields in order", (
       "Nome do cliente",
       "Placa",
       "Marca",
-      "Modelo FIPE",
+      "Modelo",
       "Ano de fabricação",
       "Quilometragem",
       "Telefone / WhatsApp",
@@ -145,7 +145,7 @@ test("a guest quote preserves optional name and vehicle with a single plate inpu
   assert.match(html, /O cliente será cadastrado ao salvar/);
   assert.match(html, /value="DEF4G56"/);
   assert.match(html, /Marca \*/);
-  assert.match(html, /Modelo FIPE \*/);
+  assert.match(html, /Modelo \*/);
   assert.match(html, /Ano de fabricação \*/);
   assert.match(html, /Cor/);
   assert.match(html, /Chassi/);

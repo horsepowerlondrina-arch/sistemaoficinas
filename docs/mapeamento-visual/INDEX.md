@@ -156,19 +156,19 @@ Estado: capturada · mobile · captura 2026-10-30 · commit de origem: f6e2a4cb1
 
 ### CAD-005 — Associação manual no modal (desktop)
 
-Clique real na marca e no modelo, gravação e reabertura do vínculo manual sem alterar a identificação FIPE.
+Revisão real com seleção única do modelo do veículo e código FIPE, usando dados fictícios.
 
 [![CAD-005 — Associação manual no modal (desktop)](./capturas/04-veiculos/cad005-review-catalog-desktop.png)](./capturas/04-veiculos/cad005-review-catalog-desktop.png)
 
-Estado: capturada · desktop · captura 2026-10-30 · commit de origem: e5a84d7a9bb11a524307051eb7da7c44bfddd12b · [arquivo completo](./capturas/04-veiculos/cad005-review-catalog-desktop.png)
+Estado: capturada · desktop · captura 2026-11-03 · commit de origem: eb61ac242259c0294f2056a6f5a70b1b8b2127e1 · [arquivo completo](./capturas/04-veiculos/cad005-review-catalog-desktop.png)
 
 ### CAD-005 — Associação manual no modal (mobile)
 
-Clique real na marca e no modelo, gravação e reabertura do vínculo manual sem alterar a identificação FIPE.
+Revisão real com seleção única do modelo do veículo e código FIPE, usando dados fictícios.
 
 [![CAD-005 — Associação manual no modal (mobile)](./capturas/04-veiculos/cad005-review-catalog-mobile.png)](./capturas/04-veiculos/cad005-review-catalog-mobile.png)
 
-Estado: capturada · mobile · captura 2026-10-30 · commit de origem: e5a84d7a9bb11a524307051eb7da7c44bfddd12b · [arquivo completo](./capturas/04-veiculos/cad005-review-catalog-mobile.png)
+Estado: capturada · mobile · captura 2026-11-03 · commit de origem: eb61ac242259c0294f2056a6f5a70b1b8b2127e1 · [arquivo completo](./capturas/04-veiculos/cad005-review-catalog-mobile.png)
 
 ## 05 — Checklist
 

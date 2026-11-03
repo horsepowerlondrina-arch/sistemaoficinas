@@ -29,10 +29,10 @@ import {
 } from "../components/ui";
 import { PlateField } from "../components/PlateField";
 import { VehicleIdentityFields } from "../components/VehicleIdentityFields";
-import { VehicleTechnicalAssociation } from "../components/VehicleTechnicalAssociation";
+import { VehicleModelSelection } from "../components/VehicleModelSelection";
 import { mergeVehicleLookup, lookupWouldReplace, vehicleDisplayModel } from "../../shared/vehicleIdentity";
 import { VehicleCatalogReview } from "../components/VehicleCatalogReview";
-import { candidateFields, fipeFields, emptyFipe } from "../../shared/vehicleFipe";
+import { candidateFields, fipeFields, emptyFipe, type FipeCandidate } from "../../shared/vehicleFipe";
 type Kind = "customers" | "vehicles" | "catalog" | "professionals";
 const config = {
   customers: {
@@ -492,18 +492,17 @@ export function RegisterModal({
   const [error, setError] = useState("");
   const [plateProposal, setPlateProposal] = useState<Record<string, any> | null>(null);
   const [plateProposalBusy, setPlateProposalBusy] = useState(false);
-  const [selectedLookupFields, setSelectedLookupFields] = useState<string[]>([]);
-  const [selectedLookupCandidate, setSelectedLookupCandidate] = useState("");
+  const [plateCandidates, setPlateCandidates] = useState<FipeCandidate[]>([]);
   const lookupVehicleForReview = async () => {
     if (kind !== "vehicles" || !record?.id) return;
     setPlateProposalBusy(true);
     setError("");
     setPlateProposal(null);
-    setSelectedLookupFields([]);
-    setSelectedLookupCandidate("");
+    setPlateCandidates([]);
     try {
       const result = await send(`/vehicles/${record.id}/lookup-refresh`, {}, "POST");
       setPlateProposal(result);
+      setPlateCandidates(result.fipe_candidates || []);
     } catch (reason) {
       setError((reason as Error).message);
     } finally {
@@ -516,13 +515,13 @@ export function RegisterModal({
       setError("Consulte a placa novamente antes de aplicar os dados.");
       return;
     }
-    const candidateIndex = selectedLookupCandidate ? Number(selectedLookupCandidate) : null;
-    const candidate = candidateIndex === null
-      ? undefined
-      : plateProposal.fipe_candidates?.[candidateIndex];
+    const candidateIndex = plateProposal.fipe_candidates?.findIndex((candidate: FipeCandidate) => candidate.codigoFipe && candidate.codigoFipe === form.fipe_code) ?? -1;
+    const candidate = candidateIndex >= 0 ? plateProposal.fipe_candidates[candidateIndex] : undefined;
     const previewValues = { ...plateProposal.vehicle, ...(candidate ? candidateFields(candidate) : {}) };
-    const fields = selectedLookupFields.filter((field) => Object.prototype.hasOwnProperty.call(previewValues, field));
-    if (!fields.length) { setError("Marque ao menos uma informação para atualizar."); return; }
+    const fields = ["brand", "year", "model_year", "fuel", "color", "fipe_code", "fipe_model", "fipe_year_id"]
+      .filter((field) => (field !== "fipe_model" || !form.service_model_id) && previewValues[field] !== undefined && previewValues[field] !== null && previewValues[field] !== ""
+        && String(plateProposal.current?.[field] ?? "") !== String(previewValues[field]));
+    if (!fields.length) { setError("A consulta não trouxe dados diferentes para aplicar."); return; }
     const selectedValues = Object.fromEntries(fields.map((field) => [field, previewValues[field]]));
     setPlateProposalBusy(true);
     setError("");
@@ -530,14 +529,12 @@ export function RegisterModal({
       await send(`/vehicles/${record.id}/apply-lookup`, {
         fields,
         confirmation_token: plateProposal.confirmation_token,
-        fipe_candidate_index: candidateIndex,
+        fipe_candidate_index: candidateIndex >= 0 ? candidateIndex : null,
       });
       setForm((current) => ({ ...current, ...selectedValues }));
       await refresh();
       notify("Campos selecionados atualizados; a consulta foi registrada no histórico.");
       setPlateProposal(null);
-      setSelectedLookupFields([]);
-      setSelectedLookupCandidate("");
     } catch (reason) {
       setError((reason as Error).message);
     } finally {
@@ -692,10 +689,12 @@ export function RegisterModal({
                       <div className="form-grid full">
                         <PlateField
                           value={vehicle.plate}
+                          showFipeSelection={false}
                           onChange={(plate) =>
                             setVehicle((v) => ({ ...v, plate, ...emptyFipe, service_model_id: undefined }))
                           }
                           onFound={(r) => {
+                            if (r.fipe_candidates) setPlateCandidates(r.fipe_candidates);
                             if (r.selectionOnly) {
                               setVehicle(current => ({ ...current, ...fipeFields(r.vehicle) }));
                               return;
@@ -705,7 +704,7 @@ export function RegisterModal({
                           }}
                         />
                         <VehicleIdentityFields vehicle={vehicle} onChange={setVehicle} km={vehicle.km} onKmChange={(value) => setVehicle((current) => ({ ...current, km: value }))} />
-                        <VehicleTechnicalAssociation vehicle={vehicle} modelId={String(vehicle.service_model_id || "")} onModelChange={(id) => setVehicle((current) => ({ ...current, service_model_id: id || null, service_link_mode: id ? "manual" : "none" }))} />
+                        <VehicleModelSelection vehicle={vehicle} onChange={setVehicle} candidates={plateCandidates} />
                       </div>
                     )}
                   </>
@@ -739,45 +738,26 @@ export function RegisterModal({
                   </div>
                   {plateProposal?.vehicle && <div className="vehicle-lookup-proposal">
                     <p><strong>{plateProposal.cache_status === "hit" ? "Consulta reutilizada do cache" : "Prévia da consulta"}</strong> · {plateProposal.message}</p>
-                    {["brand","model","year","model_year","fuel","color"].map((field) => {
-                      const value = plateProposal.vehicle[field];
-                      if (value === undefined || value === null || value === "") return null;
-                      const labels: Record<string,string> = { brand: "Marca", model: "Modelo", year: "Ano de fabricação", model_year: "Ano do modelo", fuel: "Combustível", color: "Cor" };
-                      return <label className="checkbox-row" key={field}>
-                        <input type="checkbox" checked={selectedLookupFields.includes(field)} onChange={(event) => setSelectedLookupFields((current) => event.target.checked ? [...current, field] : current.filter((item) => item !== field))} />
-                        {labels[field]}: {String(form[field] ?? "—")} → {String(value)}
-                      </label>;
+                    <p className="muted">Confira as diferenças antes de confirmar. O modelo escolhido abaixo será preservado.</p>
+                    {(["brand","year","model_year","fuel","color"] as const).map((field) => {
+                      const next = plateProposal.vehicle[field];
+                      if (next === undefined || next === null || next === "" || String(form[field] ?? "") === String(next)) return null;
+                      const labels = { brand: "Marca", year: "Ano de fabricação", model_year: "Ano do modelo", fuel: "Combustível", color: "Cor" };
+                      return <p className="muted" key={field}>{labels[field]}: {String(form[field] || "—")} → {String(next)}</p>;
                     })}
-                    {!!plateProposal.fipe_candidates?.length && <>
-                      <Field label="Versão FIPE retornada">
-                        <select value={selectedLookupCandidate} onChange={(event) => setSelectedLookupCandidate(event.target.value)}>
-                          <option value="">Não selecionar código FIPE</option>
-                          {plateProposal.fipe_candidates.map((candidate: any, index: number) => <option key={index} value={String(index)} disabled={!candidate.codigoFipe}>
-                            {[candidate.modelo,candidate.anoModelo,candidate.combustivel,candidate.codigoFipe].filter(Boolean).join(" · ")}
-                          </option>)}
-                        </select>
-                      </Field>
-                      {(["fipe_code","fipe_model","fipe_year_id","model_year","fuel"] as const).map((field) => {
-                        const labels = { fipe_code: "Código FIPE", fipe_model: "Modelo FIPE", fipe_year_id: "Ano FIPE", model_year: "Ano do modelo", fuel: "Combustível" };
-                        const next = selectedLookupCandidate ? candidateFields(plateProposal.fipe_candidates[Number(selectedLookupCandidate)])[field] : plateProposal.vehicle[field];
-                        if (next === undefined || next === null || next === "") return null;
-                        return <label className="checkbox-row" key={field}>
-                          <input type="checkbox" checked={selectedLookupFields.includes(field)} onChange={(event) => setSelectedLookupFields((current) => event.target.checked ? [...current, field] : current.filter((item) => item !== field))} />
-                          {labels[field]}: {String(form[field] || "—")} → {String(next)}
-                        </label>;
-                      })}
-                    </>}
                     <div className="capture-actions">
-                      <button type="button" className="button primary" disabled={plateProposalBusy || !selectedLookupFields.length} onClick={() => void applyVehicleLookup()}>Aplicar campos marcados</button>
-                      <button type="button" className="button" disabled={plateProposalBusy} onClick={() => { setPlateProposal(null); setSelectedLookupFields([]); setSelectedLookupCandidate(""); }}>Manter cadastro atual</button>
+                      <button type="button" className="button primary" disabled={plateProposalBusy} onClick={() => void applyVehicleLookup()}>Confirmar atualização</button>
+                      <button type="button" className="button" disabled={plateProposalBusy} onClick={() => { setPlateProposal(null); setPlateCandidates([]); }}>Manter cadastro atual</button>
                     </div>
                   </div>}
                 </section>}
                 <PlateField
                   value={form.plate}
                   lookupDisabled={!!record}
+                  showFipeSelection={false}
                   onChange={(plate) => setForm(current => ({ ...current, plate, ...emptyFipe, service_model_id: record ? current.service_model_id : undefined }))}
                   onFound={(r) => {
+                    if (r.fipe_candidates) setPlateCandidates(r.fipe_candidates);
                     if (r.selectionOnly) {
                       setForm(current => ({ ...current, ...fipeFields(r.vehicle) }));
                       return;
@@ -791,7 +771,7 @@ export function RegisterModal({
                   }}
                 />
                 <VehicleIdentityFields vehicle={form} onChange={setForm} km={form.km} onKmChange={(value) => set("km", value)} />
-                <VehicleTechnicalAssociation vehicle={form} modelId={String(form.service_model_id || "")} onModelChange={(id) => setForm((current) => ({ ...current, service_model_id: id || null, service_link_mode: id ? "manual" : "none" }))} />
+                <VehicleModelSelection vehicle={form} onChange={setForm} candidates={plateCandidates} />
               </>
             ) : kind === "catalog" ? (
               <>

@@ -85,7 +85,7 @@ import { listCardMachines, saveCardMachine, resolveCardPayments } from "./servic
 import { calculatePaymentPlan, paymentMethods } from "./domain/payments.js";
 import { lookupVehicle, lookupVehicleExternal, normalizePlate, vehicleLookupAccess } from "./services/vehicleLookup.js";
 import { vehicleFipeFields } from "./services/vehicleFipeFields.js";
-import { serviceInfo, saveLaborRates, searchBrands, searchModels, repairModel, identifyVehicleModel, confirmVehicleModel, catalogAccessState, searchRepairServices, listWorkshopServices, saveWorkshopService, setWorkshopServiceActive, listWorkshopServiceCategories, saveWorkshopServiceCategory, setWorkshopServiceCategoryActive, resolveService, serviceSelectionSchema, withTenantScope, previewVehicleCatalogReview } from './services/repairCatalog.js';
+import { serviceInfo, saveLaborRates, searchBrands, searchModels, repairModel, identifyVehicleModel, catalogAccessState, searchRepairServices, listWorkshopServices, saveWorkshopService, setWorkshopServiceActive, listWorkshopServiceCategories, saveWorkshopServiceCategory, setWorkshopServiceCategoryActive, resolveService, serviceSelectionSchema, withTenantScope, previewVehicleCatalogReview, registrationVehicleModels, confirmRegistrationVehicleModel } from './services/repairCatalog.js';
 const text = z.string().trim().max(500).default("");
 const name = z
   .string()
@@ -1023,6 +1023,10 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
     res.json({ ok: true });
   });
   const lookupLimits = new Map<string, { count: number; until: number }>();
+  app.post("/api/vehicles/model-options", async (req, res) => {
+    requireAdmin(res.locals.context);
+    res.json(await registrationVehicleModels(db, res.locals.context, req.body));
+  });
   app.post("/api/vehicles/lookup", async (req, res) => {
     const tenant = res.locals.context.tenantId;
     const plate = z.string().max(12).parse(req.body.plate);
@@ -1222,13 +1226,13 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
       .parse(req.body.vehicle);
     let selectedModel: any = null;
     if (vehicle.service_model_id) {
-      if (await catalogAccessState(db, ctx) === "active") selectedModel = await confirmVehicleModel(db, ctx, vehicle, vehicle.service_model_id);
-      else vehicle.service_model_id = null;
+      selectedModel = await confirmRegistrationVehicleModel(db, ctx, vehicle.service_model_id, vehicle.brand, vehicle.fipe_code);
     }
     if (!Object.prototype.hasOwnProperty.call(req.body.vehicle || {}, "service_model_id")) {
       const match = await identifyVehicleModel(db, ctx, vehicle);
       if (match.status === "matched") { selectedModel = match.model; vehicle.service_model_id = match.model.id; }
     }
+    if (selectedModel) { vehicle.model = String(selectedModel.name); vehicle.fipe_model = String(selectedModel.name); vehicle.fipe_code = String(selectedModel.fipe_code || vehicle.fipe_code || ""); }
     (vehicle as any).service_porte_id = selectedModel?.porte_id || "";
     (vehicle as any).service_link_mode = req.body.vehicle?.service_model_id ? "manual" : selectedModel ? "auto" : "none";
     // The legacy database stores an absent technical association as an empty string.
@@ -1413,14 +1417,14 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
           const explicitModel = Object.prototype.hasOwnProperty.call(input, "service_model_id");
           let selectedModel: any = null;
           if (explicitModel && input.service_model_id && (input.service_model_id !== old?.service_model_id || input.service_link_mode === "manual")) {
-            if (await catalogAccessState(db, ctx) === "active") selectedModel = await confirmVehicleModel(db, ctx, input, input.service_model_id);
-            else input.service_model_id = old?.service_model_id || null;
+            selectedModel = await confirmRegistrationVehicleModel(db, ctx, input.service_model_id, input.brand, input.fipe_code);
           } else if (!explicitModel && old?.service_model_id) {
             input.service_model_id = old.service_model_id;
           } else if (!old && !explicitModel) {
             const match = await identifyVehicleModel(db, ctx, input);
             if (match.status === "matched") { selectedModel = match.model; input.service_model_id = match.model.id; }
           }
+          if (selectedModel) { input.model = String(selectedModel.name); input.fipe_model = String(selectedModel.name); input.fipe_code = String(selectedModel.fipe_code || input.fipe_code || ""); }
           input.service_porte_id = selectedModel?.porte_id || (input.service_model_id && input.service_model_id === old?.service_model_id ? old?.service_porte_id || "" : "");
           if (explicitModel && !input.service_model_id) input.service_porte_id = "";
           input.service_link_mode = explicitModel && (input.service_model_id !== old?.service_model_id || input.service_link_mode === "manual")

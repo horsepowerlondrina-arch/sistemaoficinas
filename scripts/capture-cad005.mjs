@@ -11,9 +11,30 @@ export async function captureCad005(page, entry) {
     await page.getByText("Veículo ainda não cadastrado", { exact: true }).waitFor();
   }
   const scope = register || review ? page.getByRole("dialog") : page;
+  if (register || review) {
+    if (register) {
+      await scope.getByRole("textbox", { name: /^Marca/ }).fill("Marca Fictícia");
+      await scope.getByRole("textbox", { name: /^Modelo/ }).fill("Modelo Fictício");
+      await scope.getByRole("spinbutton", { name: /^Ano de fabricação/ }).fill("2020");
+      await scope.getByRole("spinbutton", { name: "Ano do modelo", exact: true }).fill("2021");
+      await scope.getByRole("textbox", { name: "Combustível", exact: true }).fill("Flex");
+    }
+    await expect(scope.getByRole("heading", { name: "Escolha o modelo do veículo" })).toBeVisible();
+    if (entry.id.includes("review-catalog")) {
+      const firstOption = scope.getByRole("group", { name: "Modelos do veículo" }).getByRole("radio").first();
+      await expect(firstOption).toBeVisible();
+      await firstOption.click();
+      await expect(scope.locator('input[name="vehicle-model-option"]:checked')).toHaveCount(1);
+      await scope.locator(".vehicle-technical-association").scrollIntoViewIfNeeded();
+    }
+    if (entry.id.includes("-footer-")) await scope.evaluate(element => { element.scrollTop = element.scrollHeight; });
+    else if (!entry.id.includes("review-catalog")) await scope.evaluate(element => { element.scrollTop = 0; });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBeTruthy();
+    return;
+  }
   if (!review && !entry.id.includes("switch")) {
     await scope.getByRole("textbox", { name: /^Marca/ }).fill("Marca Fictícia");
-    await scope.getByRole("textbox", { name: /^Modelo FIPE/ }).fill("Modelo FIPE Fictício 1.0 Flex");
+    await scope.getByRole("textbox", { name: /^Modelo(?: FIPE)?/ }).fill("Modelo FIPE Fictício 1.0 Flex");
     await scope.getByRole("spinbutton", { name: /^Ano de fabricação/ }).fill("2020");
     await scope.getByRole("spinbutton", { name: "Ano do modelo", exact: true }).fill("2021");
     await scope.getByRole("textbox", { name: "Combustível", exact: true }).fill("Flex");
@@ -31,7 +52,7 @@ export async function captureCad005(page, entry) {
     await page.locator(".catalog-dropdown-option").filter({ hasText: "Marca Fictícia" }).click({ timeout: 5000 });
     await scope.getByRole("combobox", { name: /^Veículo/ }).fill("Modelo");
     await page.locator(".catalog-dropdown-option").filter({ hasText: "Modelo Fictício" }).click();
-    await expect(scope.getByRole("textbox", { name: /^Modelo FIPE/ })).toHaveValue("Modelo FIPE Fictício 1.0 Flex");
+    await expect(scope.getByRole("textbox", { name: /^Modelo(?: FIPE)?/ })).toHaveValue("Modelo FIPE Fictício 1.0 Flex");
     await scope.getByRole("button", { name: "Salvar cadastro", exact: true }).click();
     await expect(scope).toHaveCount(0);
     const workspaceResponse = await page.request.get(new URL("/api/workspace", page.url()).toString());
@@ -66,7 +87,7 @@ export async function captureCad005(page, entry) {
     await expect(page.getByRole("textbox", { name: "Relato do cliente / problema" })).toHaveValue("Relato fictício preservado");
     await page.getByPlaceholder("Placa, modelo ou proprietário...").fill("");
   }
-  await expect(scope.getByRole("textbox", { name: /^Modelo FIPE/ })).toHaveValue("Modelo FIPE Fictício 1.0 Flex");
+  await expect(scope.getByRole("textbox", { name: /^Modelo(?: FIPE)?/ })).toHaveValue("Modelo FIPE Fictício 1.0 Flex");
   if (entry.id.includes("-footer-")) await scope.evaluate(element => { element.scrollTop = element.scrollHeight; });
   else if (register || review) await scope.evaluate(element => { element.scrollTop = 0; });
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1);

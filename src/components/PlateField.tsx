@@ -17,12 +17,14 @@ export function PlateField({
   onFound,
   disabled = false,
   lookupDisabled = false,
+  showFipeSelection = true,
 }: {
   value: string;
   onChange: (value: string) => void;
   onFound: (result: Lookup) => void;
   disabled?: boolean;
   lookupDisabled?: boolean;
+  showFipeSelection?: boolean;
 }) {
   const [busy, setBusy] = useState(false),
     [message, setMessage] = useState("");
@@ -113,7 +115,7 @@ export function PlateField({
           {message}
         </p>
       )}
-      {!!result?.fipe_candidates?.length && (
+      {showFipeSelection && !!result?.fipe_candidates?.length && (
         <Field label="Identificação FIPE" full>
           <select
             disabled={disabled || busy}
