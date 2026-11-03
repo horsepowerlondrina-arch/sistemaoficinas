@@ -11,25 +11,25 @@ import {
 } from "../server/services/extension";
 import { saveOrder, listOrders } from "../server/services/workshop";
 import { createApp } from "../server/app";
-const ctx = { tenantId: "a", userId: "u", role: "owner" };
+const ctx = { tenantId: "59c85eea-7112-40de-b77f-c5627c541b48", userId: "u", role: "owner" };
 function fixture() {
   const db = createDatabase(":memory:");
-  db.exec(`INSERT INTO tenants(id,name) VALUES('a','A'),('b','B');
+  db.exec(`INSERT INTO tenants(id,name) VALUES('59c85eea-7112-40de-b77f-c5627c541b48','A'),('b','B');
     INSERT INTO users VALUES('u','Test','test@example.com','disabled');
-    INSERT INTO memberships VALUES('u','a','owner');
+    INSERT INTO memberships VALUES('u','59c85eea-7112-40de-b77f-c5627c541b48','owner');
     INSERT INTO catalog(id,tenant_id,kind,name,sku,cost,price,stock) VALUES
-      ('service','a','service','Troca de óleo','S1',0,10000,0),
-      ('product','a','product','Filtro de óleo','P1',1000,2000,5),
+      ('service','59c85eea-7112-40de-b77f-c5627c541b48','service','Troca de óleo','S1',0,10000,0),
+      ('product','59c85eea-7112-40de-b77f-c5627c541b48','product','Filtro de óleo','P1',1000,2000,5),
       ('other','b','service','Troca de óleo','S1',0,10000,0);
-    INSERT INTO orders(id,tenant_id,number,kind,status,entered_on,due_on,km,total) VALUES('order','a',1,'quote','quote','2026-10-03','2026-10-03',0,14000),('fresh','a',2,'quote','quote','2026-10-03','2026-10-03',0,0);
-    INSERT INTO order_items(id,tenant_id,order_id,catalog_id,professional_id,kind,name,quantity,price,cost) VALUES('i1','a','order','service',NULL,'service','Troca de óleo histórica',1,10000,0),('i2','a','order','product',NULL,'product','Filtro histórico',2,2000,1000);
-    INSERT INTO service_aliases VALUES('a','troca oleo','Troca de óleo','service');
-    INSERT INTO external_catalog_links VALUES('a','tempario','troca oleo','service');`);
-  db.prepare("INSERT INTO service_times(id,tenant_id,catalog_id,capture_id,source,service_name,make,model,vehicle_year,engine,duration_seconds,source_price) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)").run("history","a","service","history-capture","Tempario","Serviço histórico","Fiat","Uno","2015","",1800,12000);
+    INSERT INTO orders(id,tenant_id,number,kind,status,entered_on,due_on,km,total) VALUES('order','59c85eea-7112-40de-b77f-c5627c541b48',1,'quote','quote','2026-10-03','2026-10-03',0,14000),('fresh','59c85eea-7112-40de-b77f-c5627c541b48',2,'quote','quote','2026-10-03','2026-10-03',0,0);
+    INSERT INTO order_items(id,tenant_id,order_id,catalog_id,professional_id,kind,name,quantity,price,cost) VALUES('i1','59c85eea-7112-40de-b77f-c5627c541b48','order','service',NULL,'service','Troca de óleo histórica',1,10000,0),('i2','59c85eea-7112-40de-b77f-c5627c541b48','order','product',NULL,'product','Filtro histórico',2,2000,1000);
+    INSERT INTO service_aliases VALUES('59c85eea-7112-40de-b77f-c5627c541b48','troca oleo','Troca de óleo','service');
+    INSERT INTO external_catalog_links VALUES('59c85eea-7112-40de-b77f-c5627c541b48','tempario','troca oleo','service');`);
+  db.prepare("INSERT INTO service_times(id,tenant_id,catalog_id,capture_id,source,service_name,make,model,vehicle_year,engine,duration_seconds,source_price) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)").run("history","59c85eea-7112-40de-b77f-c5627c541b48","service","history-capture","Tempario","Serviço histórico","Fiat","Uno","2015","",1800,12000);
   db.prepare("INSERT INTO sessions VALUES(?,?,?,?)").run(
     digest("session"),
     "u",
-    "a",
+    "59c85eea-7112-40de-b77f-c5627c541b48",
     Date.now() + 3600000,
   );
   return db;
@@ -46,13 +46,13 @@ const capture = () => ({
 test("reset hides the old catalog, preserves documents and stock, isolates tenants and is safe to repeat", async () => {
   const db = fixture();
   try {
-    const before = await listOrders(db, "a");
+    const before = await listOrders(db, "59c85eea-7112-40de-b77f-c5627c541b48");
     const old = await beginCapture(db, ctx, "fresh", "session");
     await assert.rejects(
       enableExtensionCatalog(db, { ...ctx, role: "operator" }),
     );
     assert.equal((await enableExtensionCatalog(db, ctx)).archived, 2);
-    assert.deepEqual(await listOrders(db, "a"), before);
+    assert.deepEqual(await listOrders(db, "59c85eea-7112-40de-b77f-c5627c541b48"), before);
     assert.equal(
       db.prepare("SELECT stock FROM catalog WHERE id='product'").get()!.stock,
       5,
@@ -64,7 +64,7 @@ test("reset hides the old catalog, preserves documents and stock, isolates tenan
     assert.equal(
       db
         .prepare(
-          "SELECT COUNT(*) n FROM catalog WHERE tenant_id='a' AND archived_at IS NULL",
+          "SELECT COUNT(*) n FROM catalog WHERE tenant_id='59c85eea-7112-40de-b77f-c5627c541b48' AND archived_at IS NULL",
         )
         .get()!.n,
       0,
@@ -74,7 +74,7 @@ test("reset hides the old catalog, preserves documents and stock, isolates tenan
     await importCapture(db, current.token, capture());
     const imported = db
       .prepare(
-        "SELECT * FROM catalog WHERE tenant_id='a' AND archived_at IS NULL",
+        "SELECT * FROM catalog WHERE tenant_id='59c85eea-7112-40de-b77f-c5627c541b48' AND archived_at IS NULL",
       )
       .get()!;
     assert.notEqual(imported.id, "service");
@@ -96,7 +96,7 @@ test("reset hides the old catalog, preserves documents and stock, isolates tenan
     assert.equal(
       db
         .prepare(
-          "SELECT COUNT(*) n FROM catalog WHERE tenant_id='a' AND archived_at IS NULL",
+          "SELECT COUNT(*) n FROM catalog WHERE tenant_id='59c85eea-7112-40de-b77f-c5627c541b48' AND archived_at IS NULL",
         )
         .get()!.n,
       1,
@@ -113,11 +113,11 @@ test("archived items remain editable in their original quote but cannot be added
   const db = fixture();
   try {
     await enableExtensionCatalog(db, ctx);
-    const order = (await listOrders(db, "a")).find((o) => o.id === "order")!;
+    const order = (await listOrders(db, "59c85eea-7112-40de-b77f-c5627c541b48")).find((o) => o.id === "order")!;
     const input = { ...order, notes: "Observação atualizada" };
     await saveOrder(db, ctx, input, "order");
     assert.deepEqual(
-      (await listOrders(db, "a")).find((o) => o.id === "order")!.items,
+      (await listOrders(db, "59c85eea-7112-40de-b77f-c5627c541b48")).find((o) => o.id === "order")!.items,
       order.items,
     );
     await assert.rejects(saveOrder(db, ctx, input), /não está disponível/);
@@ -185,7 +185,7 @@ test("HTTP preserva histórico, remove a API antiga de tempos e mantém Sky Peç
     );
     const imported = db
       .prepare(
-        "SELECT id FROM catalog WHERE tenant_id='a' AND archived_at IS NULL",
+        "SELECT id FROM catalog WHERE tenant_id='59c85eea-7112-40de-b77f-c5627c541b48' AND archived_at IS NULL",
       )
       .get()!;
     r = await fetch(base + "/catalog/" + imported.id, {
