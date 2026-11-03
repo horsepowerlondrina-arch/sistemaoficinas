@@ -315,7 +315,7 @@ export async function saveOrder(
     const dueOn = status === "quote" ? old?.due_on || "" : input.due_on;
     if (status !== "quote" && !dueOn)
       throw new Error("Informe a previsão de entrega para a OS.");
-    if (dueOn && dueOn < input.entered_on)
+    if (status !== "quote" && dueOn < input.entered_on)
       throw new Error("A previsão não pode ser anterior à entrada.");
     const previous = old
       ? await db
