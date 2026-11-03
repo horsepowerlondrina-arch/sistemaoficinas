@@ -56,8 +56,8 @@ export function OrderView() {
       navigate(`/ordens/${id}/editar`);
       return;
     }
-    if (order.status === "quote" && !["quote", "cancelled"].includes(confirm) &&
-      (!approvalDueOn || approvalDueOn < order.entered_on)) {
+    if (order!.status === "quote" && !["quote", "cancelled"].includes(confirm) &&
+      (!approvalDueOn || approvalDueOn < order!.entered_on)) {
       setError("Informe uma previsão de entrega a partir da data de entrada.");
       return;
     }
@@ -66,7 +66,7 @@ export function OrderView() {
     try {
       const result = await send(`/orders/${id}/status`, {
         status: confirm,
-        ...(order.status === "quote" && !["quote", "cancelled"].includes(confirm)
+        ...(order!.status === "quote" && !["quote", "cancelled"].includes(confirm)
           ? { due_on: approvalDueOn }
           : {}),
       });
