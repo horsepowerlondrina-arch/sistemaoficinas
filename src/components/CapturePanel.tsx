@@ -74,7 +74,7 @@ export function CapturePanel({
       const extension = await extensionMessage("HP_STATUS");
       if (catalog && !extension.catalogCapture)
         throw new Error(
-          "Atualize a extensão de teste INT-015 e recarregue a página.",
+          "Atualize a extensão Horse Power pela Chrome Web Store e recarregue a página.",
         );
       const target = await send(
         catalog
