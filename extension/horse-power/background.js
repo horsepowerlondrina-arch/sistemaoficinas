@@ -1,7 +1,4 @@
-const appOrigins = new Set([
-  "https://horse-power.vercel.app",
-  "https://oficinahorsepower.com.br",
-]);
+const appOrigins = new Set(["https://sistema-oficinas-homologacao.vercel.app"]);
 const sources = {
   "https://cliente.skypecas.com.br": "sky",
 };
@@ -258,7 +255,7 @@ async function handle(msg, sender) {
       }
     } else
       await chrome.tabs.create({
-        url: "https://horse-power.vercel.app/orcamentos",
+        url: "https://sistema-oficinas-homologacao.vercel.app/ordens",
       });
     return { ok: true };
   }
