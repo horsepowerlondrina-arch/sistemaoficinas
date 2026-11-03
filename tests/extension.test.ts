@@ -1,3 +1,4 @@
+import { HORSE_POWER_EXTENSION_TENANT_ID } from "../shared/horsePowerExtension";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -18,7 +19,7 @@ import { digest } from "../server/auth/session";
 import { saveOrder } from "../server/services/workshop";
 import { createShare, readShare } from "../server/services/sharing";
 import { createApp } from "../server/app";
-const ctx = { tenantId: "a", userId: "u", role: "owner" };
+const ctx = { tenantId: HORSE_POWER_EXTENSION_TENANT_ID, userId: "u", role: "owner" };
 test("extension capture accepts Sky and rejects removed external sources", () => {
   const parsed = captureSchema.parse({
     capture_id: randomUUID(), source: "sky", name: "Peça fictícia", code: "CF1", brand: "Marca teste", cost: 1000,
@@ -28,12 +29,12 @@ test("extension capture accepts Sky and rejects removed external sources", () =>
 });
 function fixture() {
   const db = createDatabase(":memory:");
-  db.exec(`INSERT INTO tenants(id,name) VALUES('a','A'),('b','B'); INSERT INTO users VALUES('u','Test','test@example.com','unused'); INSERT INTO memberships VALUES('u','a','owner');
-INSERT INTO orders(id,tenant_id,number,kind,status,guest_plate,entered_on,due_on,km,total) VALUES('o','a',1,'quote','quote','ABC1D23','2026-10-03','2026-10-03',0,0),('other','b',1,'quote','quote','','2026-10-03','2026-10-03',0,0);`);
+  db.exec(`INSERT INTO tenants(id,name) VALUES('${HORSE_POWER_EXTENSION_TENANT_ID}','A'),('b','B'); INSERT INTO users VALUES('u','Test','test@example.com','unused'); INSERT INTO memberships VALUES('u','${HORSE_POWER_EXTENSION_TENANT_ID}','owner');
+INSERT INTO orders(id,tenant_id,number,kind,status,guest_plate,entered_on,due_on,km,total) VALUES('o','${HORSE_POWER_EXTENSION_TENANT_ID}',1,'quote','quote','ABC1D23','2026-10-03','2026-10-03',0,0),('other','b',1,'quote','quote','','2026-10-03','2026-10-03',0,0);`);
   db.prepare("INSERT INTO sessions VALUES(?,?,?,?)").run(
     digest("session"),
     "u",
-    "a",
+    HORSE_POWER_EXTENSION_TENANT_ID,
     Date.now() + 3600000,
   );
   return db;
@@ -59,8 +60,8 @@ test("capture connection uses the registered vehicle or a normalized guest plate
       (await beginCapture(db, ctx, "o", "session")).plate,
       "ABC1234",
     );
-    db.exec(`INSERT INTO customers(id,tenant_id,name) VALUES('customer','a','Cliente');
-      INSERT INTO vehicles(id,tenant_id,customer_id,plate,brand,model,year) VALUES('vehicle','a','customer','def-2a34','Fiat','Uno',2020);
+    db.exec(`INSERT INTO customers(id,tenant_id,name) VALUES('customer','${HORSE_POWER_EXTENSION_TENANT_ID}','Cliente');
+      INSERT INTO vehicles(id,tenant_id,customer_id,plate,brand,model,year) VALUES('vehicle','${HORSE_POWER_EXTENSION_TENANT_ID}','customer','def-2a34','Fiat','Uno',2020);
       UPDATE orders SET customer_id='customer',vehicle_id='vehicle' WHERE id='o';`);
     assert.equal(
       (await beginCapture(db, ctx, "o", "session")).plate,
@@ -321,9 +322,9 @@ test("extension bearer endpoint works without cookies, requires scoped token and
   try {
     const { token } = await beginCapture(db, ctx, "o", "session");
     for (const [origin, auth, expected] of [
-      ["chrome-extension://" + "a".repeat(32), "Bearer " + token, 200],
+      ["chrome-extension://" + HORSE_POWER_EXTENSION_TENANT_ID.repeat(32), "Bearer " + token, 200],
       ["https://evil.example", "Bearer " + token, 403],
-      ["chrome-extension://" + "a".repeat(32), "Bearer invalid", 401],
+      ["chrome-extension://" + HORSE_POWER_EXTENSION_TENANT_ID.repeat(32), "Bearer invalid", 401],
     ] as const) {
       const r = await fetch(base + "/api/extension/import", {
         method: "POST",
@@ -338,14 +339,14 @@ test("extension bearer endpoint works without cookies, requires scoped token and
     }
     const removed = await fetch(base + "/api/extension/import", {
       method: "POST",
-      headers: { Origin: "chrome-extension://" + "a".repeat(32), Authorization: "Bearer " + token, "Content-Type": "application/json" },
+      headers: { Origin: "chrome-extension://" + HORSE_POWER_EXTENSION_TENANT_ID.repeat(32), Authorization: "Bearer " + token, "Content-Type": "application/json" },
       body: JSON.stringify({ capture_id: randomUUID(), source: "tempario", name: "Serviço removido" }),
     });
     assert.equal(removed.status, 400);
     const r = await fetch(base + "/api/orders/o/capture-session", {
       method: "POST",
       headers: {
-        Origin: "chrome-extension://" + "a".repeat(32),
+        Origin: "chrome-extension://" + HORSE_POWER_EXTENSION_TENANT_ID.repeat(32),
         "Content-Type": "application/json",
       },
       body: "{}",
