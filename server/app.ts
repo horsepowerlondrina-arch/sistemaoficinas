@@ -458,6 +458,10 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
       modules: ctx.modules || defaultWorkshopModules,
     });
   });
+  app.get("/api/account/plan", async (_req, res) => {
+    const ctx: Context = res.locals.context;
+    res.json({plan: await db.getTenantPlanSummary?.(ctx.tenantId) ?? null});
+  });
   app.post("/api/logout", async (req, res) => {
     await db
       .prepare("DELETE FROM sessions WHERE token_hash=?")
