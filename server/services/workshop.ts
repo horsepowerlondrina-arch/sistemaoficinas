@@ -312,7 +312,7 @@ export async function saveOrder(
       throw new Error("Escolha cliente e veículo ativos.");
     if (vehicle && vehicle.customer_id !== customerId && !(old && old.customer_id === customerId && old.vehicle_id === vehicleId && await hasOwnerTransfer(db,ctx.tenantId,vehicle.id,String(customerId))))
       throw new Error("O veículo não pertence ao cliente selecionado.");
-    const dueOn = status === "quote" ? input.due_on || old?.due_on || "" : input.due_on;
+    const dueOn = status === "quote" ? old?.due_on || "" : input.due_on;
     if (status !== "quote" && !dueOn)
       throw new Error("Informe a previsão de entrega para a OS.");
     if (dueOn && dueOn < input.entered_on)
