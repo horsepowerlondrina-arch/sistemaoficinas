@@ -17,6 +17,7 @@ export function VehicleModelSelection({ vehicle, onChange, candidates = [] }: {
   ])], [candidates, vehicle.fipe_code]);
   const codeKey = codes.join(",");
   useEffect(() => {
+    if (vehicle.service_model_id && options.some((option) => option.id === vehicle.service_model_id)) return;
     if (!vehicle.brand || (!vehicle.model && !codes.length)) { setOptions([]); return; }
     let active = true;
     setBusy(true);
