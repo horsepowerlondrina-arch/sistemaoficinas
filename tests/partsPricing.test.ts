@@ -21,17 +21,17 @@ import { createApp } from "../server/app";
 function fixture() {
   const db = createDatabase(":memory:");
   db.exec(
-    `INSERT INTO tenants(id,name) VALUES('a','A'),('b','B');INSERT INTO users VALUES('u','Test','test@example.com','disabled');INSERT INTO memberships VALUES('u','a','owner');INSERT INTO customers(id,tenant_id,name) VALUES('c','a','Cliente');INSERT INTO vehicles(id,tenant_id,customer_id,plate,brand,model,year) VALUES('v','a','c','ABC1D23','Fiat','Uno',2020);INSERT INTO orders(id,tenant_id,number,kind,status,customer_id,vehicle_id,entered_on,due_on,km,total) VALUES('o','a',1,'order','working','c','v','2026-10-04','2026-10-04',0,0);`,
+    `INSERT INTO tenants(id,name) VALUES('59c85eea-7112-40de-b77f-c5627c541b48','A'),('b','B');INSERT INTO users VALUES('u','Test','test@example.com','disabled');INSERT INTO memberships VALUES('u','59c85eea-7112-40de-b77f-c5627c541b48','owner');INSERT INTO customers(id,tenant_id,name) VALUES('c','59c85eea-7112-40de-b77f-c5627c541b48','Cliente');INSERT INTO vehicles(id,tenant_id,customer_id,plate,brand,model,year) VALUES('v','59c85eea-7112-40de-b77f-c5627c541b48','c','ABC1D23','Fiat','Uno',2020);INSERT INTO orders(id,tenant_id,number,kind,status,customer_id,vehicle_id,entered_on,due_on,km,total) VALUES('o','59c85eea-7112-40de-b77f-c5627c541b48',1,'order','working','c','v','2026-10-04','2026-10-04',0,0);`,
   );
   db.prepare("INSERT INTO sessions VALUES(?,?,?,?)").run(
     digest("session"),
     "u",
-    "a",
+    "59c85eea-7112-40de-b77f-c5627c541b48",
     Date.now() + 3600000,
   );
   return db;
 }
-const ctx = { tenantId: "a", userId: "u", role: "owner" };
+const ctx = { tenantId: "59c85eea-7112-40de-b77f-c5627c541b48", userId: "u", role: "owner" };
 const part = (cost = 10000) => ({
   capture_id: randomUUID(),
   source: "sky",
@@ -102,7 +102,7 @@ test("catalog capture applies freight and tenant policy, preserves order costs a
     );
     db.prepare("UPDATE tenants SET parts_pricing_rules=? WHERE id=?").run(
       JSON.stringify([{ up_to: null, markup_bps: 10000, minimum_profit: 0 }]),
-      "a",
+      "59c85eea-7112-40de-b77f-c5627c541b48",
     );
     await importCapture(db, catalog.token, {
       ...part(30000),
@@ -282,11 +282,11 @@ test("percentual de terceiros persiste por oficina e mantém compatibilidade com
       body: JSON.stringify(body),
     });
   try {
-    assert.equal((await getPartsPricing(db, "a")).service_markup_bps, 3000);
-    db.prepare("UPDATE tenants SET parts_pricing_rules=? WHERE id='a'").run(
+    assert.equal((await getPartsPricing(db, "59c85eea-7112-40de-b77f-c5627c541b48")).service_markup_bps, 3000);
+    db.prepare("UPDATE tenants SET parts_pricing_rules=? WHERE id='59c85eea-7112-40de-b77f-c5627c541b48'").run(
       JSON.stringify(defaultRules),
     );
-    assert.equal((await getPartsPricing(db, "a")).service_markup_bps, 3000);
+    assert.equal((await getPartsPricing(db, "59c85eea-7112-40de-b77f-c5627c541b48")).service_markup_bps, 3000);
     assert.equal(
       (await put({ rules: defaultRules, service_markup_bps: 2750 })).status,
       200,
@@ -298,7 +298,7 @@ test("percentual de terceiros persiste por oficina e mantém compatibilidade com
     assert.equal((await getPartsPricing(db, "b")).service_markup_bps, 3000);
     // Older clients saving only product rules must not reset the third-party setting.
     assert.equal((await put({ rules: defaultRules })).status, 200);
-    assert.equal((await getPartsPricing(db, "a")).service_markup_bps, 2750);
+    assert.equal((await getPartsPricing(db, "59c85eea-7112-40de-b77f-c5627c541b48")).service_markup_bps, 2750);
     const preview = await (
       await fetch(base + "/parts-pricing/preview", {
         method: "POST",
@@ -311,7 +311,7 @@ test("percentual de terceiros persiste por oficina e mantém compatibilidade com
       (await put({ rules: defaultRules, service_markup_bps: -1 })).status,
       400,
     );
-    assert.equal((await getPartsPricing(db, "a")).service_markup_bps, 2750);
+    assert.equal((await getPartsPricing(db, "59c85eea-7112-40de-b77f-c5627c541b48")).service_markup_bps, 2750);
   } finally {
     await new Promise<void>((r) => app.close(() => r()));
     db.close();
