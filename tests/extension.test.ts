@@ -322,9 +322,9 @@ test("extension bearer endpoint works without cookies, requires scoped token and
   try {
     const { token } = await beginCapture(db, ctx, "o", "session");
     for (const [origin, auth, expected] of [
-      ["chrome-extension://" + HORSE_POWER_EXTENSION_TENANT_ID.repeat(32), "Bearer " + token, 200],
+      ["chrome-extension://" + "a".repeat(32), "Bearer " + token, 200],
       ["https://evil.example", "Bearer " + token, 403],
-      ["chrome-extension://" + HORSE_POWER_EXTENSION_TENANT_ID.repeat(32), "Bearer invalid", 401],
+      ["chrome-extension://" + "a".repeat(32), "Bearer invalid", 401],
     ] as const) {
       const r = await fetch(base + "/api/extension/import", {
         method: "POST",
@@ -339,14 +339,14 @@ test("extension bearer endpoint works without cookies, requires scoped token and
     }
     const removed = await fetch(base + "/api/extension/import", {
       method: "POST",
-      headers: { Origin: "chrome-extension://" + HORSE_POWER_EXTENSION_TENANT_ID.repeat(32), Authorization: "Bearer " + token, "Content-Type": "application/json" },
+      headers: { Origin: "chrome-extension://" + "a".repeat(32), Authorization: "Bearer " + token, "Content-Type": "application/json" },
       body: JSON.stringify({ capture_id: randomUUID(), source: "tempario", name: "Serviço removido" }),
     });
     assert.equal(removed.status, 400);
     const r = await fetch(base + "/api/orders/o/capture-session", {
       method: "POST",
       headers: {
-        Origin: "chrome-extension://" + HORSE_POWER_EXTENSION_TENANT_ID.repeat(32),
+        Origin: "chrome-extension://" + "a".repeat(32),
         "Content-Type": "application/json",
       },
       body: "{}",
