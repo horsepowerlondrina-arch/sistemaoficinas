@@ -59,7 +59,14 @@ export function VehicleModelSelection({ vehicle, onChange, candidates = [] }: {
         <span>{option.name}{option.fipe_code && <small> · FIPE {option.fipe_code}</small>}</span>
       </label>)}
     </div>}
-    {!busy && !options.length && candidates.length > 0 && <div className="vehicle-model-options" role="group" aria-label="Versões do veículo">\n      <p className="muted">Selecione a versão do veículo:</p>\n      {candidates.filter((candidate) => !!candidate.codigoFipe).map((candidate) => <label className="checkbox-row" key={candidate.codigoFipe!}>\n        <input type="radio" name="vehicle-fipe-option" checked={vehicle.fipe_code === candidate.codigoFipe && !vehicle.service_model_id} onChange={() => onChange({ ...vehicle, model: candidate.modelo || vehicle.model, fipe_model: candidate.modelo || vehicle.model, fipe_code: candidate.codigoFipe, model_year: candidate.anoModelo || vehicle.model_year || null, fipe_year_id: candidate.anoId || "", fuel: candidate.combustivel || vehicle.fuel || "", service_model_id: null, service_link_mode: "none" })} />\n        <span>{candidate.modelo} · {candidate.anoModelo} · FIPE {candidate.codigoFipe}</span>\n      </label>)}\n    </div>}\n    {!busy && !options.length && !candidates.length && <p className="muted">Nenhuma opção correspondente. Informe o modelo no campo acima.</p>}
+    {!busy && !options.length && candidates.length > 0 && <div className="vehicle-model-options" role="group" aria-label="Versões do veículo">
+      <p className="muted">Selecione a versão do veículo:</p>
+      {candidates.filter((candidate) => !!candidate.codigoFipe).map((candidate) => <label className="checkbox-row" key={candidate.codigoFipe!}>
+        <input type="radio" name="vehicle-fipe-option" checked={vehicle.fipe_code === candidate.codigoFipe && !vehicle.service_model_id} onChange={() => onChange({ ...vehicle, model: candidate.modelo || vehicle.model, fipe_model: candidate.modelo || vehicle.model, fipe_code: candidate.codigoFipe, model_year: candidate.anoModelo || vehicle.model_year || null, fipe_year_id: candidate.anoId || "", fuel: candidate.combustivel || vehicle.fuel || "", service_model_id: null, service_link_mode: "none" })} />
+        <span>{candidate.modelo} · {candidate.anoModelo} · FIPE {candidate.codigoFipe}</span>
+      </label>)}
+    </div>}
+    {!busy && !options.length && !candidates.length && <p className="muted">Nenhuma opção correspondente. Informe o modelo no campo acima.</p>}
     {message && <p role="status" className="muted">{message}</p>}
   </section>;
 }
