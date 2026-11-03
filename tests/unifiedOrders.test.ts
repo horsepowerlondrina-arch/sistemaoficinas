@@ -139,3 +139,25 @@ test("editing delivery date preserves an existing inactive product without allow
     db.close();
   }
 });
+
+test("editing delivery date preserves an existing inactive legacy service", async () => {
+  const db = fixture();
+  try {
+    db.prepare("INSERT INTO catalog(id,tenant_id,kind,name,sku,cost,price,stock,active) VALUES('s','a','service','Serviço legado','S',0,4500,0,1)").run();
+    const record = await saveOrder(db, owner, input({
+      customer_id: "c", vehicle_id: "v",
+      items: [{ catalog_id: "s", quantity: 1, price: 4500 }],
+    }));
+    const before = (await listOrders(db, "a"))[0];
+    db.prepare("UPDATE catalog SET active=0 WHERE tenant_id='a' AND id='s'").run();
+    await saveOrder(db, owner, input({
+      customer_id: "c", vehicle_id: "v", due_on: "2026-10-16", items: before.items,
+    }), record);
+    const after = (await listOrders(db, "a"))[0];
+    assert.equal(after.due_on, "2026-10-16");
+    assert.equal(after.items[0].id, before.items[0].id);
+    assert.equal(after.items[0].price, 4500);
+  } finally {
+    db.close();
+  }
+});
