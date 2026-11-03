@@ -31,6 +31,19 @@ jobs:
           node --test tests/chrome-web-store.test.mjs tests/extension-panel.test.mjs
           npx tsx --test tests/extension-worker.test.ts tests/extension.test.ts
           npm run build
+      - name: Empacotar a fonte aprovada da extensão
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile, ZIP_DEFLATED
+          source = Path("extension/horse-power")
+          output = Path("public/downloads/horse-power-conector.zip")
+          output.parent.mkdir(parents=True, exist_ok=True)
+          with ZipFile(output, "w", ZIP_DEFLATED) as package:
+              for file in sorted(source.rglob("*")):
+                  if file.is_file():
+                      package.write(file, file.relative_to(source))
+          PY
       - name: Conferir pacote
         run: |
           python3 - <<'PY'
