@@ -4596,6 +4596,9 @@ body {
 .product-batch-totals span { overflow-wrap: anywhere; }
 
 .repair-picker {display:grid;gap:16px;min-width:0;margin:18px 0;}
+.repair-catalog-upgrade {display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:14px 16px;border:1px solid var(--border);border-radius:8px;background:#f7f8fb;}
+.repair-catalog-upgrade p {margin:0;flex:1 1 260px;}
+.repair-catalog-upgrade .button {flex:none;}
 .repair-results {display:grid;gap:8px;max-height:360px;overflow:auto;min-width:0;}
 .repair-result {display:grid;gap:6px;min-width:0;}
 .repair-result > .button,.button.repair-result {display:grid;text-align:left;white-space:normal;justify-items:start;overflow-wrap:anywhere;padding:12px;}
