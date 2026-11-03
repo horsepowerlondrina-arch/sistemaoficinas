@@ -161,7 +161,7 @@ export async function listOrders(db: DB, tenant: string): Promise<Row[]> {
     group.push(item);
     byOrder.set(item.order_id, group);
   }
-  return rows.map((o) => ({ ...o, kind: "order", items: byOrder.get(o.id) || [] }));
+  return rows.map((o) => ({ ...o, due_on: o.status === "quote" ? "" : o.due_on, kind: "order", items: byOrder.get(o.id) || [] }));
 }
 async function resolveOrderIdentity(db: DB, ctx: Context, input: Row) {
   let customerId = input.customer_id || null;
@@ -312,7 +312,10 @@ export async function saveOrder(
       throw new Error("Escolha cliente e veículo ativos.");
     if (vehicle && vehicle.customer_id !== customerId && !(old && old.customer_id === customerId && old.vehicle_id === vehicleId && await hasOwnerTransfer(db,ctx.tenantId,vehicle.id,String(customerId))))
       throw new Error("O veículo não pertence ao cliente selecionado.");
-    if (input.due_on < input.entered_on)
+    const dueOn = status === "quote" ? old?.due_on || "" : input.due_on;
+    if (status !== "quote" && !dueOn)
+      throw new Error("Informe a previsão de entrega para a OS.");
+    if (status !== "quote" && dueOn < input.entered_on)
       throw new Error("A previsão não pode ser anterior à entrada.");
     const previous = old
       ? await db
@@ -421,7 +424,7 @@ export async function saveOrder(
         String(old.guest_plate || "") !== String(input.guest_plate || "") ||
         String(old.guest_vehicle || "") !== String(input.guest_vehicle || "") ||
         String(old.entered_on || "") !== String(input.entered_on || "") ||
-        String(old.due_on || "") !== String(input.due_on || "") ||
+        String(old.due_on || "") !== String(dueOn || "") ||
         Number(old.km || 0) !== Number(input.km || 0) ||
         String(old.problem || "") !== String(input.problem || "") ||
         String(old.notes || "") !== String(input.notes || "") ||
@@ -450,7 +453,7 @@ export async function saveOrder(
       input.guest_plate || "",
       input.guest_vehicle || "",
       input.entered_on,
-      input.due_on,
+      dueOn,
       input.km,
       input.problem,
       input.notes,
@@ -568,6 +571,7 @@ export async function transitionOrder(
   ctx: Context,
   record: string,
   status: Status,
+  dueOn?: string,
 ) {
   return await transaction(db, async () => {
     const warnings: string[] = [];
@@ -607,6 +611,15 @@ export async function transitionOrder(
         throw new Error(
           "Confira o cliente e o veículo antes de alterar a situação.",
         );
+    }
+
+    if (order.status === "quote" && !["quote", "cancelled"].includes(status)) {
+      if (!dueOn) throw new Error("Informe a previsão de entrega ao aprovar a OS.");
+      if (dueOn < order.entered_on)
+        throw new Error("A previsão não pode ser anterior à entrada.");
+      await db.prepare("UPDATE orders SET due_on=? WHERE tenant_id=? AND id=?")
+        .run(dueOn, ctx.tenantId, record);
+      order.due_on = dueOn;
     }
 
     if (order.status === "completed" && status !== "completed")

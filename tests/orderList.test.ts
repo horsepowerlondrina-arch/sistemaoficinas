@@ -123,6 +123,7 @@ test("sort controls order OS numbers, vehicles, statuses, dates and amounts", ()
 test("only overdue delivery dates on unfinished, uncancelled OS are marked", () => {
   assert.equal(isOrderOverdue(order({ due_on: "2026-10-13" }), "2026-10-14"), true);
   assert.equal(isOrderOverdue(order({ due_on: "2026-10-14" }), "2026-10-14"), false);
+  assert.equal(isOrderOverdue(order({ status: "quote", due_on: "2026-10-01" }), "2026-10-14"), false);
   assert.equal(isOrderOverdue(order({ status: "completed", due_on: "2026-10-01" }), "2026-10-14"), false);
   assert.equal(isOrderOverdue(order({ status: "cancelled", due_on: "2026-10-01" }), "2026-10-14"), false);
   assert.equal(isOrderOverdue(order({ status: "working", due_on: "2026-10-13" }), "2026-10-14"), true);

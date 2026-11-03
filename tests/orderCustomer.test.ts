@@ -74,7 +74,7 @@ test("quotes persist complete vehicle data for new and existing clients and reus
           .get(v.plate)!.n,
         1,
       );
-      await transitionOrder(db, ctx, record, "open");
+      await transitionOrder(db, ctx, record, "open", "2026-10-14");
       assert.equal(
         db.prepare("SELECT vehicle_id FROM orders WHERE id=?").get(record)!
           .vehicle_id,
@@ -146,7 +146,7 @@ test("new customer phone is mandatory and failed attendance rolls back customer 
       );
     }
     await assert.rejects(
-      saveOrder(db, ctx, input({ due_on: "2026-10-12" })),
+      saveOrder(db, ctx, input({ status: "open", due_on: "2026-10-12", customer_id: "existing", vehicle_id: "v", new_customer: undefined })),
       /previsão/,
     );
     await assert.rejects(
