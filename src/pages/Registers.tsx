@@ -98,7 +98,6 @@ export function Registers({ kind, tabs }: { kind: Kind; tabs?: ReactNode }) {
   return (
     <>
       <PageHeading
-        eyebrow={kind === "customers" || kind === "vehicles" ? undefined : "CADASTROS"}
         title={c.title}
         description={c.description}
         actions={
