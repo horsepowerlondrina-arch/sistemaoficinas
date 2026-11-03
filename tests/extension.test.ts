@@ -48,6 +48,17 @@ const product = () => ({
   cost: 10000,
   quantity: 2,
 });
+test("Sky capture is unavailable to another workshop with its own order", async () => {
+  const db = fixture();
+  try {
+    await assert.rejects(
+      beginCapture(db, { tenantId: "b", userId: "u", role: "owner" }, "other", "session"),
+      /somente para a Horse Power/,
+    );
+  } finally {
+    db.close();
+  }
+});
 test("capture connection uses the registered vehicle or a normalized guest plate", async () => {
   const db = fixture();
   try {
