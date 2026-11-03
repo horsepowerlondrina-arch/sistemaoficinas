@@ -1,3 +1,4 @@
+import { horsePowerExtensionEnabled } from "../../shared/horsePowerExtension";
 import { CardMachines, InstallmentInterestSettings } from "../components/CardMachines";
 import { workshopDate } from "../lib/workflow";
 import { NumericInput } from "../components/NumericInput";
@@ -37,7 +38,7 @@ import {
   Badge,
 } from "../components/ui";
 export function Stock() {
-  const { data, refresh, notify } = useApp();
+  const { data, session, refresh, notify } = useApp();
   const [params] = useSearchParams();
   const [adding, setAdding] = useState(false),
     [capture, setCapture] = useState(false);
@@ -80,9 +81,9 @@ export function Stock() {
         actions={
           <>
             <button className="button" onClick={() => setInvoiceOpen(true)}>Importar nota fiscal</button>
-            <button className="button" onClick={() => setCapture(true)}>
+            {horsePowerExtensionEnabled(session.tenant.id) && <button className="button" onClick={() => setCapture(true)}>
               Importar do Sky
-            </button>
+            </button>}
             <button className="button" onClick={() => setAdding(true)}>
               Novo produto
             </button>
@@ -278,7 +279,7 @@ export function Stock() {
           onClose={() => setEntry(undefined)}
         />
       )}
-      {capture && (
+      {capture && horsePowerExtensionEnabled(session.tenant.id) && (
         <CapturePanel
           catalog
           source="sky"
@@ -568,38 +569,17 @@ export function Settings() {
       activeTab === "pecas" ? <PartsPricing /> :
       activeTab === "conta" ? <div className="settings-grid">
         <section className="panel settings-card"><ShieldCheck size={23}/><h2>Acesso e conta</h2><p>{session.user.name} · Administrador</p><p>{session.user.email}</p><p>Usuários, permissões de módulos e situação de acesso da oficina são administrados pelo painel central. Solicite alterações ao responsável pela plataforma.</p></section>
-                    <section className="panel settings-card">
-              <Download size={23} />
-              <h2>Extensão Horse Power — versão comercial</h2>
-              <p>
-                A extensão existente continua disponível na Chrome Web Store e mantém identidade, dados e conexões próprios. A extensão de teste do Sistema Oficinas é separada e não a substitui.
-              </p>
-              <a className="button" href="https://chromewebstore.google.com/detail/ddmnjpmldgnjefjkachlpicngaphlobf" target="_blank" rel="noopener noreferrer">
-                <Download size={16} />
-                Abrir Chrome Web Store
-              </a>
-            </section>
-            {window.location.hostname === "sistema-oficinas-homologacao.vercel.app" && (
-              <section className="panel settings-card">
-                <Download size={23} />
-                <h2>Extensão de teste INT-015</h2>
-                <p>
-                  Capture peças do Sky Peças e revise os itens antes de concluir a captura. Esta versão de teste conecta somente à homologação.
-                </p>
-                <a className="button primary" href="/downloads/sistema-oficinas-test-extension.zip" download>
-                  <Download size={16} />
-                  Baixar extensão de teste (.zip)
-                </a>
-                <ol>
-                  <li>Extraia o ZIP em uma pasta permanente.</li>
-                  <li>Abra <code>chrome://extensions</code> e ative o modo desenvolvedor.</li>
-                  <li>Clique em “Carregar sem compactação” e selecione a pasta extraída.</li>
-                </ol>
-                <p className="muted">
-                  A extensão tem nome, armazenamento e conexão próprios e pode ficar instalada ao lado da extensão Horse Power da Chrome Web Store. Não substitua nem remova a versão comercial.
-                </p>
-              </section>
-            )}
+        {horsePowerExtensionEnabled(session.tenant.id) && (
+          <section className="panel settings-card">
+            <Download size={23} />
+            <h2>Extensão Horse Power · Sky Peças</h2>
+            <p>Conecte a extensão da Horse Power para capturar peças do Sky Peças e revisar os itens antes de concluir a captura.</p>
+            <a className="button primary" href="https://chromewebstore.google.com/detail/ddmnjpmldgnjefjkachlpicngaphlobf" target="_blank" rel="noopener noreferrer">
+              <Download size={16} />
+              Abrir Chrome Web Store
+            </a>
+          </section>
+        )}
 
       </div> :
       !financeEnabled ? <section className="panel work-order-section"><h2>Financeiro não habilitado</h2><p>As taxas pertencem ao módulo Financeiro. Solicite a habilitação à administração da plataforma para consultar ou alterar estas configurações.</p></section> :
