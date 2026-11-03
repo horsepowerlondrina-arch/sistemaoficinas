@@ -16,7 +16,7 @@ const catalogStatusMessage:Record<Exclude<Info["catalog_status"],"active">,strin
   administratively_disabled:"O acesso ao Catálogo Técnico foi desabilitado pela administração da plataforma.",
   not_contracted:"Esta oficina não tem acesso ao Catálogo Técnico de Serviços. Para ter acesso, solicite um upgrade de plano ao responsável pela plataforma.",
   expired:"O acesso ao Catálogo Técnico venceu. Solicite a renovação à administração da plataforma.",
-  revoked:"O acesso ao Catálogo Técnico foi revogado. Seus serviços particulares continuam disponíveis.",
+  revoked:"O acesso ao Catálogo Técnico foi revogado.",
   not_installed:"O Catálogo Técnico ainda não foi instalado neste ambiente.",
 };
 export function LaborRates() {
