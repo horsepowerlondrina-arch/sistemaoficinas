@@ -582,21 +582,21 @@ Tabelas independentes com inclusão, edição, exclusão, limites inclusivos e s
 
 Estado: capturada · desktop · captura 2026-11-01 · commit de origem: f5768888f02977880ff9e976fa5fad6670796efd · [arquivo completo](./capturas/14-configuracoes/lucro-pecas-terceiros-desktop.png)
 
-### Conta e integrações
+### Conta da oficina
 
-Responsabilidades administrativas e extensões disponíveis.
+Administrador, alteração de senha por e-mail, plano contratado e ações de assinatura futuras.
 
-[![Conta e integrações](./capturas/14-configuracoes/config-conta-integracoes-desktop.png)](./capturas/14-configuracoes/config-conta-integracoes-desktop.png)
+[![Conta da oficina](./capturas/14-configuracoes/config-conta-integracoes-desktop.png)](./capturas/14-configuracoes/config-conta-integracoes-desktop.png)
 
-Estado: capturada · desktop · captura 2026-11-01 · commit de origem: 56b226764ee6420a52bdff3a41bd459113618460 · [arquivo completo](./capturas/14-configuracoes/config-conta-integracoes-desktop.png)
+Estado: capturada · desktop · captura 2026-11-03 · commit de origem: f02307752aaf81e1b2d86b9974e444c660c44f3f · [arquivo completo](./capturas/14-configuracoes/config-conta-integracoes-desktop.png)
 
-### Conta e integrações
+### Conta da oficina
 
-Responsabilidades administrativas e extensões disponíveis.
+Administrador, alteração de senha por e-mail, plano contratado e ações de assinatura futuras.
 
-[![Conta e integrações](./capturas/14-configuracoes/config-conta-integracoes-mobile.png)](./capturas/14-configuracoes/config-conta-integracoes-mobile.png)
+[![Conta da oficina](./capturas/14-configuracoes/config-conta-integracoes-mobile.png)](./capturas/14-configuracoes/config-conta-integracoes-mobile.png)
 
-Estado: capturada · mobile · captura 2026-11-01 · commit de origem: 56b226764ee6420a52bdff3a41bd459113618460 · [arquivo completo](./capturas/14-configuracoes/config-conta-integracoes-mobile.png)
+Estado: capturada · mobile · captura 2026-11-03 · commit de origem: f02307752aaf81e1b2d86b9974e444c660c44f3f · [arquivo completo](./capturas/14-configuracoes/config-conta-integracoes-mobile.png)
 
 ### Máquina e taxas por parcela
 
