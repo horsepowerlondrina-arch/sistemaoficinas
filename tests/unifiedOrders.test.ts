@@ -183,3 +183,19 @@ test("new quotes have no delivery forecast, while old quote dates stay internal"
     db.close();
   }
 });
+
+
+test("editing an old quote keeps its hidden delivery date without enforcing it", async () => {
+  const db = fixture();
+  try {
+    const record = await saveOrder(db, owner, input({ due_on: "", customer_id: "c", vehicle_id: "v" }));
+    db.prepare("UPDATE orders SET due_on=? WHERE id=?").run("2026-10-14", record);
+    const before = (await listOrders(db, "a"))[0];
+    assert.equal(before.due_on, "");
+    await saveOrder(db, owner, input({ entered_on: "2026-10-16", due_on: "", customer_id: "c", vehicle_id: "v", items: before.items }), record);
+    assert.equal((await listOrders(db, "a"))[0].due_on, "");
+    assert.equal(db.prepare("SELECT due_on FROM orders WHERE id=?").get(record)!.due_on, "2026-10-14");
+  } finally {
+    db.close();
+  }
+});
