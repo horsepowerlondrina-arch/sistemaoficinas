@@ -66,6 +66,7 @@ export function isOrderOverdue(
   const finishedStatuses = new Set(["completed", "cancelled"]);
   if (
     finishedStatuses.has(String(order.status || "")) ||
+    order.status === "quote" ||
     finishedStatuses.has(String(order.display_status || ""))
   )
     return false;
