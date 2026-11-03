@@ -25,9 +25,10 @@ export async function captureCad005(page, entry) {
       await expect(firstOption).toBeVisible();
       await firstOption.click();
       await expect(scope.locator('input[name="vehicle-model-option"]:checked')).toHaveCount(1);
+      await scope.locator(".vehicle-technical-association").scrollIntoViewIfNeeded();
     }
     if (entry.id.includes("-footer-")) await scope.evaluate(element => { element.scrollTop = element.scrollHeight; });
-    else await scope.evaluate(element => { element.scrollTop = 0; });
+    else if (!entry.id.includes("review-catalog")) await scope.evaluate(element => { element.scrollTop = 0; });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBeTruthy();
     return;
   }
