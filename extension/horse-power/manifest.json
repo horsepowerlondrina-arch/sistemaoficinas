@@ -1,14 +1,13 @@
 {
   "manifest_version": 3,
   "name": "Horse Power · Conector",
-  "version": "1.4.1",
-  "description": "Envie peças do Sky Peças ao catálogo e aos orçamentos da Horse Power.",
+  "version": "1.4.2",
+  "description": "Envie peças do Sky Peças aos orçamentos da Horse Power.",
   "permissions": [
     "storage"
   ],
   "host_permissions": [
-    "https://horse-power.vercel.app/*",
-    "https://oficinahorsepower.com.br/*"
+    "https://sistema-oficinas-homologacao.vercel.app/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -31,10 +30,9 @@
       ],
       "run_at": "document_idle"
     },
-{
+    {
       "matches": [
-        "https://horse-power.vercel.app/*",
-        "https://oficinahorsepower.com.br/*"
+        "https://sistema-oficinas-homologacao.vercel.app/*"
       ],
       "js": [
         "bridge.js"
