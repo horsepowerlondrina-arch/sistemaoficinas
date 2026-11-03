@@ -5263,8 +5263,8 @@ body {
 .products-register-table th:last-child, .products-register-table td:last-child { text-align: center; }
 
 /* Product mark uses the approved OSDrive art without altering the source image. */
-.platform-brand--full{display:block;width:min(100%,380px);aspect-ratio:3.7;overflow:hidden}
-.platform-brand--full .platform-brand-logo{display:block;width:100%;height:auto;max-width:none;border-radius:0;transform:translateY(-12%)}
+.platform-brand--full{display:block;width:min(100%,380px)}
+.platform-brand--full .platform-brand-logo{display:block;width:100%;height:auto;border-radius:0}
 /* Workshop colors are scoped to the authenticated shell, leaving admin branding independent. */
 .app-shell .nav-item b{background:var(--red-soft);color:var(--red)}
 .app-shell .button.primary:hover{background:color-mix(in srgb,var(--red) 88%,black);border-color:color-mix(in srgb,var(--red) 88%,black)}
