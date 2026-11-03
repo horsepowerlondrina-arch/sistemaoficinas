@@ -13,6 +13,7 @@ import { catalogHomologationProjectId } from "./catalogHomologation.js";
 import { workshopRegistrationSchema, workshopStatusChangeSchema, workshopStatuses } from "./services/platformWorkshops.js";
 import { newWorkshopActivationId, newWorkshopActivationToken, sendWorkshopActivationEmail, workshopActivationTtlHours, workshopActivationUrl } from "./services/workshopActivation.js";
 import { createPlatformAdminDataTransferRoutes } from "./platformAdminDataTransferRoutes.js";
+import { applyWorkshopAccess } from "./services/workshopPlanAccess.js";
 import type { PlatformAdminDataTransfer } from "./services/platformAdminDataTransfer.js";
 
 const sessionCookie = "hp_platform_session";
@@ -517,6 +518,30 @@ export function createPlatformAdminApp(pool: Pool, encryptionKey: string, transf
       if ((error as {code?:string}).code === "P0002") { res.status(404).json({error:"Oficina não encontrada."}); return; }
       throw error;
     }
+  });
+  app.put("/admin-api/workshops/:id/access", requireSession, requirePermission("workshops:manage"), async (req,res) => {
+    const input=z.object({
+      access:z.enum(["none","basic","professional","premium"]),
+      reason:z.string().trim().min(10).max(500),
+    }).strict().safeParse(req.body);
+    if(!input.success){res.status(400).json({error:"Escolha o acesso e informe uma justificativa de 10 a 500 caracteres."});return;}
+    const token=cookieValue(req);
+    if(!token){res.status(401).json({error:"Entre no painel central."});return;}
+    const client=await pool.connect();
+    try{
+      await client.query("BEGIN");
+      const result=await applyWorkshopAccess(client,String(req.params.id),digestAdminToken(token),input.data.access,input.data.reason);
+      await client.query("COMMIT");
+      res.json({ok:true,status:result.status,entitlements:result.entitlements});
+    }catch(error){
+      await client.query("ROLLBACK").catch(()=>{});
+      const code=(error as {code?:string}).code;
+      if(code==="42501"){res.status(403).json({error:"Permissão administrativa insuficiente."});return;}
+      if(code==="P0002"){res.status(404).json({error:"Oficina gerenciada não encontrada."});return;}
+      if(code==="23514"){res.status(409).json({error:"Conclua a ativação e confirme o e-mail da oficina antes de liberar um plano."});return;}
+      if(code==="22023"){res.status(400).json({error:"Plano ou justificativa inválidos."});return;}
+      throw error;
+    }finally{client.release();}
   });
   app.put("/admin-api/workshops/:id/plan", requireSession, requirePermission("workshops:manage"), async (req,res) => {
     const input=z.object({plan_code:z.enum(["basic","professional","premium"]),reason:z.string().trim().min(10).max(500)}).strict().safeParse(req.body);

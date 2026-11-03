@@ -4,7 +4,7 @@ import { PlatformDataTransfer } from "./PlatformDataTransfer";
 import { PlatformWorkshopEntitlements } from "./PlatformWorkshopEntitlements";
 import { PlatformWorkshopUsers } from "./PlatformWorkshopUsers";
 
-import {adminRequest as request, adminActionLabel, adminResultLabel, adminReason, localDateInput, workshopTabs, type WorkshopTab} from "../lib/adminPresentation";
+import {adminRequest as request, adminActionLabel, adminResultLabel, adminReason, workshopTabs, type WorkshopTab} from "../lib/adminPresentation";
 import {confirmAdminNavigation, useAdminDraft} from "../lib/useAdminDraft";
 
 type Status = "pending_verification" | "trial" | "active" | "grace_period" | "read_only" | "blocked" | "archived" | "legacy";
@@ -15,11 +15,9 @@ type Workshop = {
   trial_days_remaining: number | null; status_reason: string; total_count?: number;
   invitation_status: "none" | "pending" | "sent" | "failed" | "expired" | "cancelled" | "activated" | "manual_link_created";
   invitation_expires_at: string | null; invitation_sent_at: string | null;
-  catalog_access?: CatalogAccess;
 };
 type InvitationEvent = { id:string; created_at:string; expires_at:string; sent_at:string|null; status:Workshop["invitation_status"] };
 type HistoryEvent = { id: string; actor_email: string; action: string; result: string; technical_context: Record<string, unknown>; created_at: string };
-type CatalogAccess = { status:"active"|"not_contracted"|"expired"|"revoked"|"not_installed"; enabled:boolean; valid_until:string|null; activated_at:string|null; grant_source:string; updated_by_admin_id:string|null; updated_by_admin_email:string; updated_at:string|null; reason:string; catalog_installed:boolean };
 type ManualActivation = { mode:"confirm" } | { mode:"link"; url:string; expiresAt:string };
 type FormFields = Pick<Workshop, "name" | "responsible_name" | "responsible_email" | "phone" | "document">;
 
@@ -37,10 +35,8 @@ function toFields(value?: Workshop): FormFields {
   return value ? { name: value.name, responsible_name: value.responsible_name, responsible_email: value.responsible_email, phone: value.phone, document: value.document } : blank;
 }
 function localDate(value: string | null) { return value ? new Date(value).toLocaleString("pt-BR") : "—"; }
-const localDateTimeInput = localDateInput;
-const catalogAccessLabels:Record<CatalogAccess["status"],string>={active:"Habilitado",not_contracted:"Não contratado",expired:"Acesso vencido",revoked:"Acesso revogado",not_installed:"Catálogo ainda não instalado"};
 
-export function PlatformWorkshops({ canManage, canManageModules, canTransfer, canRequestCritical, canApproveCritical, environmentLabel }: { canManage: boolean; canManageModules:boolean; canTransfer: boolean; canRequestCritical: boolean; canApproveCritical: boolean; environmentLabel: string }) {
+export function PlatformWorkshops({ canManage, canTransfer, canRequestCritical, canApproveCritical, environmentLabel }: { canManage: boolean; canTransfer: boolean; canRequestCritical: boolean; canApproveCritical: boolean; environmentLabel: string }) {
   const [tab,setTab]=useState<WorkshopTab>("general");
   const [historyError,setHistoryError]=useState("");
   const [historyLoading,setHistoryLoading]=useState(false);
@@ -56,21 +52,15 @@ export function PlatformWorkshops({ canManage, canManageModules, canTransfer, ca
   const [fields, setFields] = useState<FormFields>(blank);
   const [editing, setEditing] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [nextStatus, setNextStatus] = useState("");
-  const [reason, setReason] = useState("");
-  const [trialDays, setTrialDays] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-  const [catalogUntil,setCatalogUntil]=useState("");
-  const [catalogReason,setCatalogReason]=useState("Autorização administrativa do módulo Catálogo Técnico.");
   const [manualActivation,setManualActivation]=useState<ManualActivation|null>(null);
   const [identityVerified,setIdentityVerified]=useState(false);
   const [verificationMethod,setVerificationMethod]=useState<"phone"|"in_person"|"video_call"|"other">("phone");
 
   const formDirty=(creating||editing)&&JSON.stringify(fields)!==JSON.stringify(toFields(creating?undefined:selected||undefined));
-  const catalogDirty=!!selected&&(catalogUntil!==localDateTimeInput(selected.catalog_access?.valid_until||null)||catalogReason!=="Autorização administrativa do módulo Catálogo Técnico.");
-  useAdminDraft(formDirty||!!reason||!!nextStatus||catalogDirty||identityVerified||manualActivation?.mode==="link");
+  useAdminDraft(formDirty||identityVerified||manualActivation?.mode==="link");
   const cancelEdit=()=>{if(busy||!confirmAdminNavigation())return;setCreating(false);setEditing(false);setFields(toFields(selected||undefined));setError("");};
   const loadHistory=async(tenantId:string)=>{
     const requestId=++historyRequest.current;setHistoryLoading(true);setHistoryError("");
@@ -99,9 +89,7 @@ export function PlatformWorkshops({ canManage, canManageModules, canTransfer, ca
       if(requestId!==detailRequest.current)return;
       setHistory([]); void loadHistory(tenantId);
       setInvitations([]); void request<InvitationEvent[]>(`/workshops/${encodeURIComponent(tenantId)}/invitations`).then(setInvitations).catch(() => setInvitations([]));
-      setSelected(detail); setFields(toFields(detail)); setEditing(false); setCreating(false); setReason(""); setNextStatus(""); setTrialDays("");
-      setCatalogUntil(localDateTimeInput(detail.catalog_access?.valid_until||null));
-      setCatalogReason("Autorização administrativa do módulo Catálogo Técnico.");
+      setSelected(detail); setFields(toFields(detail)); setEditing(false); setCreating(false);
     } catch (cause) { if(requestId===detailRequest.current)setError((cause as Error).message); }
     finally { if(requestId===detailRequest.current&&!actionLock.current)setBusy(false); }
   };
@@ -118,17 +106,6 @@ export function PlatformWorkshops({ canManage, canManageModules, canTransfer, ca
         await request(`/workshops/${encodeURIComponent(selected.tenant_id)}`, "PUT", fields);
         await openWorkshop(selected.tenant_id); await load(); setMessage("Dados administrativos atualizados e auditados.");
       }
-    } catch (cause) { setError((cause as Error).message); }
-    finally { actionLock.current=false; setBusy(false); }
-  };
-  const changeStatus = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault(); if (!selected || !nextStatus || actionLock.current) return;
-    if(["blocked","archived","read_only"].includes(nextStatus)&&!window.confirm("Confirmar a restrição de acesso desta oficina? Os dados serão preservados."))return;
-    actionLock.current=true;
-    setBusy(true); setError(""); setMessage("");
-    try {
-      await request(`/workshops/${encodeURIComponent(selected.tenant_id)}/status`, "PATCH", { status: nextStatus, trial_days: nextStatus === "trial" && trialDays.trim() ? Number(trialDays) : null, reason });
-      await openWorkshop(selected.tenant_id); await load(); setMessage("Situação alterada e registrada na auditoria.");
     } catch (cause) { setError((cause as Error).message); }
     finally { actionLock.current=false; setBusy(false); }
   };
@@ -186,20 +163,6 @@ export function PlatformWorkshops({ canManage, canManageModules, canTransfer, ca
     catch { setError("Não foi possível copiar automaticamente. Selecione o link e copie manualmente."); }
   };
   const setField = (key: keyof FormFields, value: string) => setFields(current => ({ ...current, [key]: value }));
-  const changeCatalogAccess=async(enabled:boolean)=>{
-    if(!selected||actionLock.current)return;
-    if(catalogReason.trim().length<10||catalogReason.trim().length>500){setError("Informe uma justificativa entre 10 e 500 caracteres.");return;}
-    if(!enabled&&!window.confirm("Desabilitar o catálogo somente para esta oficina?"))return;
-    actionLock.current=true;setBusy(true);setError("");setMessage("");
-    try{
-      await request(`/workshops/${encodeURIComponent(selected.tenant_id)}/catalog-access`,"PATCH",{
-        enabled,valid_until:enabled&&catalogUntil?new Date(catalogUntil).toISOString():null,reason:catalogReason,
-      });
-      await openWorkshop(selected.tenant_id);await load();
-      setMessage(enabled?"Acesso ao Catálogo Técnico habilitado e registrado no histórico.":"Acesso ao Catálogo Técnico revogado. Os registros históricos foram preservados.");
-    }catch(cause){setError((cause as Error).message);}finally{actionLock.current=false;setBusy(false);}
-  };
-
   if (creating || editing) return <section className="pa-card pa-workshop-form-card">
     <div className="pa-section-title"><div><h2>{creating ? "Cadastrar oficina" : "Editar dados cadastrais"}</h2><p>O cadastro não libera o sistema enquanto o e-mail estiver pendente.</p></div><button type="button" className="pa-quiet" disabled={busy} onClick={cancelEdit}><ArrowLeft size={16}/> Voltar</button></div>
     {error&&<p role="alert" className="pa-note pa-note--error">{error}</p>}
@@ -217,7 +180,7 @@ export function PlatformWorkshops({ canManage, canManageModules, canTransfer, ca
 
   if (selected) return <div className="pa-workshop-detail">
     <section className="pa-card">
-      <div className="pa-section-title"><div><button className="pa-back-button" disabled={busy} onClick={() => { if(!confirmAdminNavigation())return;historyRequest.current++;setSelected(null);setReason("");setNextStatus(""); closeManualActivation(); }}><ArrowLeft size={15}/> Voltar à lista</button><h2>{selected.name}</h2></div><span className={`pa-status ${selected.status === "trial" || selected.status === "active" ? "is-active" : ""}`}>{labels[selected.status]}</span></div>
+      <div className="pa-section-title"><div><button className="pa-back-button" disabled={busy} onClick={() => { if(!confirmAdminNavigation())return;historyRequest.current++;setSelected(null);closeManualActivation(); }}><ArrowLeft size={15}/> Voltar à lista</button><h2>{selected.name}</h2></div><span className={`pa-status ${selected.status === "trial" || selected.status === "active" ? "is-active" : ""}`}>{labels[selected.status]}</span></div>
 
       {message&&<p className="pa-note" role="status">{message}</p>}{error&&<p className="pa-note pa-note--error" role="alert">{error}</p>}
       <div role="tablist" aria-label="Gerenciamento da oficina" className="pa-workshop-tabs">
@@ -226,19 +189,11 @@ export function PlatformWorkshops({ canManage, canManageModules, canTransfer, ca
       <div role="tabpanel" id="workshop-panel-general" aria-labelledby="workshop-tab-general" hidden={tab!=="general"}>      {canManage && selected.source !== "legacy" && <button className="pa-quiet" disabled={busy} onClick={() => { if(!confirmAdminNavigation())return;setFields(toFields(selected)); setEditing(true);setError(""); }}><ShieldCheck size={15}/> Editar dados</button>}
       <dl className="pa-workshop-data"><div><dt>Responsável</dt><dd>{selected.responsible_name || "Não informado"}</dd></div><div><dt>E-mail</dt><dd>{selected.responsible_email || "Não informado"}</dd></div><div><dt>Telefone</dt><dd>{selected.phone || "Não informado"}</dd></div><div><dt>CPF/CNPJ</dt><dd>{selected.document || "Não informado"}</dd></div><div><dt>Origem</dt><dd>{selected.source === "legacy" ? "Cadastro anterior" : "Painel administrativo"}</dd></div><div><dt>Cadastro</dt><dd>{localDate(selected.created_at)}</dd></div><div><dt>Identificador</dt><dd>{selected.tenant_id}</dd></div></dl>
 </div>
-      <div role="tabpanel" id="workshop-panel-access" aria-labelledby="workshop-tab-access" hidden={tab!=="access"}><PlatformWorkshopEntitlements key={selected.tenant_id} tenantId={selected.tenant_id} canEdit={canManage} onSaved={()=>void loadHistory(selected.tenant_id)} catalogStatus={selected.catalog_access?.status} catalogControls={<>      {canManageModules && selected.catalog_access && <section className="pa-workshop-state-form" aria-labelledby="catalog-access-title">
-        <h3 id="catalog-access-title">Disponibilidade e validade do catálogo</h3>
-        <p>Situação: <strong>{catalogAccessLabels[selected.catalog_access.status]}</strong></p>
-        <dl className="pa-workshop-data"><div><dt>Ativação</dt><dd>{localDate(selected.catalog_access.activated_at)}</dd></div><div><dt>Validade</dt><dd>{localDate(selected.catalog_access.valid_until)}</dd></div><div><dt>Responsável pela última alteração</dt><dd>{selected.catalog_access.updated_by_admin_email || selected.catalog_access.updated_by_admin_id || "Sistema"}</dd></div><div><dt>Última alteração</dt><dd>{localDate(selected.catalog_access.updated_at)}</dd></div><div><dt>Origem</dt><dd>{selected.catalog_access.grant_source === "homologation-test" ? "Teste de homologação" : selected.catalog_access.grant_source === "commercial" ? "Autorização comercial" : "—"}</dd></div></dl>
-        {selected.catalog_access.reason && <p>Justificativa: {selected.catalog_access.reason}</p>}
-        <label>Validade (deixe vazio para acesso permanente)<input type="datetime-local" value={catalogUntil} onChange={event=>setCatalogUntil(event.target.value)} /></label>
-        <label>Justificativa<textarea required minLength={10} maxLength={500} value={catalogReason} onChange={event=>setCatalogReason(event.target.value)} /></label>
-        <div className="pa-workshop-actions"><button className="pa-primary" disabled={busy} onClick={()=>void changeCatalogAccess(true)}>{selected.catalog_access.enabled?"Renovar acesso":"Habilitar catálogo"}</button>{selected.catalog_access.enabled&&<button className="pa-quiet" disabled={busy} onClick={()=>void changeCatalogAccess(false)}>Desabilitar catálogo</button>}</div>
-      </section>}
-</>} />
-      <dl className="pa-workshop-data"><div><dt>Início do teste</dt><dd>{localDate(selected.trial_started_at)}</dd></div><div><dt>Fim do teste</dt><dd>{localDate(selected.trial_ends_at)}{selected.trial_days_remaining !== null && selected.trial_days_remaining !== undefined ? ` · ${selected.trial_days_remaining} dia(s) restantes` : ""}</dd></div></dl>
-      {selected.status_reason&&<p className="pa-workshop-reason">Justificativa da situação: {selected.status_reason}</p>}
-            {canManage && selected.source !== "legacy" && <form className="pa-workshop-state-form" onSubmit={changeStatus}><h3>Situação e acesso</h3><p>Oficinas pendentes precisam concluir a ativação do responsável. Para oficinas verificadas, é possível iniciar ou estender o teste e reativar acesso, sempre com justificativa auditada.</p><label>Nova situação<select aria-label="Nova situação" required value={nextStatus} onChange={e => {setNextStatus(e.target.value);if(e.target.value!=="trial")setTrialDays("");}}><option value="">Selecione…</option><option value="trial" disabled={!["trial","read_only","blocked"].includes(selected.status)||!selected.email_verified_at}>Teste grátis (14 dias ou prazo informado)</option><option value="active" disabled={!["trial","read_only","blocked"].includes(selected.status)||!selected.email_verified_at}>Ativa / reativar acesso</option><option value="read_only" disabled={!["trial","active","grace_period","blocked"].includes(selected.status)}>Somente leitura</option><option value="blocked" disabled={selected.status==="archived"||selected.status==="blocked"}>Bloqueada</option><option value="archived" disabled={selected.status==="archived"}>Arquivada</option></select></label>{nextStatus==="trial"&&<label>Duração do teste em dias (opcional)<input type="number" min={1} max={90} value={trialDays} onChange={e=>setTrialDays(e.target.value)} placeholder="Usar padrão configurado"/></label>}<label>Justificativa<textarea required minLength={10} maxLength={500} value={reason} onChange={e => setReason(e.target.value)} /></label><button className="pa-quiet" disabled={busy || !nextStatus}>Registrar mudança</button></form>}</div>
+      <div role="tabpanel" id="workshop-panel-access" aria-labelledby="workshop-tab-access" hidden={tab!=="access"}>
+        <PlatformWorkshopEntitlements key={selected.tenant_id} tenantId={selected.tenant_id} status={selected.status}
+          canEdit={canManage && selected.source !== "legacy"}
+          onSaved={() => { void openWorkshop(selected.tenant_id); void load(); }} />
+      </div>
       <div role="tabpanel" id="workshop-panel-users" aria-labelledby="workshop-tab-users" hidden={tab!=="users"}><PlatformWorkshopUsers key={selected.tenant_id} tenantId={selected.tenant_id} canEdit={canManage} onSaved={()=>void loadHistory(selected.tenant_id)} primaryOwnerEmail={selected.responsible_email} /></div>
       <div role="tabpanel" id="workshop-panel-invitations" aria-labelledby="workshop-tab-invitations" hidden={tab!=="invitations"}><h3>Ativação e convites</h3><dl className="pa-workshop-data"><div><dt>Convite</dt><dd>{invitationLabels[selected.invitation_status]}{selected.invitation_sent_at ? ` · ${localDate(selected.invitation_sent_at)}` : ""}{selected.invitation_expires_at && selected.invitation_status !== "activated" ? ` · expira ${localDate(selected.invitation_expires_at)}` : ""}</dd></div><div><dt>E-mail confirmado</dt><dd>{localDate(selected.email_verified_at)}</dd></div></dl>      {canManage && selected.source === "admin" && selected.status === "pending_verification" && <div className="pa-workshop-actions"><button className="pa-primary pa-invitation-action" disabled={busy} onClick={() => void sendInvitation()}><RefreshCw size={15}/>{selected.invitation_status === "none" ? "Enviar convite" : "Reenviar convite"}</button><button type="button" className="pa-quiet pa-invitation-action" disabled={busy} onClick={() => { setIdentityVerified(false); setVerificationMethod("phone"); setManualActivation({ mode:"confirm" }); setError(""); setMessage(""); }}>Gerar link manual</button>{["pending","sent","failed","manual_link_created"].includes(selected.invitation_status) && <button type="button" className="pa-quiet pa-invitation-action" disabled={busy} onClick={() => void cancelInvitation()}>Cancelar convite</button>}</div>}
 

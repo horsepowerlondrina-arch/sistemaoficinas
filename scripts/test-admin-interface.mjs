@@ -13,7 +13,7 @@ try{
  const context=await browser.newContext({viewport:{width:1440,height:1000}});
  const page=await context.newPage();page.setDefaultTimeout(15000);
  const errors=[];page.on("pageerror",e=>errors.push(e.message));
- let readOnly=false,failSave=true,failHistory=true,updates=0,planUpdates=0,memberUpdates=0;
+ let readOnly=false,failSave=true,failHistory=true,updates=0,memberUpdates=0;
  const modules=Object.fromEntries(["dashboard","orders","checklists","customers_vehicles","catalog","technical_catalog","professionals","suppliers","inventory","finance","settings"].map(k=>[k,true]));
  let ent={plan_code:null,effective_plan_code:null,plan_policy_activated_at:null,trial_active:false,plan_configured:false,plan_module_defaults:{},module_overrides:{},override_expires_at:{},modules,plate_lookup:{status:"unauthorized",enabled:false,configured:true,authorized:false},max_users_override:null,max_users:null,trial_days_override:null,trial_days:14,user_count:2};
  let workshop={tenant_id:"fictional-a",name:"Oficina Demonstração ADM",document:"",phone:"",status:"trial",source:"admin",responsible_name:"Responsável Fictício",responsible_email:"owner@example.test",created_at:"2026-10-01T12:00:00Z",updated_at:null,email_verified_at:"2026-10-01T12:00:00Z",trial_started_at:"2026-10-01T12:00:00Z",trial_ends_at:"2026-10-15T12:00:00Z",trial_days_remaining:7,status_reason:"Ativação fictícia",invitation_status:"activated",invitation_expires_at:null,invitation_sent_at:null,catalog_access:{status:"active",enabled:true,valid_until:null,activated_at:null,grant_source:"commercial",updated_by_admin_id:null,updated_by_admin_email:"",updated_at:null,reason:"Autorização fictícia",catalog_installed:true}};
@@ -30,7 +30,7 @@ try{
    if(method==="PUT"){updates++;ent={...ent,module_overrides:body.module_overrides,override_expires_at:body.override_expires_at,max_users_override:body.max_users,trial_days_override:body.trial_days,modules:{...modules,...body.module_overrides},plate_lookup:{status:body.module_overrides.external_plate_lookup===true?"available":"unauthorized",enabled:body.module_overrides.external_plate_lookup===true,configured:true,authorized:body.module_overrides.external_plate_lookup===true}};return json({entitlements:ent});}
    return json(ent);
   }
-  if(path.endsWith("/plan")){planUpdates++;ent={...ent,plan_code:body.plan_code,effective_plan_code:body.plan_code,plan_policy_activated_at:new Date().toISOString(),plan_configured:true};return json({entitlements:ent});}
+  if(path.endsWith("/access")){updates++;workshop={...workshop,status:body.access==="none"?"read_only":"active"};ent={...ent,plan_code:body.access==="none"?ent.plan_code:body.access,effective_plan_code:body.access==="none"?null:body.access,plan_policy_activated_at:new Date().toISOString(),plan_configured:true,module_overrides:{}};return json({status:workshop.status,entitlements:ent});}
   if(path.endsWith("/users"))return json({items:members});
   if(path.endsWith("/users/operator")){memberUpdates++;members=members.map(m=>m.user_id==="operator"?{...m,role:body.role}:m);return json({ok:true});}
   if(path.endsWith("/status")){workshop={...workshop,status:body.status,status_reason:body.reason};return json({ok:true});}
@@ -64,43 +64,27 @@ try{
  await expect(page.getByText("Vínculo de usuário alterado",{exact:true})).toBeVisible();
  await expect(page.getByText("Justificativa: Revisão fictícia de acesso")).toBeVisible();
  await page.getByRole("tab",{name:"Acessos e permissões",exact:true}).click();
- await expect(page.getByLabel("Exceção: Catálogo Técnico de Tempos",{exact:true})).toBeEnabled();
- await page.getByLabel("Exceção: Catálogo Técnico de Tempos",{exact:true}).selectOption("deny");
- await page.getByLabel("Exceção: Consulta externa de placas",{exact:true}).selectOption("allow");
- await page.getByLabel("Justificativa das exceções",{exact:true}).fill("Bloqueio fictício para regressão");
+ await expect(page.getByLabel("Acesso da oficina",{exact:true})).toBeEnabled();
+ await page.getByLabel("Acesso da oficina",{exact:true}).selectOption("professional");
+ await page.getByLabel("Justificativa",{exact:true}).fill("Plano profissional para oficina fictícia");
  await page.getByRole("tab",{name:"Usuários",exact:true}).click();
  await page.getByRole("tab",{name:"Acessos e permissões",exact:true}).click();
- await expect(page.getByLabel("Exceção: Catálogo Técnico de Tempos",{exact:true})).toHaveValue("deny");
+ await expect(page.getByLabel("Acesso da oficina",{exact:true})).toHaveValue("professional");
  page.once("dialog",d=>d.dismiss());
  await page.getByRole("button",{name:"Voltar à lista"}).click();
  await expect(page.getByRole("tab",{name:"Acessos e permissões",exact:true})).toBeVisible();
- await page.getByRole("button",{name:"Salvar exceções",exact:true}).click();
- await expect(page.getByText("Exceções salvas e auditadas.")).toBeVisible();
- if(updates!==1)throw Error("Duplicate entitlement update");
- await expect(page.getByRole("row").filter({hasText:"Consulta externa de placas"})).toContainText("Liberado");
- await expect(page.getByRole("row").filter({hasText:"Catálogo Técnico de Tempos"})).toContainText("Bloqueado");
- await page.getByText("Recursos de cada plano",{exact:true}).click();
+ await page.getByRole("button",{name:"Registrar acesso",exact:true}).click();
+ await expect(page.getByText("Plano aplicado. Os acessos padrão foram atualizados e registrados no histórico.")).toBeVisible();
+ if(updates!==1)throw Error("Duplicate access update");
+ await page.getByText("O que está incluído em cada plano",{exact:true}).click();
  await expect(page.locator(".pa-plans").getByText(/Premium · 10 usuários/)).toBeVisible();
- await page.getByLabel("Plano comercial",{exact:true}).selectOption("professional");
- await page.getByLabel("Justificativa da alteração do plano",{exact:true}).fill("Atribuir plano Profissional à oficina fictícia");
- page.once("dialog",d=>d.accept());
- await page.getByRole("button",{name:"Aplicar plano",exact:true}).click();
- await expect(page.getByText("Plano aplicado e registrado na auditoria.",{exact:false})).toBeVisible();
- if(planUpdates!==1)throw Error("Duplicate plan update");
  await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:resolve(output,"oficina-permissoes-desktop.png"),fullPage:true});
- await page.getByLabel("Justificativa das exceções",{exact:true}).fill("Restaurar configuração fictícia");
+ await page.getByLabel("Acesso da oficina",{exact:true}).selectOption("none");
+ await page.getByLabel("Justificativa",{exact:true}).fill("Suspensão fictícia para regressão");
  page.once("dialog",d=>d.accept());
- await page.getByRole("button",{name:"Restaurar padrões do plano",exact:true}).click();
- await expect(page.getByLabel("Exceção: Catálogo Técnico de Tempos",{exact:true})).toHaveValue("inherit");
- await expect(page.getByLabel("Exceção: Consulta externa de placas",{exact:true})).toHaveValue("inherit");
- page.once("dialog",d=>d.dismiss());
- await page.getByRole("button",{name:"Desabilitar catálogo",exact:true}).click();
- await expect(page.getByRole("row").filter({hasText:"Catálogo Técnico de Tempos"})).toContainText("Liberado");
- await page.getByLabel("Nova situação",{exact:true}).selectOption("read_only");
- await page.getByLabel("Justificativa",{exact:true}).last().fill("Restrição fictícia temporária");
- page.once("dialog",d=>d.accept());
- await page.getByRole("button",{name:"Registrar mudança"}).click();
- await expect(page.getByText("Situação alterada e registrada na auditoria.")).toBeVisible();
+ await page.getByRole("button",{name:"Registrar acesso",exact:true}).click();
+ await expect(page.getByText("Oficina em somente leitura. A alteração foi registrada no histórico.")).toBeVisible();
+ if(updates!==2)throw Error("Missing read-only access update");
  await page.getByRole("tab",{name:"Usuários",exact:true}).click();
  await page.getByLabel("Justificativa para alterar um vínculo").fill("Promover colaborador fictício");
  const ownerCard=page.locator(".pa-member").filter({hasText:"Responsável Fictício"});
@@ -132,8 +116,8 @@ try{
  readOnly=true;await page.reload();await page.getByRole("button",{name:"Oficinas",exact:true}).click();await page.getByRole("button",{name:/Oficina Editada Fictícia/}).click();
  await expect(page.getByRole("button",{name:"Editar dados",exact:true})).toHaveCount(0);
  await page.getByRole("tab",{name:"Acessos e permissões",exact:true}).click();
- await expect(page.getByLabel("Exceção: Catálogo Técnico de Tempos",{exact:true})).toBeDisabled();
- await expect(page.getByRole("button",{name:"Salvar permissões",exact:true})).toHaveCount(0);
+ await expect(page.getByLabel("Acesso da oficina",{exact:true})).toBeDisabled();
+ await expect(page.getByRole("button",{name:"Registrar acesso",exact:true})).toHaveCount(0);
  await page.getByRole("tab",{name:"Usuários",exact:true}).click();
  await expect(page.getByRole("button",{name:"Remover desta oficina"})).toHaveCount(0);
  await expect(page.getByRole("tab",{name:"Transferência de dados",exact:true})).toHaveCount(0);
