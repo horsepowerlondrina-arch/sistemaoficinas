@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { useApp } from "../lib/context";
 import { send } from "../lib/api";
+import { saveOrderAndRefresh } from "../lib/orderSaveFlow";
 import { PlateField } from "../components/PlateField";
 import { fipeFields } from "../../shared/vehicleFipe";
 import { mergeVehicleLookup, lookupWouldReplace, vehicleDisplayModel } from "../../shared/vehicleIdentity";
@@ -259,17 +260,22 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
     };
   };
   const save = async () => {
+    if (busy) return;
     setBusy(true);
     setError("");
     try {
-      const result = await send(
-        `/orders${savedId ? `/${savedId}` : ""}`,
-        orderInput(),
-        savedId ? "PUT" : "POST",
+      const result = await saveOrderAndRefresh(
+        () => send(
+          `/orders${savedId ? `/${savedId}` : ""}`,
+          orderInput(),
+          savedId ? "PUT" : "POST",
+        ),
+        refresh,
       );
-      await refresh();
+      setSavedId(result.id);
       notify("Atendimento salvo com sucesso.");
-      navigate(`/ordens/${result.id}`, { replace: true });
+      if (result.refreshed) navigate(`/ordens/${result.id}`, { replace: true });
+      else window.location.replace(`/ordens/${result.id}`);
     } catch (e) {
       setError((e as Error).message);
       setTab("details");
@@ -282,17 +288,18 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
     setBusy(true);
     setError("");
     try {
-      const result = await send(
-        `/orders${savedId ? `/${savedId}` : ""}`,
-        orderInput(),
-        savedId ? "PUT" : "POST",
+      const result = await saveOrderAndRefresh(
+        () => send(
+          `/orders${savedId ? `/${savedId}` : ""}`,
+          orderInput(),
+          savedId ? "PUT" : "POST",
+        ),
+        refresh,
       );
       setSavedId(result.id);
-      await refresh();
-      if (!order)
-        navigate(`/ordens/${result.id}/editar?capturar=${source}`, {
-          replace: true,
-        });
+      const capturePath = `/ordens/${result.id}/editar?capturar=${source}`;
+      if (!result.refreshed) window.location.replace(capturePath);
+      else if (!order) navigate(capturePath, { replace: true });
       else setCaptureSource(source);
     } catch (e) {
       setError((e as Error).message);
