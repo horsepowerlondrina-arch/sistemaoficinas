@@ -3,10 +3,7 @@
   "framework": "vite",
   "env": {
     "APP_ENV": "development",
-    "EXPECTED_DATABASE_PROJECT": "vnclahdnirqlcbamodqy",
-    "APP_ORIGIN": "https://sistema-oficinas-homologacao.vercel.app",
-    "APP_ORIGINS": "https://sistema-oficinas-homologacao.vercel.app",
-    "PUBLIC_ORIGIN": "https://sistema-oficinas-homologacao.vercel.app"
+    "EXPECTED_DATABASE_PROJECT": "vnclahdnirqlcbamodqy"
   },
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
