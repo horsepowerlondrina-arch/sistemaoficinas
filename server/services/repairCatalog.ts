@@ -239,7 +239,7 @@ const hasMultipleTechnicalVariants = (value: string) =>
 const registrationInput = z.object({
   brand: z.string().trim().max(150).default(""),
   model: z.string().trim().max(300).default(""),
-  fipe_codes: z.array(z.string().regex(/^\\d{6}-\\d$/)).max(30).default([]),
+  fipe_codes: z.array(z.string().regex(/^\d{6}-\d$/)).max(30).default([]),
 });
 export async function registrationVehicleModels(db: DB, ctx: Context, input: unknown) {
   const value = registrationInput.parse(input);
