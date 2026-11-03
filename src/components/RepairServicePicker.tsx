@@ -669,7 +669,7 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
         <button type="button" className={mode === "catalog" ? "active" : ""} disabled={!info?.enabled} onClick={() => { closeDropdowns(); setSelected(null); setMode("catalog"); setOffset(0); }}>Catálogo Técnico</button>
         <button type="button" className={mode === "manual" ? "active" : ""} onClick={() => { closeDropdowns(); setSelected(null); setMode("manual"); setOffset(0); }}>Serviços Próprios</button>
       </div>}
-      {!vehicleOnly && !info?.enabled && info && <p role="status">{info.catalog_status === "active" ? "Não foi possível consultar o Catálogo Técnico agora." : catalogStatusMessage[info.catalog_status]} Seus serviços particulares continuam disponíveis.</p>}
+      {!vehicleOnly && !info?.enabled && info && (info.catalog_status === "not_contracted" ? <div className="repair-catalog-upgrade" role="status"><p>{catalogStatusMessage.not_contracted} Seus serviços particulares continuam disponíveis.</p><Link className="button" to="/configuracoes?aba=conta" target="_blank" rel="noopener noreferrer">Como fazer upgrade</Link></div> : <p role="status">{info.catalog_status === "active" ? "Não foi possível consultar o Catálogo Técnico agora." : catalogStatusMessage[info.catalog_status]} Seus serviços particulares continuam disponíveis.</p>)}
       {vehicleOnly && !info && <p className="muted" role="status">Verificando acesso ao Catálogo Técnico…</p>}
       {vehicleOnly && info && !info.enabled && <p className="muted" role="status">{info.catalog_status === "active" ? "Catálogo Técnico indisponível no momento." : catalogStatusMessage[info.catalog_status]}</p>}
       {shouldShowVehicleCatalog(mode, vehicleOnly, !!info?.enabled) && <>
