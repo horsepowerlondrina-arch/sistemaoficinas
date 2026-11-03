@@ -34,13 +34,22 @@ export function assertDevelopmentIsolation(
     .split(",")
     .map((value) => value.trim())
     .filter(Boolean);
+  const vercelOnly =
+    origin.hostname.endsWith(".vercel.app") &&
+    allowedOrigins.length === 1 &&
+    allowedOrigins[0] === origin.origin;
+  const osdriveHomologation =
+    expected === "vnclahdnirqlcbamodqy" &&
+    origin.origin === "https://osdrive.com.br" &&
+    allowedOrigins.length === 2 &&
+    new Set(allowedOrigins).size === 2 &&
+    allowedOrigins.includes(origin.origin) &&
+    allowedOrigins.includes("https://sistema-oficinas-homologacao.vercel.app");
   if (
-    !origin.hostname.endsWith(".vercel.app") ||
-    allowedOrigins.length !== 1 ||
-    allowedOrigins[0] !== origin.origin ||
-    env.PUBLIC_ORIGIN !== origin.origin
+    (!vercelOnly && !osdriveHomologation) ||
+    (env.PUBLIC_ORIGIN && env.PUBLIC_ORIGIN !== origin.origin)
   )
-    throw new Error("A homologação exige um endereço Vercel próprio e consistente.");
+    throw new Error("A homologação exige origens próprias e consistentes.");
   if (
     env.ENABLE_PAID_VEHICLE_LOOKUP !== "true" &&
     Object.keys(env).some(
