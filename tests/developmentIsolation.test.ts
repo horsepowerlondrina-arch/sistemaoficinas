@@ -40,3 +40,28 @@ test("development accepts only its configured database and own origin", () => {
   ])
     assert.throws(() => assertDevelopmentIsolation({ ...env, ...patch }));
 });
+
+test("OSDrive homologation accepts only the configured custom and Vercel origins", () => {
+  const custom = {
+    ...env,
+    EXPECTED_DATABASE_PROJECT: "vnclahdnirqlcbamodqy",
+    DATABASE_URL:
+      "postgresql://horse_power_app.vnclahdnirqlcbamodqy:fake@aws-1-ca-central-1.pooler.supabase.com:6543/postgres",
+    APP_ORIGIN: "https://osdrive.com.br",
+    APP_ORIGINS:
+      "https://osdrive.com.br,https://sistema-oficinas-homologacao.vercel.app",
+    PUBLIC_ORIGIN: undefined,
+  };
+  assert.doesNotThrow(() => assertDevelopmentIsolation(custom));
+  assert.doesNotThrow(() =>
+    assertDevelopmentIsolation({ ...custom, PUBLIC_ORIGIN: custom.APP_ORIGIN }),
+  );
+  for (const patch of [
+    { EXPECTED_DATABASE_PROJECT: "testproject" },
+    { APP_ORIGINS: "https://osdrive.com.br" },
+    { APP_ORIGINS: custom.APP_ORIGINS + ",https://horse-power.vercel.app" },
+    { APP_ORIGIN: "https://other.example.com" },
+    { PUBLIC_ORIGIN: "https://horse-power.vercel.app" },
+  ])
+    assert.throws(() => assertDevelopmentIsolation({ ...custom, ...patch }));
+});
