@@ -368,11 +368,11 @@ Produtos, serviços, profissionais e tempos.
 
 ### Produtos
 
-Tela exclusiva de Produtos, sem botão de serviços nem aba redundante; tabela com produto fictício.
+Tela de produtos sem rótulo redundante acima do título.
 
 [![Produtos](./capturas/09-cadastros-servicos/produtos.png)](./capturas/09-cadastros-servicos/produtos.png)
 
-Estado: capturada · mobile · captura 2026-11-01 · commit de origem: 4c93a82e27f05bc3112f1265b6313539b171b347 · [arquivo completo](./capturas/09-cadastros-servicos/produtos.png)
+Estado: capturada · mobile · captura 2026-11-02 · commit de origem: b2ca47dda74859162d1c81866caab8c774c8a689 · [arquivo completo](./capturas/09-cadastros-servicos/produtos.png)
 
 ### Catálogo de tempos
 
@@ -400,19 +400,19 @@ Estado: capturada · mobile · captura 2026-10-30 · commit de origem: 3792b5675
 
 ### Profissionais
 
-Lista vazia na demonstração.
+Tela de profissionais sem rótulo redundante acima do título.
 
 [![Profissionais](./capturas/09-cadastros-servicos/profissionais.png)](./capturas/09-cadastros-servicos/profissionais.png)
 
-Estado: capturada · mobile · captura 2026-10-22 · commit de origem: não registrado · [arquivo completo](./capturas/09-cadastros-servicos/profissionais.png)
+Estado: capturada · mobile · captura 2026-11-02 · commit de origem: b2ca47dda74859162d1c81866caab8c774c8a689 · [arquivo completo](./capturas/09-cadastros-servicos/profissionais.png)
 
 ### Produtos
 
-Tela exclusiva de Produtos, sem botão de serviços nem aba redundante; tabela com produto fictício.
+Tela de produtos sem rótulo redundante acima do título.
 
 [![Produtos](./capturas/09-cadastros-servicos/produtos-desktop.png)](./capturas/09-cadastros-servicos/produtos-desktop.png)
 
-Estado: capturada · desktop · captura 2026-11-01 · commit de origem: 4c93a82e27f05bc3112f1265b6313539b171b347 · [arquivo completo](./capturas/09-cadastros-servicos/produtos-desktop.png)
+Estado: capturada · desktop · captura 2026-11-02 · commit de origem: b2ca47dda74859162d1c81866caab8c774c8a689 · [arquivo completo](./capturas/09-cadastros-servicos/produtos-desktop.png)
 
 ### Catálogo de tempos
 
@@ -454,6 +454,14 @@ Consulta técnica por marca, modelo e serviço.
 
 Estado: capturada · mobile · captura 2026-10-30 · commit de origem: 3792b567510404220727ed26137e813eb84bc96e · [arquivo completo](./capturas/09-cadastros-servicos/catalogo-tempos-servicos-mobile.png)
 
+### Profissionais
+
+Tela de profissionais sem rótulo redundante acima do título.
+
+[![Profissionais](./capturas/09-cadastros-servicos/profissionais-desktop.png)](./capturas/09-cadastros-servicos/profissionais-desktop.png)
+
+Estado: capturada · desktop · captura 2026-11-02 · commit de origem: b2ca47dda74859162d1c81866caab8c774c8a689 · [arquivo completo](./capturas/09-cadastros-servicos/profissionais-desktop.png)
+
 ## 10 — Estoque
 
 Saldos e movimentações de produtos.
@@ -480,11 +488,19 @@ Cadastro, lista e edição de fornecedores.
 
 ### Fornecedores
 
-Lista vazia na demonstração.
+Tela de fornecedores sem rótulo redundante acima do título.
 
 [![Fornecedores](./capturas/11-fornecedores/lista-fornecedores.png)](./capturas/11-fornecedores/lista-fornecedores.png)
 
-Estado: capturada · mobile · captura 2026-10-22 · commit de origem: não registrado · [arquivo completo](./capturas/11-fornecedores/lista-fornecedores.png)
+Estado: capturada · mobile · captura 2026-11-02 · commit de origem: b2ca47dda74859162d1c81866caab8c774c8a689 · [arquivo completo](./capturas/11-fornecedores/lista-fornecedores.png)
+
+### Fornecedores
+
+Tela de fornecedores sem rótulo redundante acima do título.
+
+[![Fornecedores](./capturas/11-fornecedores/lista-fornecedores-desktop.png)](./capturas/11-fornecedores/lista-fornecedores-desktop.png)
+
+Estado: capturada · desktop · captura 2026-11-02 · commit de origem: b2ca47dda74859162d1c81866caab8c774c8a689 · [arquivo completo](./capturas/11-fornecedores/lista-fornecedores-desktop.png)
 
 ## 12 — Documentos e compartilhamento
 
