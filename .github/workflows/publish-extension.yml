@@ -10,7 +10,10 @@ concurrency:
   cancel-in-progress: false
 jobs:
   publish:
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || startsWith(github.event.head_commit.message, 'INT: usar uma extensão Horse Power para Sky Peças'))
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'workflow_dispatch' ||
+       startsWith(github.event.head_commit.message, 'INT: usar uma extensão Horse Power para Sky Peças'))
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
