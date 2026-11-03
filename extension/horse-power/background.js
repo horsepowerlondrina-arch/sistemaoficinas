@@ -1,4 +1,8 @@
-const appOrigins = new Set(["https://sistema-oficinas-homologacao.vercel.app"]);
+const appOrigins = new Set([
+  "https://sistema-oficinas-homologacao.vercel.app",
+  "https://osdrive.com.br",
+]);
+const defaultAppOrigin = "https://osdrive.com.br";
 const sources = {
   "https://cliente.skypecas.com.br": "sky",
 };
@@ -68,15 +72,23 @@ async function handle(msg, sender) {
     )
       throw new Error("Conexão inválida.");
     const { target: old } = await chrome.storage.session.get("target");
-    if (
-      old &&
-      (old.orderId !== msg.target.orderId ||
-        old.origin !== origin ||
-        (old.destination || "order") !== (msg.target.destination || "order"))
-    )
-      throw new Error(
-        "Encerre a conexão do outro destino antes de trocar o destino.",
-      );
+    if (old) {
+      const sameOrder = old.orderId === msg.target.orderId;
+      const sameDestination =
+        (old.destination || "order") === (msg.target.destination || "order");
+      const changedOrigin = old.origin !== origin;
+      if (!sameOrder || !sameDestination || (changedOrigin && !appOrigins.has(old.origin)))
+        throw new Error(
+          "Encerre a conexão do outro destino antes de trocar o destino.",
+        );
+      if (changedOrigin) {
+        const { pending = [] } = await chrome.storage.local.get("pending");
+        if (pending.length)
+          throw new Error(
+            "Há itens pendentes no domínio anterior. Envie ou descarte esses itens antes de conectar pelo novo endereço.",
+          );
+      }
+    }
     const target = {
       destination: msg.target.destination === "catalog" ? "catalog" : "order",
       label:
@@ -110,16 +122,17 @@ async function handle(msg, sender) {
   if (msg.type === "HP_STATUS" && (isApp || isPopup || sources[origin])) {
     const { target } = await chrome.storage.session.get("target");
     const { pending = [] } = await chrome.storage.local.get("pending");
+    const visibleTarget = isApp && target?.origin !== origin ? undefined : target;
     return {
       ok: true,
-      connected: !!target && target.expires > Date.now(),
-      orderId: isApp ? target?.orderId : undefined,
-      number: target?.number,
-      pending: pending.length,
+      connected: !!visibleTarget && visibleTarget.expires > Date.now(),
+      orderId: isApp ? visibleTarget?.orderId : undefined,
+      number: visibleTarget?.number,
+      pending: isApp && !visibleTarget ? 0 : pending.length,
       plateAutofill: true,
       catalogCapture: true,
-      label: target?.label,
-      freightTotal: target?.freightTotal ?? 1750,
+      label: visibleTarget?.label,
+      freightTotal: visibleTarget?.freightTotal ?? 1750,
     };
   }
   if (
@@ -133,7 +146,7 @@ async function handle(msg, sender) {
     )
       throw new Error("Informe um frete válido.");
     const { target } = await chrome.storage.session.get("target");
-    if (!target || target.expires <= Date.now())
+    if (!target || target.expires <= Date.now() || (isApp && target.origin !== origin))
       throw new Error(
         "Conecte a extensão novamente antes de alterar o frete.",
       );
@@ -255,7 +268,7 @@ async function handle(msg, sender) {
       }
     } else
       await chrome.tabs.create({
-        url: "https://sistema-oficinas-homologacao.vercel.app/ordens",
+        url: defaultAppOrigin + "/ordens",
       });
     return { ok: true };
   }
