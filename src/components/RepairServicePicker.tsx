@@ -14,7 +14,7 @@ import { calculateCatalogDropdownPlacement, canAddRepairServiceImmediately, init
 type Info = { enabled: boolean; catalog_status:"active"|"not_contracted"|"expired"|"revoked"|"not_installed"|"administratively_disabled"; categories: Entity[]; service_markup_bps: number };
 const catalogStatusMessage:Record<Exclude<Info["catalog_status"],"active">,string>={
   administratively_disabled:"O acesso ao Catálogo Técnico foi desabilitado pela administração da plataforma.",
-  not_contracted:"O Catálogo Técnico é um módulo adicional e não está habilitado para esta oficina.",
+  not_contracted:"Esta oficina não tem acesso ao Catálogo Técnico de Serviços. Faça o upgrade do plano para ter acesso.",
   expired:"O acesso ao Catálogo Técnico venceu. Solicite a renovação à administração da plataforma.",
   revoked:"O acesso ao Catálogo Técnico foi revogado. Seus serviços particulares continuam disponíveis.",
   not_installed:"O Catálogo Técnico ainda não foi instalado neste ambiente.",
