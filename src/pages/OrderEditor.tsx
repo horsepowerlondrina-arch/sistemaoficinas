@@ -80,7 +80,7 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
     vehicle_id: order?.vehicle_id || "",
     status: order?.status || (quote ? "quote" : "open"),
     entered_on: order?.entered_on || today(),
-    due_on: order?.due_on || today(),
+    due_on: order?.status === "quote" ? "" : order?.due_on || (quote ? "" : today()),
     km: order?.km || 0,
     problem: order?.problem || "",
     notes: order?.notes || "",
@@ -120,6 +120,7 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState("");
+  const [approvalDueOn, setApprovalDueOn] = useState("");
   const [statusPicker, setStatusPicker] = useState(false);
   const [discountMode, setDiscountMode] = useState<"money" | "percent">(
     "money",
@@ -311,6 +312,11 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
       setConfirm("");
       return;
     }
+    if (order?.status === "quote" && !["quote", "cancelled"].includes(confirm) &&
+        (!approvalDueOn || approvalDueOn < form.entered_on)) {
+      setError("Informe uma previsão de entrega a partir da data de entrada.");
+      return;
+    }
     setBusy(true);
     setError("");
     try {
@@ -322,6 +328,9 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
         );
       const result = await send(`/orders/${order!.id}/status`, {
         status: confirm,
+        ...(order!.status === "quote" && !["quote", "cancelled"].includes(confirm)
+          ? { due_on: approvalDueOn }
+          : {}),
       });
       await refresh();
       notify(
@@ -589,9 +598,9 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
                     <Field label="Data de entrada">
                       <input type="date" value={form.entered_on} onChange={(e) => set("entered_on", e.target.value)} />
                     </Field>
-                    <Field label="Previsão de entrega">
+                    {form.status !== "quote" && <Field label="Previsão de entrega">
                       <input type="date" value={form.due_on} min={form.entered_on} onChange={(e) => set("due_on", e.target.value)} />
-                    </Field>
+                    </Field>}
                     <Field label="Relato do cliente / problema" full>
                       <textarea rows={4} maxLength={500} placeholder="Descreva o que precisa ser verificado no veículo..." value={form.problem} onChange={(e) => set("problem", e.target.value)} />
                     </Field>
@@ -1146,6 +1155,13 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
           }
           onClose={() => !busy && setConfirm("")}
         >
+          {order?.status === "quote" && !["quote", "cancelled"].includes(confirm) && (
+            <div className="modal-body">
+              <Field label="Previsão de entrega">
+                <input type="date" min={form.entered_on} value={approvalDueOn} onChange={(event) => setApprovalDueOn(event.target.value)} />
+              </Field>
+            </div>
+          )}
           <div className="modal-footer">
             <button
               className="button"
@@ -1157,7 +1173,7 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
             <button
               className="button primary"
               onClick={transition}
-              disabled={busy}
+              disabled={busy || (order?.status === "quote" && !["quote", "cancelled"].includes(confirm) && (!approvalDueOn || approvalDueOn < form.entered_on))}
             >
               {busy ? "Processando..." : "Confirmar"}
             </button>
