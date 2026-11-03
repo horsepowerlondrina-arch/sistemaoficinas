@@ -270,7 +270,7 @@ export async function registrationVehicleModels(db: DB, ctx: Context, input: unk
 }
 export async function confirmRegistrationVehicleModel(db: DB, ctx: Context, modelId: string, brand: unknown, fipeCode: unknown) {
   uuid.parse(modelId);
-  const row = await tenantRead(db, ctx, () => db.prepare(catalogModelSelect + " WHERE m.id=?").get(modelId));
+  const row = await tenantRead(db, ctx, async () => await db.prepare(catalogModelSelect + " WHERE m.id=?").get(modelId));
   if (!row) throw Object.assign(new Error("Modelo do veículo não encontrado."), { status: 404 });
   const model = withModelPorte(row);
   const expectedBrand = vehicleBrandKey(brand);
