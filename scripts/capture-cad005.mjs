@@ -23,8 +23,8 @@ export async function captureCad005(page, entry) {
     if (entry.id.includes("review-catalog")) {
       const firstOption = scope.getByRole("group", { name: "Modelos do veículo" }).getByRole("radio").first();
       await expect(firstOption).toBeVisible();
-      await firstOption.check();
-      await expect(firstOption).toBeChecked();
+      await firstOption.click();
+      await expect(scope.locator('input[name="vehicle-model-option"]:checked')).toHaveCount(1);
     }
     if (entry.id.includes("-footer-")) await scope.evaluate(element => { element.scrollTop = element.scrollHeight; });
     else await scope.evaluate(element => { element.scrollTop = 0; });
