@@ -1,3 +1,4 @@
+import { horsePowerExtensionEnabled } from "../../shared/horsePowerExtension";
 import { NumericInput } from "../components/NumericInput";
 import { RepairServicePicker, ServiceExecutionFields } from '../components/RepairServicePicker';
 import { CapturePanel } from "../components/CapturePanel";
@@ -92,7 +93,7 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
   );
   const [savedId, setSavedId] = useState<string | undefined>(order?.id);
   const [captureSource, setCaptureSource] = useState<"sky" | null>(
-    initialCapture === "sky" ? "sky" : null,
+    initialCapture === "sky" && horsePowerExtensionEnabled(session.tenant.id) ? "sky" : null,
   );
   const [lookupPlate, setLookupPlate] = useState(
     order?.plate || order?.guest_plate || "",
@@ -271,6 +272,7 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
     }
   };
   const startCapture = async (source: "sky") => {
+    if (!horsePowerExtensionEnabled(session.tenant.id)) return;
     setBusy(true);
     setError("");
     try {
@@ -600,7 +602,7 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
                 <>
                   {!locked && (
                     <div className="capture-actions">
-                      <button
+                      {horsePowerExtensionEnabled(session.tenant.id) && <button
                         type="button"
                         className="button"
                         disabled={busy}
@@ -608,7 +610,7 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
                       >
                         <Package size={17} />
                         Adicionar produto · Sky Peças
-                      </button>
+                      </button>}
                       <button
                         type="button"
                         className="button"
@@ -987,7 +989,7 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
           )}
         </aside>
       </div>
-      {captureSource && savedId && (
+      {captureSource && savedId && horsePowerExtensionEnabled(session.tenant.id) && (
         <CapturePanel
           orderId={savedId}
           source={captureSource}

@@ -1,14 +1,6 @@
-EXTENSÃO — FONTE DO CONECTOR HORSE POWER (SOMENTE SKY PEÇAS)
+EXTENSÃO HORSE POWER — SKY PEÇAS
 
-Esta pasta contém a fonte da integração Sky Peças mantida neste repositório.
-Ela não é o pacote da Chrome Web Store e não deve ser publicada automaticamente.
-O pacote INT-015 para testes é gerado separadamente em
-public/downloads/sistema-oficinas-test-extension.zip.
-
-A extensão de teste usa identidade e armazenamento próprios, conecta somente ao
-Sistema Oficinas em homologação e pode ficar instalada junto à extensão comercial
-Horse Power. No Sky Peças, escolha o botão identificado como “S.O. Teste • Enviar”
-para testar o Sistema Oficinas; conexões e itens pendentes são independentes.
-
-Consulte o README incluído no ZIP para instalar pelo modo desenvolvedor do Chrome.
-Não desinstale nem substitua a extensão publicada na Chrome Web Store.
+Esta é a fonte única da extensão Horse Power publicada na Chrome Web Store.
+A versão 1.4.2 conecta a oficina Horse Power ao Sistema Oficinas na homologação e captura somente peças do Sky Peças.
+A instalação e as atualizações da versão comercial são feitas pela Chrome Web Store.
+Os itens pendentes e as conexões desta extensão permanecem no armazenamento da mesma identidade da loja.

@@ -64,7 +64,7 @@ function worker() {
   };
 }
 const app = {
-  url: "https://horse-power.vercel.app/ordens/o/editar",
+  url: "https://sistema-oficinas-homologacao.vercel.app/ordens/o/editar",
   frameId: 0,
   tab: { id: 1 },
 };
@@ -159,7 +159,7 @@ test("worker only accepts app pairing, keeps token away from status, and sends c
   assert.equal(w.calls[0].credentials, "omit");
   assert.equal(
     w.calls[0].url,
-    "https://horse-power.vercel.app/api/extension/import",
+    "https://sistema-oficinas-homologacao.vercel.app/api/extension/import",
   );
   assert.equal(w.local.data.pending.length, 0);
   assert.equal(w.local.data.token, undefined);
