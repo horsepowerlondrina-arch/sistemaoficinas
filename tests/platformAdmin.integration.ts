@@ -241,7 +241,7 @@ test("PostgreSQL platform admin: login, MFA, separated sessions, roles, audit an
     const audit = await events.json() as Array<{action:string;actor_email:string|null;result:string;technical_context:Record<string,unknown>}>;
     assert.ok(audit.some(event=>event.action==="admin.login.password_failed"));
     assert.ok(audit.some(event=>event.action==="admin.login.mfa_failed"));
-    assert.ok(audit.some(event=>event.action==="admin.login.mfa_test_bypass" && event.actor_email===seedCredentials.email));
+    assert.ok(!audit.some(event=>event.action==="admin.login.mfa_test_bypass"));
     assert.ok(audit.some(event=>event.result==="blocked"));
     assert.ok(audit.some(event=>event.action==="admin.account.created"));
     assert.ok(audit.some(event=>event.action==="admin.local_seed.created"));
