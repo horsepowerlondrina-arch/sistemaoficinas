@@ -9,7 +9,6 @@ import {
   writeAdminAudit, type PlatformPermission, type PlatformRole,
 } from "./auth/platformAdmin.js";
 import { hashPassword } from "./auth/session.js";
-import { isTestAdminPasswordOnlyLoginAllowed } from "./platformAdminMfa.js";
 import { catalogHomologationProjectId } from "./catalogHomologation.js";
 import { workshopRegistrationSchema, workshopStatusChangeSchema, workshopStatuses } from "./services/platformWorkshops.js";
 import { newWorkshopActivationId, newWorkshopActivationToken, sendWorkshopActivationEmail, workshopActivationTtlHours, workshopActivationUrl } from "./services/workshopActivation.js";
@@ -273,8 +272,7 @@ export function createPlatformAdminApp(pool: Pool, encryptionKey: string, transf
     const input = z.object({ email: z.string().email().max(254), password: z.string().min(1).max(200), code: z.string().regex(/^\d{6}$/).optional() }).safeParse(req.body);
     if (!input.success) { res.status(400).json({ error: "Informe e-mail, senha e código autenticador válidos." }); return; }
     const email = input.data.email.toLowerCase(), key = digestAdminToken(`${ipHash(req)}:${email}`);
-    const testPasswordOnlyLogin = !input.data.code && isTestAdminPasswordOnlyLoginAllowed(email, req.hostname);
-    if (!input.data.code && !testPasswordOnlyLogin) { res.status(400).json({ error: "Informe e-mail, senha e código autenticador válidos." }); return; }
+    if (!input.data.code) { res.status(400).json({ error: "Informe e-mail, senha e código autenticador válidos." }); return; }
     const attempt = await pool.query(
       `INSERT INTO platform_admin.login_attempts(attempt_key,count,window_started_at,locked_until)
        VALUES($1,1,now(),NULL) ON CONFLICT(attempt_key) DO UPDATE SET
@@ -290,9 +288,7 @@ export function createPlatformAdminApp(pool: Pool, encryptionKey: string, transf
     if (account?.active && account.enrolled && (!account.locked_until || new Date(account.locked_until).getTime() <= Date.now())) {
       const passwordOk = verifyAdminPassword(input.data.password, String(account.password_hash));
       if (!passwordOk) failureAction = "admin.login.password_failed";
-      else if (testPasswordOnlyLogin) {
-        accepted = true;
-      } else {
+      else {
         try {
           const secret = decryptTotpSecret(String(account.totp_secret_ciphertext), encryptionKey);
           accepted = verifyTotp(secret, input.data.code!);
@@ -313,7 +309,6 @@ export function createPlatformAdminApp(pool: Pool, encryptionKey: string, transf
     await pool.query("INSERT INTO platform_admin.sessions(token_hash,administrator_id,expires_at) VALUES($1,$2,now()+interval '8 hours')", [digestAdminToken(token), account.id]);
     await pool.query("UPDATE platform_admin.administrators SET failed_attempts=0,locked_until=NULL,last_login_at=now() WHERE id=$1", [account.id]);
     await pool.query("DELETE FROM platform_admin.login_attempts WHERE attempt_key=$1", [key]);
-    if (testPasswordOnlyLogin) await writeAdminAudit(pool, { actorId: account.id, actorEmail: email, action: "admin.login.mfa_test_bypass", result: "success", technical: { ip_hash: ipHash(req) } });
     await writeAdminAudit(pool, { actorId: account.id, actorEmail: email, action: "admin.login", result: "success", technical: { ip_hash: ipHash(req) } });
     setSessionCookie(res, token); res.json({ ok: true });
   });

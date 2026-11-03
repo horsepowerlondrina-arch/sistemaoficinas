@@ -101,9 +101,8 @@ test("PostgreSQL platform admin: login, MFA, separated sessions, roles, audit an
     assert.equal((await login(seedCredentials.email,randomBytes(32).toString("base64url"),seedCredentials.totpSecret)).status,401);
     assert.equal((await login(seedCredentials.email,seedCredentials.password,seedCredentials.totpSecret,"111111")).status,401);
     const passwordOnlySeedLogin = await request("/admin-api/login",{method:"POST",body:{email:seedCredentials.email,password:seedCredentials.password}});
-    assert.equal(passwordOnlySeedLogin.status,200);
-    const passwordOnlySeedCookie = passwordOnlySeedLogin.headers.get("set-cookie")?.split(";")[0] || "";
-    assert.equal((await request("/admin-api/session",{cookie:passwordOnlySeedCookie})).status,200);
+    assert.equal(passwordOnlySeedLogin.status,400);
+    assert.equal(passwordOnlySeedLogin.headers.get("set-cookie"),null);
     const seedLogin = await login(seedCredentials.email,seedCredentials.password,seedCredentials.totpSecret);
     assert.equal(seedLogin.status,200);
     const seedCookie = seedLogin.headers.get("set-cookie")?.split(";")[0] || "";
@@ -242,7 +241,7 @@ test("PostgreSQL platform admin: login, MFA, separated sessions, roles, audit an
     const audit = await events.json() as Array<{action:string;actor_email:string|null;result:string;technical_context:Record<string,unknown>}>;
     assert.ok(audit.some(event=>event.action==="admin.login.password_failed"));
     assert.ok(audit.some(event=>event.action==="admin.login.mfa_failed"));
-    assert.ok(audit.some(event=>event.action==="admin.login.mfa_test_bypass" && event.actor_email===seedCredentials.email));
+    assert.ok(!audit.some(event=>event.action==="admin.login.mfa_test_bypass"));
     assert.ok(audit.some(event=>event.result==="blocked"));
     assert.ok(audit.some(event=>event.action==="admin.account.created"));
     assert.ok(audit.some(event=>event.action==="admin.local_seed.created"));
