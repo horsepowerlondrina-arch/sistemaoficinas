@@ -1,6 +1,6 @@
 EXTENSÃO HORSE POWER — SKY PEÇAS
 
 Esta é a fonte única da extensão Horse Power publicada na Chrome Web Store.
-A versão 1.4.2 conecta a oficina Horse Power ao Sistema Oficinas na homologação e captura somente peças do Sky Peças.
+A versão 1.4.3 conecta a oficina Horse Power ao Sistema Oficinas em osdrive.com.br e no endereço de homologação, e captura somente peças do Sky Peças.
 A instalação e as atualizações da versão comercial são feitas pela Chrome Web Store.
 Os itens pendentes e as conexões desta extensão permanecem no armazenamento da mesma identidade da loja.
