@@ -24,7 +24,7 @@ export function extensionMessage(
     const timer = setTimeout(() => {
       cleanup();
       reject(
-        new Error("Instale a extensão de teste INT-015 na homologação e recarregue esta página."),
+        new Error("Instale ou atualize a extensão Horse Power pela Chrome Web Store e recarregue esta página."),
       );
     }, 3000);
     window.addEventListener("message", listener);
