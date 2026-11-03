@@ -8,9 +8,9 @@ import { digest } from "../server/auth/session";
 import { productLabel, matchesSearch } from "../shared/productIdentity";
 test("same-name parts remain distinct by code and brand, preserve manual category and record usage without claiming fitment", async () => {
  const db=createDatabase(":memory:");
- db.exec("INSERT INTO tenants(id,name) VALUES('a','A'); INSERT INTO users VALUES('u','Admin','u@example.com','disabled'); INSERT INTO memberships VALUES('u','a','owner'); INSERT INTO product_categories(id,tenant_id,name,name_key) VALUES('f','a','FILTRO','filtro'),('r','a','ARREFECIMENTO','arrefecimento'); INSERT INTO orders(id,tenant_id,number,kind,status,guest_vehicle,entered_on,due_on,km,total) VALUES('o','a',1,'quote','quote','Cobalt 2014','2026-10-08','2026-10-08',0,0),('o2','a',2,'quote','quote','Uno 2015','2026-10-08','2026-10-08',0,0)");
- db.prepare("INSERT INTO sessions VALUES(?,?,?,?)").run(digest("session"),"u","a",Date.now()+3600000);
- const ctx={tenantId:"a",userId:"u",role:"owner"};
+ db.exec("INSERT INTO tenants(id,name) VALUES('59c85eea-7112-40de-b77f-c5627c541b48','A'); INSERT INTO users VALUES('u','Admin','u@example.com','disabled'); INSERT INTO memberships VALUES('u','59c85eea-7112-40de-b77f-c5627c541b48','owner'); INSERT INTO product_categories(id,tenant_id,name,name_key) VALUES('f','59c85eea-7112-40de-b77f-c5627c541b48','FILTRO','filtro'),('r','59c85eea-7112-40de-b77f-c5627c541b48','ARREFECIMENTO','arrefecimento'); INSERT INTO orders(id,tenant_id,number,kind,status,guest_vehicle,entered_on,due_on,km,total) VALUES('o','59c85eea-7112-40de-b77f-c5627c541b48',1,'quote','quote','Cobalt 2014','2026-10-08','2026-10-08',0,0),('o2','59c85eea-7112-40de-b77f-c5627c541b48',2,'quote','quote','Uno 2015','2026-10-08','2026-10-08',0,0)");
+ db.prepare("INSERT INTO sessions VALUES(?,?,?,?)").run(digest("session"),"u","59c85eea-7112-40de-b77f-c5627c541b48",Date.now()+3600000);
+ const ctx={tenantId:"59c85eea-7112-40de-b77f-c5627c541b48",userId:"u",role:"owner"};
  const server=createApp(db).listen(0,"127.0.0.1");await new Promise<void>((r)=>server.once("listening",r));
  try {
   const target=await beginCapture(db,ctx,"o","session",0,randomUUID());
