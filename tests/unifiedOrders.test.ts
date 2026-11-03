@@ -35,6 +35,8 @@ test("one OS retains number and items from budget through approval completion an
     const before = (await listOrders(db, "a"))[0];
     assert.equal(before.kind, "order");
     assert.equal(before.status, "quote");
+    assert.equal(before.due_on, "");
+    assert.equal(db.prepare("SELECT due_on FROM orders WHERE id=?").get(record)!.due_on, "");
     await assert.rejects(transitionOrder(db, owner, record, "open"), /Vincule/);
     await saveOrder(
       db,
