@@ -22,7 +22,7 @@ test('vehicle owner changes preserve past customers and receipts, retain ongoing
   assert.equal(db.prepare("SELECT customer_id FROM orders WHERE id='done'").get()!.customer_id,'old');
   assert.equal(db.prepare('SELECT customer_id FROM receivables').get()!.customer_id,'old');
   await saveOrder(db,ctx,{...input,notes:'Segue com o cliente original'},draft);
-  await transitionOrder(db,ctx,draft,'open');await transitionOrder(db,ctx,draft,'working');
+  await transitionOrder(db,ctx,draft,'open','2026-10-14');await transitionOrder(db,ctx,draft,'working');
   await assert.rejects(saveOrder(db,ctx,input),/não pertence/);
   const fresh=await saveOrder(db,ctx,{...input,customer_id:'new'});
   assert.equal(db.prepare('SELECT customer_id FROM orders WHERE id=?').get(fresh)!.customer_id,'new');

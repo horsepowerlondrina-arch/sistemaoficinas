@@ -480,7 +480,7 @@ test("snapshot de serviço próprio mantém nome, descrição, preço configurad
       discount: 0, notes: "", problem: "", items: [after],
     }, orderId);
     const updated = (await listOrders(f.db, "a")).find((o) => o.id === orderId)!;
-    assert.equal(updated.due_on, "2026-10-26");
+    assert.equal(updated.due_on, "");
     assert.equal(updated.items[0].id, after.id);
     assert.equal(updated.items[0].service_details.commercial_category_id, null);
   } finally {

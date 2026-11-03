@@ -169,7 +169,7 @@ const orderSchema = z.object({
   guest_plate: text,
   guest_vehicle: text,
   entered_on: date,
-  due_on: date,
+  due_on: z.union([date, z.literal("")]),
   km: integer,
   problem: text,
   notes: z.string().trim().max(4000).default(""),
@@ -1678,6 +1678,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
       res.locals.context,
       String(req.params.id),
       z.enum(statuses).parse(req.body.status),
+      date.optional().parse(req.body.due_on),
     );
     res.json({ ok: true, ...result });
   });

@@ -17,6 +17,7 @@ export function OrderView() {
   const [confirm, setConfirm] = useState(""),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
+    [approvalDueOn, setApprovalDueOn] = useState(""),
     [editingNotes, setEditingNotes] = useState(false),
     [notes, setNotes] = useState(""),
     [statusPicker, setStatusPicker] = useState(false);
@@ -55,10 +56,20 @@ export function OrderView() {
       navigate(`/ordens/${id}/editar`);
       return;
     }
+    if (order!.status === "quote" && !["quote", "cancelled"].includes(confirm) &&
+      (!approvalDueOn || approvalDueOn < order!.entered_on)) {
+      setError("Informe uma previsão de entrega a partir da data de entrada.");
+      return;
+    }
     setBusy(true);
     setError("");
     try {
-      const result = await send(`/orders/${id}/status`, { status: confirm });
+      const result = await send(`/orders/${id}/status`, {
+        status: confirm,
+        ...(order!.status === "quote" && !["quote", "cancelled"].includes(confirm)
+          ? { due_on: approvalDueOn }
+          : {}),
+      });
       await refresh();
       setConfirm("");
       notify(
@@ -180,9 +191,9 @@ export function OrderView() {
         <div className="work-order-summary-item">
           <span>Data de entrada</span><strong>{order.entered_on ? dateLabel(order.entered_on) : "Não informado"}</strong>
         </div>
-        <div className="work-order-summary-item">
+        {order.status !== "quote" && <div className="work-order-summary-item">
           <span>Previsão de entrega</span><strong>{order.due_on ? dateLabel(order.due_on) : "Não informado"}</strong>
-        </div>
+        </div>}
         <div className="work-order-summary-item">
           <span>Status</span><strong><Badge status={displayStatus(order)} /></strong>
         </div>
@@ -299,6 +310,13 @@ export function OrderView() {
           }
           onClose={() => !busy && setConfirm("")}
         >
+          {order.status === "quote" && !["quote", "cancelled"].includes(confirm) && (
+            <div className="modal-body">
+              <Field label="Previsão de entrega">
+                <input type="date" min={order.entered_on} value={approvalDueOn} onChange={(event) => setApprovalDueOn(event.target.value)} />
+              </Field>
+            </div>
+          )}
           <div className="modal-footer">
             <button
               className="button"
@@ -309,7 +327,7 @@ export function OrderView() {
             </button>
             <button
               className="button primary"
-              disabled={busy}
+              disabled={busy || (order.status === "quote" && !["quote", "cancelled"].includes(confirm) && (!approvalDueOn || approvalDueOn < order.entered_on))}
               onClick={transition}
             >
               {busy ? "Processando..." : "Confirmar"}

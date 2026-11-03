@@ -99,7 +99,7 @@ test("orçamento não baixa estoque; aprovação e conclusão geram efeitos úni
       5,
     );
     assert.equal(db.prepare("SELECT COUNT(*) n FROM receivables").get()!.n, 0);
-    await transitionOrder(db, ctx, record, "open");
+    await transitionOrder(db, ctx, record, "open", "2026-09-20");
     await ready(db, record);
     await transitionOrder(db, ctx, record, "completed");
     assert.equal(
@@ -689,7 +689,7 @@ test("OS sem cliente pode ser cancelada e exige vínculos na aprovação", async
       input({ status: "quote", customer_id: null, vehicle_id: null }),
     );
     await saveOrder(db, ctx, input({ status: "quote" }), quote);
-    await transitionOrder(db, ctx, quote, "open");
+    await transitionOrder(db, ctx, quote, "open", "2026-09-20");
     assert.equal(
       db.prepare("SELECT kind FROM orders WHERE id=?").get(quote)!.kind,
       "order",
