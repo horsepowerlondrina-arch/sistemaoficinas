@@ -544,11 +544,11 @@ Estado: capturada · mobile · captura 2026-11-01 · commit de origem: 56b226764
 
 ### Lucro de peças e terceiros
 
-Tabelas independentes com inclusão, edição, exclusão, limites inclusivos e simuladores de peças e terceiros.
+Faixas editáveis de peças e terceiros com simuladores que mostram o preço sugerido.
 
 [![Lucro de peças e terceiros](./capturas/14-configuracoes/lucro-pecas-terceiros.png)](./capturas/14-configuracoes/lucro-pecas-terceiros.png)
 
-Estado: capturada · mobile · captura 2026-11-01 · commit de origem: f5768888f02977880ff9e976fa5fad6670796efd · [arquivo completo](./capturas/14-configuracoes/lucro-pecas-terceiros.png)
+Estado: capturada · mobile · captura 2026-11-03 · commit de origem: b8d27c0f97305c128c7a4a8ed9047aad4c061261 · [arquivo completo](./capturas/14-configuracoes/lucro-pecas-terceiros.png)
 
 ### Dados da Oficina Fictícia A
 
@@ -576,11 +576,11 @@ Estado: capturada · desktop · captura 2026-11-01 · commit de origem: 56b22676
 
 ### Lucro de peças e terceiros
 
-Tabelas independentes com inclusão, edição, exclusão, limites inclusivos e simuladores de peças e terceiros.
+Faixas editáveis de peças e terceiros com simuladores que mostram o preço sugerido.
 
 [![Lucro de peças e terceiros](./capturas/14-configuracoes/lucro-pecas-terceiros-desktop.png)](./capturas/14-configuracoes/lucro-pecas-terceiros-desktop.png)
 
-Estado: capturada · desktop · captura 2026-11-01 · commit de origem: f5768888f02977880ff9e976fa5fad6670796efd · [arquivo completo](./capturas/14-configuracoes/lucro-pecas-terceiros-desktop.png)
+Estado: capturada · desktop · captura 2026-11-03 · commit de origem: b8d27c0f97305c128c7a4a8ed9047aad4c061261 · [arquivo completo](./capturas/14-configuracoes/lucro-pecas-terceiros-desktop.png)
 
 ### Conta da oficina
 
