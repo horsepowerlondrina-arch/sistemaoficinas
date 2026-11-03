@@ -1,3 +1,4 @@
+import { horsePowerExtensionEnabled } from "../../shared/horsePowerExtension.js";
 import { categoryKey, productLabel } from "../../shared/productIdentity.js";
 import { randomBytes, randomUUID } from "node:crypto";
 import { z } from "zod";
@@ -49,6 +50,8 @@ async function activeCaptureSession(db: DB, token: string) {
       new Error("Conexão expirada. Abra o orçamento e conecte novamente."),
       { status: 401 },
     );
+  if (!horsePowerExtensionEnabled(String(capture.tenant_id)))
+    throw Object.assign(new Error("Extensão disponível somente para a Horse Power."), { status: 403 });
   // The extension request has no workshop cookie. First resolve its narrowly
   // scoped capture token, then establish the tenant/user context before reading
   // sessions and memberships protected by RLS.
@@ -202,6 +205,8 @@ export async function beginCapture(
   batchId: string = randomUUID(),
 ) {
   requireAdmin(ctx);
+  if (!horsePowerExtensionEnabled(ctx.tenantId))
+    throw Object.assign(new Error("Extensão disponível somente para a Horse Power."), { status: 403 });
   freightTotal = z.number().int().min(0).max(100000000).parse(freightTotal);
   return transaction(db, async () => {
     const order = await scoped(db, "orders", ctx.tenantId, orderId);
@@ -672,6 +677,8 @@ export async function beginCatalogCapture(
   batchId: string = randomUUID(),
 ) {
   requireAdmin(ctx);
+  if (!horsePowerExtensionEnabled(ctx.tenantId))
+    throw Object.assign(new Error("Extensão disponível somente para a Horse Power."), { status: 403 });
   freightTotal = z.number().int().min(0).max(100000000).parse(freightTotal);
   z.string().uuid().parse(target);
   batchId = z.string().uuid().parse(batchId);
