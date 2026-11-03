@@ -17,6 +17,8 @@ import {
   saveLaborRates,
   identifyVehicleModel,
   previewVehicleCatalogReview,
+  registrationVehicleModels,
+  confirmRegistrationVehicleModel,
 } from "../server/services/repairCatalog";
 import { audit, saveOrder, listOrders, previewVehicleCatalogBackfill, applyVehicleCatalogBackfill } from "../server/services/workshop";
 import { servicePrice, serviceMinutes } from "../shared/servicePricing";
@@ -830,4 +832,21 @@ test('OPS-003: novo terceiro usa a faixa vigente e snapshot mantém taxa após m
   assert.equal((await resolveService(f.db,ctx,selection)).price,19000);
   assert.equal((await resolveService(f.db,ctx,{repair_service_id:f.service,repair_model_id:f.model})).price,12000);
  }finally{f.db.close();}
+});
+
+
+test("Cadastro de veículo consulta só identidades mesmo sem licença técnica", async () => {
+  const f = fixture();
+  try {
+    const unlicensed = { tenantId: "b", userId: "u", role: "owner", modules: { technical_catalog: false } };
+    const result = await registrationVehicleModels(f.db, unlicensed, { brand: "Marca", model: "Modelo", fipe_codes: ["123456-7"] });
+    assert.equal(result.status, "needs_confirmation");
+    assert.equal(result.options.length, 3);
+    assert.deepEqual(Object.keys(result.options[0]).sort(), ["brand", "fipe_code", "id", "name"]);
+    const selected = await confirmRegistrationVehicleModel(f.db, unlicensed, f.model, "Marca", "123456-7");
+    assert.equal(selected.id, f.model);
+    await assert.rejects(() => searchModels(f.db, unlicensed, { brand_id: f.brand }), /desabilitado|habilitado|liberado|módulo/i);
+    await assert.rejects(() => confirmRegistrationVehicleModel(f.db, unlicensed, f.model, "Outra marca", "123456-7"), /marca/i);
+    await assert.rejects(() => confirmRegistrationVehicleModel(f.db, unlicensed, f.model, "Marca", "999999-9"), /FIPE/i);
+  } finally { f.db.close(); }
 });
