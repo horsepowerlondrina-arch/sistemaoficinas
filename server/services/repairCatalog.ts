@@ -53,8 +53,10 @@ export async function catalogAccessState(db:DB,ctx:Context):Promise<CatalogAcces
       return release?.catalog_installed?"active":"not_installed";
     }
     if(!(row as any).catalog_installed)return "not_installed";
+    // A current Premium plan or free trial includes the catalog even if a legacy license was revoked.
+    if(included)return "active";
     if(!(row as any).enabled)return "revoked";
-    if((row as any).valid_until&&new Date((row as any).valid_until).getTime()<=Date.now()&&!included)return "expired";
+    if((row as any).valid_until&&new Date((row as any).valid_until).getTime()<=Date.now())return "expired";
     return "active";
   } catch (error) {
     if (/no such table/.test(String(error)) || (error as {code?:string}).code==="42P01") return "not_installed";

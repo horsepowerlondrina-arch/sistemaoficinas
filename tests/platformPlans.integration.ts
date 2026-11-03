@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { randomBytes, randomUUID } from "node:crypto";
 import { adminClient } from "../scripts/local-admin.js";
+import { applyWorkshopAccess } from "../server/services/workshopPlanAccess.js";
+import { tenantAccessDecision } from "../server/auth/tenantAccess.js";
 
 test("PostgreSQL: planos, teste Premium, exceções, limites e isolamento", async () => {
   const db = adminClient();
@@ -106,6 +108,60 @@ test("PostgreSQL: planos, teste Premium, exceções, limites e isolamento", asyn
     assert.equal(untouched.modules.finance,true);
     const audit=(await db.query("SELECT count(*)::int AS total FROM platform_admin.audit_events WHERE subject_tenant_id=$1 AND action='admin.workshop.plan_changed'",[tenant])).rows[0].total;
     assert.equal(audit,4);
+    await db.query("ROLLBACK");
+  } catch (error) {
+    await db.query("ROLLBACK").catch(()=>{});
+    throw error;
+  } finally { await db.end(); }
+});
+
+test("PostgreSQL: um seletor aplica o pacote, remove exceções e preserva outra oficina", async () => {
+  const db = adminClient(), tenant = randomUUID(), other = randomUUID();
+  const admin = randomUUID(), token = randomBytes(32).toString("hex");
+  const reason = "Definir o acesso da oficina fictícia por pacote";
+  await db.connect();
+  try {
+    await db.query("BEGIN");
+    await db.query("INSERT INTO horse_power.tenants(id,name) VALUES($1,'Oficina de Teste A'),($2,'Oficina de Teste B')", [tenant,other]);
+    await db.query(`INSERT INTO platform_admin.workshops(tenant_id,source,name,responsible_name,responsible_email,status,email_verified_at)
+      VALUES($1,'admin','Oficina de Teste A','Responsável Fictício',$3,'active',now()),
+            ($2,'admin','Oficina de Teste B','Responsável Fictício',$4,'active',now())`,
+      [tenant,other,`selector-${tenant}@example.test`,`selector-${other}@example.test`]);
+    await db.query(`INSERT INTO platform_admin.administrators(id,email,display_name,role,permissions,password_hash,totp_secret_ciphertext,active,enrolled)
+      VALUES($1,$2,'Admin Fictício','principal','["workshops:manage"]'::jsonb,'fixture','fixture',true,true)`,
+      [admin,`selector-admin-${tenant}@example.test`]);
+    await db.query("INSERT INTO platform_admin.sessions(token_hash,administrator_id,expires_at) VALUES($1,$2,now()+interval '1 hour')", [token,admin]);
+    await db.query("SELECT platform_admin.set_workshop_entitlements($1,$2,$3::jsonb,NULL,NULL,$4,$5::jsonb)",
+      [tenant,token,JSON.stringify({finance:true}),reason,JSON.stringify({})]);
+
+    let result = await applyWorkshopAccess(db,tenant,token,"basic",reason);
+    assert.equal(result.status,"active");
+    assert.equal(result.entitlements.plan_code,"basic");
+    assert.equal((result.entitlements.modules as Record<string,boolean>).finance,false);
+    assert.deepEqual(result.entitlements.module_overrides,{});
+    assert.equal(result.entitlements.max_users,2);
+
+    result = await applyWorkshopAccess(db,tenant,token,"premium",reason);
+    assert.equal((result.entitlements.modules as Record<string,boolean>).technical_catalog,true);
+    assert.equal(result.entitlements.max_users,10);
+
+    result = await applyWorkshopAccess(db,tenant,token,"none",reason);
+    assert.equal(result.status,"read_only");
+    assert.equal(tenantAccessDecision(result.status,"POST","/orders"),"read_only");
+    assert.equal(tenantAccessDecision(result.status,"GET","/orders"),"allow");
+
+    result = await applyWorkshopAccess(db,tenant,token,"professional",reason);
+    assert.equal(result.status,"active");
+    assert.equal(result.entitlements.plan_code,"professional");
+    assert.equal((result.entitlements.modules as Record<string,boolean>).finance,true);
+    assert.equal((result.entitlements.modules as Record<string,boolean>).technical_catalog,false);
+    assert.equal((await db.query("SELECT status FROM platform_admin.workshops WHERE tenant_id=$1",[other])).rows[0].status,"active");
+    assert.equal((await db.query("SELECT plan_code FROM platform_admin.workshops WHERE tenant_id=$1",[other])).rows[0].plan_code,null);
+
+    await db.query("SAVEPOINT forbidden");
+    await assert.rejects(applyWorkshopAccess(db,tenant,"invalid-session","premium",reason),{code:"42501"});
+    await db.query("ROLLBACK TO SAVEPOINT forbidden");
+    assert.equal((await db.query("SELECT count(*)::int AS total FROM platform_admin.audit_events WHERE subject_tenant_id=$1 AND action='admin.workshop.plan_changed'",[tenant])).rows[0].total,3);
     await db.query("ROLLBACK");
   } catch (error) {
     await db.query("ROLLBACK").catch(()=>{});

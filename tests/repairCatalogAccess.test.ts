@@ -65,7 +65,7 @@ test("o bloqueio do Catálogo Técnico é isolado por oficina e a liberação pr
   );
 });
 
-test("Premium e teste ativo incluem Catálogo Técnico sem substituir revogação", async () => {
+test("Premium e teste ativo incluem Catálogo Técnico mesmo com licença legada revogada", async () => {
   const ctx = context("tenant-premium", true);
   const makeDb = (access: { enabled: boolean; valid_until: string | null; catalog_installed: boolean } | undefined, included: boolean) => ({
     getTenantCatalogIncluded: async (tenant: string) => {
@@ -81,5 +81,6 @@ test("Premium e teste ativo incluem Catálogo Técnico sem substituir revogaçã
   assert.equal(await catalogAccessState(makeDb(undefined, true), ctx), "active");
   assert.equal(await catalogAccessState(makeDb(undefined, false), ctx), "not_contracted");
   assert.equal(await catalogAccessState(makeDb({ enabled: true, valid_until: "2020-01-01T00:00:00Z", catalog_installed: true }, true), ctx), "active");
-  assert.equal(await catalogAccessState(makeDb({ enabled: false, valid_until: null, catalog_installed: true }, true), ctx), "revoked");
+  assert.equal(await catalogAccessState(makeDb({ enabled: false, valid_until: null, catalog_installed: true }, true), ctx), "active");
+  assert.equal(await catalogAccessState(makeDb({ enabled: false, valid_until: null, catalog_installed: true }, false), ctx), "revoked");
 });
