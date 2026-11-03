@@ -101,9 +101,8 @@ test("PostgreSQL platform admin: login, MFA, separated sessions, roles, audit an
     assert.equal((await login(seedCredentials.email,randomBytes(32).toString("base64url"),seedCredentials.totpSecret)).status,401);
     assert.equal((await login(seedCredentials.email,seedCredentials.password,seedCredentials.totpSecret,"111111")).status,401);
     const passwordOnlySeedLogin = await request("/admin-api/login",{method:"POST",body:{email:seedCredentials.email,password:seedCredentials.password}});
-    assert.equal(passwordOnlySeedLogin.status,200);
-    const passwordOnlySeedCookie = passwordOnlySeedLogin.headers.get("set-cookie")?.split(";")[0] || "";
-    assert.equal((await request("/admin-api/session",{cookie:passwordOnlySeedCookie})).status,200);
+    assert.equal(passwordOnlySeedLogin.status,400);
+    assert.equal(passwordOnlySeedLogin.headers.get("set-cookie"),null);
     const seedLogin = await login(seedCredentials.email,seedCredentials.password,seedCredentials.totpSecret);
     assert.equal(seedLogin.status,200);
     const seedCookie = seedLogin.headers.get("set-cookie")?.split(";")[0] || "";
