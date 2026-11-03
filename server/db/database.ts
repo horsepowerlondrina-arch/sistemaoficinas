@@ -32,6 +32,7 @@ export interface DB {
   getTenantAccessState?(tenant: string): Promise<string>;
   getTenantModuleAccess?(tenant: string): Promise<Record<string, boolean>>;
   getTenantCatalogIncluded?(tenant: string): Promise<boolean>;
+  getTenantPlanSummary?(tenant: string): Promise<{plan_code:string|null;status:string|null;trial_ends_at:string|null}|null>;
   lockTenantMutations?(tenant: string): Promise<void>;
   prepare(sql: string): {
     get(...values: any[]): MaybePromise<Row | undefined>;

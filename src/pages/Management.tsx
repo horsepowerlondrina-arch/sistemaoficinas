@@ -5,6 +5,7 @@ import { NumericInput } from "../components/NumericInput";
 import { PartsPricing } from "./PartsPricing";
 import { LaborRates } from '../components/RepairServicePicker';
 import { WorkshopProfile } from "../components/WorkshopProfile";
+import { AccountSettings } from "../components/AccountSettings";
 import { RegisterModal } from "./Registers";
 import { CapturePanel } from "../components/CapturePanel";
 import { StockEntry } from "../components/StockEntry";
@@ -551,7 +552,7 @@ export function Finance() {
 }
 export function Settings() {
   const [params, setParams] = useSearchParams();
-  const tabs = [["oficina","Dados da oficina"],["geral","Taxas e parcelamento"],["servicos","Mão de obra por porte"],["pecas","Lucro de peças e terceiros"],["conta","Conta e integrações"]];
+  const tabs = [["oficina","Dados da oficina"],["geral","Taxas e parcelamento"],["servicos","Mão de obra por porte"],["pecas","Lucro de peças e terceiros"],["conta","Conta"]];
   const requestedTab = params.get("aba");
   const activeTab = tabs.some(([id]) => id === requestedTab) ? requestedTab! : "oficina";
   useEffect(() => {
@@ -568,7 +569,7 @@ export function Settings() {
       activeTab === "servicos" ? <LaborRates /> :
       activeTab === "pecas" ? <PartsPricing /> :
       activeTab === "conta" ? <div className="settings-grid">
-        <section className="panel settings-card"><ShieldCheck size={23}/><h2>Acesso e conta</h2><p>{session.user.name} · Administrador</p><p>{session.user.email}</p><p>Usuários, permissões de módulos e situação de acesso da oficina são administrados pelo painel central. Solicite alterações ao responsável pela plataforma.</p></section>
+        <AccountSettings />
         {horsePowerExtensionEnabled(session.tenant.id) && (
           <section className="panel settings-card">
             <Download size={23} />
