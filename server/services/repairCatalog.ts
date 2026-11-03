@@ -213,6 +213,12 @@ const vehicleBrandKey = (value: unknown) => {
   const key = vehicleSearchKey(value).replace(/^gm\s+/, "");
   return key === "chevrolet gm" ? "chevrolet" : key;
 };
+const registrationBrandKey = (value: unknown) =>
+  vehicleBrandKey(value).replace(/^vw(?:\s+volkswagen)?$/, "volkswagen").replace(/^gm$/, "chevrolet");
+const registrationBrandCompatible = (left: unknown, right: unknown) => {
+  const a = registrationBrandKey(left), b = registrationBrandKey(right);
+  return !a || !b || a === b || a.startsWith(b + " ") || b.startsWith(a + " ");
+};
 const catalogModelSelect = "SELECT m.id,m.name,m.brand_id,m.fipe_code,m.classification_id porte_id,b.name brand,p.name porte_name,m.service_count FROM service_catalog.models m JOIN service_catalog.brands b ON b.id=m.brand_id LEFT JOIN service_catalog.classifications p ON p.id=m.classification_id";
 const vehicleMatchInput = z.object({
   brand: z.string().trim().max(150).default(""),
@@ -255,7 +261,7 @@ export async function registrationVehicleModels(db: DB, ctx: Context, input: unk
     }
     const family = vehicleSearchKey(value.model).split(" ")[0];
     if (family.length < 3 || !value.brand) return [] as Row[];
-    const brand = vehicleBrandKey(value.brand).split(" ").filter(Boolean).join("%");
+    const brand = registrationBrandKey(value.brand).split(" ").filter(Boolean).join("%");
     return db.prepare(
       "SELECT m.id,m.name,m.fipe_code,b.name brand FROM service_catalog.models m JOIN service_catalog.brands b ON b.id=m.brand_id WHERE " + searchColumn("b.name") + " LIKE ? AND " + searchColumn("m.name") + " LIKE ? ORDER BY m.name,m.id LIMIT 51"
     ).all("%" + brand + "%", "%" + family + "%");
@@ -263,8 +269,7 @@ export async function registrationVehicleModels(db: DB, ctx: Context, input: unk
     if (/no such table/.test(String(error)) || (error as { code?: string }).code === "42P01") return [] as Row[];
     throw error;
   });
-  const brandKey = vehicleBrandKey(value.brand);
-  const options = rows.filter((row) => !brandKey || vehicleBrandKey(row.brand).includes(brandKey) || brandKey.includes(vehicleBrandKey(row.brand)))
+  const options = rows.filter((row) => registrationBrandCompatible(value.brand, row.brand))
     .slice(0, 20).map((row) => ({ id: String(row.id), name: String(row.name), brand: String(row.brand), fipe_code: String(row.fipe_code || "") }));
   return { status: options.length === 1 ? "matched" as const : options.length ? "needs_confirmation" as const : "not_identified" as const, options };
 }
@@ -273,9 +278,7 @@ export async function confirmRegistrationVehicleModel(db: DB, ctx: Context, mode
   const row = await tenantRead(db, ctx, async () => await db.prepare(catalogModelSelect + " WHERE m.id=?").get(modelId));
   if (!row) throw Object.assign(new Error("Modelo do veículo não encontrado."), { status: 404 });
   const model = withModelPorte(row);
-  const expectedBrand = vehicleBrandKey(brand);
-  const catalogBrand = vehicleBrandKey(model.brand);
-  if (expectedBrand && !catalogBrand.includes(expectedBrand) && !expectedBrand.includes(catalogBrand))
+  if (!registrationBrandCompatible(brand, model.brand))
     throw Object.assign(new Error("A marca não corresponde ao modelo escolhido."), { status: 400 });
   if (fipeCode && model.fipe_code && String(fipeCode) !== String(model.fipe_code))
     throw Object.assign(new Error("O código FIPE não corresponde ao modelo escolhido."), { status: 400 });
