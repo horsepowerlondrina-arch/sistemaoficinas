@@ -372,7 +372,7 @@ export async function saveOrder(
         const prior = previous.find(
           (p) => p.id === item.id && p.catalog_id === item.catalog_id,
         );
-        if (catalog.archived_at ? !prior : !catalog.active)
+        if ((catalog.archived_at || !catalog.active) && !prior)
           throw new Error(
             "Este item não está disponível no catálogo. Importe pela extensão ou escolha um item ativo.",
           );

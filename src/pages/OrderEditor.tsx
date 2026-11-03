@@ -245,6 +245,11 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
     }
     return {
       ...form,
+      items: form.items.map((item) => {
+        if (item.service_details?.service_type !== "private") return item;
+        const { porte_id, commercial_category_id, ...privateItem } = item;
+        return privateItem;
+      }),
       ...(serviceModelTouched ? { service_model_id: serviceModelId || null, service_link_mode: serviceModelId ? "manual" : "none" } : {}),
       guest_name: form.customer_id || newCustomer ? "" : form.guest_name,
       new_customer: newCustomer,
@@ -600,28 +605,6 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
                 </>
               ) : tab === "items" ? (
                 <>
-                  {!locked && (
-                    <div className="capture-actions">
-                      {horsePowerExtensionEnabled(session.tenant.id) && <button
-                        type="button"
-                        className="button"
-                        disabled={busy}
-                        onClick={() => void startCapture("sky")}
-                      >
-                        <Package size={17} />
-                        Adicionar produto · Sky Peças
-                      </button>}
-                      <button
-                        type="button"
-                        className="button"
-                        disabled={busy}
-                        onClick={() => setItemKind('service')}
-                      >
-                        <Wrench size={17} />
-                        Adicionar serviço
-                      </button>
-                    </div>
-                  )}
                   <div className="tabs">
                     {[
                       ["product", "Produtos"],
@@ -648,6 +631,17 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
                   <p className="muted">
                     {itemKind==='product'?'Cadastre produtos, importe pelo Sky Peças ou reutilize seu catálogo.':'Use o Catálogo Técnico por veículo ou pesquise Serviços Próprios pelo nome, com ou sem veículo.'}
                   </p>
+                  {!locked && itemKind === "product" && horsePowerExtensionEnabled(session.tenant.id) && (
+                    <button
+                      type="button"
+                      className="button"
+                      disabled={busy}
+                      onClick={() => void startCapture("sky")}
+                    >
+                      <Package size={17} />
+                      Adicionar produto · Sky Peças
+                    </button>
+                  )}
                   {!locked && itemKind==='service' && <RepairServicePicker key={form.vehicle_id||lookupPlate||'guest'} vehicle={{ ...(vehicle||lookedUp), ...(serviceModelTouched ? { service_link_mode: serviceModelId ? "manual" : "none" } : {}) }} modelId={serviceModelId} onModelChange={handleServiceModelChange} onAdd={item=>setForm(f=>({...f,items:[...f.items,item]}))}/>}
                   {!locked && itemKind==='product' && (
                     <div className="item-picker">

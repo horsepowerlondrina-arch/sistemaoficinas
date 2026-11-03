@@ -23,8 +23,8 @@ export const serviceSelectionSchema = z.object({
   repair_service_id: uuid.optional(),
   repair_model_id: uuid.optional(),
   workshop_service_id: uuid.optional(),
-  porte_id: uuid.optional(),
-  commercial_category_id: commercialCategorySchema.optional(),
+  porte_id: uuid.nullish(),
+  commercial_category_id: z.union([commercialCategorySchema, uuid]).nullish(),
   service_execution: z.enum(["internal", "outsourced"]).optional(),
   service_cost: cents.optional(),
   service_minutes: z.number().finite().min(0).max(10000).optional(),
@@ -749,11 +749,11 @@ export async function resolveService(
       name: service.name,
       reference: service.reference || "",
       description: service.description || "",
-      porte_id: selected.porte_id || null,
+      porte_id: service.service_type === "private" ? null : selected.porte_id || null,
       service_type: service.service_type === "private" ? "private" : "legacy",
       cost_known: service.cost_known === undefined ? true : !!service.cost_known,
-      commercial_category_id: service.commercial_category_id,
-      commercial_category_name: service.commercial_category_id
+      commercial_category_id: service.service_type === "private" ? null : service.commercial_category_id,
+      commercial_category_name: service.service_type !== "private" && service.commercial_category_id
         ? (await db.prepare("SELECT name FROM labor_categories WHERE id=?").get(service.commercial_category_id))?.name
         : "",
       minutes: Number(service.minutes),
@@ -771,6 +771,9 @@ export async function resolveService(
       throw new Error("Informe um preço de venda válido.");
     snapshot = {
       ...snapshot,
+      porte_id: null,
+      commercial_category_id: null,
+      commercial_category_name: "",
       execution: "internal",
       minutes: 0,
       cost: Number(snapshot.cost || 0),

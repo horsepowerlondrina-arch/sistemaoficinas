@@ -104,7 +104,7 @@ try {
     await page.getByRole("main").first().waitFor({ state: "visible", timeout: 15000 }).catch(() => {});
     if (entry.id.startsWith("est009-os-private-")) {
       await page.getByRole("button", { name: "Adicionar produtos e serviços" }).click();
-      await page.getByRole("button", { name: "Adicionar serviço", exact: true }).click();
+      await page.getByRole("button", { name: "Serviços", exact: true }).click();
       await page.getByRole("button", { name: "Serviços Próprios" }).click();
       const search = page.getByRole("combobox", { name: "Pesquisar serviços próprios" });
       await expect(page.getByRole("listbox", { name: "Serviços próprios" })).toHaveCount(0);

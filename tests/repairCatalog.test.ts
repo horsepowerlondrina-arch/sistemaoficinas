@@ -472,6 +472,17 @@ test("snapshot de serviço próprio mantém nome, descrição, preço configurad
     assert.equal(after.service_details.description, before.service_details.description);
     assert.equal(after.service_details.fixed_price, before.service_details.fixed_price);
     assert.equal(after.price, 7000);
+    assert.equal(after.service_details.porte_id, null);
+    assert.equal(after.service_details.commercial_category_id, null);
+    await saveOrder(f.db, ctx, {
+      status: "quote", customer_id: "c", vehicle_id: "v",
+      entered_on: "2026-10-25", due_on: "2026-10-26", km: 0,
+      discount: 0, notes: "", problem: "", items: [after],
+    }, orderId);
+    const updated = (await listOrders(f.db, "a")).find((o) => o.id === orderId)!;
+    assert.equal(updated.due_on, "2026-10-26");
+    assert.equal(updated.items[0].id, after.id);
+    assert.equal(updated.items[0].service_details.commercial_category_id, null);
   } finally {
     f.db.close();
   }
