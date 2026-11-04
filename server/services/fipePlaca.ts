@@ -61,12 +61,12 @@ export function fipePlacaToken(tenant: string, authorized?: boolean): string | n
   if (!(authorized ?? fipePlacaAllowed(tenant))) return null;
   try {
     const entries = JSON.parse(process.env.FIPEPLACA_TOKENS_JSON || "{}");
-    return typeof entries?.[tenant] === "string" && entries[tenant].trim()
-      ? entries[tenant].trim()
-      : null;
+    const dedicated = entries?.[tenant];
+    if (typeof dedicated === "string" && dedicated.trim()) return dedicated.trim();
   } catch {
-    return null;
+    // A malformed legacy map must not expose a token to an unauthorized office.
   }
+  return process.env.FIPEPLACA_PLATFORM_TOKEN?.trim() || null;
 }
 const vehicleSchema = z.object({
   marca: z.string().max(150).nullable(),
