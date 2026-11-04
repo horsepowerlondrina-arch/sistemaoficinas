@@ -1226,7 +1226,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
       .parse(req.body.vehicle);
     let selectedModel: any = null;
     if (vehicle.service_model_id) {
-      selectedModel = await confirmRegistrationVehicleModel(db, ctx, vehicle.service_model_id, vehicle.brand, vehicle.fipe_code);
+      selectedModel = await confirmRegistrationVehicleModel(db, ctx, vehicle.service_model_id, vehicle.brand);
     }
     if (!Object.prototype.hasOwnProperty.call(req.body.vehicle || {}, "service_model_id")) {
       const match = await identifyVehicleModel(db, ctx, vehicle);
@@ -1417,7 +1417,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
           const explicitModel = Object.prototype.hasOwnProperty.call(input, "service_model_id");
           let selectedModel: any = null;
           if (explicitModel && input.service_model_id && (input.service_model_id !== old?.service_model_id || input.service_link_mode === "manual")) {
-            selectedModel = await confirmRegistrationVehicleModel(db, ctx, input.service_model_id, input.brand, input.fipe_code);
+            selectedModel = await confirmRegistrationVehicleModel(db, ctx, input.service_model_id, input.brand);
           } else if (!explicitModel && old?.service_model_id) {
             input.service_model_id = old.service_model_id;
           } else if (!old && !explicitModel) {
