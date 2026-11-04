@@ -31,7 +31,7 @@ function useIssuedDocument() {
 }
 
 export function IssuedDocumentProvider({ kind, id, currentOnly = false, children }: { kind: Kind; id: string; currentOnly?: boolean; children: ReactNode }) {
-  const { session } = useApp();
+  const { session, data } = useApp();
   const admin = session.role === "owner";
   const [history, setHistory] = useState<History>({ legacy: false, revisions: [] });
   const [payload, setPayload] = useState<Record<string, any> | null>(null);
@@ -70,9 +70,10 @@ export function IssuedDocumentProvider({ kind, id, currentOnly = false, children
     setError("");
     try {
       const currentOrder = currentOnly && kind === "order" && !history.legacy;
-      const value = currentOrder
+      const completed = kind === "order" && data.orders.some((order) => order.id === id && order.status === "completed");
+      const value = currentOrder && !completed
         ? await api<Record<string, any>>(endpoint + "?current=1")
-        : await send(endpoint, { new_revision: newRevision });
+        : await send(endpoint, { new_revision: currentOrder ? false : newRevision });
       setPayload(value);
       if (!currentOrder) setHistory(await api(endpoint));
       setPrinting(true);
