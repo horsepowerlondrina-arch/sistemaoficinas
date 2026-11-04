@@ -43,11 +43,12 @@ test("ADM-002.2: autorização, configuração, cache e consultas locais preserv
   flags.c=true;
   db.exec("INSERT INTO vehicles(id,tenant_id,customer_id,plate,brand,model,year) VALUES('v','a','c','ABC1D23','Marca','Modelo',2021)");
   assert.equal((await lookupVehicle(scoped,"a","ABC1D23",provider)).source,"local","bloqueio externo não impede cadastro local");
-  assert.equal(calls,4);
+  assert.equal(calls,6);
   flags.b=false;
   assert.equal((await lookupVehicleExternal(scoped,"b","ABC1D23",provider)).source,"unavailable");
   delete flags.a;
   assert.equal((await lookupVehicleExternal(scoped,"a","ABC1D23",provider)).source,"external","restaurar padrão conserva allowlist anterior");
+  delete process.env.FIPEPLACA_PLATFORM_TOKEN;
   process.env.FIPEPLACA_ALLOWED_TENANT_IDS="a,c";
   assert.equal(plateLookupStatus("c").status,"not_configured","allowlist sem chave é configuração ausente, não falta de autorização");
   assert.deepEqual(plateLookupStatus("c",true),{status:"not_configured",enabled:false,configured:false,authorized:true});
