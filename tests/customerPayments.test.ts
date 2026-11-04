@@ -15,6 +15,9 @@ test('payment changes revoke old links and new links expose only customer-safe t
  try{
   const share=await createShare(db,ctx,'o'),token=share.path.slice(3);
   assert.equal((await readShare(db,token))!.payment_summary,null);
+  db.prepare("UPDATE tenants SET name='Oficina renomeada' WHERE id='a'").run();
+  assert.equal((await readShare(db,token))!.shop.name,'Oficina');
+  assert.equal(db.prepare("SELECT COUNT(*) n FROM document_revisions WHERE tenant_id='a' AND entity_id='o'").get()!.n,1);
   const terms={installments:1,card_fee_bps:0,interest_bps:0,first_due_on:'2026-10-14'};
   await configurePlan(db,ctx,'r',{payments:[{...terms,method:'Pix',amount:2000},{...terms,method:'Cartão de crédito',amount:8000,installments:3,card_fee_bps:1000,sale_on:'2026-10-14'}]});
   const pix=db.prepare("SELECT id FROM payment_installments WHERE method='Pix'").get()!;
@@ -31,6 +34,8 @@ test('payment changes revoke old links and new links expose only customer-safe t
   assert.equal(out.payment_summary!.status,'paid');assert.equal(out.payment_summary!.paid,10000);assert.equal(out.payment_summary!.balance,0);
   const credit=out.payment_summary!.payments.find(p=>p.method==='Cartão de crédito')!;
   assert.equal(credit.amount,8000);assert.equal(credit.date,'2026-10-14');assert.equal(credit.installments,3);
+  assert.equal(out.shop.name,'Oficina','a OS concluída conserva a identidade da primeira emissão');
+  assert.equal(db.prepare("SELECT COUNT(*) n FROM document_revisions WHERE tenant_id='a' AND entity_id='o'").get()!.n,1,'impressão e compartilhamento repetidos não criam revisões');
   const json=JSON.stringify(out);for(const secret of ['PRIVATE BANK','INTERNAL SECRET','fee','net','account_id','receivable_id'])assert.ok(!json.includes(secret));
  }finally{db.close();}
 });
