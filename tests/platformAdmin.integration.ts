@@ -191,6 +191,10 @@ test("PostgreSQL platform admin: login, MFA, separated sessions, roles, audit an
     assert.equal((await request(verifyPath,{method:"POST",cookie:financeCookie,body:verifyBody})).status,403);
     assert.equal((await request("/admin-api/workshops",{method:"POST",cookie:financeCookie,body:{name:"Oficina Fictícia",responsible_name:"Pessoa Fictícia",responsible_email:"oficina@example.test"}})).status,403);
     assert.equal((await request("/admin-api/workshops/00000000-0000-4000-8000-000000000000/status",{method:"PATCH",cookie:financeCookie,body:{status:"blocked",reason:"Justificativa fictícia suficiente"}})).status,403);
+    for (const [method,path] of [["PUT","plan"],["PUT","entitlements"],["PATCH","catalog-access"],["PATCH","status"]] as const) {
+      const url=`/admin-api/workshops/00000000-0000-4000-8000-000000000000/${path}`;
+      assert.equal((await request(url,{method,cookie:principalCookie,body:{}})).status,410);
+    }
     const financeCreate = await request("/admin-api/administrators",{method:"POST",cookie:financeCookie,body:{email:"escalation@example.test",name:"Escalation Fictício",role:"principal",permissions:platformPermissions}});
     assert.equal(financeCreate.status,403);
     const financeElevate = await request("/admin-api/administrators/admin-root-test",{method:"PATCH",cookie:financeCookie,body:{role:"principal",permissions:platformPermissions}});

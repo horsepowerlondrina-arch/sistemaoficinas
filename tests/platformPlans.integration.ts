@@ -134,7 +134,10 @@ test("PostgreSQL: um seletor aplica o pacote, remove exceções e preserva outra
     await db.query("SELECT platform_admin.set_workshop_entitlements($1,$2,$3::jsonb,NULL,NULL,$4,$5::jsonb)",
       [tenant,token,JSON.stringify({finance:true}),reason,JSON.stringify({})]);
 
+    // Exercise the actual restricted runtime role: it cannot lock workshop rows with FOR UPDATE.
+    await db.query("SET LOCAL ROLE hp_platform_admin_app");
     let result = await applyWorkshopAccess(db,tenant,token,"basic",reason);
+    await db.query("RESET ROLE");
     assert.equal(result.status,"active");
     assert.equal(result.entitlements.plan_code,"basic");
     assert.equal((result.entitlements.modules as Record<string,boolean>).finance,false);
