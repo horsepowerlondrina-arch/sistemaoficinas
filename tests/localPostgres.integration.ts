@@ -563,11 +563,11 @@ test("PostgreSQL local: autenticação, oficinas, transações e RLS do catálog
       ).get(sample.id) as any);
       if(serviceExample){
         const {saveOrder}=await import("../server/services/workshop");
-        await assert.rejects(saveOrder(db,{tenantId:"local-a",userId:"local-owner-a",role:"owner"},{
+        await assert.rejects(catalogRead("local-a",()=>saveOrder(db,{tenantId:"local-a",userId:"local-owner-a",role:"owner"},{
           status:"quote",customer_id:createdBody.id,vehicle_id:createdBody.vehicle_id,service_model_id:sample.id,
           entered_on:"2026-10-25",due_on:"2026-10-25",km:0,discount:0,notes:"",problem:"",
           items:[{id:"cat013-stale-link",repair_service_id:serviceExample.service_id,repair_model_id:sample.id,price:1000,quantity:1}],
-        }),/divergem do vínculo técnico/);
+        })),/divergem do vínculo técnico/);
       } else {
         assert.fail("A synthetic catalog fixture needs one service to verify stale vehicle links.");
       }
