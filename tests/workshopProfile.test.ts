@@ -17,7 +17,7 @@ function fixture(){
  db.exec("INSERT INTO tenants(id,name) VALUES('a','Oficina A'),('b','Oficina B'); INSERT INTO users VALUES('u','Admin','test@example.test','disabled'),('m','Operador','m@example.test','disabled'); INSERT INTO memberships VALUES('u','a','owner'),('m','a','operator'); INSERT INTO orders(id,tenant_id,number,kind,status,entered_on,due_on,km,total) VALUES('o','a',1,'quote','quote','2026-10-11','2026-10-11',0,8000); INSERT INTO catalog(id,tenant_id,kind,name,sku,cost,price,stock) VALUES('p','a','product','Filtro','F',2500,4000,5)");
  return db;
 }
-test("workshop identity editing is scoped and affects only explicitly issued document revisions",async()=>{
+test("workshop identity editing is scoped and draft OS links use current office details",async()=>{
  const db=fixture();try{
   const before=db.prepare("SELECT * FROM catalog").get(),user=db.prepare("SELECT * FROM users WHERE id='u'").get(),order=db.prepare("SELECT * FROM orders").get();
   const share=await createShare(db,ctx,"o");
@@ -29,10 +29,10 @@ test("workshop identity editing is scoped and affects only explicitly issued doc
   assert.deepEqual(db.prepare("SELECT * FROM users WHERE id='u'").get(),user);
   assert.deepEqual(db.prepare("SELECT * FROM orders").get(),order);
   const publicData=(await readShare(db,share.path.slice(3)))!;
-  assert.equal(publicData.shop!.name,"Oficina A");
+  assert.equal(publicData.shop!.name,"Minha oficina");
   const newer=await createShare(db,ctx,"o");
   assert.notEqual(newer.path,share.path);
-  assert.equal((await readShare(db,share.path.slice(3)))!.shop.name,"Oficina A");
+  assert.equal((await readShare(db,share.path.slice(3)))!.shop.name,"Minha oficina");
   const newPublicData=(await readShare(db,newer.path.slice(3)))!;
   assert.equal(newPublicData.shop!.name,"Minha oficina");assert.equal(newPublicData.shop!.email,"contato@example.test");
   assert.equal(newPublicData.shop!.document_logo,png);
