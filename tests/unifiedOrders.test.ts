@@ -28,7 +28,7 @@ const input = (extra: any = {}) => ({
   items: [{ catalog_id: "p", quantity: 1, price: 2000 }],
   ...extra,
 });
-test("one OS retains number and items from budget through approval completion and reopening", async () => {
+test("one OS retains number and items through completion and cannot be reopened", async () => {
   const db = fixture();
   try {
     const record = await saveOrder(db, owner, input());
@@ -55,9 +55,9 @@ test("one OS retains number and items from budget through approval completion an
     await transitionOrder(db, owner, record, "completed");
     assert.equal(db.prepare("SELECT stock FROM catalog").get()!.stock, 4);
     assert.equal(db.prepare("SELECT COUNT(*) n FROM receivables").get()!.n, 1);
-    await transitionOrder(db, owner, record, "quote");
-    assert.equal(db.prepare("SELECT stock FROM catalog").get()!.stock, 5);
-    assert.equal(db.prepare("SELECT COUNT(*) n FROM receivables").get()!.n, 0);
+    await assert.rejects(transitionOrder(db, owner, record, "quote"), /não pode ser reaberta/);
+    assert.equal(db.prepare("SELECT stock FROM catalog").get()!.stock, 4);
+    assert.equal(db.prepare("SELECT COUNT(*) n FROM receivables").get()!.n, 1);
     assert.equal((await listOrders(db, "a"))[0].number, before.number);
   } finally {
     db.close();
