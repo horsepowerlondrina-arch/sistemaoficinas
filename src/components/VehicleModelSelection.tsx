@@ -22,7 +22,7 @@ export function VehicleModelSelection({ vehicle, onChange, candidates = [] }: {
     if (!vehicle.brand || (!search && !vehicle.model && !codes.length)) { setOptions([]); return; }
     let active = true;
     setBusy(true);
-    send("/vehicles/model-options", { brand: vehicle.brand, model: vehicle.model || "", search, fipe_codes: codes }, "POST")
+    send("/vehicles/model-options", { brand: vehicle.brand, model: vehicle.model || "", search, selected_model_id: vehicle.service_model_id || null, fipe_codes: codes }, "POST")
       .then((result: { options: Option[] }) => {
         if (!active) return;
         setOptions(result.options);
@@ -45,9 +45,9 @@ export function VehicleModelSelection({ vehicle, onChange, candidates = [] }: {
       brand: option.brand,
       model: option.name,
       fipe_model: option.name,
-      fipe_code: option.fipe_code || vehicle.fipe_code || "",
+      fipe_code: vehicle.fipe_code || option.fipe_code || "",
       model_year: candidate?.anoModelo || vehicle.model_year || null,
-      fipe_year_id: candidate?.anoId || "",
+      fipe_year_id: candidate?.anoId || vehicle.fipe_year_id || "",
       fuel: candidate?.combustivel || vehicle.fuel || "",
       service_model_id: option.id,
       service_link_mode: "manual",
@@ -63,6 +63,7 @@ export function VehicleModelSelection({ vehicle, onChange, candidates = [] }: {
         <span>{option.name}{option.fipe_code && <small> · FIPE {option.fipe_code}</small>}</span>
       </label>)}
     </div>}
+    {!!vehicle.service_model_id && !!vehicle.fipe_code && options.some((option) => option.id === vehicle.service_model_id && option.fipe_code && option.fipe_code !== vehicle.fipe_code) && <p className="muted" role="status">O código FIPE consultado pela placa será mantido. O modelo escolhido será usado no cadastro.</p>}
     {!busy && !search && !options.length && candidates.length > 0 && <div className="vehicle-model-options" role="group" aria-label="Versões do veículo">
       <p className="muted">Selecione a versão do veículo:</p>
       {candidates.filter((candidate) => !!candidate.codigoFipe).map((candidate) => <label className="checkbox-row" key={candidate.codigoFipe!}>
