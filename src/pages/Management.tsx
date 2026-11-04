@@ -7,7 +7,7 @@ import { WorkshopProfile } from "../components/WorkshopProfile";
 import { AccountSettings } from "../components/AccountSettings";
 import { StockEntry } from "../components/StockEntry";
 import { StockInvoiceImport } from "../components/StockInvoiceImport";
-import { horsePowerExtensionEnabled } from "../lib/horsePowerExtension";
+import { horsePowerExtensionEnabled } from "../../shared/horsePowerExtension";
 import { needsReplenishment } from "../../shared/stockThreshold";
 import { useState, useEffect } from "react";
 import { useUnsavedSettings } from "../lib/useUnsavedSettings";
