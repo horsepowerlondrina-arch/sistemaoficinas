@@ -666,6 +666,7 @@ test("revisão omite apenas cadastro completo com vínculo confirmado e pagina o
     assert.deepEqual(new Set(items.map(item => item.vehicle.id)), new Set(['incomplete-linked','mismatched-linked','unlinked']));
     assert.equal(items.find(item => item.vehicle.id === 'incomplete-linked')?.data_quality, 'incomplete');
     assert.equal(items.find(item => item.vehicle.id === 'mismatched-linked')?.catalog_status, 'inconsistent');
+    f.db.prepare("UPDATE service_catalog.tenant_access SET enabled=1 WHERE tenant_id='b'").run();
     const other = await previewVehicleCatalogReview(f.db, { ...ctx, tenantId: 'b' });
     assert.equal(other.total, 0);
     assert.equal(other.items.length, 0);
