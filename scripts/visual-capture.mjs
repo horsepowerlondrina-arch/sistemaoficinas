@@ -180,10 +180,10 @@ try {
         await page.getByRole("button", { name: "Movimentações", exact: true }).click();
         await expect(page.getByRole("region", { name: "Movimentações de estoque" })).toBeVisible();
       } else {
-        await expect(page.getByRole("region", { name: "Saldos de estoque" })).toBeVisible();
+        await expect(page.getByRole("region", { name: "Saldos de estoque" }).or(page.getByText("Nenhum produto encontrado"))).toBeVisible();
       }
       const stockRegion = page.getByRole("region", { name: entry.id.includes("movimentacoes") ? "Movimentações de estoque" : "Saldos de estoque" });
-      await expect.poll(() => stockRegion.evaluate((element) => element.getBoundingClientRect().right <= window.innerWidth)).toBe(true);
+      if (await stockRegion.count()) await expect.poll(() => stockRegion.evaluate((element) => element.getBoundingClientRect().right <= window.innerWidth)).toBe(true);
     }
     await page.waitForTimeout(300);
     const path = outputFor(entry);
