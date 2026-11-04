@@ -16,8 +16,11 @@ export async function applyWorkshopAccess(
   choice: WorkshopAccessChoice,
   reason: string,
 ) {
+  // The runtime admin role has SELECT and EXECUTE on scoped functions, but no direct UPDATE.
+  // Serialize package changes with the same advisory lock used by the database functions.
+  await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1,104730))", [tenantId]);
   const lookup = await client.query<WorkshopRow>(
-    "SELECT status,source,email_verified_at FROM platform_admin.workshops WHERE tenant_id=$1 FOR UPDATE",
+    "SELECT status,source,email_verified_at FROM platform_admin.workshops WHERE tenant_id=$1",
     [tenantId],
   );
   const workshop = lookup.rows[0];
