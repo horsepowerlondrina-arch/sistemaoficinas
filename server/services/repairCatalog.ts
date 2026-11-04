@@ -40,23 +40,20 @@ export type CatalogAccessState="active"|"not_contracted"|"expired"|"revoked"|"no
 export async function catalogAccessState(db:DB,ctx:Context):Promise<CatalogAccessState>{
   if (ctx.modules?.technical_catalog === false) return "administratively_disabled";
   try {
-    const row = await db
-      .prepare(
-        `SELECT a.enabled,a.valid_until,EXISTS(SELECT 1 FROM service_catalog.releases WHERE status='active') catalog_installed
-         FROM service_catalog.tenant_access a WHERE a.tenant_id=?`,
-      )
-      .get(ctx.tenantId);
-    const included=await db.getTenantCatalogIncluded?.(ctx.tenantId) || false;
-    if(!row){
-      if(!included)return "not_contracted";
+    if (db.getTenantCatalogIncluded) {
+      if (!await db.getTenantCatalogIncluded(ctx.tenantId)) return "not_contracted";
       const release=await db.prepare("SELECT EXISTS(SELECT 1 FROM service_catalog.releases WHERE status='active') AS catalog_installed").get();
       return release?.catalog_installed?"active":"not_installed";
     }
-    if(!(row as any).catalog_installed)return "not_installed";
-    // A current Premium plan or free trial includes the catalog even if a legacy license was revoked.
-    if(included)return "active";
-    if(!(row as any).enabled)return "revoked";
-    if((row as any).valid_until&&new Date((row as any).valid_until).getTime()<=Date.now())return "expired";
+    // Compatibilidade com o armazenamento SQLite histórico, sem planos da plataforma.
+    const row=await db.prepare(
+      `SELECT a.enabled,a.valid_until,EXISTS(SELECT 1 FROM service_catalog.releases WHERE status='active') catalog_installed
+       FROM service_catalog.tenant_access a WHERE a.tenant_id=?`,
+    ).get(ctx.tenantId);
+    if(!row)return "not_contracted";
+    if(!(row as {catalog_installed?:boolean}).catalog_installed)return "not_installed";
+    if(!(row as {enabled?:boolean}).enabled)return "revoked";
+    if((row as {valid_until?:string|null}).valid_until&&new Date((row as {valid_until:string}).valid_until).getTime()<=Date.now())return "expired";
     return "active";
   } catch (error) {
     if (/no such table/.test(String(error)) || (error as {code?:string}).code==="42P01") return "not_installed";
@@ -65,7 +62,7 @@ export async function catalogAccessState(db:DB,ctx:Context):Promise<CatalogAcces
 }
 const catalogStatusMessage:Record<Exclude<CatalogAccessState,"active">,string>={
   administratively_disabled:"O acesso ao Catálogo Técnico foi desabilitado pela administração da plataforma.",
-  not_contracted:"O Catálogo Técnico é um módulo adicional e não está habilitado para esta oficina.",
+  not_contracted:"O Catálogo Técnico está disponível no plano Premium e no teste gratuito ativo.",
   expired:"O acesso ao Catálogo Técnico venceu. Solicite a renovação à administração da plataforma.",
   revoked:"O acesso ao Catálogo Técnico foi revogado. Seus serviços particulares continuam disponíveis.",
   not_installed:"O Catálogo Técnico ainda não foi instalado neste ambiente.",
