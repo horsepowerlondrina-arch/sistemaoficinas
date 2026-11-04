@@ -519,7 +519,7 @@ export function RegisterModal({
     const candidate = candidateIndex >= 0 ? plateProposal.fipe_candidates[candidateIndex] : undefined;
     const previewValues = { ...plateProposal.vehicle, ...(candidate ? candidateFields(candidate) : {}) };
     const fields = ["brand", "year", "model_year", "fuel", "color", "fipe_code", "fipe_model", "fipe_year_id"]
-      .filter((field) => (!form.service_model_id || !["fipe_code", "fipe_model", "fipe_year_id"].includes(field)) && previewValues[field] !== undefined && previewValues[field] !== null && previewValues[field] !== ""
+      .filter((field) => (field !== "fipe_model" || !form.service_model_id) && previewValues[field] !== undefined && previewValues[field] !== null && previewValues[field] !== ""
         && String(plateProposal.current?.[field] ?? "") !== String(previewValues[field]));
     if (!fields.length) { setError("A consulta não trouxe dados diferentes para aplicar."); return; }
     const selectedValues = Object.fromEntries(fields.map((field) => [field, previewValues[field]]));
