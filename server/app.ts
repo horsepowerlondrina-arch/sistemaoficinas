@@ -1518,6 +1518,11 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
   app.get("/api/documents/:kind/:id",async(req,res)=>{
     const kind=z.enum(["order","checklist"]).parse(req.params.kind),id=String(req.params.id),ctx=res.locals.context;
     const revision=req.query.revision===undefined?undefined:z.coerce.number().int().positive().parse(req.query.revision);
+    if(req.query.current==="1") {
+      if(kind!=="order" || revision) throw Object.assign(new Error("Visualização atual inválida."),{status:400});
+      res.set("Cache-Control","no-store").json(await issueDocument(db,ctx,kind,id,false,true));
+      return;
+    }
     res.json(revision?await readDocument(db,ctx,kind,id,revision):await documentHistory(db,ctx,kind,id));
   });
   app.get("/api/documents/archives",async(_req,res)=>{

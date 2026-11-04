@@ -33,6 +33,9 @@ export async function readShare(db:DB,token:string):Promise<(PublicOrderDocument
  if(modules?.orders===false)return null;
  if(["pending_verification","blocked","archived"].includes(accessState))return null;
  await scoped(db,"orders",link.tenant_id,link.order_id);
- if(!link.document_revision)return{historical_unavailable:true,shop:workshopIdentity({name:"Identidade histórica não registrada"}),payment_summary:null};
- return publicDocument(await readDocument(db,{tenantId:link.tenant_id,userId:"public",role:"owner"},"order",link.order_id,Number(link.document_revision)));
+ if(link.document_revision===null || link.document_revision===undefined)return{historical_unavailable:true,shop:workshopIdentity({name:"Identidade histórica não registrada"}),payment_summary:null};
+ const publicContext={tenantId:String(link.tenant_id),userId:"public",role:"owner" as const};
+ if(Number(link.document_revision)===0 || !(await scoped(db,"orders",link.tenant_id,link.order_id)).identity_legacy)
+  return publicDocument(await issueDocument(db,publicContext,"order",String(link.order_id),false,true));
+ return publicDocument(await readDocument(db,publicContext,"order",String(link.order_id),Number(link.document_revision)));
 }

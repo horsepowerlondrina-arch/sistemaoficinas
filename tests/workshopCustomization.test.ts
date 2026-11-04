@@ -32,33 +32,33 @@ test("office profile validates schedules and optional fields without requiring a
  assert.equal(contrastInk("#000000"),"#ffffff");assert.equal(contrastInk("#ffffff"),"#000000");
 });
 
-test("office settings and immutable revisions stay tenant scoped; old and re-shared links retain the issued snapshot",async()=>{
+test("new OS print and share use current data without revisions; legacy snapshots remain isolated",async()=>{
  const db=fixture();
  try{
-  await saveWorkshopProfile(db,ownerA,{tenant_id:"a",name:"Oficina A Inicial",phone:"111",whatsapp:"222",street:"Rua Fictícia",number:"10",city:"Londrina",state:"PR",payment_terms:"Pix fictício",warranty_text:"Garantia informativa",document_footer:"Rodapé inicial",quote_validity_days:30});
-  await saveWorkshopProfile(db,ownerB,{tenant_id:"b",name:"Oficina B Privada",phone:"999"});
+  await saveWorkshopProfile(db,ownerA,{tenant_id:"a",name:"Oficina A Inicial",phone:"111",payment_terms:"Pix fictício"});
+  await saveWorkshopProfile(db,ownerB,{tenant_id:"b",name:"Oficina B Privada"});
   const first=await issueDocument(db,ownerA,"order","o");
-  assert.equal(first.shop.name,"Oficina A Inicial");assert.equal(first.shop.whatsapp,"222");assert.equal(first.shop.payment_terms,"Pix fictício");assert.equal(first.order.items[0].price,5000);assert.match(first.quote_valid_until,/^\d{4}-\d{2}-\d{2}$/);
-  const firstShare=await createShare(db,ownerA,"o"),firstToken=firstShare.path.slice(3);
-  await saveWorkshopProfile(db,ownerA,{tenant_id:"a",name:"Oficina A Atualizada",phone:"333",payment_terms:"Outra condição"});
-  await db.prepare("UPDATE order_items SET price=7000,name='Serviço alterado' WHERE tenant_id=? AND id=?").run("a","i");
-  const second=await issueDocument(db,ownerA,"order","o",true);
-  assert.equal(second.shop.name,"Oficina A Atualizada");assert.equal(second.order.items[0].price,7000);
-  assert.equal((await readShare(db,firstToken))!.shop.name,"Oficina A Inicial");
-  const renewed=await createShare(db,ownerA,"o");
-  assert.notEqual(renewed.path,firstShare.path);
-  assert.equal((await readShare(db,firstToken))!.shop.name,"Oficina A Inicial");
-  assert.equal(renewed.document.shop.name,"Oficina A Atualizada");
-  assert.equal(renewed.document.items[0].price,7000);
-  assert.equal((await readDocument(db,ownerA,"order","o",1)).order.items[0].name,"Revisão");
-  assert.equal((await readDocument(db,ownerA,"order","o",3)).order.items[0].name,"Serviço alterado");
+  const repeated=await issueDocument(db,ownerA,"order","o");
+  assert.equal(first.revision,0);assert.equal(repeated.revision,0);
+  assert.equal(first.shop.name,"Oficina A Inicial");
+  assert.equal(first.order.items[0].price,5000);
+  assert.equal((await documentHistory(db,ownerA,"order","o")).revisions.length,0);
+  const link=await createShare(db,ownerA,"o");
+  const token=link.path.slice(3);
+  assert.equal((await readShare(db,token))!.shop.name,"Oficina A Inicial");
+  await saveWorkshopProfile(db,ownerA,{tenant_id:"a",name:"Oficina A Atualizada",phone:"333"});
+  const second=await issueDocument(db,ownerA,"order","o");
+  assert.equal(second.shop.name,"Oficina A Atualizada");
+  assert.equal((await readShare(db,token))!.shop.name,"Oficina A Atualizada");
+  assert.equal((await documentHistory(db,ownerA,"order","o")).revisions.length,0);
   await assert.rejects(()=>readDocument(db,ownerB,"order","o",1));
-  await assert.rejects(()=>issueDocument(db,{...ownerA,role:"operator"},"order","o",true),/administrador/);
   await assert.rejects(()=>saveWorkshopProfile(db,ownerA,{tenant_id:"b",name:"Tentativa"}),/oficina selecionada mudou/);
   assert.equal((await db.prepare("SELECT name FROM tenants WHERE id='b'").get())!.name,"Oficina B Privada");
+  await db.prepare("UPDATE orders SET identity_legacy=1 WHERE tenant_id='a' AND id='o'").run();
+  const legacy=await issueDocument(db,ownerA,"order","o",true);
+  assert.equal(legacy.revision,1);
   assert.throws(()=>db.prepare("UPDATE document_revisions SET payload='{}' WHERE tenant_id='a' AND entity_id='o'").run(),/imutável/);
-  assert.throws(()=>db.prepare("DELETE FROM document_revisions WHERE tenant_id='a' AND entity_id='o'").run(),/imutável/);
-  assert.equal((await documentHistory(db,ownerA,"order","o")).revisions.length,4);
+  assert.equal((await documentHistory(db,ownerA,"order","o")).revisions.length,1);
  }finally{db.close();}
 });
 
