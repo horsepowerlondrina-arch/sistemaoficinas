@@ -32,7 +32,8 @@ export async function captureCad005(page, entry) {
       await page.getByRole("button", { name: "Editar CAD0A05", exact: true }).click();
       await expect(scope.getByRole("textbox", { name: "Código FIPE" })).toHaveValue("999999-9");
       await expect(scope.locator('input[name="vehicle-model-option"]:checked')).toHaveCount(1);
-      await scope.locator(".vehicle-technical-association").scrollIntoViewIfNeeded();
+      await expect(page.getByText("Cadastro salvo com sucesso.", { exact: true })).toHaveCount(0, { timeout: 10000 });
+      await scope.locator('input[name="vehicle-model-option"]:checked').evaluate(element => element.scrollIntoView({ block: "center" }));
     }
     if (entry.id.includes("-footer-")) await scope.evaluate(element => { element.scrollTop = element.scrollHeight; });
     else if (!entry.id.includes("review-catalog")) await scope.evaluate(element => { element.scrollTop = 0; });
