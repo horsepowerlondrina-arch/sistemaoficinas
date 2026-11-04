@@ -154,21 +154,21 @@ Formulário real com dados fictícios; identificação FIPE independente da asso
 
 Estado: capturada · mobile · captura 2026-10-30 · commit de origem: f6e2a4cb13517dc8f57dc1703586ce27268d004c · [arquivo completo](./capturas/04-veiculos/cad005-review-footer-mobile.png)
 
-### CAD-005 — Associação manual no modal (desktop)
+### CAD-005 — Escolha de modelo com FIPE divergente (desktop)
 
-Revisão real com seleção única do modelo do veículo e código FIPE, usando dados fictícios.
+Revisão com busca de modelo alternativo e FIPE da placa preservada, com dados fictícios.
 
-[![CAD-005 — Associação manual no modal (desktop)](./capturas/04-veiculos/cad005-review-catalog-desktop.png)](./capturas/04-veiculos/cad005-review-catalog-desktop.png)
+[![CAD-005 — Escolha de modelo com FIPE divergente (desktop)](./capturas/04-veiculos/cad005-review-catalog-desktop.png)](./capturas/04-veiculos/cad005-review-catalog-desktop.png)
 
-Estado: capturada · desktop · captura 2026-11-03 · commit de origem: eb61ac242259c0294f2056a6f5a70b1b8b2127e1 · [arquivo completo](./capturas/04-veiculos/cad005-review-catalog-desktop.png)
+Estado: capturada · desktop · captura 2026-11-03 · commit de origem: 7417166d474fd11810cdb72038a7aa096d1d0ec9 · [arquivo completo](./capturas/04-veiculos/cad005-review-catalog-desktop.png)
 
-### CAD-005 — Associação manual no modal (mobile)
+### CAD-005 — Escolha de modelo com FIPE divergente (mobile)
 
-Revisão real com seleção única do modelo do veículo e código FIPE, usando dados fictícios.
+Revisão com busca de modelo alternativo e FIPE da placa preservada, com dados fictícios.
 
-[![CAD-005 — Associação manual no modal (mobile)](./capturas/04-veiculos/cad005-review-catalog-mobile.png)](./capturas/04-veiculos/cad005-review-catalog-mobile.png)
+[![CAD-005 — Escolha de modelo com FIPE divergente (mobile)](./capturas/04-veiculos/cad005-review-catalog-mobile.png)](./capturas/04-veiculos/cad005-review-catalog-mobile.png)
 
-Estado: capturada · mobile · captura 2026-11-03 · commit de origem: eb61ac242259c0294f2056a6f5a70b1b8b2127e1 · [arquivo completo](./capturas/04-veiculos/cad005-review-catalog-mobile.png)
+Estado: capturada · mobile · captura 2026-11-03 · commit de origem: 7417166d474fd11810cdb72038a7aa096d1d0ec9 · [arquivo completo](./capturas/04-veiculos/cad005-review-catalog-mobile.png)
 
 ## 05 — Checklist
 

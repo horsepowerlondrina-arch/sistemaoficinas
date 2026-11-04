@@ -843,10 +843,20 @@ test("Cadastro de veículo consulta só identidades mesmo sem licença técnica"
     assert.equal(result.status, "needs_confirmation");
     assert.equal(result.options.length, 3);
     assert.deepEqual(Object.keys(result.options[0]).sort(), ["brand", "fipe_code", "id", "name"]);
-    const selected = await confirmRegistrationVehicleModel(f.db, unlicensed, f.model, "Marca", "123456-7");
+    const selected = await confirmRegistrationVehicleModel(f.db, unlicensed, f.model, "Marca");
     assert.equal(selected.id, f.model);
     await assert.rejects(() => searchModels(f.db, unlicensed, { brand_id: f.brand }), /desabilitado|habilitado|liberado|módulo/i);
-    await assert.rejects(() => confirmRegistrationVehicleModel(f.db, unlicensed, f.model, "Outra marca", "123456-7"), /marca/i);
-    await assert.rejects(() => confirmRegistrationVehicleModel(f.db, unlicensed, f.model, "Marca", "999999-9"), /FIPE/i);
+    await assert.rejects(() => confirmRegistrationVehicleModel(f.db, unlicensed, f.model, "Outra marca"), /marca/i);
+    const fallback = await registrationVehicleModels(f.db, unlicensed, {
+      brand: "Marca", model: "Modelo antigo", fipe_codes: ["999999-9"], search: "Modelo 2",
+    });
+    assert.equal(fallback.options.length, 1);
+    assert.equal(fallback.options[0].id, f.other);
+    assert.deepEqual(Object.keys(fallback.options[0]).sort(), ["brand", "fipe_code", "id", "name"]);
+    assert.equal((await confirmRegistrationVehicleModel(f.db, unlicensed, f.other, "Marca")).fipe_code, "123456-7");
+    const restored = await registrationVehicleModels(f.db, unlicensed, {
+      brand: "Marca", model: "Outro", fipe_codes: ["999999-9"], selected_model_id: f.other,
+    });
+    assert.equal(restored.options[0].id, f.other);
   } finally { f.db.close(); }
 });
