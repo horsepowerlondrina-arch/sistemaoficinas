@@ -68,8 +68,17 @@ export async function issueDocument(
  return transaction(db,async()=>{
   const entity=await source(db,ctx,kind,id);
   const history=await documentHistory(db,ctx,kind,id);
-  const currentOrder=kind==="order"&&!entity.identity_legacy;
-  if(history.revisions.length&&!newRevision&&!currentOrder)return readDocument(db,ctx,kind,id,Number(history.revisions[0].revision));
+  const modernOrder=kind==="order"&&!entity.identity_legacy;
+  const draftOrder=modernOrder&&entity.status!=="completed";
+  if(modernOrder&&entity.status==="completed"&&history.revisions.length){
+   const frozen=await readDocument(db,ctx,kind,id,Number(history.revisions[0].revision));
+   if(frozen.order?.status==="completed"&&frozen.order.completed_on===entity.completed_on){
+    const receipt=await db.prepare("SELECT * FROM receivables WHERE tenant_id=? AND order_id=?").get(ctx.tenantId,id);
+    const payments=receipt?await db.prepare("SELECT receivable_id,method,gross,status,paid_at FROM payment_installments WHERE tenant_id=? AND receivable_id=? ORDER BY sequence").all(ctx.tenantId,receipt.id):[];
+    return {...frozen,order:{...frozen.order,payment_summary:customerPayments(entity.status,receipt,payments)}};
+   }
+  }
+  if(history.revisions.length&&!newRevision&&!modernOrder)return readDocument(db,ctx,kind,id,Number(history.revisions[0].revision));
   if(entity.identity_legacy&&!newRevision)throw Object.assign(new Error("Documento legado sem snapshot: a identidade originalmente emitida não foi registrada. Emita uma nova revisão explicitamente; as emissões anteriores não serão reconstruídas."),{status:409});
   const shopRow=(await db.prepare("SELECT * FROM tenants WHERE id=?").get(ctx.tenantId))!;
   const shop=workshopIdentity(shopRow);
@@ -80,7 +89,7 @@ export async function issueDocument(
   }
   const issuedAt=new Date().toISOString();
   const highest=await db.prepare("SELECT revision FROM document_revisions WHERE tenant_id=? AND kind=? AND entity_id=? ORDER BY revision DESC LIMIT 1").get(ctx.tenantId,kind,id);
-  const revision=currentOrder?0:Number(highest?.revision||history.revisions[0]?.revision||0)+1;
+  const revision=draftOrder?0:Number(highest?.revision||history.revisions[0]?.revision||0)+1;
   const payload:Record<string,any>={schema_version:1,kind,entity_id:id,revision,issued_at:issuedAt,reissued_legacy:!!entity.identity_legacy,shop};
   if(kind==="order"){
    const keys=["id","number","kind","status","entered_on","due_on","completed_on","km","problem","notes","discount","total","guest_name","guest_plate","guest_vehicle"];
@@ -104,7 +113,7 @@ export async function issueDocument(
    checklist.photos=photos.map(p=>({id:p.id,kind:p.kind,created_at:p.created_at,image_url:"data:"+p.mime+";base64,"+p.image_data}));
    payload.checklist=checklist;
   }
-  if(currentOrder)return payload;
+  if(draftOrder)return payload;
   const text=JSON.stringify(payload),digest=createHash("sha256").update(text).digest("hex");
   await db.prepare("INSERT INTO document_revisions(id,tenant_id,kind,entity_id,revision,issued_at,issued_by,payload,digest) VALUES(?,?,?,?,?,?,?,?,?)")
    .run(randomUUID(),ctx.tenantId,kind,id,revision,issuedAt,ctx.userId,text,digest);
