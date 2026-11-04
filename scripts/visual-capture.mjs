@@ -170,6 +170,21 @@ try {
     await captureSettings(page, entry);
     await captureCad005(page, entry);
     if (entry.route === "/catalogo") await captureProducts(page, entry);
+    if (entry.module === "10-estoque" && entry.image) {
+      await expect(page.getByRole("heading", { name: "Estoque", exact: true })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Importar nota fiscal" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Entrada em estoque" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Importar do Sky" })).toHaveCount(0);
+      await expect(page.getByRole("button", { name: "Novo produto" })).toHaveCount(0);
+      if (entry.id.includes("movimentacoes")) {
+        await page.getByRole("button", { name: "Movimentações", exact: true }).click();
+        await expect(page.getByRole("region", { name: "Movimentações de estoque" })).toBeVisible();
+      } else {
+        await expect(page.getByRole("region", { name: "Saldos de estoque" })).toBeVisible();
+      }
+      const stockRegion = page.getByRole("region", { name: entry.id.includes("movimentacoes") ? "Movimentações de estoque" : "Saldos de estoque" });
+      await expect.poll(() => stockRegion.evaluate((element) => element.getBoundingClientRect().right <= window.innerWidth)).toBe(true);
+    }
     await page.waitForTimeout(300);
     const path = outputFor(entry);
     mkdirSync(dirname(path), { recursive: true });
