@@ -264,7 +264,7 @@ export async function registrationVehicleModels(db: DB, ctx: Context, input: unk
       ? await db.prepare("SELECT m.id,m.name,m.fipe_code,b.name brand FROM service_catalog.models m JOIN service_catalog.brands b ON b.id=m.brand_id WHERE m.id=?").get(value.selected_model_id)
       : undefined;
     const addSelected = (items: Row[]) => selected && registrationBrandCompatible(value.brand, selected.brand) && !items.some((item) => item.id === selected.id)
-      ? [...items, selected]
+      ? [selected, ...items]
       : items;
     if (search) {
       const brand = registrationBrandKey(value.brand).split(" ").filter(Boolean).join("%");
