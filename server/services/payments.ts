@@ -187,6 +187,7 @@ export async function configurePlan(
         ctx.tenantId,
         record,
       );
+    if (r.order_id) await invalidateOrderShares(db, ctx, String(r.order_id));
     await audit(db, ctx, "payment.plan_configured", record);
     return plan;
   });
@@ -272,6 +273,8 @@ export async function settleInstallment(
       origin: "receipt",
       source_id: record,
     });
+    const paidOrder = await db.prepare("SELECT order_id FROM receivables WHERE tenant_id=? AND id=?").get(ctx.tenantId, part.receivable_id);
+    if (paidOrder?.order_id) await invalidateOrderShares(db, ctx, String(paidOrder.order_id));
     await audit(db, ctx, "payment.installment_paid", record);
   });
 }
@@ -360,6 +363,7 @@ export async function settleCredit(
       origin: "receipt",
       source_id: first,
     });
+    if (receivable.order_id) await invalidateOrderShares(db, ctx, String(receivable.order_id));
     await audit(db, ctx, "payment.credit_received", record);
     return { ok: true, settlement_on: day, net: totals.net };
   });
