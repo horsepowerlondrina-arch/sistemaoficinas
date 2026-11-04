@@ -48,7 +48,7 @@ export function IssuedDocumentProvider({ kind, id, currentOnly = false, children
       .then(async (documentHistory) => {
         if (!active) return;
         setHistory(documentHistory);
-        if (!currentOnly && documentHistory.revisions.length) {
+        if ((!currentOnly || documentHistory.legacy) && documentHistory.revisions.length) {
           const document = await api<Record<string, any>>(endpoint + "?revision=" + documentHistory.revisions[0].revision);
           if (active) setPayload(document);
         }
@@ -69,9 +69,12 @@ export function IssuedDocumentProvider({ kind, id, currentOnly = false, children
     setBusy(true);
     setError("");
     try {
-      const value = await send(endpoint, { new_revision: newRevision, ...(currentOnly && kind === "order" ? { current_order: true } : {}) });
+      const currentOrder = currentOnly && kind === "order" && !history.legacy;
+      const value = currentOrder
+        ? await api<Record<string, any>>(endpoint + "?current=1")
+        : await send(endpoint, { new_revision: newRevision });
       setPayload(value);
-      setHistory(await api(endpoint));
+      if (!currentOrder) setHistory(await api(endpoint));
       setPrinting(true);
     } catch (cause) {
       setError((cause as Error).message);
@@ -95,7 +98,7 @@ export function IssuedDocumentActions({ includeShare = true }: { includeShare?: 
   const customer = order?.customer_id ? data.customers.find((item) => item.id === order.customer_id) : undefined;
   return (
     <>
-      {!currentOnly && history.revisions.length > 0 && (
+      {(!currentOnly || history.legacy) && history.revisions.length > 0 && (
         <label className="issued-document-revision">
           Revisão
           <select disabled={busy} value={payload?.revision || ""} onChange={async (event) => {
@@ -115,8 +118,11 @@ export function IssuedDocumentActions({ includeShare = true }: { includeShare?: 
       )}
       <div className="capture-actions">
         {currentOnly ? (
-          <button type="button" className="button" disabled={busy} onClick={() => void issue(true)}>
-            Imprimir PDF
+          <button type="button" className="button" disabled={busy} onClick={() => {
+            if (history.legacy && payload) setPrinting(true);
+            else void issue(history.legacy);
+          }}>
+            {history.legacy && payload ? `Reimprimir revisão ${payload.revision}` : history.legacy ? "Emitir revisão do legado" : "Imprimir PDF"}
           </button>
         ) : payload ? (
           <button type="button" className="button" disabled={busy} onClick={() => setPrinting(true)}>
@@ -127,7 +133,7 @@ export function IssuedDocumentActions({ includeShare = true }: { includeShare?: 
             Emitir e imprimir / PDF
           </button>
         )}
-        {!currentOnly && admin && (history.legacy || history.revisions.length > 0) && (
+        {admin && (history.legacy || (!currentOnly && history.revisions.length > 0)) && (
           <button type="button" className="button" disabled={busy} onClick={() => {
             if (window.confirm("Emitir uma nova revisão com os dados atuais? As anteriores e seus links serão preservados.")) void issue(true);
           }}>
@@ -153,10 +159,10 @@ export function IssuedDocumentPreview() {
   if (!payload) return null;
   return (
     <div className="issued-document">
-      <div className="print-only document-revision-label">
+      {payload.revision > 0 && <div className="print-only document-revision-label">
         Revisão {payload.revision} · Emitido em {new Date(payload.issued_at).toLocaleString("pt-BR")}
         {payload.reissued_legacy ? " · Nova emissão de registro legado" : ""}
-      </div>
+      </div>}
       {kind === "order" ? (
         <OrderPrint order={{ ...payload.order, quote_valid_until: payload.quote_valid_until }} tenant={payload.shop} customer={payload.customer || undefined} vehicle={payload.vehicle || undefined} />
       ) : (
