@@ -578,6 +578,8 @@ export async function transitionOrder(
     const order = await scoped(db, "orders", ctx.tenantId, record);
     if (order.status === status)
       throw new Error("O atendimento já está nesta situação.");
+    if (order.status === "completed" && !order.identity_legacy)
+      throw Object.assign(new Error("Uma OS finalizada não pode ser reaberta."), { status: 409 });
 
     if (ctx.role !== "owner") {
       if (
