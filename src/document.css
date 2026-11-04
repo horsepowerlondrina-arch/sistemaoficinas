@@ -69,7 +69,7 @@
  .workshop-document .hp-print-totalbox>div { font-size:9pt; }
  .workshop-document .hp-print-table thead { display:table-header-group; }
  .workshop-document .hp-print-table tr,.workshop-document .checklist-print-photos figure { break-inside:avoid; }
- @page { size:A4; margin:10mm 12mm; }
+
 }
 
 /* Keep long totals inside the amount box on paper and narrow screens. */
@@ -223,5 +223,22 @@
 
   .workshop-document.hp-print-order .hp-print-table tr {
     break-inside: avoid;
+  }
+}
+
+/* Print documents without the browser-generated date, title and URL in PDF margins.
+   Keep printable space around every fragmented page. Other application reports
+   retain their own @page rules. */
+@page workshop-document-page {
+  size: A4;
+  margin: 0;
+}
+@media print {
+  .customer-document-page,
+  .issued-document {
+    page: workshop-document-page;
+    padding: 10mm 12mm;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
   }
 }
