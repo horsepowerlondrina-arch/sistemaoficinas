@@ -21,9 +21,16 @@ export async function captureCad005(page, entry) {
     }
     await expect(scope.getByRole("heading", { name: "Escolha o modelo do veículo" })).toBeVisible();
     if (entry.id.includes("review-catalog")) {
+      await scope.getByRole("textbox", { name: "Código FIPE" }).fill("999999-9");
+      await scope.getByRole("searchbox", { name: "Pesquisar outro modelo" }).fill("Modelo Fictício");
       const firstOption = scope.getByRole("group", { name: "Modelos do veículo" }).getByRole("radio").first();
       await expect(firstOption).toBeVisible();
       await firstOption.click();
+      await expect(scope.getByRole("textbox", { name: "Código FIPE" })).toHaveValue("000000-0");
+      await scope.getByRole("button", { name: "Salvar cadastro", exact: true }).click();
+      await expect(scope).toHaveCount(0);
+      await page.getByRole("button", { name: "Editar CAD0A05", exact: true }).click();
+      await expect(scope.getByRole("textbox", { name: "Código FIPE" })).toHaveValue("000000-0");
       await expect(scope.locator('input[name="vehicle-model-option"]:checked')).toHaveCount(1);
       await scope.locator(".vehicle-technical-association").scrollIntoViewIfNeeded();
     }
