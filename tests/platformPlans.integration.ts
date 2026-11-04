@@ -48,6 +48,9 @@ test("PostgreSQL: planos, teste Premium, exceções, limites e isolamento", asyn
       return count;
     };
     assert.equal(await visibleBrands(),0,"Básico não pode ler marcas do catálogo");
+    await db.query("INSERT INTO service_catalog.tenant_access(tenant_id,enabled,grant_reason) VALUES($1,true,'Licença legada fictícia')",[tenant]);
+    assert.equal(await visibleBrands(),0,"licença legada não libera catálogo no Básico");
+    await db.query("DELETE FROM service_catalog.tenant_access WHERE tenant_id=$1",[tenant]);
     assert.equal(state.plan_code,"basic");
     assert.equal(state.max_users,2);
     assert.equal(state.modules.orders,true);
