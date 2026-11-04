@@ -75,7 +75,7 @@ export async function issueDocument(
    if(frozen.order?.status==="completed"&&frozen.order.completed_on===entity.completed_on){
     const receipt=await db.prepare("SELECT * FROM receivables WHERE tenant_id=? AND order_id=?").get(ctx.tenantId,id);
     const payments=receipt?await db.prepare("SELECT receivable_id,method,gross,status,paid_at FROM payment_installments WHERE tenant_id=? AND receivable_id=? ORDER BY sequence").all(ctx.tenantId,receipt.id):[];
-    return {...frozen,order:{...frozen.order,payment_summary:customerPayments(entity.status,receipt,payments)}};
+    return {...frozen,order:{...frozen.order,total:entity.total,discount:entity.discount,payment_summary:customerPayments(entity.status,receipt,payments)}};
    }
   }
   if(history.revisions.length&&!newRevision&&!modernOrder)return readDocument(db,ctx,kind,id,Number(history.revisions[0].revision));
