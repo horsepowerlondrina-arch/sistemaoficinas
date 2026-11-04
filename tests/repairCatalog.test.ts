@@ -854,5 +854,9 @@ test("Cadastro de veículo consulta só identidades mesmo sem licença técnica"
     assert.equal(fallback.options[0].id, f.other);
     assert.deepEqual(Object.keys(fallback.options[0]).sort(), ["brand", "fipe_code", "id", "name"]);
     assert.equal((await confirmRegistrationVehicleModel(f.db, unlicensed, f.other, "Marca")).fipe_code, "123456-7");
+    const restored = await registrationVehicleModels(f.db, unlicensed, {
+      brand: "Marca", model: "Outro", fipe_codes: ["999999-9"], selected_model_id: f.other,
+    });
+    assert.equal(restored.options[0].id, f.other);
   } finally { f.db.close(); }
 });
