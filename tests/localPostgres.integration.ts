@@ -303,7 +303,8 @@ test("PostgreSQL local: autenticação, oficinas, transações e RLS do catálog
         assert.equal(firstDocument!.shop.name,profile.name);
         assert.equal(firstDocument!.shop.document_logo,profile.logo);
         const originalRevision=Number(first.document.revision);
-        assert.equal((await readDocument(db,ctx,"order",order,originalRevision)).order.notes,"");
+        assert.equal(originalRevision,0);
+        assert.equal((await documentHistory(db,ctx,"order",order)).revisions.length,0);
 
         // Repeated sharing creates a fresh token without revoking or reactivating the previous one.
         const sameData=await saveOrder(db,ctx,input(),order);
@@ -316,26 +317,24 @@ test("PostgreSQL local: autenticação, oficinas, transações e RLS do catálog
         assert.ok(await readShare(db,secondToken));
 
         await saveWorkshopProfile(db,ctx,{name:profile.name+" Atualizada"});
-        assert.equal((await readShare(db,firstToken))!.shop.name,profile.name);
-        const secondSnapshot=await readDocument(db,ctx,"order",order,Number(second.document.revision));
-        assert.equal(secondSnapshot.shop.name,profile.name);
+        assert.equal((await readShare(db,firstToken))!.shop.name,profile.name+" Atualizada");
+        assert.equal(Number(second.document.revision),0);
         assert.equal((await getWorkshopProfile(db,ctx)).document_logo,profile.logo);
 
-        // A real order edit immediately revokes every previous public link but leaves snapshots intact.
+        // A real order edit immediately revokes every previous public link.
         await saveOrder(db,ctx,input("Descrição atualizada"),order);
         assert.equal(await readShare(db,firstToken),null);
         assert.equal(await readShare(db,secondToken),null);
-        const oldAgain=await readDocument(db,ctx,"order",order,Number(second.document.revision));
-        assert.equal(oldAgain.order.notes,"");
+        assert.equal((await documentHistory(db,ctx,"order",order)).revisions.length,0);
         const currentPdf=await issueDocument(db,ctx,"order",order,true);
         assert.equal(currentPdf.order.notes,"Descrição atualizada");
-        assert.notEqual(currentPdf.revision,second.document.revision);
+        assert.equal(currentPdf.revision,0);
 
         const renewed=await createShare(db,ctx,order);
         const renewedToken=renewed.path.slice(3);
         assert.notEqual(renewedToken,firstToken);
         assert.notEqual(renewedToken,secondToken);
-        assert.equal(renewed.document.revision,currentPdf.revision+1);
+        assert.equal(renewed.document.revision,0);
         assert.equal((await readShare(db,renewedToken))!.shop.name,profile.name+" Atualizada");
         const remaining=Date.parse(renewed.expires_at)-Date.now();
         assert.ok(remaining>29*24*60*60*1000 && remaining<=30*24*60*60*1000);
@@ -356,7 +355,7 @@ test("PostgreSQL local: autenticação, oficinas, transações e RLS do catálog
         assert.equal(retained.length,3);
         assert.ok(retained.every((row:any)=>Number(row.revoked)===1));
         const history=await documentHistory(db,ctx,"order",order);
-        assert.ok(history.revisions.length>=4);
+        assert.equal(history.revisions.length,0);
       }
       assert.notEqual(orders[0],orders[1]);
       throw stop;
