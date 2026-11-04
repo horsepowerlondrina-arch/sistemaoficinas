@@ -421,15 +421,7 @@ export async function previewVehicleCatalogReview(
 ) {
   const limit = Math.max(1, Math.min(50, Math.trunc(input.limit || 20)));
   const offset = Math.max(0, Math.min(100000, Math.trunc(input.offset || 0)));
-  const page = await tenantRead(db, ctx, async () => {
-    const total = Number((await db.prepare("SELECT COUNT(*) n FROM vehicles WHERE tenant_id=?").get(ctx.tenantId))?.n || 0);
-    const rows = await db.prepare(
-      "SELECT v.*,c.name customer_name FROM vehicles v JOIN customers c ON c.id=v.customer_id AND c.tenant_id=v.tenant_id WHERE v.tenant_id=? ORDER BY v.plate,v.id LIMIT ? OFFSET ?",
-    ).all(ctx.tenantId, limit, offset);
-    return { total, rows };
-  });
-  const items = [];
-  for (const vehicle of page.rows) {
+  const assess = async (vehicle: Row) => {
     const nonEmpty = (value: unknown) => value !== null && value !== undefined && String(value).trim() !== "";
     const rawYear = vehicle.year === null || vehicle.year === undefined || String(vehicle.year).trim() === ""
       ? null
@@ -500,8 +492,29 @@ export async function previewVehicleCatalogReview(
     else if (match.status === "unavailable") status = "unavailable";
     else if (match.status === "not_identified" && input.plateLookupEnabled && !vehicle.fipe_code) status = "plate_lookup";
     else status = "not_identified";
-    items.push({ vehicle, status, data_quality, catalog_status, candidates: (match.candidates || []).slice(0, 5) });
+    return { vehicle, status, data_quality, catalog_status, candidates: (match.candidates || []).slice(0, 5) };
+  };
+  // Only a saved, valid catalog link can be considered confirmed. Evaluate those
+  // links first so filtering keeps the reported total and page boundaries accurate.
+  const linkedRows = await tenantRead(db, ctx, async () => db.prepare(
+    "SELECT * FROM vehicles WHERE tenant_id=? AND COALESCE(service_model_id,'')<>''",
+  ).all(ctx.tenantId));
+  const confirmedIds: string[] = [];
+  for (const vehicle of linkedRows) {
+    const item = await assess(vehicle);
+    if (item.data_quality === "complete" && item.catalog_status === "linked")
+      confirmedIds.push(String(vehicle.id));
   }
+  const excluded = confirmedIds.length ? ` AND v.id NOT IN (${confirmedIds.map(() => "?").join(",")})` : "";
+  const page = await tenantRead(db, ctx, async () => {
+    const total = Number((await db.prepare(`SELECT COUNT(*) n FROM vehicles v WHERE v.tenant_id=?${excluded}`).get(ctx.tenantId, ...confirmedIds))?.n || 0);
+    const rows = await db.prepare(
+      `SELECT v.*,c.name customer_name FROM vehicles v JOIN customers c ON c.id=v.customer_id AND c.tenant_id=v.tenant_id WHERE v.tenant_id=?${excluded} ORDER BY v.plate,v.id LIMIT ? OFFSET ?`,
+    ).all(ctx.tenantId, ...confirmedIds, limit, offset);
+    return { total, rows };
+  });
+  const items = [];
+  for (const vehicle of page.rows) items.push(await assess(vehicle));
   return { items, total: page.total, limit, offset, has_more: offset + items.length < page.total, dry_run: true };
 }
 export async function confirmVehicleModel(db: DB, ctx: Context, vehicle: { brand?: unknown }, modelId: string) {

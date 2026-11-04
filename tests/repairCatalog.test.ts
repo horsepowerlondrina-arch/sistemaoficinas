@@ -646,6 +646,34 @@ test("prévia paginada do catálogo é somente leitura e restrita à oficina aut
   } finally { f.db.close(); }
 });
 
+test("revisão omite apenas cadastro completo com vínculo confirmado e pagina os pendentes", async () => {
+  const f = fixture();
+  try {
+    f.db.prepare("UPDATE vehicles SET model='Modelo 1',service_model_id=?,service_link_mode='manual' WHERE tenant_id='a' AND id='v'").run(f.model);
+    f.db.prepare("INSERT INTO vehicles(id,tenant_id,customer_id,plate,brand,model,year,service_model_id,service_link_mode) VALUES('incomplete-linked','a','c','ABC1D24','','Modelo 1',2020,?,'manual')").run(f.model);
+    f.db.prepare("INSERT INTO vehicles(id,tenant_id,customer_id,plate,brand,model,year,service_model_id) VALUES('mismatched-linked','a','c','ABC1D25','Outra marca','Modelo 1',2020,?)").run(f.model);
+    f.db.prepare("INSERT INTO vehicles(id,tenant_id,customer_id,plate,brand,model,year) VALUES('unlinked','a','c','ABC1D26','Marca','Modelo 2',2020)").run();
+    f.db.prepare("INSERT INTO customers(id,tenant_id,name) VALUES('cb','b','Cliente B')").run();
+    f.db.prepare("INSERT INTO vehicles(id,tenant_id,customer_id,plate,brand,model,year,service_model_id,service_link_mode) VALUES('other-tenant','b','cb','ABC1D27','Marca','Modelo 1',2020,?,'manual')").run(f.model);
+    const first = await previewVehicleCatalogReview(f.db, ctx, { limit: 1 });
+    const second = await previewVehicleCatalogReview(f.db, ctx, { limit: 1, offset: 1 });
+    const third = await previewVehicleCatalogReview(f.db, ctx, { limit: 1, offset: 2 });
+    assert.equal(first.total, 3);
+    assert.equal(first.has_more, true);
+    assert.equal(second.total, 3);
+    assert.equal(third.has_more, false);
+    const items = [...first.items, ...second.items, ...third.items];
+    assert.deepEqual(new Set(items.map(item => item.vehicle.id)), new Set(['incomplete-linked','mismatched-linked','unlinked']));
+    assert.equal(items.find(item => item.vehicle.id === 'incomplete-linked')?.data_quality, 'incomplete');
+    assert.equal(items.find(item => item.vehicle.id === 'mismatched-linked')?.catalog_status, 'inconsistent');
+    f.db.prepare("UPDATE service_catalog.tenant_access SET enabled=1 WHERE tenant_id='b'").run();
+    const other = await previewVehicleCatalogReview(f.db, { ...ctx, tenantId: 'b' });
+    assert.equal(other.total, 0);
+    assert.equal(other.items.length, 0);
+    assert.equal(f.db.prepare("SELECT service_model_id FROM vehicles WHERE id='v'").get()?.service_model_id, f.model);
+  } finally { f.db.close(); }
+});
+
 test("vehicleOnly nunca dispara pesquisa de serviços ou exige categoria de cobrança", () => {
   assert.equal(shouldLoadRepairServiceSearch("manual", true, "", false), false);
   assert.equal(shouldLoadRepairServiceSearch("catalog", true, "modelo", true), false);
@@ -807,7 +835,8 @@ test("CAD-005: associação manual independente da FIPE é preservada e ausênci
     assert.equal(match.status, "linked");
     assert.equal(match.model?.id, f.model);
     const preview = await previewVehicleCatalogReview(f.db, ctx, {});
-    assert.equal(preview.items[0].catalog_status, "linked");
+    assert.equal(preview.total, 0);
+    assert.equal(preview.items.length, 0);
     await saveOrder(f.db, ctx, { status: "quote", customer_id: "c", new_vehicle: { plate: "CAD0A05", brand: "Marca", model: "Modelo 2", year: 2020, service_model_id: null }, entered_on: "2026-10-30", due_on: "2026-10-30", km: 0, discount: 0, notes: "", problem: "", items: [] });
     assert.equal(f.db.prepare("SELECT service_model_id FROM vehicles WHERE plate='CAD0A05'").get()?.service_model_id, "");
   } finally { f.db.close(); }
