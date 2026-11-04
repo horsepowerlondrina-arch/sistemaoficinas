@@ -6,9 +6,13 @@ await db.connect();
 try {
   await db.query("BEGIN");
   if (process.argv[2] === "setup") {
+    await db.query(`INSERT INTO platform_admin.workshops
+      (tenant_id,source,name,responsible_name,responsible_email,status,email_verified_at,trial_started_at,trial_ends_at)
+      VALUES('local-a','admin','Oficina Fictícia A','Responsável Fictício','cad005@local.test','trial',now(),now(),now()+interval '14 days')`);
     await db.query("INSERT INTO horse_power.vehicles(id,tenant_id,customer_id,plate,brand,model,year,fipe_model,model_year,fuel) VALUES('cad005-visual-vehicle','local-a','local-a-customer','CAD0A05','Marca Fictícia','Modelo legado',2020,'Modelo FIPE Fictício 1.0 Flex',2021,'Flex')");
     await db.query("INSERT INTO horse_power.orders(id,tenant_id,number,kind,status,customer_id,vehicle_id,entered_on,due_on,km,problem) VALUES('cad005-visual-order','local-a',(SELECT COALESCE(MAX(number),0)+1 FROM horse_power.orders WHERE tenant_id='local-a'),'quote','quote','local-a-customer','local-a-vehicle','2026-10-30','2026-10-30',10000,'Relato fictício preservado')");
   } else if (process.argv[2] === "cleanup") {
+    await db.query("DELETE FROM platform_admin.workshops WHERE tenant_id='local-a' AND responsible_email='cad005@local.test'");
     await db.query("DELETE FROM horse_power.order_items WHERE tenant_id='local-a' AND order_id='cad005-visual-order'");
     await db.query("DELETE FROM horse_power.orders WHERE tenant_id='local-a' AND id='cad005-visual-order'");
     await db.query("DELETE FROM horse_power.vehicles WHERE tenant_id='local-a' AND id='cad005-visual-vehicle'");
