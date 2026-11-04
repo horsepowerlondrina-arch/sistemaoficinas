@@ -49,6 +49,8 @@ test("PostgreSQL local: autenticação, oficinas, transações e RLS do catálog
   });
   const credentialsPath=process.env.LOCAL_TEST_CREDENTIALS_FILE || "data/local-credentials.json";
   const credentials=JSON.parse(readFileSync(credentialsPath,"utf8"));
+  const catalogRead = <T>(tenant: string, callback: () => Promise<T>) =>
+    db.withRequestContext!({"app.tenant_id": tenant, "app.user_id": tenant === "local-a" ? "local-owner-a" : "local-owner-b"}, callback, () => false);
   await t.test("migração de serviços próprios preserva isolamento e impede nomes duplicados normalizados", async () => {
     const { adminClient } = await import("../scripts/local-admin");
     const admin = adminClient(); await admin.connect();
@@ -128,12 +130,12 @@ test("PostgreSQL local: autenticação, oficinas, transações e RLS do catálog
   });
   await t.test("catálogo sem contexto não é visível; autorização da oficina é obrigatória",async()=>{
     assert.equal((await db.prepare("SELECT * FROM service_catalog.models").all()).length,0);
-    assert.equal(await db.withTenantRead("local-a",async()=>(await db.prepare("SELECT count(*) n FROM service_catalog.models").get() as any).n),expectedCatalogModels);
-    assert.equal(await db.withTenantRead("local-b",async()=>(await db.prepare("SELECT * FROM service_catalog.models").all()).length),0);
+    assert.equal(await catalogRead("local-a",async()=>(await db.prepare("SELECT count(*) n FROM service_catalog.models").get() as any).n),expectedCatalogModels);
+    assert.equal(await catalogRead("local-b",async()=>(await db.prepare("SELECT * FROM service_catalog.models").all()).length),0);
     assert.equal((await db.prepare("SELECT * FROM service_catalog.models").all()).length,0);
-    await assert.rejects(db.withTenantRead("local-a",async()=>{throw new Error("rollback contexto");}));
+    await assert.rejects(catalogRead("local-a",async()=>{throw new Error("rollback contexto");}));
     assert.equal((await db.prepare("SELECT * FROM service_catalog.models").all()).length,0);
-    const parallel=await Promise.all(["local-a","local-b","local-a","local-b"].map(tenant=>db.withTenantRead(tenant,async()=>(await db.prepare("SELECT count(*) n FROM service_catalog.models").get() as any).n)));
+    const parallel=await Promise.all(["local-a","local-b","local-a","local-b"].map(tenant=>catalogRead(tenant,async()=>(await db.prepare("SELECT count(*) n FROM service_catalog.models").get() as any).n)));
     assert.deepEqual(parallel,[expectedCatalogModels,0,expectedCatalogModels,0]);
   });
   await t.test("runtime não pode alterar catálogo nem se autoliberar",async()=>{
@@ -176,25 +178,26 @@ test("PostgreSQL local: autenticação, oficinas, transações e RLS do catálog
     const ctx={tenantId:"local-a",userId:"local-owner-a",role:"owner"};
     let model: string, serviceId: string, serviceQuery: string;
     if(process.env.CATALOG_EXPECT_FULL === "1"){
-      const example=await db.withTenantRead("local-a",async()=>db.prepare(`SELECT m.id,m.name,m.brand_id,b.name brand,s.service_id,s.service_name FROM service_catalog.models m
+      const example=await catalogRead("local-a",async()=>db.prepare(`SELECT m.id,m.name,m.brand_id,b.name brand,s.service_id,s.service_name FROM service_catalog.models m
         JOIN service_catalog.brands b ON b.id=m.brand_id JOIN service_catalog.model_services s ON s.model_id=m.id
         WHERE s.minutes>0 ORDER BY m.id,s.service_id LIMIT 1`).get() as any);
-      const models=await searchModels(db,ctx,{brand_id:example.brand_id,q:example.name});
+      const models=await catalogRead("local-a",()=>searchModels(db,ctx,{brand_id:example.brand_id,q:example.name}));
       const selected=models.items.find(item=>item.id===example.id);
       assert.ok(selected);
       model=selected.id;serviceId=example.service_id;serviceQuery=example.service_name;
     } else {
-      const example=await db.withTenantRead("local-a",async()=>db.prepare("SELECT brand_id FROM service_catalog.models WHERE name=? ORDER BY id LIMIT 1").get("Modelo Fictício") as any);
-      const models=await searchModels(db,ctx,{brand_id:example.brand_id,q:"ficticio"});
+      const example=await catalogRead("local-a",async()=>db.prepare("SELECT brand_id FROM service_catalog.models WHERE name=? ORDER BY id LIMIT 1").get("Modelo Fictício") as any);
+      const models=await catalogRead("local-a",()=>searchModels(db,ctx,{brand_id:example.brand_id,q:"ficticio"}));
       assert.equal(models.items.length,1);
       assert.equal(models.items[0].commercial_category_id,"compacto");
       model=models.items[0].id;serviceId="";serviceQuery="inspecao";
     }
-    const services=await searchRepairServices(db,ctx,model,{q:serviceQuery});
+    const services=await catalogRead("local-a",()=>searchRepairServices(db,ctx,model,{q:serviceQuery}));
     const service=serviceId ? services.items.find(item=>item.service_id===serviceId) : services.items[0];
     assert.ok(service);
     const stop=new Error("rollback fixture OS");
     await assert.rejects(db.transaction(async()=>{
+       await db.prepare("SELECT set_config('app.user_id',?,true)").get(ctx.userId);
        await db.withTenantRead("local-a",async()=>db.prepare("INSERT INTO labor_commercial_rates(tenant_id,category_id,hourly_rate) VALUES('local-a','compacto',12000) ON CONFLICT(tenant_id,category_id) DO UPDATE SET hourly_rate=excluded.hourly_rate").run());
       const id=await saveOrder(db,ctx,{status:"quote",customer_id:"local-a-customer",vehicle_id:"local-a-vehicle",service_model_id:model,entered_on:"2026-10-20",due_on:"2026-10-20",km:0,discount:0,notes:"",problem:"",
         items:[{repair_service_id:service.service_id,repair_model_id:model,price:6000,quantity:1}]});
@@ -420,7 +423,7 @@ test("PostgreSQL local: autenticação, oficinas, transações e RLS do catálog
         await admin.end();
       }
     });
-    const sample=await db.withTenantRead("local-a",async()=>db.prepare(`SELECT m.id,m.name,b.name brand,m.fipe_code FROM service_catalog.models m JOIN service_catalog.brands b ON b.id=m.brand_id
+    const sample=await catalogRead("local-a",async()=>db.prepare(`SELECT m.id,m.name,b.name brand,m.fipe_code FROM service_catalog.models m JOIN service_catalog.brands b ON b.id=m.brand_id
       WHERE m.complete=1 AND NOT EXISTS(SELECT 1 FROM service_catalog.models x WHERE x.brand_id=m.brand_id AND x.name=m.name AND x.id<>m.id)
       AND (COALESCE(m.fipe_code,'')='' OR (SELECT count(*) FROM service_catalog.models x WHERE x.brand_id=m.brand_id AND x.fipe_code=m.fipe_code)=1)
       ORDER BY m.id LIMIT 1`).get() as any);
@@ -555,7 +558,7 @@ test("PostgreSQL local: autenticação, oficinas, transações e RLS do catálog
         await new Promise<void>(resolve=>guardedServer.close(()=>resolve()));
       }
 
-      const serviceExample=await db.withTenantRead("local-a",async()=>db.prepare(
+      const serviceExample=await catalogRead("local-a",async()=>db.prepare(
         "SELECT service_id FROM service_catalog.model_services WHERE model_id=? AND minutes>0 ORDER BY service_id LIMIT 1"
       ).get(sample.id) as any);
       if(serviceExample){
