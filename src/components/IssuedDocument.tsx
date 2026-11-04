@@ -155,11 +155,11 @@ export function IssuedDocumentActions({ includeShare = true }: { includeShare?: 
 }
 
 export function IssuedDocumentPreview() {
-  const { kind, payload } = useIssuedDocument();
+  const { kind, payload, history } = useIssuedDocument();
   if (!payload) return null;
   return (
     <div className="issued-document">
-      {payload.revision > 0 && <div className="print-only document-revision-label">
+      {payload.revision > 0 && (kind !== "order" || history.legacy) && <div className="print-only document-revision-label">
         Revisão {payload.revision} · Emitido em {new Date(payload.issued_at).toLocaleString("pt-BR")}
         {payload.reissued_legacy ? " · Nova emissão de registro legado" : ""}
       </div>}
