@@ -1232,7 +1232,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
       const match = await identifyVehicleModel(db, ctx, vehicle);
       if (match.status === "matched") { selectedModel = match.model; vehicle.service_model_id = match.model.id; }
     }
-    if (selectedModel) { vehicle.model = String(selectedModel.name); vehicle.fipe_model = String(selectedModel.name); vehicle.fipe_code = String(selectedModel.fipe_code || vehicle.fipe_code || ""); }
+    if (selectedModel) { vehicle.model = String(selectedModel.name); vehicle.fipe_model = String(selectedModel.name); vehicle.fipe_code = String(vehicle.fipe_code || selectedModel.fipe_code || ""); }
     (vehicle as any).service_porte_id = selectedModel?.porte_id || "";
     (vehicle as any).service_link_mode = req.body.vehicle?.service_model_id ? "manual" : selectedModel ? "auto" : "none";
     // The legacy database stores an absent technical association as an empty string.
@@ -1424,7 +1424,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
             const match = await identifyVehicleModel(db, ctx, input);
             if (match.status === "matched") { selectedModel = match.model; input.service_model_id = match.model.id; }
           }
-          if (selectedModel) { input.model = String(selectedModel.name); input.fipe_model = String(selectedModel.name); input.fipe_code = String(selectedModel.fipe_code || input.fipe_code || ""); }
+          if (selectedModel) { input.model = String(selectedModel.name); input.fipe_model = String(selectedModel.name); input.fipe_code = String(input.fipe_code || selectedModel.fipe_code || ""); }
           input.service_porte_id = selectedModel?.porte_id || (input.service_model_id && input.service_model_id === old?.service_model_id ? old?.service_porte_id || "" : "");
           if (explicitModel && !input.service_model_id) input.service_porte_id = "";
           input.service_link_mode = explicitModel && (input.service_model_id !== old?.service_model_id || input.service_link_mode === "manual")
