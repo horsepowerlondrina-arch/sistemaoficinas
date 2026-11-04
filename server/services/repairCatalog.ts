@@ -248,7 +248,7 @@ const registrationInput = z.object({
   brand: z.string().trim().max(150).default(""),
   model: z.string().trim().max(300).default(""),
   search: z.string().trim().max(100).default(""),
-  selected_model_id: uuid.nullish(),
+  selected_model_id: z.string().trim().max(80).nullish(),
   fipe_codes: z.array(z.string().regex(/^\d{6}-\d$/)).max(30).default([]),
 });
 export async function registrationVehicleModels(db: DB, ctx: Context, input: unknown) {
@@ -260,7 +260,7 @@ export async function registrationVehicleModels(db: DB, ctx: Context, input: unk
   if (!search && !codes.length && !value.selected_model_id && (!value.brand || vehicleSearchKey(value.model).length < 3))
     return { status: "not_identified" as const, options: [] };
   const rows = await tenantRead(db, ctx, async () => {
-    const selected = !search && value.selected_model_id
+    const selected = !search && uuid.safeParse(value.selected_model_id).success
       ? await db.prepare("SELECT m.id,m.name,m.fipe_code,b.name brand FROM service_catalog.models m JOIN service_catalog.brands b ON b.id=m.brand_id WHERE m.id=?").get(value.selected_model_id)
       : undefined;
     const addSelected = (items: Row[]) => selected && registrationBrandCompatible(value.brand, selected.brand) && !items.some((item) => item.id === selected.id)
