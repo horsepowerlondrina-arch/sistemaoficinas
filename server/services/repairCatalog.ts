@@ -248,6 +248,7 @@ const registrationInput = z.object({
   brand: z.string().trim().max(150).default(""),
   model: z.string().trim().max(300).default(""),
   search: z.string().trim().max(100).default(""),
+  selected_model_id: uuid.nullish(),
   fipe_codes: z.array(z.string().regex(/^\d{6}-\d$/)).max(30).default([]),
 });
 export async function registrationVehicleModels(db: DB, ctx: Context, input: unknown) {
@@ -259,6 +260,12 @@ export async function registrationVehicleModels(db: DB, ctx: Context, input: unk
   if (!search && !codes.length && (!value.brand || vehicleSearchKey(value.model).length < 3))
     return { status: "not_identified" as const, options: [] };
   const rows = await tenantRead(db, ctx, async () => {
+    const selected = !search && value.selected_model_id
+      ? await db.prepare("SELECT m.id,m.name,m.fipe_code,b.name brand FROM service_catalog.models m JOIN service_catalog.brands b ON b.id=m.brand_id WHERE m.id=?").get(value.selected_model_id)
+      : undefined;
+    const addSelected = (items: Row[]) => selected && registrationBrandCompatible(value.brand, selected.brand) && !items.some((item) => item.id === selected.id)
+      ? [...items, selected]
+      : items;
     if (search) {
       const brand = registrationBrandKey(value.brand).split(" ").filter(Boolean).join("%");
       return db.prepare(
@@ -269,14 +276,14 @@ export async function registrationVehicleModels(db: DB, ctx: Context, input: unk
       const exact = await db.prepare(
       "SELECT m.id,m.name,m.fipe_code,b.name brand FROM service_catalog.models m JOIN service_catalog.brands b ON b.id=m.brand_id WHERE m.fipe_code IN (" + codes.map(() => "?").join(",") + ") ORDER BY m.name,m.id LIMIT 51"
       ).all(...codes);
-      if (exact.length) return exact;
+      if (exact.length) return addSelected(exact);
     }
     const family = vehicleSearchKey(value.model).split(" ")[0];
-    if (family.length < 3 || !value.brand) return [] as Row[];
+    if (family.length < 3 || !value.brand) return addSelected([]);
     const brand = registrationBrandKey(value.brand).split(" ").filter(Boolean).join("%");
-    return db.prepare(
+    return addSelected(await db.prepare(
       "SELECT m.id,m.name,m.fipe_code,b.name brand FROM service_catalog.models m JOIN service_catalog.brands b ON b.id=m.brand_id WHERE " + searchColumn("b.name") + " LIKE ? AND " + searchColumn("m.name") + " LIKE ? ORDER BY m.name,m.id LIMIT 51"
-    ).all("%" + brand + "%", "%" + family + "%");
+    ).all("%" + brand + "%", "%" + family + "%"));
   }).catch((error) => {
     if (/no such table/.test(String(error)) || (error as { code?: string }).code === "42P01") return [] as Row[];
     throw error;
