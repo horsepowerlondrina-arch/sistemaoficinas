@@ -40,6 +40,17 @@ test("PostgreSQL: planos, teste Premium, exceções, limites e isolamento", asyn
     assert.equal(state.max_users,null,"oficina existente não recebe limite antes da atribuição");
     assert.equal(state.modules.finance,true,"acesso legado é preservado");
     state = await assign("basic");
+    const visibleBrands = async () => {
+      await db.query("SELECT set_config('app.tenant_id',$1,true),set_config('app.user_id',$2,true)",[tenant,users[0]]);
+      await db.query("SET LOCAL ROLE hp_local_app");
+      const count=(await db.query("SELECT count(*)::int AS total FROM service_catalog.brands")).rows[0].total as number;
+      await db.query("RESET ROLE");
+      return count;
+    };
+    assert.equal(await visibleBrands(),0,"Básico não pode ler marcas do catálogo");
+    await db.query("INSERT INTO service_catalog.tenant_access(tenant_id,enabled,grant_reason) VALUES($1,true,'Licença legada fictícia')",[tenant]);
+    assert.equal(await visibleBrands(),0,"licença legada não libera catálogo no Básico");
+    await db.query("DELETE FROM service_catalog.tenant_access WHERE tenant_id=$1",[tenant]);
     assert.equal(state.plan_code,"basic");
     assert.equal(state.max_users,2);
     assert.equal(state.modules.orders,true);
@@ -58,6 +69,8 @@ test("PostgreSQL: planos, teste Premium, exceções, limites e isolamento", asyn
     state = await assign("premium");
     assert.equal(state.max_users,10);
     assert.equal(state.modules.technical_catalog,true);
+    assert.equal((await db.query("SELECT count(*)::int AS total FROM service_catalog.tenant_access WHERE tenant_id=$1",[tenant])).rows[0].total,0);
+    assert.ok(await visibleBrands()>0,"Premium lê marcas sem licença separada");
     await db.query("SELECT set_config('app.tenant_id',$1,true),set_config('app.user_id',$2,true)",[tenant,users[0]]);
     await db.query("SET LOCAL ROLE hp_local_app");
     assert.equal((await db.query("SELECT horse_power.local_tenant_catalog_included($1) AS included",[tenant])).rows[0].included,true);
@@ -89,11 +102,13 @@ test("PostgreSQL: planos, teste Premium, exceções, limites e isolamento", asyn
     assert.equal(state.effective_plan_code,"premium");
     assert.equal(state.max_users,10);
     assert.equal(state.modules.technical_catalog,true);
+    assert.ok(await visibleBrands()>0,"teste Premium lê marcas");
     await db.query("UPDATE platform_admin.workshops SET trial_started_at=now()-interval '15 days' WHERE tenant_id=$1",[tenant]);
     state=await status();
     assert.equal(state.trial_active,false);
     assert.equal(state.effective_plan_code,"basic");
     assert.equal(state.modules.technical_catalog,false);
+    assert.equal(await visibleBrands(),0,"teste expirado não lê marcas");
 
     await db.query("SELECT set_config('app.tenant_id',$1,true),set_config('app.user_id',$2,true)",[tenant,users[0]]);
     await db.query("SET LOCAL ROLE hp_local_app");
