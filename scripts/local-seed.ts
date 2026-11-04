@@ -37,6 +37,9 @@ try {
     await client.query("INSERT INTO service_catalog.repair_times VALUES($1,$2,NULL,$3,'Inspeção Fictícia',30,'local-demo')",[id(6),id(3),id(4)]);
     await client.query("INSERT INTO service_catalog.releases(version,status,source_sha256,model_count,time_count,application_count,validated_at) VALUES('local-ficticio','active','synthetic',1,1,1,now())");
   }
+  await client.query(`INSERT INTO platform_admin.workshops
+    (tenant_id,source,name,responsible_name,responsible_email,status,email_verified_at,plan_code,plan_policy_activated_at)
+    VALUES('local-a','admin','Oficina Fictícia A','Responsável Fictício','oficina-a@example.test','active',now(),'premium',now())`);
   await client.query("INSERT INTO service_catalog.tenant_access(tenant_id,enabled,grant_reason) VALUES('local-a',true,'Fixture local fictícia'),('local-b',false,'Fixture sem liberação')");
   await client.query("INSERT INTO horse_power.labor_commercial_rates(tenant_id,category_id,hourly_rate) VALUES('local-a','compacto',12000)");
   // Write before COMMIT: failure to persist credentials rolls back all inserts.
