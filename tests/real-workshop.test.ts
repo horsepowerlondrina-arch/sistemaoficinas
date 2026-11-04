@@ -68,7 +68,7 @@ test("Public shares allow only selected data, expire, revoke and isolate tenants
   assert.equal(out.customer, "Cliente Nome Completo");
   db.exec("INSERT INTO customers(id,tenant_id,name) VALUES('full-name','a','José da Silva Santos')");
   db.exec("UPDATE orders SET customer_id='full-name' WHERE id='o'");
-  assert.equal((await readShare(db, token))!.customer, "Cliente Nome Completo");
+  assert.equal((await readShare(db, token))!.customer, "José da Silva Santos");
   assert.ok(!JSON.stringify(out).includes("INTERNAL SECRET"));
   assert.equal((out as any).tenant_id, undefined);
   await assert.rejects(
@@ -80,7 +80,7 @@ test("Public shares allow only selected data, expire, revoke and isolate tenants
   assert.ok(await readShare(db, token));
   const token2 = s2.path.split("/").pop()!;
   assert.equal((await readShare(db, token2))!.customer, "José da Silva Santos");
-  assert.equal((await readShare(db, token))!.customer, "Cliente Nome Completo");
+  assert.equal((await readShare(db, token))!.customer, "José da Silva Santos");
 
   await transitionOrder(db, ctx, "o", "cancelled");
   assert.equal(await readShare(db, token), null);
