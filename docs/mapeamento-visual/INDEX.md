@@ -468,19 +468,35 @@ Saldos e movimentações de produtos.
 
 ### Saldos de estoque
 
-Nenhum produto em estoque na demonstração.
+Saldos, limite de reposição e tabela enquadrada com produto fictício.
 
 [![Saldos de estoque](./capturas/10-estoque/saldos.png)](./capturas/10-estoque/saldos.png)
 
-Estado: capturada · mobile · captura 2026-10-22 · commit de origem: não registrado · [arquivo completo](./capturas/10-estoque/saldos.png)
+Estado: capturada · mobile · captura 2026-11-03 · commit de origem: 0b8378ee0f8407a4a0310217798d951edc218dc2 · [arquivo completo](./capturas/10-estoque/saldos.png)
 
 ### Movimentações de estoque
 
-Nenhuma movimentação registrada na demonstração.
+Histórico de movimentações em tabela enquadrada com dados fictícios.
 
 [![Movimentações de estoque](./capturas/10-estoque/movimentacoes.png)](./capturas/10-estoque/movimentacoes.png)
 
-Estado: capturada · mobile · captura 2026-10-22 · commit de origem: não registrado · [arquivo completo](./capturas/10-estoque/movimentacoes.png)
+Estado: capturada · mobile · captura 2026-11-03 · commit de origem: 0b8378ee0f8407a4a0310217798d951edc218dc2 · [arquivo completo](./capturas/10-estoque/movimentacoes.png)
+
+### Saldos de estoque
+
+Saldos, limite de reposição e tabela enquadrada com produto fictício.
+
+[![Saldos de estoque](./capturas/10-estoque/saldos-desktop.png)](./capturas/10-estoque/saldos-desktop.png)
+
+Estado: capturada · desktop · captura 2026-11-03 · commit de origem: 0b8378ee0f8407a4a0310217798d951edc218dc2 · [arquivo completo](./capturas/10-estoque/saldos-desktop.png)
+
+### Movimentações de estoque
+
+Histórico de movimentações em tabela enquadrada com dados fictícios.
+
+[![Movimentações de estoque](./capturas/10-estoque/movimentacoes-desktop.png)](./capturas/10-estoque/movimentacoes-desktop.png)
+
+Estado: capturada · desktop · captura 2026-11-03 · commit de origem: 0b8378ee0f8407a4a0310217798d951edc218dc2 · [arquivo completo](./capturas/10-estoque/movimentacoes-desktop.png)
 
 ## 11 — Fornecedores
 

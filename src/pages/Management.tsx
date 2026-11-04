@@ -1,4 +1,3 @@
-import { horsePowerExtensionEnabled } from "../../shared/horsePowerExtension";
 import { CardMachines, InstallmentInterestSettings } from "../components/CardMachines";
 import { workshopDate } from "../lib/workflow";
 import { NumericInput } from "../components/NumericInput";
@@ -6,10 +5,10 @@ import { PartsPricing } from "./PartsPricing";
 import { LaborRates } from '../components/RepairServicePicker';
 import { WorkshopProfile } from "../components/WorkshopProfile";
 import { AccountSettings } from "../components/AccountSettings";
-import { RegisterModal } from "./Registers";
-import { CapturePanel } from "../components/CapturePanel";
 import { StockEntry } from "../components/StockEntry";
 import { StockInvoiceImport } from "../components/StockInvoiceImport";
+import { horsePowerExtensionEnabled } from "../../shared/horsePowerExtension";
+import { needsReplenishment } from "../../shared/stockThreshold";
 import { useState, useEffect } from "react";
 import { useUnsavedSettings } from "../lib/useUnsavedSettings";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -39,10 +38,8 @@ import {
   Badge,
 } from "../components/ui";
 export function Stock() {
-  const { data, session, refresh, notify } = useApp();
+  const { data, refresh, notify } = useApp();
   const [params] = useSearchParams();
-  const [adding, setAdding] = useState(false),
-    [capture, setCapture] = useState(false);
   const [entry, setEntry] = useState<Entity | null | undefined>(undefined);
   const [invoiceOpen, setInvoiceOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -56,7 +53,7 @@ export function Stock() {
   const products = data.catalog.filter((c) => c.kind === "product" && c.active);
   const rows = products.filter(
     (c) =>
-      (!low || (c.stock_verified !== 0 && c.stock <= c.minimum_stock)) &&
+      (!low || needsReplenishment(c)) &&
       `${c.name} ${c.sku}`.toLowerCase().includes(search.toLowerCase()),
   );
   const adjust = async (e: React.FormEvent) => {
@@ -82,12 +79,6 @@ export function Stock() {
         actions={
           <>
             <button className="button" onClick={() => setInvoiceOpen(true)}>Importar nota fiscal</button>
-            {horsePowerExtensionEnabled(session.tenant.id) && <button className="button" onClick={() => setCapture(true)}>
-              Importar do Sky
-            </button>}
-            <button className="button" onClick={() => setAdding(true)}>
-              Novo produto
-            </button>
             <button className="button primary" onClick={() => setEntry(null)}>
               Entrada em estoque
             </button>
@@ -111,15 +102,13 @@ export function Stock() {
         <Stat
           label="Precisam de reposição"
           value={
-            products.filter(
-              (p) => p.stock_verified !== 0 && p.stock <= p.minimum_stock,
-            ).length
+            products.filter(needsReplenishment).length
           }
-          detail="Produtos no estoque mínimo ou abaixo"
+          detail="Somente produtos com estoque mínimo de 1 ou mais"
           icon={<Clock3 size={18} />}
         />
       </div>
-      <section className="panel">
+      <section className="panel stock-panel">
         <div className="tabs">
           <button
             className={tab === "balance" ? "active" : ""}
@@ -153,8 +142,9 @@ export function Stock() {
         </div>
         {tab === "balance" ? (
           rows.length ? (
-            <div className="table-scroll">
-              <table>
+            <div className="table-scroll stock-table-scroll" role="region" aria-label="Saldos de estoque" tabIndex={0}>
+              <table className="stock-balance-table">
+                <colgroup><col className="stock-col-product" /><col className="stock-col-reference" /><col className="stock-col-available" /><col className="stock-col-minimum" /><col className="stock-col-prices" /><col className="stock-col-value" /><col className="stock-col-action" /></colgroup>
                 <thead>
                   <tr>
                     <th>Produto</th>
@@ -177,7 +167,7 @@ export function Stock() {
                       <td>
                         <span
                           className={
-                            p.stock <= p.minimum_stock ? "low-stock" : ""
+                            needsReplenishment(p) ? "low-stock" : ""
                           }
                         >
                           {p.stock_verified === 0
@@ -185,7 +175,7 @@ export function Stock() {
                             : `${p.stock} un.`}
                         </span>
                       </td>
-                      <td>{p.minimum_stock} un.</td>
+                      <td>{p.minimum_stock > 0 ? `${p.minimum_stock} un.` : "Sob demanda"}</td>
                       <td>
                         {money(p.cost)} / {money(p.price)}
                         <small>Ganho bruto: {money(p.price - p.cost)}</small>
@@ -214,11 +204,11 @@ export function Stock() {
               </table>
             </div>
           ) : (
-            <Empty />
+            <Empty title={low ? "Nenhum produto precisa de reposição" : "Nenhum produto encontrado"} description={low ? "Produtos com estoque mínimo igual a zero não geram alerta." : "Tente outro termo de pesquisa ou cadastre produtos na área Produtos."} />
           )
         ) : (
-          <div className="table-scroll">
-            <table>
+          <div className="table-scroll stock-table-scroll" role="region" aria-label="Movimentações de estoque" tabIndex={0}>
+            <table className="stock-history-table">
               <thead>
                 <tr>
                   <th>Movimento</th>
@@ -265,33 +255,11 @@ export function Stock() {
             : "Movimentações registradas com responsável e origem"}
         </div>
       </section>
-      {adding && (
-        <RegisterModal
-          kind="catalog"
-          initial={{ kind: "product" }}
-          record={null}
-          onClose={() => setAdding(false)}
-        />
-      )}
       {invoiceOpen && <StockInvoiceImport onClose={() => setInvoiceOpen(false)} />}
       {entry !== undefined && (
         <StockEntry
           initial={entry || undefined}
           onClose={() => setEntry(undefined)}
-        />
-      )}
-      {capture && horsePowerExtensionEnabled(session.tenant.id) && (
-        <CapturePanel
-          catalog
-          source="sky"
-          onClose={async (items) => {
-            await refresh();
-            setCapture(false);
-            if (items.length)
-              notify(
-                "Produtos importados. Use Entrada em estoque para confirmar as quantidades recebidas.",
-              );
-          }}
         />
       )}
       {editing && (

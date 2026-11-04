@@ -170,11 +170,43 @@ try {
     await captureSettings(page, entry);
     await captureCad005(page, entry);
     if (entry.route === "/catalogo") await captureProducts(page, entry);
+    let stockRoute;
+    if (entry.module === "10-estoque" && entry.image) {
+      const workspaceUrl = new URL("/api/workspace", page.url()).toString();
+      const workspaceResponse = await page.request.get(workspaceUrl);
+      expect(workspaceResponse.ok()).toBeTruthy();
+      const workspace = await workspaceResponse.json();
+      const stockFixture = {
+        id: "visual-stock-product", kind: "product", active: 1,
+        name: "Filtro de óleo fictício para motores flex", sku: "FILTRO-FICTICIO-123",
+        category: "Filtros", cost: 8050, price: 12590, stock: 1, minimum_stock: 2,
+        cost_known: 1, stock_verified: 1,
+      };
+      stockRoute = async route => route.fulfill({ json: { ...workspace, catalog: [...workspace.catalog, stockFixture] } });
+      await page.route("**/api/workspace", stockRoute);
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(page.getByRole("heading", { name: "Estoque", exact: true })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Importar nota fiscal" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Entrada em estoque" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Importar do Sky" })).toHaveCount(0);
+      await expect(page.getByRole("button", { name: "Novo produto" })).toHaveCount(0);
+      if (entry.id.includes("movimentacoes")) {
+        await page.getByRole("button", { name: "Movimentações", exact: true }).click();
+      }
+      const stockRegion = page.getByRole("region", { name: entry.id.includes("movimentacoes") ? "Movimentações de estoque" : "Saldos de estoque" });
+      await expect(stockRegion).toBeVisible();
+      await expect.poll(() => stockRegion.evaluate((element) => element.getBoundingClientRect().right <= window.innerWidth)).toBe(true);
+      if (!entry.id.includes("movimentacoes")) {
+        await expect(stockRegion.getByText("Filtro de óleo fictício para motores flex")).toBeVisible();
+        await expect(stockRegion.getByText("2 un.")).toBeVisible();
+      }
+    }
     await page.waitForTimeout(300);
     const path = outputFor(entry);
     mkdirSync(dirname(path), { recursive: true });
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({ path, fullPage: !(entry.id.startsWith("cad005-") && /register|review/.test(entry.id)), animations: "disabled" });
+    if (stockRoute) await page.unroute("**/api/workspace", stockRoute);
     return path;
   };
   let captures = 0;

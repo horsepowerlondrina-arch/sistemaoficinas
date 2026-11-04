@@ -5321,3 +5321,29 @@ body {
 .card-machine-choice { grid-column: 1 / -1; display: grid; gap: 12px; min-width: 0; }
 .card-machine-choice > .button { justify-self: start; }
 
+
+/* Keep the stock tables inside their panel while allowing horizontal reading on small screens. */
+.stock-panel { max-width: 100%; min-width: 0; }
+.stock-panel .stock-table-scroll { max-width: 100%; overflow-x: auto; }
+.stock-panel .stock-table-scroll:focus-visible { outline: 2px solid var(--red); outline-offset: -2px; }
+.stock-balance-table { table-layout: fixed; min-width: 960px; white-space: normal; }
+.stock-balance-table .stock-col-product { width: 22%; }
+.stock-balance-table .stock-col-reference { width: 14%; }
+.stock-balance-table .stock-col-available { width: 10%; }
+.stock-balance-table .stock-col-minimum { width: 9%; }
+.stock-balance-table .stock-col-prices { width: 18%; }
+.stock-balance-table .stock-col-value { width: 12%; }
+.stock-balance-table .stock-col-action { width: 15%; }
+.stock-balance-table th, .stock-balance-table td,
+.stock-history-table th, .stock-history-table td { padding: 14px 12px; vertical-align: middle; }
+.stock-balance-table td:nth-child(-n+2),
+.stock-history-table td:nth-child(2),
+.stock-history-table td:nth-child(4) { overflow-wrap: anywhere; }
+.stock-balance-table td:nth-child(7) .button { max-width: 100%; white-space: normal; }
+.stock-history-table { table-layout: fixed; min-width: 780px; white-space: normal; }
+.stock-history-table th:nth-child(1) { width: 15%; }
+.stock-history-table th:nth-child(2) { width: 24%; }
+.stock-history-table th:nth-child(3) { width: 12%; }
+.stock-history-table th:nth-child(4) { width: 25%; }
+.stock-history-table th:nth-child(5) { width: 12%; }
+.stock-history-table th:nth-child(6) { width: 12%; }

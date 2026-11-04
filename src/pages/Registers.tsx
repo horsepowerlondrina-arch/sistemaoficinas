@@ -1,4 +1,5 @@
 import { productLabel, productDetails, matchesSearch } from "../../shared/productIdentity";
+import { needsReplenishment } from "../../shared/stockThreshold";
 import { ProductCategories } from "../components/ProductCategories";
 import { ProductBatch } from "../components/ProductBatch";
 import { NumericInput } from "../components/NumericInput";
@@ -322,7 +323,7 @@ export function Registers({ kind, tabs }: { kind: Kind; tabs?: ReactNode }) {
                           {r.kind === "product" ? (
                             <span
                               className={
-                                r.stock <= r.minimum_stock ? "low-stock" : ""
+                                needsReplenishment(r) ? "low-stock" : ""
                               }
                             >
                               {r.stock_verified === 0
@@ -843,9 +844,17 @@ export function RegisterModal({
                   </div>
                 )}
                 {form.kind === "product" && (
-                  <>
-                    {input("minimum_stock", "Estoque mínimo", "number")}
-                  </>
+                  <Field label="Estoque mínimo">
+                    <NumericInput
+                      type="number"
+                      required
+                      min="0"
+                      step="1"
+                      value={form.minimum_stock ?? 0}
+                      onChange={(event) => set("minimum_stock", Math.max(0, Math.floor(Number(event.target.value) || 0)))}
+                    />
+                    <small>0: produto sob demanda, sem alerta. 1 ou mais: manter em estoque e avisar ao atingir o mínimo.</small>
+                  </Field>
                 )}
               </>
             ) : (
