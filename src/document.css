@@ -42,7 +42,7 @@
 .workshop-document .checklist-print-photos-section { break-inside:auto; }
 @media (max-width:600px) {
  .document-header { grid-template-columns:70px minmax(0,1fr); gap:12px; }
- .document-header .document-logo { width:70px; height:70px; }
+ .document-header .document-logo, .document-header .document-monogram { width:70px; height:70px; }
  .document-header .document-company h1 { font-size:19px; }
  .document-header .document-contact { grid-column:1/-1; max-width:none; text-align:left; }
  .customer-document-page { padding:12px; }
