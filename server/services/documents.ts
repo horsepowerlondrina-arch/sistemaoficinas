@@ -113,7 +113,7 @@ export async function issueDocument(
    checklist.photos=photos.map(p=>({id:p.id,kind:p.kind,created_at:p.created_at,image_url:"data:"+p.mime+";base64,"+p.image_data}));
    payload.checklist=checklist;
   }
-  if(draftOrder)return payload;
+  if(draftOrder || (modernOrder && currentOrderRefresh && !history.revisions.length))return payload;
   const text=JSON.stringify(payload),digest=createHash("sha256").update(text).digest("hex");
   await db.prepare("INSERT INTO document_revisions(id,tenant_id,kind,entity_id,revision,issued_at,issued_by,payload,digest) VALUES(?,?,?,?,?,?,?,?,?)")
    .run(randomUUID(),ctx.tenantId,kind,id,revision,issuedAt,ctx.userId,text,digest);
