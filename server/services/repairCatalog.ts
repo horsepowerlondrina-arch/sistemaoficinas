@@ -247,14 +247,24 @@ const hasMultipleTechnicalVariants = (value: string) =>
 const registrationInput = z.object({
   brand: z.string().trim().max(150).default(""),
   model: z.string().trim().max(300).default(""),
+  search: z.string().trim().max(100).default(""),
   fipe_codes: z.array(z.string().regex(/^\d{6}-\d$/)).max(30).default([]),
 });
 export async function registrationVehicleModels(db: DB, ctx: Context, input: unknown) {
   const value = registrationInput.parse(input);
   const codes = [...new Set(value.fipe_codes)];
-  if (!codes.length && (!value.brand || vehicleSearchKey(value.model).length < 3))
+  const search = vehicleSearchKey(value.search);
+  if (search && (!value.brand || search.length < 2))
+    return { status: "not_identified" as const, options: [] };
+  if (!search && !codes.length && (!value.brand || vehicleSearchKey(value.model).length < 3))
     return { status: "not_identified" as const, options: [] };
   const rows = await tenantRead(db, ctx, async () => {
+    if (search) {
+      const brand = registrationBrandKey(value.brand).split(" ").filter(Boolean).join("%");
+      return db.prepare(
+        "SELECT m.id,m.name,m.fipe_code,b.name brand FROM service_catalog.models m JOIN service_catalog.brands b ON b.id=m.brand_id WHERE " + searchColumn("b.name") + " LIKE ? AND " + searchColumn("m.name") + " LIKE ? ORDER BY m.name,m.id LIMIT 51"
+      ).all("%" + brand + "%", "%" + search.split(" ").join("%") + "%");
+    }
     if (codes.length) {
       const exact = await db.prepare(
       "SELECT m.id,m.name,m.fipe_code,b.name brand FROM service_catalog.models m JOIN service_catalog.brands b ON b.id=m.brand_id WHERE m.fipe_code IN (" + codes.map(() => "?").join(",") + ") ORDER BY m.name,m.id LIMIT 51"
@@ -275,15 +285,13 @@ export async function registrationVehicleModels(db: DB, ctx: Context, input: unk
     .slice(0, 20).map((row) => ({ id: String(row.id), name: String(row.name), brand: String(row.brand), fipe_code: String(row.fipe_code || "") }));
   return { status: options.length === 1 ? "matched" as const : options.length ? "needs_confirmation" as const : "not_identified" as const, options };
 }
-export async function confirmRegistrationVehicleModel(db: DB, ctx: Context, modelId: string, brand: unknown, fipeCode: unknown) {
+export async function confirmRegistrationVehicleModel(db: DB, ctx: Context, modelId: string, brand: unknown) {
   uuid.parse(modelId);
   const row = await tenantRead(db, ctx, async () => await db.prepare(catalogModelSelect + " WHERE m.id=?").get(modelId));
   if (!row) throw Object.assign(new Error("Modelo do veículo não encontrado."), { status: 404 });
   const model = withModelPorte(row);
   if (!registrationBrandCompatible(brand, model.brand))
     throw Object.assign(new Error("A marca não corresponde ao modelo escolhido."), { status: 400 });
-  if (fipeCode && model.fipe_code && String(fipeCode) !== String(model.fipe_code))
-    throw Object.assign(new Error("O código FIPE não corresponde ao modelo escolhido."), { status: 400 });
   return model;
 }
 export async function identifyVehicleModel(db: DB, ctx: Context, input: unknown) {
