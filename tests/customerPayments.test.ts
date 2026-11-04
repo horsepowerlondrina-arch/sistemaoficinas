@@ -4,6 +4,7 @@ import React from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
 import {createDatabase} from '../server/db/database';
 import {createShare,readShare} from '../server/services/sharing';
+import {issueDocument} from '../server/services/documents';
 import {configurePlan,settleCredit,settleInstallment} from '../server/services/payments';
 import {customerPayments} from '../shared/customerPayments';
 import {OrderPrint} from '../src/components/OrderPrint';
@@ -13,6 +14,9 @@ test('payment changes revoke old links and new links expose only customer-safe t
  db.exec("INSERT INTO tenants(id,name) VALUES('a','Oficina'); INSERT INTO users VALUES('u','Admin','admin@test.invalid','disabled'); INSERT INTO memberships VALUES('u','a','owner'); INSERT INTO customers(id,tenant_id,name) VALUES('c','a','Cliente Completo'); INSERT INTO vehicles(id,tenant_id,customer_id,plate,brand,model,year) VALUES('v','a','c','ABC1D23','Fiat','Uno',2020); INSERT INTO orders(id,tenant_id,number,status,customer_id,vehicle_id,entered_on,due_on,km,total,notes) VALUES('o','a',1,'completed','c','v','2026-10-14','2026-10-14',0,10000,'INTERNAL SECRET'); INSERT INTO receivables(id,tenant_id,order_id,customer_id,description,amount,due_on) VALUES('r','a','o','c','OS #1',10000,'2026-10-14'); INSERT INTO cash_accounts(id,tenant_id,name,kind,opening_balance,opening_on) VALUES('bank','a','PRIVATE BANK','bank',0,'2026-10-01')");
  db.exec("INSERT INTO card_machines(id,tenant_id,name,name_key,operator,is_default) VALUES('fixture-card','a','Máquina fictícia','máquina fictícia','Operadora fictícia',1); INSERT INTO card_machine_rates VALUES('a','fixture-card','Cartão de crédito',3,1000)");
  try{
+  const preview=await issueDocument(db,ctx,'order','o',false,true);
+  assert.equal(preview.order.total,10000);
+  assert.equal(db.prepare("SELECT COUNT(*) n FROM document_revisions WHERE tenant_id='a' AND entity_id='o'").get()!.n,0,'a visualização GET não emite documento');
   const share=await createShare(db,ctx,'o'),token=share.path.slice(3);
   assert.equal((await readShare(db,token))!.payment_summary,null);
   db.prepare("UPDATE tenants SET name='Oficina renomeada' WHERE id='a'").run();
