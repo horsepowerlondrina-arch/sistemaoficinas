@@ -82,5 +82,7 @@ test("Premium e teste ativo incluem Catálogo Técnico mesmo com licença legada
   assert.equal(await catalogAccessState(makeDb(undefined, false), ctx), "not_contracted");
   assert.equal(await catalogAccessState(makeDb({ enabled: true, valid_until: "2020-01-01T00:00:00Z", catalog_installed: true }, true), ctx), "active");
   assert.equal(await catalogAccessState(makeDb({ enabled: false, valid_until: null, catalog_installed: true }, true), ctx), "active");
-  assert.equal(await catalogAccessState(makeDb({ enabled: false, valid_until: null, catalog_installed: true }, false), ctx), "revoked");
+  assert.equal(await catalogAccessState(makeDb({ enabled: false, valid_until: null, catalog_installed: true }, false), ctx), "not_contracted");
+  assert.equal(await catalogAccessState(makeDb({ enabled: true, valid_until: null, catalog_installed: true }, false), ctx), "not_contracted",
+    "licença legada isolada não concede acesso sem Premium efetivo");
 });
