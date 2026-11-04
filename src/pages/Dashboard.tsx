@@ -1,4 +1,5 @@
 import { PLATFORM } from "../../shared/platformIdentity";
+import { needsReplenishment } from "../../shared/stockThreshold";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -42,7 +43,7 @@ export function Dashboard() {
   const pending = data.receivables.filter((r) => r.status === "open");
   const pendingTotal = pending.reduce((s, r) => s + (r.balance ?? r.amount), 0);
   const low = data.catalog.filter(
-    (c) => c.kind === "product" && c.active && c.stock_verified !== 0 && c.stock <= c.minimum_stock,
+    (c) => c.kind === "product" && c.active && needsReplenishment(c),
   );
   const due = [...open]
     .sort((a, b) => a.due_on.localeCompare(b.due_on))
