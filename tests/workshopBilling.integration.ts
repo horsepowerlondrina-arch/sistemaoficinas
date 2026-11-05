@@ -73,3 +73,52 @@ test("PostgreSQL: owner checkout reservation is priced and idempotent", async ()
     await pool.end();
   }
 });
+
+test("PostgreSQL: Preview price applies only to the selected fictional workshop", async () => {
+  const pool = new pg.Pool({
+    connectionString: localDatabaseUrl(process.env.LOCAL_ADMIN_DATABASE_URL, true), ssl: false,
+  });
+  const tenant = randomUUID(), other = randomUUID();
+  const email = `preview-${tenant}@example.test`;
+  try {
+    await pool.query("INSERT INTO horse_power.tenants(id,name) VALUES($1,'Oficina Fictícia Preview')", [tenant]);
+    await pool.query("INSERT INTO horse_power.tenants(id,name) VALUES($1,'Outra Oficina Fictícia')", [other]);
+    for (const id of [tenant, other]) await pool.query(`INSERT INTO platform_admin.workshops
+      (tenant_id,source,name,responsible_name,responsible_email,status,plan_code,email_verified_at)
+      VALUES($1,'admin','Oficina Fictícia Preview','Responsável Fictício',$2,'active','basic',now())`,
+      [id,`preview-${id}@example.test`]);
+    let calls = 0;
+    const send = (async (_url: string | URL | Request, init?: RequestInit) => {
+      calls++;
+      const request = JSON.parse(String(init?.body));
+      assert.equal(request.auto_recurring.transaction_amount, 1);
+      return { ok: true, json: async () => ({
+        id: "preview-"+request.external_reference, status: "pending",
+        init_point: "https://www.mercadopago.com.br/subscriptions/checkout?preapproval_id=preview",
+      }) } as Response;
+    }) as typeof fetch;
+    const billing = createWorkshopBilling(pool, {
+      accessToken: "test-token", returnOrigin: "https://preview.example.test",
+      testTenantId: tenant, testPriceCents: 100, send,
+    });
+    assert.equal((await billing.offer(tenant))?.monthlyPriceCents, 100);
+    assert.equal(await billing.offer(other), null);
+    await assert.rejects(billing.startCheckout({
+      tenantId: other, payerEmail: email, expectedPriceCents: 100,
+    }), /oficina de teste/);
+    const url = await billing.startCheckout({
+      tenantId: tenant, payerEmail: email, expectedPriceCents: 100,
+    });
+    assert.match(url, /^https:\/\/www\.mercadopago\.com\.br\//);
+    assert.equal(calls, 1);
+    const snapshot = await pool.query(`SELECT monthly_price_cents,price_version
+      FROM platform_admin.billing_subscriptions WHERE tenant_id=$1`, [tenant]);
+    assert.equal(snapshot.rows[0].monthly_price_cents, 100);
+    assert.equal(snapshot.rows[0].price_version, 1);
+  } finally {
+    await pool.query("DELETE FROM platform_admin.billing_subscriptions WHERE tenant_id=$1", [tenant]).catch(()=>{});
+    await pool.query("DELETE FROM platform_admin.workshops WHERE tenant_id=ANY($1::text[])", [[tenant,other]]).catch(()=>{});
+    await pool.query("DELETE FROM horse_power.tenants WHERE id=ANY($1::text[])", [[tenant,other]]).catch(()=>{});
+    await pool.end();
+  }
+});
