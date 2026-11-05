@@ -331,6 +331,9 @@ test("Sky capture keeps existing service links when the OS is saved again", asyn
     }, "o");
     assert.equal(db.prepare("SELECT count(*) n FROM order_items WHERE order_id='o'").get()!.n, 2);
     assert.equal(db.prepare("SELECT count(*) n FROM order_items WHERE order_id='o' AND kind='service'").get()!.n, 1);
+    const reconnected = await beginCapture(db, ctx, "o", "session", 0);
+    assert.notEqual(reconnected.token, token);
+    assert.equal((await captureState(db, ctx, "o")).items.length, 2);
   } finally {
     db.close();
   }
