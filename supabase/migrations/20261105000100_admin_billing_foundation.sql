@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS platform_admin.billing_invoices (
   provider_invoice_id text UNIQUE,
   period_start timestamptz NOT NULL,
   period_end timestamptz NOT NULL,
+  due_on date NOT NULL,
   amount_cents integer NOT NULL CHECK (amount_cents > 0),
   currency_code text NOT NULL DEFAULT 'BRL' CHECK (currency_code='BRL'),
   status text NOT NULL CHECK (status IN ('pending','approved','rejected','refunded','cancelled')),
@@ -72,5 +73,39 @@ DO $grants$ BEGIN
     GRANT SELECT,INSERT,UPDATE ON platform_admin.plan_prices,
       platform_admin.billing_subscriptions,platform_admin.billing_invoices,
       platform_admin.billing_webhook_events TO hp_platform_admin_app;
+  END IF;
+END $grants$;
+
+-- Return only a boolean to the authenticated workshop, never billing records.
+CREATE OR REPLACE FUNCTION horse_power.local_tenant_billing_read_only(p_tenant_id text)
+RETURNS boolean LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog AS $function$
+DECLARE v_tenant text; v_user text; v_due date; v_status text;
+BEGIN
+  v_tenant := nullif(current_setting('app.tenant_id',true),'');
+  v_user := nullif(current_setting('app.user_id',true),'');
+  IF v_tenant IS DISTINCT FROM p_tenant_id OR v_user IS NULL
+     OR NOT EXISTS (
+       SELECT 1 FROM horse_power.memberships m
+       WHERE m.tenant_id=p_tenant_id AND m.user_id=v_user
+     )
+  THEN RAISE EXCEPTION 'Acesso à oficina não autorizado' USING ERRCODE='42501'; END IF;
+  SELECT i.due_on,i.status INTO v_due,v_status
+    FROM platform_admin.billing_invoices i
+    JOIN platform_admin.billing_subscriptions s
+      ON s.id=i.subscription_id AND s.tenant_id=i.tenant_id
+    WHERE i.tenant_id=p_tenant_id
+    ORDER BY i.period_start DESC,i.created_at DESC LIMIT 1;
+  RETURN v_due IS NOT NULL
+    AND v_due < (now() AT TIME ZONE 'America/Sao_Paulo')::date
+    AND v_status <> 'approved';
+END
+$function$;
+REVOKE ALL ON FUNCTION horse_power.local_tenant_billing_read_only(text) FROM PUBLIC;
+DO $grants$ BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname='hp_local_app') THEN
+    GRANT EXECUTE ON FUNCTION horse_power.local_tenant_billing_read_only(text) TO hp_local_app;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname='horse_power_app') THEN
+    GRANT EXECUTE ON FUNCTION horse_power.local_tenant_billing_read_only(text) TO horse_power_app;
   END IF;
 END $grants$;
