@@ -45,6 +45,8 @@ jobs:
       - run: npx tsc --noEmit
       - run: npm run build
       - run: npm test
+      - name: Stripe PostgreSQL integration
+        run: npx tsx --test tests/stripeBilling.postgres.integration.ts
       - name: Install isolated Playwright browser
         run: npx playwright install --with-deps chromium
       - name: ADM-002.1 administrative UI regression

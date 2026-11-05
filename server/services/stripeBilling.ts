@@ -96,14 +96,14 @@ export function stripeBillingService(pool:Pool,request:StripeRequest,origin:stri
   await pool.query("UPDATE platform_admin.stripe_checkouts SET provider_id=$1,url=$2,status='open' WHERE id=$3 AND status='pending'",[session.id,session.url,row.id]);
   return {url:session.url};
  }
- async function confirmPayment(c:PoolClient,p:{id:string;intent:string;tenant:string;price:string;amount:number;start:string;end:string;revoked:boolean}){
+ async function confirmPayment(c:PoolClient,p:{id:string;intent:string;tenant:string;price:string;amount:number;start:string;end:string;revoked:boolean;method:'card'|'pix'}){
   const prior=(await c.query("SELECT tenant_id,status FROM platform_admin.stripe_payments WHERE provider_id=$1 FOR UPDATE",[p.id])).rows[0];
   if(prior&&prior.tenant_id!==p.tenant)throw new Error("Pagamento incompatível.");
   // A later delivery of invoice.paid must not resurrect a refunded/disputed payment.
   const state=p.revoked?"refunded":prior?.status??"paid";
-  await c.query("INSERT INTO platform_admin.stripe_payments(provider_id,tenant_id,payment_intent_id,price_id,amount_cents,period_start,period_end,status) VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(provider_id) DO UPDATE SET status=EXCLUDED.status",
-    [p.id,p.tenant,p.intent,p.price,p.amount,p.start,p.end,state]);
-  await c.query("UPDATE platform_admin.stripe_accounts SET managed=true,price_id=(SELECT price_id FROM platform_admin.stripe_payments WHERE tenant_id=$1 ORDER BY period_end DESC,created_at DESC LIMIT 1),plan_code=(SELECT p.plan_code FROM platform_admin.stripe_payments x JOIN platform_admin.stripe_prices p ON p.id=x.price_id WHERE x.tenant_id=$1 ORDER BY x.period_end DESC,x.created_at DESC LIMIT 1),paid_until=(SELECT max(period_end) FROM platform_admin.stripe_payments WHERE tenant_id=$1 AND status='paid'),due_on=CASE WHEN $3::boolean THEN LEAST(due_on,(now() AT TIME ZONE 'America/Sao_Paulo')::date-1) ELSE GREATEST(due_on,$2::date) END WHERE tenant_id=$1",[p.tenant,p.end,state!=='paid']);
+  await c.query("INSERT INTO platform_admin.stripe_payments(provider_id,tenant_id,payment_intent_id,price_id,amount_cents,period_start,period_end,status,method) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT(provider_id) DO UPDATE SET status=EXCLUDED.status",
+    [p.id,p.tenant,p.intent,p.price,p.amount,p.start,p.end,state,p.method]);
+  await c.query("UPDATE platform_admin.stripe_accounts SET managed=true,method=(SELECT method FROM platform_admin.stripe_payments WHERE tenant_id=$1 ORDER BY period_end DESC,created_at DESC LIMIT 1),price_id=(SELECT price_id FROM platform_admin.stripe_payments WHERE tenant_id=$1 ORDER BY period_end DESC,created_at DESC LIMIT 1),plan_code=(SELECT p.plan_code FROM platform_admin.stripe_payments x JOIN platform_admin.stripe_prices p ON p.id=x.price_id WHERE x.tenant_id=$1 ORDER BY x.period_end DESC,x.created_at DESC LIMIT 1),paid_until=(SELECT max(period_end) FROM platform_admin.stripe_payments WHERE tenant_id=$1 AND status='paid'),due_on=CASE WHEN $3::boolean THEN LEAST(due_on,(now() AT TIME ZONE 'America/Sao_Paulo')::date-1) ELSE GREATEST(due_on,$2::date) END WHERE tenant_id=$1",[p.tenant,p.end,state!=='paid']);
   if(!prior||prior.status!==state)await audit(c,p.tenant,"stripe.payment.reconciled",{payment_id:p.id,status:state,amount_cents:p.amount});
  }
  async function intentState(id:string){
@@ -140,8 +140,8 @@ export function stripeBillingService(pool:Pool,request:StripeRequest,origin:stri
     validatePaidAmount(s.amount_total,row.amount_cents,s.currency);
     validatePaidAmount(pi.amount_received,row.amount_cents,pi.currency);
     if(identifier(pi.customer)!==customer)throw new Error("Pagamento de outra oficina.");
-    await confirmPayment(c,{id:intent,intent,tenant:row.tenant_id,price:row.price_id,amount:row.amount_cents,start:String(row.due_on instanceof Date?row.due_on.toISOString().slice(0,10):row.due_on),end:String(row.period_end instanceof Date?row.period_end.toISOString().slice(0,10):row.period_end),revoked:pi.revoked});
-    await c.query("UPDATE platform_admin.stripe_accounts SET method='pix' WHERE tenant_id=$1",[row.tenant_id]);
+    await confirmPayment(c,{id:intent,intent,tenant:row.tenant_id,price:row.price_id,amount:row.amount_cents,start:String(row.due_on instanceof Date?row.due_on.toISOString().slice(0,10):row.due_on),end:String(row.period_end instanceof Date?row.period_end.toISOString().slice(0,10):row.period_end),revoked:pi.revoked,method:"pix"});
+    if(row.status!=="paid")await c.query("UPDATE platform_admin.stripe_accounts SET cancel_at_period_end=false WHERE tenant_id=$1 AND subscription_id IS NULL",[row.tenant_id]);
    }
    if(s.payment_status==="paid")await c.query("UPDATE platform_admin.stripe_checkouts SET status='paid',url=NULL WHERE id=$1",[row.id]);
   });
@@ -167,7 +167,7 @@ export function stripeBillingService(pool:Pool,request:StripeRequest,origin:stri
   if(identifier(pi.customer)!==account.customer_id)throw new Error("Pagamento de outra oficina.");
   await tx(async c=>{
    await c.query("SELECT pg_advisory_xact_lock(hashtextextended($1,1232))",[account.tenant_id]);
-   await confirmPayment(c,{id:inv.id,intent,tenant:account.tenant_id,price:account.price_id,amount:inv.amount_paid,start:billingDate(new Date(period.start*1000)),end:billingDate(new Date(period.end*1000)),revoked:pi.revoked});
+   await confirmPayment(c,{id:inv.id,intent,tenant:account.tenant_id,price:account.price_id,amount:inv.amount_paid,start:billingDate(new Date(period.start*1000)),end:billingDate(new Date(period.end*1000)),revoked:pi.revoked,method:"card"});
   });
  }
  async function syncSubscription(id:string){

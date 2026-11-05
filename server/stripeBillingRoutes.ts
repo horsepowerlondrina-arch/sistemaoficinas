@@ -30,7 +30,7 @@ export function stripeWorkshopRoutes(db:DB,billing?:StripeBilling){
  app.use("/account/billing",(req,res,next)=>{
   const ctx:Context=res.locals.context;
   if(ctx?.role!=="owner"){res.status(403).json({error:"Somente o proprietário pode gerenciar a assinatura."});return;}
-  if(!billing){res.status(503).json({error:"A cobrança está desabilitada neste ambiente."});return;}next();
+  if(!billing){if(req.method==="GET"){res.json({enabled:false,prices:[],account:null,accounts:[],payments:[],read_only:false});return;}res.status(503).json({error:"A cobrança está desabilitada neste ambiente."});return;}next();
  });
  app.get("/account/billing",async(_req,res)=>{try{res.json(await billing!.summary(res.locals.context.tenantId));}catch(e){billingError(e,res);}});
  app.post("/account/billing/checkout",async(req,res)=>{

@@ -13,7 +13,8 @@ export function WorkshopBilling({tenantId}:{tenantId:string}){
  return <section className="panel settings-card">
   <h2>Assinatura e pagamentos</h2>
   {error&&<p role="alert" className="error-box">{error}</p>}
-  {data&&<>
+  {data&&!data.enabled&&<p>A cobrança está desabilitada neste ambiente.</p>}
+  {data?.enabled&&<>
    <p>Ambiente de teste Stripe. Use somente dados e cartões de teste; não faça pagamentos reais.</p>
    {data.account&&<div><p>Plano contratado: <strong>{billingPlanNames[data.account.plan_code]}</strong> · {data.account.method==="card"?"Cartão recorrente":"Pix mensal"}</p>
     <p>Pago até: {date(data.account.paid_until)} · Vencimento: {date(data.account.due_on)}</p>
@@ -56,7 +57,7 @@ export function AdminBilling(){
    <label>Plano<select value={plan} onChange={e=>setPlan(e.target.value as BillingPlan)}>{billingPlans.map(p=><option key={p} value={p}>{billingPlanNames[p]}</option>)}</select></label>
    <label>Mensalidade em reais<input required inputMode="decimal" value={amount} onChange={e=>setAmount(e.target.value)}/></label>
    <label>Justificativa<textarea required minLength={10} maxLength={500} value={reason} onChange={e=>setReason(e.target.value)}/></label>
-   <button className="pa-primary" disabled={busy||!data}>{busy?"Salvando…":"Salvar novo preço"}</button>
+   <button className="pa-primary" disabled={busy||!data?.enabled}>{busy?"Salvando…":"Salvar novo preço"}</button>
   </form></section><section className="pa-card"><h2>Assinaturas e cobranças</h2><button className="pa-quiet" disabled={busy} onClick={()=>void load().catch(e=>setError(e.message))}>Atualizar</button>
    {data?.accounts.map(a=><article key={a.tenant_id} className="pa-account"><strong>{a.name}</strong><p>{billingPlanNames[a.plan_code]} · {a.method==="card"?"Cartão":"Pix"}</p><p>Pago até {date(a.paid_until)} · vence {date(a.due_on)}</p><p>{a.managed?"Contrato iniciado":"Aguardando primeiro pagamento"}{a.cancel_at_period_end?" · renovação cancelada":""}</p></article>)}
    {data&&!data.accounts.length&&<p>Nenhuma assinatura de teste criada.</p>}
