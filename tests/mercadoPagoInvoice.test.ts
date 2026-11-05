@@ -25,6 +25,7 @@ test("only a matching invoice can confirm a contracted payment", () => {
   assert.throws(() => verifyProviderInvoice({ ...sample, currency_id: "USD" }, "subscription-1", 12035));
   assert.equal(verifyProviderInvoice({ ...sample, payment: null }, "subscription-1", 12035).status, "pending");
   assert.equal(verifyProviderInvoice({ ...sample, payment: { status: "rejected" } }, "subscription-1", 12035).status, "rejected");
+  assert.equal(verifyProviderInvoice({ ...sample, payment: { status: "refunded" } }, "subscription-1", 12035).status, "refunded");
 });
 
 test("invoice retrieval uses only a fixed provider host and numeric identifier", async () => {
