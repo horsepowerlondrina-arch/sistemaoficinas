@@ -32,8 +32,11 @@ const transfer = createPlatformAdminDataTransfer(db, adminPool);
 const billing = process.env.BILLING_CHECKOUT_ENABLED === "true"
   && process.env.MERCADO_PAGO_ACCESS_TOKEN
   && process.env.MERCADO_PAGO_WEBHOOK_SECRET
+  && (process.env.VERCEL_ENV !== "preview" || process.env.BILLING_TEST_TENANT_ID)
   ? createWorkshopBilling(adminPool, {
       accessToken: process.env.MERCADO_PAGO_ACCESS_TOKEN,
+      testTenantId: process.env.VERCEL_ENV === "preview"
+        ? process.env.BILLING_TEST_TENANT_ID : undefined,
       returnOrigin: process.env.VERCEL_ENV === "preview" && process.env.VERCEL_BRANCH_URL
         ? `https://${process.env.VERCEL_BRANCH_URL}`
         : process.env.APP_ORIGIN!,
