@@ -48,7 +48,21 @@ export async function createMercadoPagoSubscription(
       signal: controller.signal,
     });
     if (!response.ok) {
-      console.warn("Mercado Pago preapproval rejected", { status: response.status });
+      const body = await response.json().catch(() => null) as {
+        error?: unknown; message?: unknown; cause?: Array<{ code?: unknown }>;
+      } | null;
+      const providerCode = typeof body?.error === "string" &&
+        /^[a-zA-Z0-9_.-]{1,80}$/.test(body.error) ? body.error : undefined;
+      const causeCodes = Array.isArray(body?.cause)
+        ? body.cause.map((item) => String(item.code ?? ""))
+          .filter((code) => /^[a-zA-Z0-9_.-]{1,80}$/.test(code)).slice(0, 5)
+        : [];
+      const message = typeof body?.message === "string" ? body.message.toLowerCase() : "";
+      const field = ["payer", "email", "amount", "back_url", "frequency", "currency", "token"]
+        .find((part) => message.includes(part));
+      console.warn("Mercado Pago preapproval rejected", {
+        status: response.status, providerCode, causeCodes, field,
+      });
       throw new Error("O provedor não conseguiu iniciar a assinatura.");
     }
     const parsed = responseSchema.safeParse(await response.json());
