@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS platform_admin.billing_subscriptions (
   provider text NOT NULL DEFAULT 'mercado_pago' CHECK (provider='mercado_pago'),
   provider_subscription_id text UNIQUE,
   provider_status text NOT NULL DEFAULT 'pending',
-  payment_mode text NOT NULL CHECK (payment_mode IN ('card','pix')),
+  payment_mode text NOT NULL DEFAULT 'unknown' CHECK (payment_mode IN ('unknown','card','pix')),
   current_period_end timestamptz,
   last_confirmed_paid_until timestamptz,
   created_at timestamptz NOT NULL DEFAULT statement_timestamp(),
