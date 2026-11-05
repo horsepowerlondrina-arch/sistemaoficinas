@@ -70,7 +70,7 @@ export function createWorkshopBilling(pool: Pool, options: {
         CASE WHEN $2::integer IS NOT NULL THEN 1 ELSE p.price_version END AS price_version
         FROM platform_admin.workshops w
         JOIN platform_admin.plan_prices p ON p.plan_code=w.plan_code
-        WHERE w.tenant_id=$1 FOR UPDATE OF w`, [input.tenantId,testPrice(input.tenantId)]);
+        WHERE w.tenant_id=$1`, [input.tenantId,testPrice(input.tenantId)]);
       const row = found.rows[0];
       if (!row || !["active","read_only"].includes(row.status)
           || !row.monthly_price_cents || row.price_version < 1) {
