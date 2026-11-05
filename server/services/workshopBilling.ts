@@ -15,7 +15,14 @@ export function createWorkshopBilling(pool: Pool, options: {
   returnOrigin: string;
   send?: typeof fetch;
   testTenantId?: string;
+  testPriceCents?: number;
 }) {
+  if (options.testPriceCents !== undefined) {
+    if (!options.testTenantId) throw new Error("Preço de teste exige oficina de teste.");
+    assertMonthlyPriceCents(options.testPriceCents);
+  }
+  const testPrice = (tenantId: string) =>
+    options.testTenantId === tenantId ? options.testPriceCents ?? null : null;
   const configured = () => {
     if (!options.accessToken || !/^https:\/\//.test(options.returnOrigin)) {
       throw new Error("Cobranças ainda não estão configuradas neste ambiente.");
@@ -24,12 +31,12 @@ export function createWorkshopBilling(pool: Pool, options: {
   const offer = async (tenantId: string): Promise<BillingOffer | null> => {
     if (options.testTenantId && tenantId !== options.testTenantId) return null;
     const result = await pool.query(`SELECT w.plan_code,w.status,
-        COALESCE(s.monthly_price_cents,p.monthly_price_cents) AS monthly_price_cents,
+        COALESCE(s.monthly_price_cents,$2::integer,p.monthly_price_cents) AS monthly_price_cents,
         s.plan_code AS subscribed_plan,s.provider_status
       FROM platform_admin.workshops w
       JOIN platform_admin.plan_prices p ON p.plan_code=w.plan_code
       LEFT JOIN platform_admin.billing_subscriptions s ON s.tenant_id=w.tenant_id
-      WHERE w.tenant_id=$1`, [tenantId]);
+      WHERE w.tenant_id=$1`, [tenantId,testPrice(tenantId)]);
     const row = result.rows[0];
     if (!row || !["active","read_only"].includes(row.status)
         || !row.monthly_price_cents
@@ -58,10 +65,12 @@ export function createWorkshopBilling(pool: Pool, options: {
     try {
       await client.query("BEGIN");
       await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1,71431))", [input.tenantId]);
-      const found = await client.query(`SELECT w.plan_code,w.status,p.monthly_price_cents,p.price_version
+      const found = await client.query(`SELECT w.plan_code,w.status,
+        COALESCE($2::integer,p.monthly_price_cents) AS monthly_price_cents,
+        CASE WHEN $2::integer IS NOT NULL THEN 1 ELSE p.price_version END AS price_version
         FROM platform_admin.workshops w
         JOIN platform_admin.plan_prices p ON p.plan_code=w.plan_code
-        WHERE w.tenant_id=$1 FOR UPDATE OF w`, [input.tenantId]);
+        WHERE w.tenant_id=$1 FOR UPDATE OF w`, [input.tenantId,testPrice(input.tenantId)]);
       const row = found.rows[0];
       if (!row || !["active","read_only"].includes(row.status)
           || !row.monthly_price_cents || row.price_version < 1) {
