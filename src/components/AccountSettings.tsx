@@ -39,7 +39,7 @@ export function AccountSettings() {
         confirm_contract:true, expected_price_cents:offer.monthlyPriceCents,
       }) as { checkout_url:string };
       const destination = new URL(result.checkout_url);
-      if (destination.protocol !== "https:" || !/(^|\\.)mercadopago\\.com(\\.br)?$/.test(destination.hostname))
+      if (destination.protocol !== "https:" || !/(^|\.)mercadopago\.com(\.br)?$/.test(destination.hostname))
         throw new Error("O provedor retornou um endereço inválido.");
       window.location.assign(destination.toString());
     } catch(e) { setCheckoutError((e as Error).message);setCheckoutBusy(false); }
