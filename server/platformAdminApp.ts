@@ -1,4 +1,5 @@
 import { plateLookupStatus } from "./services/vehicleLookup.js";
+import { assertMonthlyPriceCents } from "../shared/platformBilling.js";
 import express, { type NextFunction, type Request, type Response } from "express";
 import { randomBytes, randomUUID } from "node:crypto";
 import type { Pool } from "pg";
@@ -211,6 +212,48 @@ export function createPlatformAdminApp(pool: Pool, encryptionKey: string, transf
   };
 
   app.use(createPlatformAdminDataTransferRoutes(pool, transfer, requireSession, requirePermission));
+  app.get("/admin-api/billing/prices", requireSession, requirePermission("platform:settings"), async (_req, res) => {
+    const result = await pool.query(`SELECT plan_code,monthly_price_cents,currency_code,price_version,updated_at
+      FROM platform_admin.plan_prices ORDER BY CASE plan_code WHEN 'basic' THEN 1 WHEN 'professional' THEN 2 ELSE 3 END`);
+    res.json({ prices: result.rows });
+  });
+  app.put("/admin-api/billing/prices/:plan", requireSession, requirePermission("platform:settings"), async (req, res) => {
+    const input = z.object({
+      monthly_price_cents: z.number().int().positive(),
+      expected_version: z.number().int().nonnegative(),
+      reason: z.string().trim().min(10).max(500),
+    }).strict().safeParse(req.body);
+    const plan = String(req.params.plan);
+    if (!["basic","professional","premium"].includes(plan) || !input.success) {
+      res.status(400).json({ error: "Confira o plano, o valor em centavos e a justificativa." }); return;
+    }
+    try { assertMonthlyPriceCents(input.data.monthly_price_cents); }
+    catch { res.status(400).json({ error: "Valor mensal inválido." }); return; }
+    const actor = res.locals.admin as AdminContext;
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      const updated = await client.query(`UPDATE platform_admin.plan_prices
+        SET monthly_price_cents=$2,price_version=price_version+1,updated_at=statement_timestamp(),
+            updated_by_admin_id=$4,reason=$5
+        WHERE plan_code=$1 AND price_version=$3
+        RETURNING plan_code,monthly_price_cents,currency_code,price_version,updated_at`,
+        [plan,input.data.monthly_price_cents,input.data.expected_version,actor.id,input.data.reason]);
+      if (!updated.rowCount) {
+        await client.query("ROLLBACK");
+        res.status(409).json({ error: "O preço mudou desde a última consulta. Atualize a tela antes de salvar." }); return;
+      }
+      await writeAdminAudit(client, { actorId: actor.id, actorEmail: actor.email,
+        action: "admin.billing.price.updated", result: "success",
+        technical: { plan, price_version: updated.rows[0].price_version, reason: input.data.reason } });
+      await client.query("COMMIT");
+      res.json(updated.rows[0]);
+    } catch (error) {
+      await client.query("ROLLBACK").catch(() => {});
+      throw error;
+    } finally { client.release(); }
+  });
+
 
   const activationFailure = async (tokenHash: string) => {
     const result = await pool.query(`SELECT used_at,revoked_at,expires_at
