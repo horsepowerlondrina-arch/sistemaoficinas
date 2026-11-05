@@ -42,6 +42,7 @@ export function validatePaidAmount(actual:unknown,expected:number,currency:unkno
 
 export type BillingSummary={
  enabled:boolean;test_mode?:boolean;
+ pending?:{url:string;method:string}|null;
  prices:{id:string;plan_code:BillingPlan;amount_cents:number}[];
  account:{plan_code:BillingPlan;method:"card"|"pix";managed:boolean;due_on:string|null;paid_until:string|null;recurring:boolean;cancel_at_period_end:boolean;subscription_status:string|null}|null;
  payments:{provider_id:string;amount_cents:number;period_start:string;period_end:string;status:string}[];

@@ -42,11 +42,24 @@ jobs:
         run: npm run db:local:migrate
       - name: Seed fictitious local workshops
         run: npm run db:local:seed
+      - run: npx tsc --noEmit
+      - run: npm run build
+      - run: npm test
       - name: Install isolated Playwright browser
         run: npx playwright install --with-deps chromium
       - name: ADM-002.1 administrative UI regression
         run: node scripts/test-admin-interface.mjs
         timeout-minutes: 4
+      - name: Stripe billing UI regression
+        run: node scripts/test-stripe-interface.mjs
+        timeout-minutes: 4
+      - name: Store Stripe interface evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stripe-billing-interface
+          path: ${{ runner.temp }}/stripe-ui
+          retention-days: 14
       - name: Store administrative interface evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -73,9 +86,6 @@ jobs:
         run: node scripts/ci-catalog-import-setup.mjs
         env:
           CI_PG_ADMIN_URL: postgres://postgres:ci-temporary-only@127.0.0.1:5432/postgres
-      - run: npx tsc --noEmit
-      - run: npm run build
-      - run: npm test
       - name: Verify Horse Power extension
         run: node --test tests/extension-panel.test.mjs tests/chrome-web-store.test.mjs
       - name: PostgreSQL integration suite

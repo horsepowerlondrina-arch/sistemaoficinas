@@ -22,14 +22,15 @@ export function stripeBillingService(pool:Pool,request:StripeRequest,origin:stri
    [randomUUID(),actor?.id??null,actor?.email??"stripe",tenant,action,JSON.stringify(detail)]);
  }
  async function summary(tenant:string){
-  const [prices,account,payments,workshop]=await Promise.all([
+  const [prices,account,payments,workshop,pending]=await Promise.all([
    pool.query("SELECT id,plan_code,amount_cents FROM platform_admin.stripe_prices WHERE active ORDER BY amount_cents"),
    pool.query("SELECT plan_code,method,managed,due_on::text,paid_until::text,subscription_status,cancel_at_period_end,subscription_id IS NOT NULL AS recurring FROM platform_admin.stripe_accounts WHERE tenant_id=$1",[tenant]),
    pool.query("SELECT provider_id,amount_cents,period_start::text,period_end::text,status FROM platform_admin.stripe_payments WHERE tenant_id=$1 ORDER BY created_at DESC LIMIT 24",[tenant]),
    pool.query("SELECT trial_ends_at FROM platform_admin.workshops WHERE tenant_id=$1 AND status='trial'",[tenant]),
+   pool.query("SELECT url,method FROM platform_admin.stripe_checkouts WHERE tenant_id=$1 AND status='open'",[tenant]),
   ]);
   const a=account.rows[0];
-  return {enabled:true,test_mode:true,prices:prices.rows,account:a??null,payments:payments.rows,read_only:a?billingReadOnly({managed:a.managed,paidUntil:a.paid_until,dueOn:a.due_on,trialUntil:workshop.rows[0]?.trial_ends_at}):false};
+  return {enabled:true,test_mode:true,pending:pending.rows[0]??null,prices:prices.rows,account:a??null,payments:payments.rows,read_only:a?billingReadOnly({managed:a.managed,paidUntil:a.paid_until,dueOn:a.due_on,trialUntil:workshop.rows[0]?.trial_ends_at}):false};
  }
  async function overview(){
   const prices=await pool.query("SELECT id,plan_code,amount_cents FROM platform_admin.stripe_prices WHERE active ORDER BY plan_code");

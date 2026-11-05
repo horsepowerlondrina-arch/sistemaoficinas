@@ -146,3 +146,14 @@ RETURNS text LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog AS 
    ELSE w.status END
  FROM platform_admin.workshops w LEFT JOIN platform_admin.stripe_accounts a ON a.tenant_id=w.tenant_id WHERE w.tenant_id=p_tenant_id),'legacy')
 $function$;
+
+-- Price versions are immutable; only availability can change.
+REVOKE UPDATE ON platform_admin.stripe_prices FROM hp_platform_admin_app;
+GRANT UPDATE(active) ON platform_admin.stripe_prices TO hp_platform_admin_app;
+DO $restricted$ DECLARE r text; BEGIN
+ FOREACH r IN ARRAY ARRAY['hp_local_app','horse_power_app','anon','authenticated'] LOOP
+  IF EXISTS(SELECT 1 FROM pg_roles WHERE rolname=r) THEN
+   EXECUTE format('REVOKE ALL ON platform_admin.stripe_prices,platform_admin.stripe_accounts,platform_admin.stripe_checkouts,platform_admin.stripe_payments,platform_admin.stripe_events FROM %I',r);
+  END IF;
+ END LOOP;
+END $restricted$;
