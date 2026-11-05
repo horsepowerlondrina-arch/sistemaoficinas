@@ -259,6 +259,8 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
           ? [
               process.env.APP_ORIGIN,
               ...(process.env.APP_ORIGINS || "").split(","),
+              process.env.VERCEL_ENV === "preview" && process.env.VERCEL_BRANCH_URL
+                ? `https://${process.env.VERCEL_BRANCH_URL}` : "",
             ]
               .map((value) => value?.trim())
               .includes(origin.origin)
