@@ -46,6 +46,8 @@ function validOrigin(req: Request, res: Response) {
     "http://localhost:5173",
     process.env.APP_ORIGIN,
     ...(process.env.APP_ORIGINS || "").split(",").map((value) => value.trim()),
+    process.env.VERCEL_ENV === "preview" && process.env.VERCEL_BRANCH_URL
+      ? `https://${process.env.VERCEL_BRANCH_URL}` : "",
   ].filter((value): value is string => Boolean(value)));
   if (origin && !allowed.has(origin)) {
     res.status(403).json({ error: "Origem não autorizada." }); return false;
