@@ -217,6 +217,22 @@ export function createPlatformAdminApp(pool: Pool, encryptionKey: string, transf
       FROM platform_admin.plan_prices ORDER BY CASE plan_code WHEN 'basic' THEN 1 WHEN 'professional' THEN 2 ELSE 3 END`);
     res.json({ prices: result.rows });
   });
+  app.get("/admin-api/billing/subscriptions", requireSession, requirePermission("platform:settings"), async (_req, res) => {
+    const result = await pool.query(`SELECT s.id,s.tenant_id,w.name AS workshop_name,s.plan_code,s.monthly_price_cents,
+      s.payment_mode,s.provider_status,s.current_period_end,s.last_confirmed_paid_until,s.created_at
+      FROM platform_admin.billing_subscriptions s
+      JOIN platform_admin.workshops w ON w.tenant_id=s.tenant_id
+      ORDER BY s.created_at DESC LIMIT 200`);
+    res.json({ subscriptions: result.rows });
+  });
+  app.get("/admin-api/billing/invoices", requireSession, requirePermission("platform:settings"), async (_req, res) => {
+    const result = await pool.query(`SELECT i.id,i.tenant_id,w.name AS workshop_name,i.amount_cents,
+      i.currency_code,i.status,i.period_start,i.period_end,i.paid_at,i.created_at
+      FROM platform_admin.billing_invoices i
+      JOIN platform_admin.workshops w ON w.tenant_id=i.tenant_id
+      ORDER BY i.created_at DESC LIMIT 200`);
+    res.json({ invoices: result.rows });
+  });
   app.put("/admin-api/billing/prices/:plan", requireSession, requirePermission("platform:settings"), async (req, res) => {
     const input = z.object({
       monthly_price_cents: z.number().int().positive(),
