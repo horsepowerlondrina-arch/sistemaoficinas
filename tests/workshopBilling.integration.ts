@@ -50,6 +50,8 @@ test("PostgreSQL: owner checkout reservation is priced and idempotent", async ()
     const url = await billing.startCheckout({
       tenantId:tenant,payerEmail:email,expectedPriceCents:12990,
     });
+    await pool.query("UPDATE platform_admin.plan_prices SET monthly_price_cents=13990,price_version=2 WHERE plan_code='professional'");
+    assert.equal((await billing.offer(tenant))?.monthlyPriceCents,12990);
     assert.equal(await billing.startCheckout({
       tenantId:tenant,payerEmail:email,expectedPriceCents:12990,
     }),url);
