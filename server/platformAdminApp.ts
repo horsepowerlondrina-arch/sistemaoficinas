@@ -1,5 +1,6 @@
 import { plateLookupStatus } from "./services/vehicleLookup.js";
 import { assertMonthlyPriceCents } from "../shared/platformBilling.js";
+import { createMercadoPagoSubscription } from "./services/mercadoPagoBilling.js";
 import express, { type NextFunction, type Request, type Response } from "express";
 import { randomBytes, randomUUID } from "node:crypto";
 import type { Pool } from "pg";
@@ -232,6 +233,57 @@ export function createPlatformAdminApp(pool: Pool, encryptionKey: string, transf
       JOIN platform_admin.workshops w ON w.tenant_id=i.tenant_id
       ORDER BY i.created_at DESC LIMIT 200`);
     res.json({ invoices: result.rows });
+  });
+  app.post("/admin-api/billing/workshops/:id/checkout", requireSession, requirePermission("workshops:manage"), async (req, res) => {
+    const input = z.object({ reason: z.string().trim().min(10).max(500) }).strict().safeParse(req.body);
+    if (!input.success) { res.status(400).json({ error: "Informe a justificativa para iniciar a assinatura." }); return; }
+    const token = process.env.MERCADO_PAGO_ACCESS_TOKEN;
+    const origin = process.env.APP_ORIGIN;
+    if (!token || !origin || !/^https:\/\//.test(origin)) {
+      res.status(503).json({ error: "Cobranças ainda não estão configuradas neste ambiente." }); return;
+    }
+    const tenantId = String(req.params.id), actor = res.locals.admin as AdminContext;
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1,71431))", [tenantId]);
+      const found = await client.query(`SELECT w.name,w.responsible_email,w.status,w.plan_code,
+        p.monthly_price_cents,p.price_version FROM platform_admin.workshops w
+        JOIN platform_admin.plan_prices p ON p.plan_code=w.plan_code
+        WHERE w.tenant_id=$1 FOR UPDATE OF w`, [tenantId]);
+      const row = found.rows[0];
+      if (!row || !["active","trial"].includes(row.status)) {
+        await client.query("ROLLBACK");
+        res.status(409).json({ error: "Ative a oficina e atribua um plano antes de gerar a assinatura." }); return;
+      }
+      if (!row.monthly_price_cents || row.price_version < 1) {
+        await client.query("ROLLBACK");
+        res.status(409).json({ error: "Defina o preço mensal do plano antes de gerar a assinatura." }); return;
+      }
+      const existing = await client.query("SELECT id FROM platform_admin.billing_subscriptions WHERE tenant_id=$1", [tenantId]);
+      if (existing.rowCount) {
+        await client.query("ROLLBACK");
+        res.status(409).json({ error: "Esta oficina já possui uma assinatura. Confira a situação antes de criar outra." }); return;
+      }
+      const subscriptionId = randomUUID();
+      const created = await createMercadoPagoSubscription({
+        id: subscriptionId, plan: row.plan_code, priceCents: row.monthly_price_cents,
+        payerEmail: row.responsible_email,
+        returnUrl: new URL("/configuracoes?aba=plano", origin).toString(),
+      }, token);
+      await client.query(`INSERT INTO platform_admin.billing_subscriptions
+        (id,tenant_id,plan_code,price_version,monthly_price_cents,provider_subscription_id,provider_status,payment_mode)
+        VALUES($1,$2,$3,$4,$5,$6,$7,'unknown')`,
+        [subscriptionId,tenantId,row.plan_code,row.price_version,row.monthly_price_cents,created.providerId,created.status]);
+      await writeAdminAudit(client, { actorId: actor.id, actorEmail: actor.email, subjectTenantId: tenantId,
+        action: "admin.billing.checkout.created", result: "success",
+        technical: { plan: row.plan_code, price_version: row.price_version, reason: input.data.reason } });
+      await client.query("COMMIT");
+      res.status(201).json({ checkout_url: created.checkoutUrl });
+    } catch (error) {
+      await client.query("ROLLBACK").catch(() => {});
+      throw error;
+    } finally { client.release(); }
   });
   app.put("/admin-api/billing/prices/:plan", requireSession, requirePermission("platform:settings"), async (req, res) => {
     const input = z.object({
