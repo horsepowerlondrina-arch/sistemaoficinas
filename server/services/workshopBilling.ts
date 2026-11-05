@@ -16,7 +16,13 @@ export function createWorkshopBilling(pool: Pool, options: {
   send?: typeof fetch;
   testTenantId?: string;
   testPriceCents?: number;
+  testPayerEmail?: string;
 }) {
+  if (options.testPayerEmail !== undefined) {
+    if (!options.testTenantId || !/^test_user_[0-9]+@testuser\.com$/.test(options.testPayerEmail)) {
+      throw new Error("Comprador de teste inválido.");
+    }
+  }
   if (options.testPriceCents !== undefined) {
     if (!options.testTenantId) throw new Error("Preço de teste exige oficina de teste.");
     assertMonthlyPriceCents(options.testPriceCents);
@@ -118,7 +124,8 @@ export function createWorkshopBilling(pool: Pool, options: {
     // The committed reservation and provider idempotency key survive a retry or process restart.
     const created = await createMercadoPagoSubscription({
       id: subscriptionId!, plan: plan!, priceCents: priceCents!,
-      payerEmail: input.payerEmail,
+      payerEmail: options.testTenantId === input.tenantId && options.testPayerEmail
+        ? options.testPayerEmail : input.payerEmail,
       returnUrl: new URL("/configuracoes?aba=conta", options.returnOrigin).toString(),
     }, options.accessToken, options.send);
     const updated = await pool.query(`UPDATE platform_admin.billing_subscriptions
