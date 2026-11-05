@@ -30,13 +30,13 @@ test("PostgreSQL: prices are unset by default and subscriptions retain their con
     await db.query("INSERT INTO horse_power.tenants(id,name) VALUES($1,'Outra Oficina Fictícia')", [otherTenant]);
     await db.query("SAVEPOINT cross_tenant_invoice");
     await assert.rejects(db.query(`INSERT INTO platform_admin.billing_invoices
-      (id,subscription_id,tenant_id,period_start,period_end,amount_cents,status)
-      VALUES($1,$2,$3,'2026-11-01','2026-12-01',10000,'pending')`,
+      (id,subscription_id,tenant_id,period_start,period_end,due_on,amount_cents,status)
+      VALUES($1,$2,$3,'2026-11-01','2026-12-01','2026-11-10',10000,'pending')`,
       [randomUUID(),subscription,otherTenant]), {code:"23503"});
     await db.query("ROLLBACK TO SAVEPOINT cross_tenant_invoice");
     await db.query(`INSERT INTO platform_admin.billing_invoices
-      (id,subscription_id,tenant_id,period_start,period_end,amount_cents,status)
-      VALUES($1,$2,$3,'2026-11-01','2026-12-01',10000,'pending')`,
+      (id,subscription_id,tenant_id,period_start,period_end,due_on,amount_cents,status)
+      VALUES($1,$2,$3,'2026-11-01','2026-12-01','2026-11-10',10000,'pending')`,
       [randomUUID(),subscription,tenant]);
 
   } finally {
