@@ -3,7 +3,7 @@ export type PlanCode = "basic" | "professional" | "premium";
 export const planCodes: readonly PlanCode[] = ["basic", "professional", "premium"];
 
 export function assertMonthlyPriceCents(value: unknown): number {
-  if (!Number.isSafeInteger(value) || (value as number) <= 0 || (value as number) > 100_000_000) {
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value <= 0 || value > 100_000_000) {
     throw new Error("Informe um preço mensal válido em centavos.");
   }
   return value as number;
