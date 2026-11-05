@@ -1,6 +1,7 @@
 import { plateLookupStatus } from "./services/vehicleLookup.js";
 import { verifyMercadoPagoWebhook } from "./services/mercadoPagoWebhook.js";
 import { reconcileMercadoPagoInvoice } from "./services/mercadoPagoReconcile.js";
+import { reconcileMercadoPagoSubscription } from "./services/mercadoPagoSubscription.js";
 import { assertMonthlyPriceCents } from "../shared/platformBilling.js";
 import express, { type NextFunction, type Request, type Response } from "express";
 import { randomBytes, randomUUID } from "node:crypto";
@@ -228,14 +229,18 @@ export function createPlatformAdminApp(pool: Pool, encryptionKey: string, transf
     const resourceId = typeof queryId === "string" ? queryId
       : typeof bodyId === "string" || typeof bodyId === "number" ? String(bodyId) : "";
     const requestId = req.header("x-request-id");
-    if (topic !== "subscription_authorized_payment"
-        || !/^[0-9]{1,30}$/.test(resourceId)
+    if (!["subscription_authorized_payment", "subscription_preapproval"].includes(topic)
+        || (topic === "subscription_authorized_payment"
+          ? !/^[0-9]{1,30}$/.test(resourceId)
+          : !/^[a-zA-Z0-9_-]{1,160}$/.test(resourceId))
         || (bodyId != null && String(bodyId) !== resourceId)
         || !verifyMercadoPagoWebhook(req.header("x-signature"), requestId, resourceId, secret)) {
       res.status(401).json({ error: "Notificação inválida." }); return;
     }
     try {
-      const result = await reconcileMercadoPagoInvoice(pool, requestId!, resourceId, token);
+      const result = topic === "subscription_preapproval"
+        ? await reconcileMercadoPagoSubscription(pool, requestId!, resourceId, token)
+        : await reconcileMercadoPagoInvoice(pool, requestId!, resourceId, token);
       res.status(200).json({ result });
     } catch {
       res.status(503).json({ error: "Não foi possível conferir a notificação." });
