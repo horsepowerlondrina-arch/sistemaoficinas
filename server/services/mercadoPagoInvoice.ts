@@ -19,7 +19,7 @@ export type VerifiedProviderInvoice = {
   providerPaymentId: string | null;
   debitDate: string;
   amountCents: number;
-  status: "approved" | "pending" | "rejected";
+  status: "approved" | "pending" | "rejected" | "refunded";
 };
 
 /**
@@ -40,6 +40,7 @@ export function verifyProviderInvoice(
   }
   const paymentStatus = invoice.payment?.status;
   const status = paymentStatus === "approved" ? "approved"
+    : paymentStatus === "refunded" || paymentStatus === "charged_back" ? "refunded"
     : paymentStatus === "rejected" || paymentStatus === "cancelled" ? "rejected"
     : "pending";
   return {
