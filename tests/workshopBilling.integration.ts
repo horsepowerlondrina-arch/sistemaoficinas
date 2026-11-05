@@ -92,6 +92,7 @@ test("PostgreSQL: Preview price applies only to the selected fictional workshop"
       calls++;
       const request = JSON.parse(String(init?.body));
       assert.equal(request.auto_recurring.transaction_amount, 1);
+      assert.equal(request.payer_email, "test_user_5232550938536629492@testuser.com");
       return { ok: true, json: async () => ({
         id: "preview-"+request.external_reference, status: "pending",
         init_point: "https://www.mercadopago.com.br/subscriptions/checkout?preapproval_id=preview",
@@ -99,8 +100,13 @@ test("PostgreSQL: Preview price applies only to the selected fictional workshop"
     }) as typeof fetch;
     const billing = createWorkshopBilling(pool, {
       accessToken: "test-token", returnOrigin: "https://preview.example.test",
-      testTenantId: tenant, testPriceCents: 100, send,
+      testTenantId: tenant, testPriceCents: 100,
+      testPayerEmail: "test_user_5232550938536629492@testuser.com", send,
     });
+    assert.throws(() => createWorkshopBilling(pool, {
+      accessToken: "test-token", returnOrigin: "https://preview.example.test",
+      testPayerEmail: "real@example.com", testTenantId: tenant, send,
+    }), /Comprador de teste inválido/);
     assert.equal((await billing.offer(tenant))?.monthlyPriceCents, 100);
     assert.equal(await billing.offer(other), null);
     await assert.rejects(billing.startCheckout({
