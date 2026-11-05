@@ -23,6 +23,7 @@ export function WorkshopBilling({tenantId}:{tenantId:string}){
     {data.account.cancel_at_period_end&&<p>Renovação cancelada. O período já pago será preservado.</p>}
    </div>}
    <button type="button" className="button" disabled={busy} onClick={()=>void act(async()=>{setData(await send("/account/billing/refresh",{}));})}>{busy?"Aguarde…":"Atualizar situação do pagamento"}</button>
+   {data.account?.invoice_payment_url&&<p><a className="button" href={/^https:\/\/(invoice|pay)\.stripe\.com\//.test(data.account.invoice_payment_url)?data.account.invoice_payment_url:undefined}>Regularizar fatura no Stripe</a></p>}
    {data.pending&&<p><a className="button" href={data.pending.url.startsWith("https://checkout.stripe.com/")?data.pending.url:undefined}>Abrir pagamento pendente</a></p>}
    <p>O teste gratuito não será reiniciado. Contrate ao final do teste. Sem pagamento confirmado, o acesso fica somente leitura no dia seguinte ao vencimento, sem excluir dados.</p>
    <label>Forma de pagamento<select value={method} disabled={busy} onChange={e=>{setMethod(e.target.value as "card"|"pix");setConfirmed(false);}}><option value="card">Cartão — renovação mensal automática</option><option value="pix">Pix — confirmar pagamento todo mês</option></select></label>

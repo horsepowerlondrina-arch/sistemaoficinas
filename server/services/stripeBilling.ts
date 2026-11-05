@@ -27,7 +27,7 @@ export function stripeBillingService(pool:Pool,request:StripeRequest,origin:stri
   requireTestTenant(tenant);
   const [prices,account,payments,workshop,pending]=await Promise.all([
    pool.query("SELECT id,plan_code,amount_cents FROM platform_admin.stripe_prices WHERE active ORDER BY amount_cents"),
-   pool.query("SELECT plan_code,method,managed,due_on::text,paid_until::text,subscription_status,cancel_at_period_end,subscription_id IS NOT NULL AS recurring FROM platform_admin.stripe_accounts WHERE tenant_id=$1",[tenant]),
+   pool.query("SELECT plan_code,method,managed,due_on::text,paid_until::text,subscription_status,invoice_payment_url,cancel_at_period_end,subscription_id IS NOT NULL AS recurring FROM platform_admin.stripe_accounts WHERE tenant_id=$1",[tenant]),
    pool.query("SELECT provider_id,amount_cents,period_start::text,period_end::text,status FROM platform_admin.stripe_payments WHERE tenant_id=$1 ORDER BY created_at DESC LIMIT 24",[tenant]),
    pool.query("SELECT trial_ends_at FROM platform_admin.workshops WHERE tenant_id=$1 AND status='trial'",[tenant]),
    pool.query("SELECT url,method FROM platform_admin.stripe_checkouts WHERE tenant_id=$1 AND status='open'",[tenant]),
@@ -154,12 +154,20 @@ export function stripeBillingService(pool:Pool,request:StripeRequest,origin:stri
  }
  async function syncInvoice(invoiceId:string){
   if(!/^in_[A-Za-z0-9]+$/.test(invoiceId))throw new Error("Fatura inválida.");
-  const inv=object.extend({customer:z.unknown(),status:z.string(),amount_paid:z.number().int(),currency:z.string(),parent:z.object({subscription_details:z.object({subscription:z.unknown()}).nullable().optional()}).nullable().optional()}).parse(await request("/invoices/"+invoiceId));
+  const inv=object.extend({customer:z.unknown(),status:z.string(),created:z.number().int(),hosted_invoice_url:z.string().url().nullable().optional(),amount_paid:z.number().int(),currency:z.string(),parent:z.object({subscription_details:z.object({subscription:z.unknown()}).nullable().optional()}).nullable().optional()}).parse(await request("/invoices/"+invoiceId));
   const sub=identifier(inv.parent?.subscription_details?.subscription);
-  if(!sub||inv.status!=="paid")return;
+  if(!sub)return;
   const account=(await pool.query("SELECT a.*,p.amount_cents FROM platform_admin.stripe_accounts a JOIN platform_admin.stripe_prices p ON p.id=a.price_id WHERE subscription_id=$1",[sub])).rows[0];
   if(!account)return;
   if(identifier(inv.customer)!==account.customer_id)throw new Error("Fatura de outra oficina.");
+  let paymentUrl:string|null=null;
+  if(inv.status==="open"&&inv.hosted_invoice_url){
+   const target=new URL(inv.hosted_invoice_url);
+   if(target.protocol!=="https:"||!["invoice.stripe.com","pay.stripe.com"].includes(target.hostname))throw new Error("Endereço de fatura inválido.");
+   paymentUrl=target.href;
+  }
+  await pool.query("UPDATE platform_admin.stripe_accounts SET invoice_payment_url=$2,invoice_created=$3 WHERE tenant_id=$1 AND invoice_created<=$3",[account.tenant_id,paymentUrl,inv.created]);
+  if(inv.status!=="paid")return;
   validatePaidAmount(inv.amount_paid,account.amount_cents,inv.currency);
   const detail=z.object({
    lines:z.object({has_more:z.literal(false),data:z.array(z.object({period:z.object({start:z.number(),end:z.number()}),amount:z.number().int()})).length(1)}),

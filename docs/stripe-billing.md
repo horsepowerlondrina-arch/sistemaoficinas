@@ -8,7 +8,7 @@ Nenhuma migração, preço ou cobrança real foi executada por esta implementaç
 
 - Administração → Assinaturas e cobranças: preços mensais de Básico, Profissional e Premium, em centavos, com justificativa/auditoria. Exige `platform:settings`.
 - Configurações → Conta: proprietário contrata, acompanha pagamentos e cancela renovação. A oficina vem da sessão, nunca do corpo da requisição.
-- Cartão: Checkout de assinatura mensal. Pix: Checkout de pagamento único; renovação mensal preparada pelo job, paga pelo cliente todo mês.
+- Cartão: Checkout de assinatura mensal. Fatura pendente pode ser regularizada no link hospedado do Stripe exibido na conta. Pix: Checkout de pagamento único; renovação mensal preparada pelo job, paga pelo cliente todo mês.
 - Para empresas brasileiras, a documentação Stripe informa que Pix Automático não está disponível: https://docs.stripe.com/payments/pix .
 - Contratação após o teste gratuito existente. Nenhum segundo período grátis é concedido.
 - Vencimento usa America/Sao_Paulo. No dia seguinte sem pagamento, somente leitura. Suspensões manuais permanecem prioritárias, inclusive após pagamento.

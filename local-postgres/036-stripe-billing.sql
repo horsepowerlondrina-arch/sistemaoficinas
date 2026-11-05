@@ -15,6 +15,8 @@ CREATE TABLE platform_admin.stripe_accounts (
  billing_email text NOT NULL,
  retry_after timestamptz,
  subscription_status text,
+ invoice_payment_url text,
+ invoice_created bigint NOT NULL DEFAULT 0,
  cancel_at_period_end boolean NOT NULL DEFAULT false,
  subscription_id text UNIQUE,
  plan_code text NOT NULL CHECK(plan_code IN ('basic','professional','premium')),
