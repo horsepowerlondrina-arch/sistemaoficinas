@@ -47,9 +47,13 @@ export async function createMercadoPagoSubscription(
       }),
       signal: controller.signal,
     });
-    if (!response.ok) throw new Error("O provedor não conseguiu iniciar a assinatura.");
+    if (!response.ok) {
+      console.warn("Mercado Pago preapproval rejected", { status: response.status });
+      throw new Error("O provedor não conseguiu iniciar a assinatura.");
+    }
     const parsed = responseSchema.safeParse(await response.json());
     if (!parsed.success || !/^https:\/\/(www\.)?mercadopago\.com(\.br)?\//.test(parsed.data.init_point)) {
+      console.warn("Mercado Pago preapproval returned an invalid checkout response");
       throw new Error("O provedor retornou uma resposta inválida.");
     }
     return { providerId: parsed.data.id, checkoutUrl: parsed.data.init_point, status: parsed.data.status };
