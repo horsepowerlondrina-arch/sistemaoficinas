@@ -1,0 +1,11 @@
+.billing-admin-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;align-items:start}
+.billing-section{display:flex;flex-direction:column;gap:16px;min-width:0;line-height:1.5}
+.billing-section>h2,.billing-section>h3,.billing-section>p{margin:0}
+.billing-section>button{align-self:flex-start}
+.billing-section .billing-details p{margin:.35em 0}
+.billing-section .billing-check{display:flex;gap:10px;align-items:flex-start}
+.billing-section .billing-check input{width:auto;flex:none;margin:.3em 0 0}
+.billing-section .billing-plan{padding:18px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.billing-plan h3,.billing-plan p{margin:0}
+.billing-section .pa-form{gap:16px}
+@media(max-width:800px){.billing-admin-grid{grid-template-columns:minmax(0,1fr)}}

@@ -22,6 +22,7 @@ Nenhuma migração, preço ou cobrança real foi executada por esta implementaç
 
 Não copiar chaves no GitHub, logs ou chat.
 - `STRIPE_BILLING_ENABLED=true`
+- `STRIPE_TEST_TENANT_IDS`: somente identificadores das oficinas fictícias autorizadas. Lista vazia bloqueia testes de cobrança.
 - `STRIPE_SECRET_KEY`: chave secreta **de teste**.
 - `STRIPE_WEBHOOK_SECRET`: segredo do endpoint de teste.
 - `STRIPE_CRON_SECRET`: valor aleatório de pelo menos 32 caracteres.
@@ -48,7 +49,7 @@ de bypass publicamente. Não desativar proteção de outros deployments incident
 
 SQL completo: [036-stripe-billing.sql](../local-postgres/036-stripe-billing.sql).
 Cria cinco tabelas privadas com RLS para o papel restrito administrativo.
-Não altera oficinas nem migra registros do Mercado Pago. Substitui duas funções de cálculo de acesso
+Não altera oficinas nem migra registros do Mercado Pago. Substitui três funções de cálculo de acesso
 para considerar somente contas com pagamento reconciliado, mantendo legado e suspensões.
 Os preços históricos só permitem UPDATE na coluna active.
 O usuário operacional não acessa as tabelas financeiras da plataforma.

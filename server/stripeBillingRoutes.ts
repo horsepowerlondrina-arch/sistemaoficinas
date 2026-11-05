@@ -12,6 +12,7 @@ export function billingError(error:unknown,res:Response){
 }
 export function stripePublicRoutes(billing:StripeBilling,secret:string,cronSecret:string){
  const app=express.Router();
+ app.use((_req,res,next)=>{res.set("Cache-Control","no-store");next();});
  app.post("/api/billing/stripe/webhook",express.raw({type:"application/json",limit:"256kb"}),async(req,res)=>{
   let event;
   try{if(!Buffer.isBuffer(req.body))throw new Error();event=verifiedStripeEvent(req.body,req.get("stripe-signature")||"",secret);}

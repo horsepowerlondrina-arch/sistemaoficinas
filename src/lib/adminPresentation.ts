@@ -11,6 +11,11 @@ export const plannedWorkshopPlans = [
   { code: "premium", label: "Premium", users: 10, description: "Profissional e Catálogo Técnico de Tempos." },
 ] as const;
 const actions: Record<string,string> = {
+ "admin.stripe.price_changed":"Preço mensal atualizado",
+ "stripe.checkout.prepared":"Pagamento da assinatura preparado",
+ "stripe.payment.reconciled":"Pagamento da assinatura conferido",
+ "stripe.payment.revoked":"Pagamento estornado ou contestado",
+ "stripe.subscription.cancel_requested":"Renovação da assinatura cancelada",
  "admin.workshop.created":"Oficina cadastrada", "admin.workshop.updated":"Dados cadastrais atualizados",
  "admin.workshop.status_changed":"Situação de acesso alterada", "admin.workshop.membership_changed":"Vínculo de usuário alterado",
  "admin.workshop.entitlements_changed":"Permissões e limites alterados",

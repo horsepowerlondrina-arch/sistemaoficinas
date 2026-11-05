@@ -12,7 +12,7 @@ test("Stripe PostgreSQL: preços versionados, Pix, cartão, repetição, falha, 
  assert.ok(["localhost","127.0.0.1"].includes(url.hostname)&&url.pathname==="/horse_power_local");
  assert.equal(decodeURIComponent(url.username),"hp_platform_admin_app");
  const pool=new pg.Pool({connectionString:url.toString(),ssl:false,max:4});
- const tenant=randomUUID(),other=randomUUID(),actor={id:randomUUID(),email:"billing-"+randomUUID()+"@example.test"};
+ const tenant=randomUUID(),other=randomUUID(),trial=randomUUID(),actor={id:randomUUID(),email:"billing-"+randomUUID()+"@example.test"};
  const requests=new Map<string,Record<string,unknown>>(),resources=new Map<string,unknown>();
  let failOnce=true,calls=0;
  const request:StripeRequest=async(path,input,key)=>{
@@ -36,13 +36,25 @@ test("Stripe PostgreSQL: preços versionados, Pix, cartão, repetição, falha, 
   const result=resources.get(path);
   assert.ok(result,"unexpected Stripe request "+path);return result;
  };
- const service=stripeBillingService(pool,request,"https://example.test");
+ const service=stripeBillingService(pool,request,"https://example.test",[tenant,other,trial]);
  try{
   await root.query("INSERT INTO horse_power.tenants(id,name) VALUES($1,'Stripe fictícia A'),($2,'Stripe fictícia B')",[tenant,other]);
   for(const id of [tenant,other])await root.query("INSERT INTO platform_admin.workshops(tenant_id,source,name,responsible_name,responsible_email,status,email_verified_at) VALUES($1,'admin','Stripe fictícia','Responsável fictício',$2,'active',now())",[id,id+"@example.test"]);
   await root.query("INSERT INTO platform_admin.administrators(id,email,display_name,role,permissions,password_hash,totp_secret_ciphertext,active,enrolled) VALUES($1,$2,'Stripe fictício','principal','[]','fixture','fixture',true,true)",[actor.id,actor.email]);
+  await root.query("INSERT INTO horse_power.tenants(id,name) VALUES($1,'Teste gratuito fictício')",[trial]);
+  await root.query("INSERT INTO platform_admin.workshops(tenant_id,source,name,responsible_name,responsible_email,status,email_verified_at,trial_started_at,trial_ends_at) VALUES($1,'admin','Teste gratuito fictício','Responsável fictício',$2,'trial',now(),now(),now()+interval '14 days')",[trial,trial+"@example.test"]);
+  const trialBefore=(await root.query("SELECT trial_started_at,trial_ends_at FROM platform_admin.workshops WHERE tenant_id=$1",[trial])).rows[0];
+  for(let i=0;i<3;i++){
+   const user=randomUUID();
+   await root.query("INSERT INTO horse_power.users(id,name,email,password_hash) VALUES($1,'Usuário fictício',$2,'fixture')",[user,user+"@example.test"]);
+   await root.query("INSERT INTO horse_power.memberships(user_id,tenant_id,role) VALUES($1,$2,$3)",[user,other,i===0?"owner":"operator"]);
+  }
+  await assert.rejects(service.summary("not-authorized"),/não está autorizada/);
   const price=(await service.savePrice({plan_code:"premium",amount_cents:1000,reason:"Preço para teste fictício."},actor)).id;
   const p={price_id:price,method:"pix"};
+  await assert.rejects(service.checkout(trial,"trial@example.test",p),/teste gratuito está ativo/);
+  assert.deepEqual((await root.query("SELECT trial_started_at,trial_ends_at FROM platform_admin.workshops WHERE tenant_id=$1",[trial])).rows[0],trialBefore);
+  assert.equal((await root.query("SELECT platform_admin.workshop_entitlement_status($1) AS v",[trial])).rows[0].v.effective_plan_code,"premium");
   await assert.rejects(service.checkout(tenant,"owner@example.test",p),/simulated network/);
   const urls=await Promise.all([service.checkout(tenant,"owner@example.test",p),service.checkout(tenant,"owner@example.test",p)]);
   assert.equal(urls[0].url,urls[1].url);assert.equal(requests.size,1);
@@ -91,6 +103,7 @@ test("Stripe PostgreSQL: preços versionados, Pix, cartão, repetição, falha, 
   pi.amount_received=1000;await service.syncSession(sessionId);await service.refresh(other);
   assert.equal((await service.summary(other)).payments.length,1);
   assert.equal((await root.query("SELECT platform_admin.workshop_entitlement_status($1) AS v",[other])).rows[0].v.max_users,2);
+  assert.equal((await root.query("SELECT count(*)::int AS n FROM horse_power.memberships WHERE tenant_id=$1",[other])).rows[0].n,3,"downgrade preserves existing users");
   await service.cancel(other);assert.equal((await service.summary(other)).account.cancel_at_period_end,true);
   pi.latest_charge.amount_refunded=1000;
   resources.set("/charges/ch_Test",{payment_intent:"pi_TestCard"});
@@ -101,6 +114,7 @@ test("Stripe PostgreSQL: preços versionados, Pix, cartão, repetição, falha, 
   assert.equal((await root.query("SELECT horse_power.local_tenant_access_state($1) AS state",[other])).rows[0].state,"read_only");
   assert.ok(calls>=3);assert.ok(billingDate(new Date()));
   assert.ok((await pool.query("SELECT 1 FROM platform_admin.audit_events WHERE subject_tenant_id=$1 AND action='stripe.payment.reconciled'",[tenant])).rowCount);
-  await assert.rejects(pool.query("SELECT password_hash FROM horse_power.users"),/permission denied/);
+  await assert.rejects(pool.query("UPDATE platform_admin.stripe_prices SET amount_cents=1 WHERE id=$1",[price]),/permission denied/);
+  await assert.rejects(pool.query("SELECT id FROM horse_power.users"),/permission denied/);
  }finally{await pool.end();await root.end();}
 });
