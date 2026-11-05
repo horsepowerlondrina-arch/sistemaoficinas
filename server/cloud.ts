@@ -34,7 +34,9 @@ const billing = process.env.BILLING_CHECKOUT_ENABLED === "true"
   && process.env.MERCADO_PAGO_WEBHOOK_SECRET
   ? createWorkshopBilling(adminPool, {
       accessToken: process.env.MERCADO_PAGO_ACCESS_TOKEN,
-      returnOrigin: process.env.APP_ORIGIN!,
+      returnOrigin: process.env.VERCEL_ENV === "preview" && process.env.VERCEL_BRANCH_URL
+        ? `https://${process.env.VERCEL_BRANCH_URL}`
+        : process.env.APP_ORIGIN!,
     })
   : undefined;
 const app = createApp(db, createPlatformAdminApp(adminPool, adminKey, transfer), {}, billing);
