@@ -3,6 +3,7 @@ import { ShieldCheck } from "lucide-react";
 import { useApp } from "../lib/context";
 import { api, send } from "../lib/api";
 
+type BillingOffer = { plan: string; monthlyPriceCents: number; currency: "BRL"; status: string };
 type PlanSummary = { plan_code: string | null; status: string | null; trial_ends_at: string | null } | null;
 const planLabel: Record<string,string> = { basic:"Básico", professional:"Profissional", premium:"Premium" };
 const statusLabel: Record<string,string> = { active:"Ativo", trial:"Período de teste", blocked:"Bloqueado", canceled:"Cancelado" };
@@ -11,6 +12,10 @@ export function AccountSettings() {
   const { session } = useApp();
   const [plan,setPlan] = useState<PlanSummary>(null);
   const [loading,setLoading] = useState(true);
+  const [offer,setOffer] = useState<BillingOffer|null>(null);
+  const [accepted,setAccepted] = useState(false);
+  const [checkoutBusy,setCheckoutBusy] = useState(false);
+  const [checkoutError,setCheckoutError] = useState("");
   const [planError,setPlanError] = useState("");
   const [passwordBusy,setPasswordBusy] = useState(false);
   const [passwordMessage,setPasswordMessage] = useState("");
@@ -21,8 +26,24 @@ export function AccountSettings() {
     api<{plan:PlanSummary}>("/account/plan").then(result => {if(active)setPlan(result.plan);})
       .catch(() => {if(active)setPlanError("Não foi possível consultar o plano agora.");})
       .finally(() => {if(active)setLoading(false);});
+    api<{offer:BillingOffer|null}>("/account/billing/offer")
+      .then(result => { if(active)setOffer(result.offer); })
+      .catch(() => { if(active)setOffer(null); });
     return () => {active=false;};
   },[session.tenant.id]);
+  async function startCheckout() {
+    if (!offer || !accepted || checkoutBusy) return;
+    setCheckoutBusy(true);setCheckoutError("");
+    try {
+      const result = await send("/account/billing/checkout", {
+        confirm_contract:true, expected_price_cents:offer.monthlyPriceCents,
+      }) as { checkout_url:string };
+      const destination = new URL(result.checkout_url);
+      if (destination.protocol !== "https:" || !/(^|\.)mercadopago\.com(\.br)?$/.test(destination.hostname))
+        throw new Error("O provedor retornou um endereço inválido.");
+      window.location.assign(destination.toString());
+    } catch(e) { setCheckoutError((e as Error).message);setCheckoutBusy(false); }
+  }
   async function requestPasswordChange(event:FormEvent<HTMLFormElement>) {
     event.preventDefault();if(passwordBusy)return;
     setPasswordBusy(true);setPasswordError("");setPasswordMessage("");
@@ -55,12 +76,19 @@ export function AccountSettings() {
         <p>Situação: {plan.status ? statusLabel[plan.status]??plan.status : "Não informada"}</p>
         {plan.status==="trial"&&plan.trial_ends_at&&<p>Teste até {new Date(plan.trial_ends_at).toLocaleDateString("pt-BR")}</p>}</>
         :<p>Plano ainda não atribuído pela administração central.</p>}
-      <div className="form-actions">
-        <button className="button" type="button" disabled title="Disponível após a integração de pagamentos">Fazer upgrade</button>
-        <button className="button" type="button" disabled title="Disponível após a integração de pagamentos">Fazer downgrade</button>
-        <button className="button" type="button" disabled title="Disponível após a integração de pagamentos">Cancelar assinatura</button>
-      </div>
-      <p className="muted">Alterações da assinatura estarão disponíveis quando a gestão de pagamentos for implementada.</p>
+      {offer ? <>
+        <p>Mensalidade: <strong>{(offer.monthlyPriceCents/100).toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}</strong> por mês.</p>
+        <label><input type="checkbox" checked={accepted} onChange={event=>setAccepted(event.target.checked)}/>
+          Confirmo que conheço o valor mensal e quero continuar no checkout seguro do Mercado Pago.
+        </label>
+        <div className="form-actions">
+          <button className="button" type="button" disabled={!accepted||checkoutBusy} onClick={()=>void startCheckout()}>
+            {checkoutBusy?"Preparando pagamento…":"Continuar para o pagamento"}
+          </button>
+        </div>
+        {checkoutError&&<p role="alert" className="error-box">{checkoutError}</p>}
+        <p className="muted">Cartão pode cobrar automaticamente a cada mês. Pix exige pagamento pelo cliente a cada mês. O acesso só muda após confirmação do provedor.</p>
+      </> : <p className="muted">A contratação online ainda não está disponível. Seu acesso atual permanece preservado.</p>}
     </section>
   </>;
 }

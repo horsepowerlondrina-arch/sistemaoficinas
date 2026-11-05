@@ -9,8 +9,13 @@ export async function captureSettings(page, entry) {
     await expect(page.getByRole("heading",{name:"Administrador da conta"})).toBeVisible();
     await expect(page.getByRole("heading",{name:"Plano da oficina"})).toBeVisible();
     await expect(page.getByRole("button",{name:"Enviar link para alterar senha"})).toBeEnabled();
-    for (const name of ["Fazer upgrade","Fazer downgrade","Cancelar assinatura"])
-      await expect(page.getByRole("button",{name})).toBeDisabled();
+    const checkout = page.getByRole("button",{name:"Continuar para o pagamento"});
+    if (await checkout.count()) {
+      await expect(checkout).toBeDisabled();
+      await expect(page.getByText("Mensalidade:",{exact:false})).toBeVisible();
+    } else {
+      await expect(page.getByText("A contratação online ainda não está disponível.",{exact:false})).toBeVisible();
+    }
   }
   if (entry.id === "config-dados-oficina-desktop") {
     const name = page.getByRole("textbox", {

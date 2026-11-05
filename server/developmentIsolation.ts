@@ -12,13 +12,17 @@ export function assertDevelopmentIsolation(
       "HPDesenvolvimento exige configuração isolada de desenvolvimento.",
     );
   const database = new URL(env.DATABASE_URL || "");
+  const previewBilling = env.VERCEL_ENV === "preview" &&
+    env.VERCEL_GIT_COMMIT_REF === "feat/admin-billing-mercadopago" &&
+    expected === "vnclahdnirqlcbamodqy";
+  const allowedUser = previewBilling ? "hp_billing_preview_app" : "horse_power_app";
   const direct =
     database.hostname === `db.${expected}.supabase.co` &&
-    decodeURIComponent(database.username) === "horse_power_app";
+    decodeURIComponent(database.username) === allowedUser;
   const pooled =
     database.hostname.endsWith(".pooler.supabase.com") &&
     database.port === "6543" &&
-    decodeURIComponent(database.username) === `horse_power_app.${expected}`;
+    decodeURIComponent(database.username) === `${allowedUser}.${expected}`;
   if (
     (!direct && !pooled) ||
     database.pathname !== "/postgres" ||

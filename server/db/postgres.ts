@@ -158,6 +158,19 @@ export function createPostgresDatabase(url = process.env.DATABASE_URL, options: 
       const result = await query("SELECT horse_power.local_tenant_access_state($1) AS state", [tenant]);
       return String(result.rows[0]?.state || "legacy");
     },
+    async getTenantBillingReadOnly(tenant: string) {
+      try {
+        const result = await query(
+          "SELECT horse_power.local_tenant_billing_read_only($1) AS read_only",
+          [tenant],
+        );
+        return result.rows[0]?.read_only === true;
+      } catch (error) {
+        // A Preview may run against a database without the additive migration.
+        if ((error as { code?: string }).code === "42883") return false;
+        throw error;
+      }
+    },
     async getTenantModuleAccess(tenant: string) {
       try {
         const result = await query("SELECT horse_power.local_tenant_module_access($1) AS modules", [tenant]);

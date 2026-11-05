@@ -1,4 +1,5 @@
 import {thirdPartySalePrice} from "../shared/pricing.js";
+import type { WorkshopBilling } from "./services/workshopBilling.js";
 import { respondAfterCommit } from "./db/responseCommit.js";
 import { documentHistory, readDocument, issueDocument, listArchivedDocuments, readArchivedDocument } from "./services/documents.js";
 import {
@@ -228,7 +229,7 @@ function requestSecuritySettings(req: express.Request) {
   };
 }
 
-export function createApp(db: DB, platformAdminApp?: express.RequestHandler, passwordResetMailConfig: PasswordResetMailConfig = {}) {
+export function createApp(db: DB, platformAdminApp?: express.RequestHandler, passwordResetMailConfig: PasswordResetMailConfig = {}, billing?: WorkshopBilling) {
   const app = express();
   app.disable("x-powered-by");
   app.use("/api/stock-invoices", express.json({ limit: "3mb" }));
@@ -258,6 +259,8 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
           ? [
               process.env.APP_ORIGIN,
               ...(process.env.APP_ORIGINS || "").split(","),
+              process.env.VERCEL_ENV === "preview" && process.env.VERCEL_BRANCH_URL
+                ? `https://${process.env.VERCEL_BRANCH_URL}` : "",
             ]
               .map((value) => value?.trim())
               .includes(origin.origin)
@@ -461,6 +464,43 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
   app.get("/api/account/plan", async (_req, res) => {
     const ctx: Context = res.locals.context;
     res.json({plan: await db.getTenantPlanSummary?.(ctx.tenantId) ?? null});
+  });
+  app.get("/api/account/billing/offer", async (_req, res) => {
+    const ctx: Context = res.locals.context;
+    if (ctx.role !== "owner") { res.status(403).json({ error: "Somente o proprietário pode contratar um plano." }); return; }
+    if (!billing) { res.status(503).json({ error: "Cobranças ainda não estão disponíveis." }); return; }
+    res.json({ offer: await billing.offer(ctx.tenantId) });
+  });
+  app.post("/api/account/billing/checkout", async (req, res) => {
+    const ctx: Context = res.locals.context;
+    if (ctx.role !== "owner") { res.status(403).json({ error: "Somente o proprietário pode contratar um plano." }); return; }
+    if (!billing) { res.status(503).json({ error: "Cobranças ainda não estão disponíveis." }); return; }
+    const input = z.object({
+      confirm_contract: z.literal(true),
+      expected_price_cents: z.number().int().positive(),
+    }).strict().safeParse(req.body);
+    if (!input.success) { res.status(400).json({ error: "Confira o preço e confirme a assinatura mensal." }); return; }
+    const user = await db.prepare("SELECT email FROM users WHERE id=?").get(ctx.userId);
+    if (!user?.email) { res.status(409).json({ error: "O e-mail da conta não está disponível." }); return; }
+    try {
+      const checkoutUrl = await billing.startCheckout({
+        tenantId: ctx.tenantId, payerEmail: String(user.email),
+        expectedPriceCents: input.data.expected_price_cents,
+      });
+      res.json({ checkout_url: checkoutUrl });
+    } catch (error) {
+      const safe = new Set([
+        "Cobranças ainda não estão configuradas neste ambiente.",
+        "Plano ou preço indisponível para esta oficina.",
+        "O preço mudou. Atualize a tela antes de confirmar.",
+        "A oficina já possui uma assinatura com outras condições.",
+        "A assinatura existente precisa de revisão administrativa.",
+      ]);
+      const message = (error as Error).message;
+      res.status(safe.has(message) ? 409 : 503).json({
+        error: safe.has(message) ? message : "Não foi possível iniciar o pagamento. Tente novamente.",
+      });
+    }
   });
   app.post("/api/logout", async (req, res) => {
     await db

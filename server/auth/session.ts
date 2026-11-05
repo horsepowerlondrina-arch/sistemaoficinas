@@ -78,6 +78,13 @@ export function auth(db: DB) {
       res.status(403).json({ error: "Esta oficina está em modo somente leitura." });
       return;
     }
+    if (await db.getTenantBillingReadOnly?.(String(session.tenantId))) {
+      const billingDecision = tenantAccessDecision("read_only", req.method, req.path);
+      if (billingDecision === "read_only") {
+        res.status(403).json({ error: "Há uma mensalidade vencida. Esta oficina está em modo somente leitura." });
+        return;
+      }
+    }
     const modules = await db.getTenantModuleAccess?.(String(session.tenantId)) || { ...defaultWorkshopModules };
     res.locals.context = { ...session, role: membership.role, modules };
     next();

@@ -65,3 +65,25 @@ test("OSDrive homologation accepts only the configured custom and Vercel origins
   ])
     assert.throws(() => assertDevelopmentIsolation({ ...custom, ...patch }));
 });
+
+test("billing Preview role is accepted only for its isolated branch and project", () => {
+  const preview = {
+    ...env,
+    EXPECTED_DATABASE_PROJECT: "vnclahdnirqlcbamodqy",
+    DATABASE_URL:
+      "postgresql://hp_billing_preview_app.vnclahdnirqlcbamodqy:fake@aws-1-ca-central-1.pooler.supabase.com:6543/postgres",
+    APP_ORIGIN: "https://sistema-oficinas-homologacao-git-feat-admin-c02414-horse-power2.vercel.app",
+    APP_ORIGINS: "https://sistema-oficinas-homologacao-git-feat-admin-c02414-horse-power2.vercel.app",
+    PUBLIC_ORIGIN: undefined,
+    VERCEL_ENV: "preview",
+    VERCEL_GIT_COMMIT_REF: "feat/admin-billing-mercadopago",
+  };
+  assert.doesNotThrow(() => assertDevelopmentIsolation(preview));
+  for (const patch of [
+    { VERCEL_ENV: "production" },
+    { VERCEL_GIT_COMMIT_REF: "main" },
+    { EXPECTED_DATABASE_PROJECT: "testproject" },
+    { DATABASE_URL: "postgresql://hp_billing_preview_app.cbdwgocofigrdigfgwkp:fake@aws-1-ca-central-1.pooler.supabase.com:6543/postgres" },
+    { DATABASE_URL: "postgresql://postgres.vnclahdnirqlcbamodqy:fake@aws-1-ca-central-1.pooler.supabase.com:6543/postgres" },
+  ]) assert.throws(() => assertDevelopmentIsolation({ ...preview, ...patch }));
+});
