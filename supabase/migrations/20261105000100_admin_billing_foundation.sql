@@ -79,7 +79,7 @@ END $grants$;
 -- Return only a boolean to the authenticated workshop, never billing records.
 CREATE OR REPLACE FUNCTION horse_power.local_tenant_billing_read_only(p_tenant_id text)
 RETURNS boolean LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog AS $function$
-DECLARE v_tenant text; v_user text; v_due date; v_status text;
+DECLARE v_tenant text; v_user text;
 BEGIN
   v_tenant := nullif(current_setting('app.tenant_id',true),'');
   v_user := nullif(current_setting('app.user_id',true),'');
@@ -89,15 +89,14 @@ BEGIN
        WHERE m.tenant_id=p_tenant_id AND m.user_id=v_user
      )
   THEN RAISE EXCEPTION 'Acesso à oficina não autorizado' USING ERRCODE='42501'; END IF;
-  SELECT i.due_on,i.status INTO v_due,v_status
-    FROM platform_admin.billing_invoices i
+  RETURN EXISTS (
+    SELECT 1 FROM platform_admin.billing_invoices i
     JOIN platform_admin.billing_subscriptions s
       ON s.id=i.subscription_id AND s.tenant_id=i.tenant_id
     WHERE i.tenant_id=p_tenant_id
-    ORDER BY i.period_start DESC,i.created_at DESC LIMIT 1;
-  RETURN v_due IS NOT NULL
-    AND v_due < (now() AT TIME ZONE 'America/Sao_Paulo')::date
-    AND v_status <> 'approved';
+      AND i.due_on < (now() AT TIME ZONE 'America/Sao_Paulo')::date
+      AND i.status <> 'approved'
+  );
 END
 $function$;
 REVOKE ALL ON FUNCTION horse_power.local_tenant_billing_read_only(text) FROM PUBLIC;
