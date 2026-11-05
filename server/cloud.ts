@@ -4,6 +4,7 @@ import pg from "pg";
 import { assertDevelopmentIsolation } from "./developmentIsolation.js";
 import { assertPlatformAdminDatabase, createPlatformAdminApp } from "./platformAdminApp.js";
 import { createPlatformAdminDataTransfer } from "./services/platformAdminDataTransfer.js";
+import { createWorkshopBilling } from "./services/workshopBilling.js";
 import { readFileSync } from "node:fs";
 assertDevelopmentIsolation(process.env);
 const productionHost = process.env.VERCEL_PROJECT_PRODUCTION_URL;
@@ -28,5 +29,13 @@ const adminPool = new pg.Pool({
 });
 await assertPlatformAdminDatabase(adminPool);
 const transfer = createPlatformAdminDataTransfer(db, adminPool);
-const app = createApp(db, createPlatformAdminApp(adminPool, adminKey, transfer));
+const billing = process.env.BILLING_CHECKOUT_ENABLED === "true"
+  && process.env.MERCADO_PAGO_ACCESS_TOKEN
+  && process.env.MERCADO_PAGO_WEBHOOK_SECRET
+  ? createWorkshopBilling(adminPool, {
+      accessToken: process.env.MERCADO_PAGO_ACCESS_TOKEN,
+      returnOrigin: process.env.APP_ORIGIN!,
+    })
+  : undefined;
+const app = createApp(db, createPlatformAdminApp(adminPool, adminKey, transfer), {}, billing);
 export default app;
