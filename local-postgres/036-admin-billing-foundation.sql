@@ -16,6 +16,7 @@ ON CONFLICT (plan_code) DO NOTHING;
 CREATE TABLE IF NOT EXISTS platform_admin.billing_subscriptions (
   id text PRIMARY KEY,
   tenant_id text NOT NULL UNIQUE REFERENCES horse_power.tenants(id),
+  UNIQUE (id, tenant_id),
   plan_code text NOT NULL CHECK (plan_code IN ('basic','professional','premium')),
   price_version integer NOT NULL CHECK (price_version >= 1),
   monthly_price_cents integer NOT NULL CHECK (monthly_price_cents > 0),
@@ -35,8 +36,10 @@ CREATE INDEX IF NOT EXISTS billing_subscriptions_status_idx
 
 CREATE TABLE IF NOT EXISTS platform_admin.billing_invoices (
   id text PRIMARY KEY,
-  subscription_id text NOT NULL REFERENCES platform_admin.billing_subscriptions(id),
+  subscription_id text NOT NULL,
   tenant_id text NOT NULL REFERENCES horse_power.tenants(id),
+  FOREIGN KEY (subscription_id, tenant_id)
+    REFERENCES platform_admin.billing_subscriptions(id, tenant_id),
   provider_payment_id text UNIQUE,
   provider_invoice_id text UNIQUE,
   period_start timestamptz NOT NULL,
