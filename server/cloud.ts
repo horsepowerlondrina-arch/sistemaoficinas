@@ -40,6 +40,10 @@ const billing = process.env.BILLING_CHECKOUT_ENABLED === "true"
       testPriceCents: process.env.VERCEL_ENV === "preview" &&
         process.env.BILLING_TEST_TENANT_ID && process.env.BILLING_TEST_PRICE_CENTS
         ? Number(process.env.BILLING_TEST_PRICE_CENTS) : undefined,
+      testPayerEmail: process.env.VERCEL_ENV === "preview" &&
+        process.env.VERCEL_GIT_COMMIT_REF === "feat/admin-billing-mercadopago" &&
+        process.env.BILLING_TEST_TENANT_ID
+        ? process.env.BILLING_TEST_PAYER_EMAIL : undefined,
       returnOrigin: process.env.VERCEL_ENV === "preview" && process.env.VERCEL_BRANCH_URL
         ? `https://${process.env.VERCEL_BRANCH_URL}`
         : process.env.APP_ORIGIN!,
