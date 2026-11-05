@@ -42,6 +42,13 @@ test("PostgreSQL: owner checkout reservation is priced and idempotent", async ()
       tenantId:tenant,payerEmail:email,expectedPriceCents:12990,
     }),/indisponível/i);
     await pool.query("UPDATE platform_admin.workshops SET status='active' WHERE tenant_id=$1",[tenant]);
+    const restricted = createWorkshopBilling(pool,{
+      accessToken:"test-token",returnOrigin:"https://example.test",testTenantId:randomUUID(),send,
+    });
+    assert.equal(await restricted.offer(tenant),null);
+    await assert.rejects(restricted.startCheckout({
+      tenantId:tenant,payerEmail:email,expectedPriceCents:12990,
+    }),/oficina de teste/);
     const offer = await billing.offer(tenant);
     assert.equal(offer?.monthlyPriceCents,12990);
     await assert.rejects(billing.startCheckout({
