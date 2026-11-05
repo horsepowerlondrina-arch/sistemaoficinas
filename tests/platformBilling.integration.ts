@@ -13,6 +13,10 @@ test("PostgreSQL: prices are unset by default and subscriptions retain their con
     assert.ok(plans.every(row => row.monthly_price_cents === null && row.price_version === 0));
     const tenant = randomUUID(), subscription = randomUUID();
     await db.query("INSERT INTO horse_power.tenants(id,name) VALUES($1,'Oficina Fictícia Cobrança')", [tenant]);
+    const user = randomUUID();
+    await db.query("INSERT INTO horse_power.users(id,name,email,password_hash) VALUES($1,'Pessoa Fictícia',$2,'unused')",
+      [user,`billing-${user}@example.test`]);
+    await db.query("INSERT INTO horse_power.memberships(user_id,tenant_id,role) VALUES($1,$2,'owner')", [user,tenant]);
     await db.query("UPDATE platform_admin.plan_prices SET monthly_price_cents=10000,price_version=1 WHERE plan_code='basic'");
     await db.query(`INSERT INTO platform_admin.billing_subscriptions
       (id,tenant_id,plan_code,price_version,monthly_price_cents,payment_mode)
@@ -38,6 +42,22 @@ test("PostgreSQL: prices are unset by default and subscriptions retain their con
       (id,subscription_id,tenant_id,period_start,period_end,due_on,amount_cents,status)
       VALUES($1,$2,$3,'2026-11-01','2026-12-01','2026-11-10',10000,'pending')`,
       [randomUUID(),subscription,tenant]);
+    await db.query("SELECT set_config('app.tenant_id',$1,true),set_config('app.user_id',$2,true)", [tenant,user]);
+    const readOnly = async () => (await db.query(
+      "SELECT horse_power.local_tenant_billing_read_only($1) AS value", [tenant],
+    )).rows[0].value;
+    assert.equal(await readOnly(), false);
+    await db.query(`UPDATE platform_admin.billing_invoices
+      SET due_on=(now() AT TIME ZONE 'America/Sao_Paulo')::date-1
+      WHERE subscription_id=$1`, [subscription]);
+    assert.equal(await readOnly(), true);
+    await db.query("UPDATE platform_admin.billing_invoices SET status='approved' WHERE subscription_id=$1", [subscription]);
+    assert.equal(await readOnly(), false);
+    await db.query("SAVEPOINT other_tenant_access");
+    await assert.rejects(db.query(
+      "SELECT horse_power.local_tenant_billing_read_only($1)", [otherTenant],
+    ), { code: "42501" });
+    await db.query("ROLLBACK TO SAVEPOINT other_tenant_access");
 
   } finally {
     await db.query("ROLLBACK").catch(()=>{});
