@@ -30,6 +30,7 @@ export interface DB {
   withTenantRead?<T>(tenant: string, callback: () => Promise<T>): Promise<T>;
   withTenantServiceRead?<T>(tenant: string, callback: () => Promise<T>): Promise<T>;
   getTenantAccessState?(tenant: string): Promise<string>;
+  getTenantBillingReadOnly?(tenant: string): Promise<boolean>;
   getTenantModuleAccess?(tenant: string): Promise<Record<string, boolean>>;
   getTenantCatalogIncluded?(tenant: string): Promise<boolean>;
   getTenantPlanSummary?(tenant: string): Promise<{plan_code:string|null;status:string|null;trial_ends_at:string|null}|null>;
