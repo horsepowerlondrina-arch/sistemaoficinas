@@ -21,13 +21,18 @@ export function createWorkshopBilling(pool: Pool, options: {
     }
   };
   const offer = async (tenantId: string): Promise<BillingOffer | null> => {
-    const result = await pool.query(`SELECT w.plan_code,w.status,p.monthly_price_cents
+    const result = await pool.query(`SELECT w.plan_code,w.status,
+        COALESCE(s.monthly_price_cents,p.monthly_price_cents) AS monthly_price_cents,
+        s.plan_code AS subscribed_plan,s.provider_status
       FROM platform_admin.workshops w
       JOIN platform_admin.plan_prices p ON p.plan_code=w.plan_code
+      LEFT JOIN platform_admin.billing_subscriptions s ON s.tenant_id=w.tenant_id
       WHERE w.tenant_id=$1`, [tenantId]);
     const row = result.rows[0];
     if (!row || !["active","read_only"].includes(row.status)
-        || !row.monthly_price_cents) return null;
+        || !row.monthly_price_cents
+        || (row.subscribed_plan && row.subscribed_plan !== row.plan_code)
+        || row.provider_status === "authorized") return null;
     return {
       plan: row.plan_code as PlanCode,
       monthlyPriceCents: assertMonthlyPriceCents(row.monthly_price_cents),
@@ -57,18 +62,18 @@ export function createWorkshopBilling(pool: Pool, options: {
           || !row.monthly_price_cents || row.price_version < 1) {
         throw new Error("Plano ou preço indisponível para esta oficina.");
       }
-      priceCents = assertMonthlyPriceCents(row.monthly_price_cents);
-      if (priceCents !== input.expectedPriceCents) {
-        throw new Error("O preço mudou. Atualize a tela antes de confirmar.");
-      }
       plan = row.plan_code as PlanCode;
       const existing = await client.query(`SELECT id,plan_code,monthly_price_cents,
         provider_subscription_id,checkout_url,provider_status
         FROM platform_admin.billing_subscriptions WHERE tenant_id=$1 FOR UPDATE`, [input.tenantId]);
       if (existing.rowCount) {
         const prior = existing.rows[0];
-        if (prior.plan_code !== plan || prior.monthly_price_cents !== priceCents) {
+        if (prior.plan_code !== plan) {
           throw new Error("A oficina já possui uma assinatura com outras condições.");
+        }
+        priceCents = assertMonthlyPriceCents(prior.monthly_price_cents);
+        if (priceCents !== input.expectedPriceCents) {
+          throw new Error("O preço mudou. Atualize a tela antes de confirmar.");
         }
         if (prior.provider_status !== "creating" && !prior.checkout_url) {
           throw new Error("A assinatura existente precisa de revisão administrativa.");
@@ -79,6 +84,10 @@ export function createWorkshopBilling(pool: Pool, options: {
         }
         subscriptionId = prior.id;
       } else {
+        priceCents = assertMonthlyPriceCents(row.monthly_price_cents);
+        if (priceCents !== input.expectedPriceCents) {
+          throw new Error("O preço mudou. Atualize a tela antes de confirmar.");
+        }
         subscriptionId = randomUUID();
         await client.query(`INSERT INTO platform_admin.billing_subscriptions
           (id,tenant_id,plan_code,price_version,monthly_price_cents,provider_status,payment_mode)
