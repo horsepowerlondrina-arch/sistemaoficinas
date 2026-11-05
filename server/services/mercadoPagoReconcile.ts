@@ -43,7 +43,7 @@ export async function reconcileMercadoPagoInvoice(
       await client.query("COMMIT");
       return "processed";
     }
-    await client.query(`INSERT INTO platform_admin.billing_invoices
+    const saved = await client.query(`INSERT INTO platform_admin.billing_invoices
       (id,subscription_id,tenant_id,provider_invoice_id,provider_payment_id,
        period_start,period_end,due_on,amount_cents,status,paid_at)
       VALUES($1,$2,$3,$4,$5,$6::timestamptz,$6::timestamptz+interval '1 month',
@@ -61,6 +61,7 @@ export async function reconcileMercadoPagoInvoice(
         AND platform_admin.billing_invoices.amount_cents=EXCLUDED.amount_cents`,
       [randomUUID(),row.id,row.tenant_id,invoice.providerInvoiceId,
         invoice.providerPaymentId,invoice.debitDate,invoice.amountCents,invoice.status]);
+    if (saved.rowCount !== 1) throw new Error("A fatura conflita com uma cobrança registrada.");
     await client.query(`UPDATE platform_admin.billing_subscriptions s SET
       last_confirmed_paid_until=(
         SELECT max(i.period_end) FROM platform_admin.billing_invoices i
