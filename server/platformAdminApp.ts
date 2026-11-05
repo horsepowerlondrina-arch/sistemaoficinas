@@ -1,4 +1,6 @@
 import { plateLookupStatus } from "./services/vehicleLookup.js";
+import { verifyMercadoPagoWebhook } from "./services/mercadoPagoWebhook.js";
+import { reconcileMercadoPagoInvoice } from "./services/mercadoPagoReconcile.js";
 import { assertMonthlyPriceCents } from "../shared/platformBilling.js";
 import express, { type NextFunction, type Request, type Response } from "express";
 import { randomBytes, randomUUID } from "node:crypto";
@@ -212,6 +214,31 @@ export function createPlatformAdminApp(pool: Pool, encryptionKey: string, transf
   };
 
   app.use(createPlatformAdminDataTransferRoutes(pool, transfer, requireSession, requirePermission));
+  app.post("/admin-api/billing/mercadopago/webhook", async (req, res) => {
+    const token = process.env.MERCADO_PAGO_ACCESS_TOKEN;
+    const secret = process.env.MERCADO_PAGO_WEBHOOK_SECRET;
+    if (!token || !secret) {
+      res.status(503).json({ error: "Cobranças indisponíveis." }); return;
+    }
+    const topic = req.body?.type;
+    const queryId = req.query["data.id"];
+    const bodyId = req.body?.data?.id;
+    const resourceId = typeof queryId === "string" ? queryId
+      : typeof bodyId === "string" || typeof bodyId === "number" ? String(bodyId) : "";
+    const requestId = req.header("x-request-id");
+    if (topic !== "subscription_authorized_payment"
+        || !/^[0-9]{1,30}$/.test(resourceId)
+        || (bodyId != null && String(bodyId) !== resourceId)
+        || !verifyMercadoPagoWebhook(req.header("x-signature"), requestId, resourceId, secret)) {
+      res.status(401).json({ error: "Notificação inválida." }); return;
+    }
+    try {
+      const result = await reconcileMercadoPagoInvoice(pool, requestId!, resourceId, token);
+      res.status(200).json({ result });
+    } catch {
+      res.status(503).json({ error: "Não foi possível conferir a notificação." });
+    }
+  });
   app.get("/admin-api/billing/prices", requireSession, requirePermission("platform:settings"), async (_req, res) => {
     const result = await pool.query(`SELECT plan_code,monthly_price_cents,currency_code,price_version,updated_at
       FROM platform_admin.plan_prices ORDER BY CASE plan_code WHEN 'basic' THEN 1 WHEN 'professional' THEN 2 ELSE 3 END`);
