@@ -124,6 +124,23 @@ export async function invalidateOrderShares(
   }
   return revoked;
 }
+export function hydrateOrderItem(item: Row): Row {
+  if (!item.service_snapshot) return item;
+  const snapshot = JSON.parse(item.service_snapshot);
+  return {
+    ...item,
+    repair_service_id: snapshot.service_id,
+    repair_model_id: snapshot.model_id,
+    workshop_service_id: snapshot.workshop_service_id,
+    porte_id: snapshot.porte_id,
+    commercial_category_id: snapshot.commercial_category_id,
+    service_execution: snapshot.execution,
+    service_cost: snapshot.cost,
+    service_minutes: snapshot.minutes,
+    duration_seconds: snapshot.minutes * 60,
+    service_details: snapshot,
+  };
+}
 export async function listOrders(db: DB, tenant: string): Promise<Row[]> {
   const rows = await db
     .prepare(
@@ -143,20 +160,8 @@ export async function listOrders(db: DB, tenant: string): Promise<Row[]> {
     )
     .all(tenant);
   const byOrder = new Map<string, Row[]>();
-  for (const item of items) {
-    if (item.service_snapshot) {
-      const snapshot = JSON.parse(item.service_snapshot);
-      item.repair_service_id = snapshot.service_id;
-      item.repair_model_id = snapshot.model_id;
-      item.workshop_service_id = snapshot.workshop_service_id;
-      item.porte_id = snapshot.porte_id;
-      item.commercial_category_id = snapshot.commercial_category_id;
-      item.service_execution = snapshot.execution;
-      item.service_cost = snapshot.cost;
-      item.service_minutes = snapshot.minutes;
-      item.duration_seconds = snapshot.minutes * 60;
-      item.service_details = snapshot;
-    }
+  for (const rawItem of items) {
+    const item = hydrateOrderItem(rawItem);
     const group = byOrder.get(item.order_id) || [];
     group.push(item);
     byOrder.set(item.order_id, group);
