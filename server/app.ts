@@ -487,7 +487,17 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
       });
       res.json({ checkout_url: checkoutUrl });
     } catch (error) {
-      res.status(409).json({ error: (error as Error).message });
+      const safe = new Set([
+        "Cobranças ainda não estão configuradas neste ambiente.",
+        "Plano ou preço indisponível para esta oficina.",
+        "O preço mudou. Atualize a tela antes de confirmar.",
+        "A oficina já possui uma assinatura com outras condições.",
+        "A assinatura existente precisa de revisão administrativa.",
+      ]);
+      const message = (error as Error).message;
+      res.status(safe.has(message) ? 409 : 503).json({
+        error: safe.has(message) ? message : "Não foi possível iniciar o pagamento. Tente novamente.",
+      });
     }
   });
   app.post("/api/logout", async (req, res) => {
