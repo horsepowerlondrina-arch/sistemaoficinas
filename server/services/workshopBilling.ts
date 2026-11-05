@@ -26,7 +26,7 @@ export function createWorkshopBilling(pool: Pool, options: {
       JOIN platform_admin.plan_prices p ON p.plan_code=w.plan_code
       WHERE w.tenant_id=$1`, [tenantId]);
     const row = result.rows[0];
-    if (!row || !["active","trial","read_only"].includes(row.status)
+    if (!row || !["active","read_only"].includes(row.status)
         || !row.monthly_price_cents) return null;
     return {
       plan: row.plan_code as PlanCode,
@@ -53,7 +53,7 @@ export function createWorkshopBilling(pool: Pool, options: {
         JOIN platform_admin.plan_prices p ON p.plan_code=w.plan_code
         WHERE w.tenant_id=$1 FOR UPDATE OF w`, [input.tenantId]);
       const row = found.rows[0];
-      if (!row || !["active","trial","read_only"].includes(row.status)
+      if (!row || !["active","read_only"].includes(row.status)
           || !row.monthly_price_cents || row.price_version < 1) {
         throw new Error("Plano ou preço indisponível para esta oficina.");
       }
