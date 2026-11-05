@@ -14,6 +14,7 @@ export function createWorkshopBilling(pool: Pool, options: {
   accessToken: string;
   returnOrigin: string;
   send?: typeof fetch;
+  testTenantId?: string;
 }) {
   const configured = () => {
     if (!options.accessToken || !/^https:\/\//.test(options.returnOrigin)) {
@@ -21,6 +22,7 @@ export function createWorkshopBilling(pool: Pool, options: {
     }
   };
   const offer = async (tenantId: string): Promise<BillingOffer | null> => {
+    if (options.testTenantId && tenantId !== options.testTenantId) return null;
     const result = await pool.query(`SELECT w.plan_code,w.status,
         COALESCE(s.monthly_price_cents,p.monthly_price_cents) AS monthly_price_cents,
         s.plan_code AS subscribed_plan,s.provider_status
@@ -46,6 +48,9 @@ export function createWorkshopBilling(pool: Pool, options: {
     expectedPriceCents: number;
   }): Promise<string> => {
     configured();
+    if (options.testTenantId && input.tenantId !== options.testTenantId) {
+      throw new Error("Cobranças indisponíveis para esta oficina de teste.");
+    }
     const client = await pool.connect();
     let subscriptionId: string;
     let plan: PlanCode;
