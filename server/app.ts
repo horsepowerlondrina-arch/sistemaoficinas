@@ -1,4 +1,5 @@
 import {thirdPartySalePrice} from "../shared/pricing.js";
+import type { WorkshopBilling } from "./services/workshopBilling.js";
 import { respondAfterCommit } from "./db/responseCommit.js";
 import { documentHistory, readDocument, issueDocument, listArchivedDocuments, readArchivedDocument } from "./services/documents.js";
 import {
@@ -228,7 +229,7 @@ function requestSecuritySettings(req: express.Request) {
   };
 }
 
-export function createApp(db: DB, platformAdminApp?: express.RequestHandler, passwordResetMailConfig: PasswordResetMailConfig = {}) {
+export function createApp(db: DB, platformAdminApp?: express.RequestHandler, passwordResetMailConfig: PasswordResetMailConfig = {}, billing?: WorkshopBilling) {
   const app = express();
   app.disable("x-powered-by");
   app.use("/api/stock-invoices", express.json({ limit: "3mb" }));
@@ -461,6 +462,33 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
   app.get("/api/account/plan", async (_req, res) => {
     const ctx: Context = res.locals.context;
     res.json({plan: await db.getTenantPlanSummary?.(ctx.tenantId) ?? null});
+  });
+  app.get("/api/account/billing/offer", async (_req, res) => {
+    const ctx: Context = res.locals.context;
+    if (ctx.role !== "owner") { res.status(403).json({ error: "Somente o proprietário pode contratar um plano." }); return; }
+    if (!billing) { res.status(503).json({ error: "Cobranças ainda não estão disponíveis." }); return; }
+    res.json({ offer: await billing.offer(ctx.tenantId) });
+  });
+  app.post("/api/account/billing/checkout", async (req, res) => {
+    const ctx: Context = res.locals.context;
+    if (ctx.role !== "owner") { res.status(403).json({ error: "Somente o proprietário pode contratar um plano." }); return; }
+    if (!billing) { res.status(503).json({ error: "Cobranças ainda não estão disponíveis." }); return; }
+    const input = z.object({
+      confirm_contract: z.literal(true),
+      expected_price_cents: z.number().int().positive(),
+    }).strict().safeParse(req.body);
+    if (!input.success) { res.status(400).json({ error: "Confira o preço e confirme a assinatura mensal." }); return; }
+    const user = await db.prepare("SELECT email FROM users WHERE id=?").get(ctx.userId);
+    if (!user?.email) { res.status(409).json({ error: "O e-mail da conta não está disponível." }); return; }
+    try {
+      const checkoutUrl = await billing.startCheckout({
+        tenantId: ctx.tenantId, payerEmail: String(user.email),
+        expectedPriceCents: input.data.expected_price_cents,
+      });
+      res.json({ checkout_url: checkoutUrl });
+    } catch (error) {
+      res.status(409).json({ error: (error as Error).message });
+    }
   });
   app.post("/api/logout", async (req, res) => {
     await db
