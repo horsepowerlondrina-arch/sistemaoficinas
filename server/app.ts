@@ -1,3 +1,5 @@
+import { stripeWorkshopRoutes } from "./stripeBillingRoutes.js";
+import type { StripeBilling } from "./services/stripeBilling.js";
 import {thirdPartySalePrice} from "../shared/pricing.js";
 import { respondAfterCommit } from "./db/responseCommit.js";
 import { documentHistory, readDocument, issueDocument, listArchivedDocuments, readArchivedDocument } from "./services/documents.js";
@@ -228,9 +230,10 @@ function requestSecuritySettings(req: express.Request) {
   };
 }
 
-export function createApp(db: DB, platformAdminApp?: express.RequestHandler, passwordResetMailConfig: PasswordResetMailConfig = {}) {
+export function createApp(db: DB, platformAdminApp?: express.RequestHandler, passwordResetMailConfig: PasswordResetMailConfig = {}, billing?: StripeBilling, billingPublic?: express.RequestHandler) {
   const app = express();
   app.disable("x-powered-by");
+  if (billingPublic) app.use(billingPublic);
   app.use("/api/stock-invoices", express.json({ limit: "3mb" }));
   app.use("/api/workshop-profile", express.json({ limit: "512kb" }));
   app.use("/api/admin-api/workshops/:id/data-transfer", express.json({ limit: "4.25mb" }));
@@ -458,6 +461,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
       modules: ctx.modules || defaultWorkshopModules,
     });
   });
+  app.use("/api", stripeWorkshopRoutes(db,billing));
   app.get("/api/account/plan", async (_req, res) => {
     const ctx: Context = res.locals.context;
     res.json({plan: await db.getTenantPlanSummary?.(ctx.tenantId) ?? null});

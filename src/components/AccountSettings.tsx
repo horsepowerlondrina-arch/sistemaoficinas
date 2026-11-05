@@ -1,3 +1,4 @@
+import { WorkshopBilling } from "./StripeBilling";
 import { useEffect, useState, type FormEvent } from "react";
 import { ShieldCheck } from "lucide-react";
 import { useApp } from "../lib/context";
@@ -55,12 +56,7 @@ export function AccountSettings() {
         <p>Situação: {plan.status ? statusLabel[plan.status]??plan.status : "Não informada"}</p>
         {plan.status==="trial"&&plan.trial_ends_at&&<p>Teste até {new Date(plan.trial_ends_at).toLocaleDateString("pt-BR")}</p>}</>
         :<p>Plano ainda não atribuído pela administração central.</p>}
-      <div className="form-actions">
-        <button className="button" type="button" disabled title="Disponível após a integração de pagamentos">Fazer upgrade</button>
-        <button className="button" type="button" disabled title="Disponível após a integração de pagamentos">Fazer downgrade</button>
-        <button className="button" type="button" disabled title="Disponível após a integração de pagamentos">Cancelar assinatura</button>
-      </div>
-      <p className="muted">Alterações da assinatura estarão disponíveis quando a gestão de pagamentos for implementada.</p>
     </section>
+    <WorkshopBilling tenantId={session.tenant.id}/>
   </>;
 }

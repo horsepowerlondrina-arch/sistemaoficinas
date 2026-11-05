@@ -1,3 +1,5 @@
+import { stripeAdminRoutes } from "./stripeBillingRoutes.js";
+import type { StripeBilling } from "./services/stripeBilling.js";
 import { plateLookupStatus } from "./services/vehicleLookup.js";
 import express, { type NextFunction, type Request, type Response } from "express";
 import { randomBytes, randomUUID } from "node:crypto";
@@ -188,7 +190,7 @@ function approvedActivationOrigin(req: Request) {
   }
   return origin;
 }
-export function createPlatformAdminApp(pool: Pool, encryptionKey: string, transfer?: PlatformAdminDataTransfer) {
+export function createPlatformAdminApp(pool: Pool, encryptionKey: string, transfer?: PlatformAdminDataTransfer, billing?: StripeBilling) {
   const app = express(); app.disable("x-powered-by"); app.use(noCache); app.use(express.json({ limit: "32kb" }));
   app.use("/admin-api", (req, res, next) => { if (!["GET", "HEAD", "OPTIONS"].includes(req.method) && !validOrigin(req, res)) return; next(); });
   const requireSession = async (req: Request, res: Response, next: NextFunction) => {
@@ -210,6 +212,7 @@ export function createPlatformAdminApp(pool: Pool, encryptionKey: string, transf
     next();
   };
 
+  app.use(stripeAdminRoutes(billing,requireSession,requirePermission));
   app.use(createPlatformAdminDataTransferRoutes(pool, transfer, requireSession, requirePermission));
 
   const activationFailure = async (tokenHash: string) => {

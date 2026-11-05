@@ -47,7 +47,7 @@ export function stripeForm(input: Record<string, unknown>) {
 export function createStripeGateway(key: string, send: typeof fetch = fetch) {
   stripeTestKey(key);
   return async function request(path: string, input?: Record<string, unknown>, idempotencyKey?: string): Promise<unknown> {
-    if (!/^\/(customers|prices|products|checkout\/sessions|subscriptions|invoices|payment_intents|billing_portal\/sessions)(\/[A-Za-z0-9_]+)?(\?[A-Za-z0-9_%=&.\[\]-]+)?$/.test(path))
+    if (!/^\/(charges|disputes|customers|prices|products|checkout\/sessions|subscriptions|invoices|payment_intents|billing_portal\/sessions)(\/[A-Za-z0-9_]+)?(\?[A-Za-z0-9_%=&.\[\]-]+)?$/.test(path))
       throw new Error("Recurso de pagamento inválido.");
     if (input && (!idempotencyKey || !/^[A-Za-z0-9:_-]{1,200}$/.test(idempotencyKey)))
       throw new Error("Identificador da operação inválido.");
