@@ -295,6 +295,50 @@ test("Sky capture stays staged until explicit confirmation and duplicate clicks 
     await assert.rejects(importCapture(db, token, product()), /expirada/);
   } finally { db.close(); }
 });
+test("Sky capture keeps existing service links when the OS is saved again", async () => {
+  const db = fixture();
+  try {
+    const serviceId = randomUUID();
+    const snapshot = {
+      source: "manual",
+      workshop_service_id: serviceId,
+      service_type: "private",
+      name: "Serviço fictício",
+      fixed_price: 5000,
+      cost: 0,
+      execution: "internal",
+      minutes: 0,
+    };
+    db.prepare(
+      "INSERT INTO order_items(id,tenant_id,order_id,catalog_id,professional_id,kind,name,quantity,price,cost,service_snapshot) VALUES(?,?,?,NULL,NULL,'service',?,?,?,0,?)",
+    ).run(randomUUID(), ctx.tenantId, "o", snapshot.name, 1, 5000, JSON.stringify(snapshot));
+    const { token } = await beginCapture(db, ctx, "o", "session", 0);
+    await importCapture(db, token, product());
+    const state = await finishCapture(db, ctx, "o");
+    const service = state.items.find((item) => item.kind === "service");
+    assert.equal(service?.workshop_service_id, serviceId);
+    assert.equal(service?.service_details?.name, snapshot.name);
+    await saveOrder(db, ctx, {
+      status: "quote",
+      guest_plate: "ABC1D23",
+      entered_on: "2026-10-03",
+      due_on: "",
+      km: 0,
+      discount: 0,
+      problem: "",
+      notes: "",
+      items: state.items,
+    }, "o");
+    assert.equal(db.prepare("SELECT count(*) n FROM order_items WHERE order_id='o'").get()!.n, 2);
+    assert.equal(db.prepare("SELECT count(*) n FROM order_items WHERE order_id='o' AND kind='service'").get()!.n, 1);
+    const reconnected = await beginCapture(db, ctx, "o", "session", 0);
+    assert.notEqual(reconnected.token, token);
+    assert.equal((await captureState(db, ctx, "o")).items.length, 2);
+  } finally {
+    db.close();
+  }
+});
+
 test("capture rejects foreign tenants/, mechanics, mismatched vehicles, revoked sessions and closed quotes", async () => {
   const db = fixture();
   try {

@@ -5,7 +5,7 @@ import { z } from "zod";
 import { type DB, transaction } from "../db/database.js";
 import { digest, type Context } from "../auth/session.js";
 import { requireAdmin } from "./payments.js";
-import { audit, id, invalidateOrderShares, scoped } from "./workshop.js";
+import { audit, hydrateOrderItem, id, invalidateOrderShares, scoped } from "./workshop.js";
 import { workshopPrice } from "./partsPricing.js";
 import { allocateFreight } from "../../shared/freight.js";
 const txt = z.string().trim().max(300).default("");
@@ -298,7 +298,7 @@ export async function captureState(db: DB, ctx: Context, orderId: string) {
         .all(ctx.tenantId, orderId, session.batch_id)
     : [];
   return {
-    items,
+    items: items.map(hydrateOrderItem),
     staged_items: stagedItems,
     total: order.total,
     freight_total: Number(session?.freight_total ?? 1750),
