@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS platform_admin.billing_subscriptions (
   currency_code text NOT NULL DEFAULT 'BRL' CHECK (currency_code='BRL'),
   provider text NOT NULL DEFAULT 'mercado_pago' CHECK (provider='mercado_pago'),
   provider_subscription_id text UNIQUE,
+  checkout_url text,
   provider_status text NOT NULL DEFAULT 'pending',
   payment_mode text NOT NULL DEFAULT 'unknown' CHECK (payment_mode IN ('unknown','card','pix')),
   current_period_end timestamptz,
