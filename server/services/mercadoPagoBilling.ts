@@ -70,12 +70,17 @@ export async function createMercadoPagoSubscription(
         "seller", "collector", "buyer", "user", "test", "sandbox", "production",
         "application", "access", "invalid", "required", "missing", "not", "allowed",
         "payment", "card", "reason", "transaction", "status", "date",
+        "both", "real", "must", "valid", "exist", "same", "different", "site",
+        "associated", "cannot", "operation", "disabled", "unauthorized", "forbidden",
+        "create", "account", "credentials", "collector", "payer",
       ].filter((word) => new RegExp(`\\b${word}\\b`).test(message));
       console.warn("Mercado Pago preapproval rejected", {
         status: response.status,
         contentType: response.headers.get("content-type")?.split(";")[0],
         format: parsedError === null ? "non-json" : Array.isArray(parsedError) ? "array" : typeof parsedError,
         keys, codes, causeCodes, categories,
+        credentialClass: token.startsWith("TEST-") ? "TEST" : token.startsWith("APP_USR-") ? "APP_USR" : "other",
+        payerClass: /^test_user_[0-9]+@testuser\.com$/.test(input.payerEmail) ? "test-user" : "other",
       });
       throw new Error("O provedor não conseguiu iniciar a assinatura.");
     }
