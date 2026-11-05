@@ -48,20 +48,29 @@ export async function createMercadoPagoSubscription(
       signal: controller.signal,
     });
     if (!response.ok) {
-      const body = await response.json().catch(() => null) as {
-        error?: unknown; message?: unknown; cause?: Array<{ code?: unknown }>;
-      } | null;
-      const providerCode = typeof body?.error === "string" &&
-        /^[a-zA-Z0-9_.-]{1,80}$/.test(body.error) ? body.error : undefined;
-      const causeCodes = Array.isArray(body?.cause)
-        ? body.cause.map((item) => String(item.code ?? ""))
-          .filter((code) => /^[a-zA-Z0-9_.-]{1,80}$/.test(code)).slice(0, 5)
-        : [];
-      const message = typeof body?.message === "string" ? body.message.toLowerCase() : "";
-      const field = ["payer", "email", "amount", "back_url", "frequency", "currency", "token"]
+      const raw = await response.text().catch(() => "");
+      let parsedError: unknown;
+      try { parsedError = JSON.parse(raw); } catch { parsedError = null; }
+      const details = parsedError && typeof parsedError === "object" && !Array.isArray(parsedError)
+        ? parsedError as Record<string, unknown> : {};
+      const keys = Object.keys(details).filter((key) => /^[a-zA-Z0-9_]{1,60}$/.test(key)).slice(0, 12);
+      const codes = ["error", "code", "error_code", "status"].flatMap((key) => {
+        const value = String(details[key] ?? "");
+        return /^[a-zA-Z0-9_.-]{1,80}$/.test(value) ? [`${key}:${value}`] : [];
+      });
+      const causes = Array.isArray(details.cause) ? details.cause : [];
+      const causeCodes = causes.flatMap((item) => {
+        const value = item && typeof item === "object" ? String((item as { code?: unknown }).code ?? "") : "";
+        return /^[a-zA-Z0-9_.-]{1,80}$/.test(value) ? [value] : [];
+      }).slice(0, 5);
+      const message = String(details.message ?? details.error_message ?? "").toLowerCase();
+      const field = ["payer", "email", "amount", "back_url", "frequency", "currency", "token", "subscription", "credential"]
         .find((part) => message.includes(part));
       console.warn("Mercado Pago preapproval rejected", {
-        status: response.status, providerCode, causeCodes, field,
+        status: response.status,
+        contentType: response.headers.get("content-type")?.split(";")[0],
+        format: parsedError === null ? "non-json" : Array.isArray(parsedError) ? "array" : typeof parsedError,
+        keys, codes, causeCodes, field,
       });
       throw new Error("O provedor não conseguiu iniciar a assinatura.");
     }
