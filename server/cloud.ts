@@ -37,6 +37,9 @@ const billing = process.env.BILLING_CHECKOUT_ENABLED === "true"
       accessToken: process.env.MERCADO_PAGO_ACCESS_TOKEN,
       testTenantId: process.env.VERCEL_ENV === "preview"
         ? process.env.BILLING_TEST_TENANT_ID : undefined,
+      testPriceCents: process.env.VERCEL_ENV === "preview" &&
+        process.env.BILLING_TEST_TENANT_ID && process.env.BILLING_TEST_PRICE_CENTS
+        ? Number(process.env.BILLING_TEST_PRICE_CENTS) : undefined,
       returnOrigin: process.env.VERCEL_ENV === "preview" && process.env.VERCEL_BRANCH_URL
         ? `https://${process.env.VERCEL_BRANCH_URL}`
         : process.env.APP_ORIGIN!,
