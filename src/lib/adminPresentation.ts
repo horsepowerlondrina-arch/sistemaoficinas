@@ -67,6 +67,7 @@ export async function adminRequest<T>(path:string,method="GET",body?:unknown):Pr
  catch {throw new Error("Não foi possível conectar ao painel. Verifique a conexão e tente novamente.");}
  const result=await response.json().catch(()=>null);
  if(!response.ok) {
+  if(response.status===401 && path==="/login")throw new Error("Confira o e-mail, a senha e o código atual do autenticador desta conta.");
   if(response.status===401)throw new Error("Sua sessão expirou. Entre novamente no painel.");
   if(response.status===403)throw new Error("Sua conta não tem permissão para esta ação.");
   throw new Error(typeof result?.error==="string"?result.error:"Não foi possível concluir a operação. Tente novamente.");
