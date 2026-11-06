@@ -1,3 +1,4 @@
+import { isStripeBillingPreview } from "./developmentIsolation.js";
 import { stripeAdminRoutes } from "./stripeBillingRoutes.js";
 import type { StripeBilling } from "./services/stripeBilling.js";
 import { plateLookupStatus } from "./services/vehicleLookup.js";
@@ -677,7 +678,8 @@ export async function assertPlatformAdminDatabase(pool: Pool) {
     has_schema_privilege(current_user,'service_catalog','USAGE') AS catalog_schema
     FROM pg_roles WHERE rolname=current_user`);
   const role = result.rows[0];
-  if (!role || role.role !== "hp_platform_admin_app" || role.rolsuper || role.rolcreaterole || role.rolcreatedb || role.rolbypassrls || !role.admin_schema || role.workshop_schema || role.catalog_schema)
+  const expectedRole = isStripeBillingPreview(process.env) ? "hp_stripe_preview_admin" : "hp_platform_admin_app";
+  if (!role || role.role !== expectedRole || role.rolsuper || role.rolcreaterole || role.rolcreatedb || role.rolbypassrls || !role.admin_schema || role.workshop_schema || role.catalog_schema)
     throw new Error("O painel central exige papel restrito ao schema administrativo local.");
   return role;
 }
