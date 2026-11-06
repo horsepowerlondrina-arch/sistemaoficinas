@@ -630,6 +630,22 @@ Cadastro e edição de máquinas fictícias, taxa por modalidade/parcela e limit
 
 Estado: capturada · mobile · captura 2026-11-01 · commit de origem: 26770cc4da2ccbf9de3620882b0a87066fdce927 · [arquivo completo](./capturas/14-configuracoes/ops002-machine-editor-mobile.png)
 
+### Assinatura e pagamentos da oficina
+
+Componente real em Chromium com API e pagamentos fictícios; não comprova entrega de webhook ou cobrança externa.
+
+[![Assinatura e pagamentos da oficina](./capturas/14-configuracoes/stripe-oficina-desktop.png)](./capturas/14-configuracoes/stripe-oficina-desktop.png)
+
+Estado: capturada · desktop · captura 2026-11-05 · commit de origem: ffa6ae17881c2848a19a373d48599d99fc35ef4f · [arquivo completo](./capturas/14-configuracoes/stripe-oficina-desktop.png)
+
+### Assinatura e pagamentos da oficina
+
+Componente real em Chromium com API e pagamentos fictícios; não comprova entrega de webhook ou cobrança externa.
+
+[![Assinatura e pagamentos da oficina](./capturas/14-configuracoes/stripe-oficina-mobile.png)](./capturas/14-configuracoes/stripe-oficina-mobile.png)
+
+Estado: capturada · mobile · captura 2026-11-05 · commit de origem: ffa6ae17881c2848a19a373d48599d99fc35ef4f · [arquivo completo](./capturas/14-configuracoes/stripe-oficina-mobile.png)
+
 ## 15 — Integrações e extensão Chrome
 
 Captura e envio de dados pela extensão.
@@ -685,6 +701,14 @@ Interface real da ADM-002.1 em Chromium, com API fictícia interceptada; integra
 [![Proprietários e colaboradores](./capturas/17-painel-admin-central/adm0021-oficina-usuarios-desktop.png)](./capturas/17-painel-admin-central/adm0021-oficina-usuarios-desktop.png)
 
 Estado: capturada · desktop · captura 2026-10-30 · commit de origem: fdbee764e0dfdcaeb7698131779d52a4a8a6a4a8 · [arquivo completo](./capturas/17-painel-admin-central/adm0021-oficina-usuarios-desktop.png)
+
+### Preços e assinaturas Stripe
+
+Componente real em Chromium com API e pagamentos fictícios; não comprova entrega de webhook ou cobrança externa.
+
+[![Preços e assinaturas Stripe](./capturas/17-painel-admin-central/stripe-admin-desktop.png)](./capturas/17-painel-admin-central/stripe-admin-desktop.png)
+
+Estado: capturada · desktop · captura 2026-11-05 · commit de origem: ffa6ae17881c2848a19a373d48599d99fc35ef4f · [arquivo completo](./capturas/17-painel-admin-central/stripe-admin-desktop.png)
 
 ## 99 — Fluxos completos
 

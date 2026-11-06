@@ -119,6 +119,21 @@ test("Stripe PostgreSQL: preços versionados, Pix, cartão, repetição, falha, 
   assert.equal((await service.summary(other)).payments[0].status,"refunded");
   assert.equal((await service.summary(other)).account.paid_until,null);
   assert.equal((await root.query("SELECT horse_power.local_tenant_access_state($1) AS state",[other])).rows[0].state,"read_only");
+  // Scheduled Pix renewal retains the agreed inactive price; repeated jobs do not create duplicates.
+  await root.query("UPDATE platform_admin.workshops SET status='active' WHERE tenant_id=$1",[tenant]);
+  s.payment_status="unpaid"; // Do not replay the already-covered period during clock simulation.
+  await root.query("UPDATE platform_admin.stripe_accounts SET paid_until=(now() AT TIME ZONE 'America/Sao_Paulo')::date-1,due_on=(now() AT TIME ZONE 'America/Sao_Paulo')::date-1,retry_after=NULL WHERE tenant_id=$1",[tenant]);
+  await service.renew();
+  const renewal=(await pool.query("SELECT price_id,provider_id FROM platform_admin.stripe_checkouts WHERE tenant_id=$1 AND status='open'",[tenant])).rows[0];
+  assert.ok(renewal);assert.equal(renewal.price_id,price,"renewal preserves the agreed price version");
+  await service.renew();
+  assert.equal((await pool.query("SELECT count(*)::int AS n FROM platform_admin.stripe_checkouts WHERE tenant_id=$1",[tenant])).rows[0].n,2);
+  await service.cancel(tenant);
+  const pending=resources.get("/checkout/sessions/"+renewal.provider_id) as Record<string,unknown>;
+  pending.status="expired";await service.refresh(tenant);
+  await root.query("UPDATE platform_admin.stripe_accounts SET retry_after=NULL WHERE tenant_id=$1",[tenant]);
+  await service.renew();
+  assert.equal((await pool.query("SELECT count(*)::int AS n FROM platform_admin.stripe_checkouts WHERE tenant_id=$1",[tenant])).rows[0].n,2,"cancelled Pix does not renew");
   assert.ok(calls>=3);assert.ok(billingDate(new Date()));
   assert.ok((await pool.query("SELECT 1 FROM platform_admin.audit_events WHERE subject_tenant_id=$1 AND action='stripe.payment.reconciled'",[tenant])).rowCount);
   await assert.rejects(pool.query("UPDATE platform_admin.stripe_prices SET amount_cents=1 WHERE id=$1",[price]),/permission denied/);
