@@ -37,7 +37,10 @@ try{
  if(saves!==1)throw Error("Duplicate price submission");
  await page.screenshot({path:resolve(output,"stripe-admin-desktop.png"),fullPage:true});
  await page.goto("http://127.0.0.1:5181/stripe-ui-fixture.html?owner");
- await expect(page.getByRole("button",{name:"Continuar no Stripe"}).first()).toBeDisabled();
+ await expect(page.getByLabel("Plano mensal")).toHaveCount(0);
+ await page.getByRole("button",{name:"Assinar plano ou renovar"}).click();
+ await page.getByLabel("Plano mensal").selectOption(prices[0].id);
+ await expect(page.getByRole("button",{name:"Continuar no Stripe"})).toBeDisabled();
  await page.getByLabel(/Li os valores/).check();await expect(page.getByRole("button",{name:"Continuar no Stripe"}).first()).toBeEnabled();
  await page.getByLabel("Forma de pagamento").selectOption("pix");await expect(page.getByRole("button",{name:"Continuar no Stripe"}).first()).toBeDisabled();
  await expect(page.getByRole("button",{name:"Cancelar renovação",exact:true})).toBeDisabled();

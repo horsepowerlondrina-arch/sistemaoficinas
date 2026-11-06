@@ -9,7 +9,8 @@ const date=(day:string|null)=>day?day.split("-").reverse().join("/"):"—";
 export function WorkshopBilling({tenantId}:{tenantId:string}){
  const [data,setData]=useState<BillingSummary|null>(null),[error,setError]=useState(""),[busy,setBusy]=useState(false);
  const [method,setMethod]=useState<"card"|"pix">("card"),[confirmed,setConfirmed]=useState(false),[cancelConfirmed,setCancelConfirmed]=useState(false);
- useEffect(()=>{let active=true;setData(null);setError("");api<BillingSummary>("/account/billing").then(v=>{if(active)setData(v);}).catch(e=>{if(active)setError(e.message);});return()=>{active=false;};},[tenantId]);
+ const [choosing,setChoosing]=useState(false),[priceId,setPriceId]=useState("");
+ useEffect(()=>{let active=true;setChoosing(false);setPriceId("");setConfirmed(false);setData(null);setError("");api<BillingSummary>("/account/billing").then(v=>{if(active)setData(v);}).catch(e=>{if(active)setError(e.message);});return()=>{active=false;};},[tenantId]);
  async function act(action:()=>Promise<void>){if(busy)return;setBusy(true);setError("");try{await action();}catch(e){setError((e as Error).message);}finally{setBusy(false);}}
  return <section className="panel settings-card billing-section">
   <h2>Assinatura e pagamentos</h2>
@@ -26,15 +27,22 @@ export function WorkshopBilling({tenantId}:{tenantId:string}){
    {data.account?.invoice_payment_url&&<p><a className="button" href={/^https:\/\/(invoice|pay)\.stripe\.com\//.test(data.account.invoice_payment_url)?data.account.invoice_payment_url:undefined}>Regularizar fatura no Stripe</a></p>}
    {data.pending&&<p><a className="button" href={data.pending.url.startsWith("https://checkout.stripe.com/")?data.pending.url:undefined}>Abrir pagamento pendente</a></p>}
    <p>O teste gratuito não será reiniciado. Contrate ao final do teste. Sem pagamento confirmado, o acesso fica somente leitura no dia seguinte ao vencimento, sem excluir dados.</p>
+   {data.prices.length>0&&!data.pending&&!data.account?.recurring&&<div>
+    <button type="button" className="button" aria-expanded={choosing} disabled={busy} onClick={()=>{setChoosing(!choosing);setConfirmed(false);setPriceId("");}}>{choosing?"Voltar":"Assinar plano ou renovar"}</button>
+    {choosing&&<>
+     <label>Plano mensal<select value={priceId} disabled={busy} onChange={e=>{setPriceId(e.target.value);setConfirmed(false);}}>
+      <option value="">Selecione o plano</option>
+      {data.prices.map(p=><option key={p.id} value={p.id}>{billingPlanNames[p.plan_code]} — {money(p.amount_cents)} / mês</option>)}
+     </select></label>
    <label>Forma de pagamento<select value={method} disabled={busy} onChange={e=>{setMethod(e.target.value as "card"|"pix");setConfirmed(false);}}><option value="card">Cartão — renovação mensal automática</option><option value="pix">Pix — confirmar pagamento todo mês</option></select></label>
    <label className="billing-check"><input type="checkbox" checked={confirmed} onChange={e=>setConfirmed(e.target.checked)}/> Li os valores e autorizo {method==="card"?"a renovação mensal no cartão":"a criação das mensalidades Pix, que pagarei a cada mês"}.</label>
-   <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(min(100%,220px),1fr))",gap:16}}>
-    {data.prices.map(p=><article key={p.id} className="panel billing-plan"><h3>{billingPlanNames[p.plan_code]}</h3><p>{money(p.amount_cents)} / mês</p><button type="button" className="button" disabled={busy||!confirmed||data.account?.recurring===true} onClick={()=>void act(async()=>{
-     const result=await send("/account/billing/checkout",{price_id:p.id,method}) as {url:string};
-     const target=new URL(result.url);if(target.protocol!=="https:"||target.hostname!=="checkout.stripe.com")throw new Error("Endereço de pagamento inválido.");
-     window.location.assign(target.href);
-    })}>Continuar no Stripe</button></article>)}
-   </div>
+     <button type="button" className="button" disabled={busy||!confirmed||!data.prices.some(p=>p.id===priceId)} onClick={()=>void act(async()=>{
+      const result=await send("/account/billing/checkout",{price_id:priceId,method}) as {url:string};
+      const target=new URL(result.url);if(target.protocol!=="https:"||target.hostname!=="checkout.stripe.com")throw new Error("Endereço de pagamento inválido.");
+      window.location.assign(target.href);
+     })}>Continuar no Stripe</button>
+    </>}
+   </div>}
    {!data.prices.length&&<p>Os valores ainda serão configurados pela administração.</p>}
    {data.account&&(data.account.managed||data.account.recurring)&&!data.account.cancel_at_period_end&&<div><h3>Cancelar renovação</h3><p>Você mantém seus dados e o período pago. Para mudar de plano, cancele a renovação e contrate o novo pacote após o período vigente.</p><label><input type="checkbox" checked={cancelConfirmed} onChange={e=>setCancelConfirmed(e.target.checked)}/> Confirmo o cancelamento das próximas renovações.</label><button type="button" className="button" disabled={busy||!cancelConfirmed} onClick={()=>void act(async()=>{setData(await send("/account/billing/cancel",{confirm:true}));setCancelConfirmed(false);})}>Cancelar renovação</button></div>}
    <h3>Pagamentos confirmados</h3>{data.payments.length?data.payments.map(p=><p key={p.provider_id}>{money(p.amount_cents)} · {date(p.period_start)} a {date(p.period_end)} · {p.status==="paid"?"Confirmado":"Revertido / em disputa"}</p>):<p>Nenhum pagamento confirmado.</p>}
