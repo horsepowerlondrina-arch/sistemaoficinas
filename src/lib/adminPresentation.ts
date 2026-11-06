@@ -11,6 +11,11 @@ export const plannedWorkshopPlans = [
   { code: "premium", label: "Premium", users: 10, description: "Profissional e Catálogo Técnico de Tempos." },
 ] as const;
 const actions: Record<string,string> = {
+ "admin.stripe.price_changed":"Preço mensal atualizado",
+ "stripe.checkout.prepared":"Pagamento da assinatura preparado",
+ "stripe.payment.reconciled":"Pagamento da assinatura conferido",
+ "stripe.payment.revoked":"Pagamento estornado ou contestado",
+ "stripe.subscription.cancel_requested":"Renovação da assinatura cancelada",
  "admin.workshop.created":"Oficina cadastrada", "admin.workshop.updated":"Dados cadastrais atualizados",
  "admin.workshop.status_changed":"Situação de acesso alterada", "admin.workshop.membership_changed":"Vínculo de usuário alterado",
  "admin.workshop.entitlements_changed":"Permissões e limites alterados",
@@ -62,6 +67,7 @@ export async function adminRequest<T>(path:string,method="GET",body?:unknown):Pr
  catch {throw new Error("Não foi possível conectar ao painel. Verifique a conexão e tente novamente.");}
  const result=await response.json().catch(()=>null);
  if(!response.ok) {
+  if(response.status===401 && path==="/login")throw new Error("Confira o e-mail, a senha e o código atual do autenticador desta conta.");
   if(response.status===401)throw new Error("Sua sessão expirou. Entre novamente no painel.");
   if(response.status===403)throw new Error("Sua conta não tem permissão para esta ação.");
   throw new Error(typeof result?.error==="string"?result.error:"Não foi possível concluir a operação. Tente novamente.");

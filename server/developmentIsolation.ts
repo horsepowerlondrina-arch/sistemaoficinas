@@ -1,4 +1,9 @@
 const productionProject = "cbdwgocofigrdigfgwkp";
+export function isStripeBillingPreview(env: Record<string, string | undefined>) {
+  return env.VERCEL_ENV === "preview" &&
+    env.VERCEL_GIT_COMMIT_REF === "feat/admin-billing-stripe" &&
+    env.EXPECTED_DATABASE_PROJECT === "vnclahdnirqlcbamodqy";
+}
 export function assertDevelopmentIsolation(
   env: Record<string, string | undefined>,
 ) {
@@ -12,13 +17,22 @@ export function assertDevelopmentIsolation(
       "HPDesenvolvimento exige configuração isolada de desenvolvimento.",
     );
   const database = new URL(env.DATABASE_URL || "");
+  const allowedUser = isStripeBillingPreview(env) ? "hp_stripe_preview_app" : "horse_power_app";
+  if (isStripeBillingPreview(env)) {
+    const admin = new URL(env.PLATFORM_ADMIN_DATABASE_URL || "");
+    if (admin.protocol !== "postgresql:" || admin.host !== database.host ||
+        admin.pathname !== "/postgres" || admin.search || admin.hash ||
+        decodeURIComponent(admin.username) !== (admin.hostname.endsWith(".pooler.supabase.com")
+          ? `hp_stripe_preview_admin.${expected}` : "hp_stripe_preview_admin"))
+      throw new Error("A conexão administrativa do Preview Stripe é inválida.");
+  }
   const direct =
     database.hostname === `db.${expected}.supabase.co` &&
-    decodeURIComponent(database.username) === "horse_power_app";
+    decodeURIComponent(database.username) === allowedUser;
   const pooled =
     database.hostname.endsWith(".pooler.supabase.com") &&
     database.port === "6543" &&
-    decodeURIComponent(database.username) === `horse_power_app.${expected}`;
+    decodeURIComponent(database.username) === `${allowedUser}.${expected}`;
   if (
     (!direct && !pooled) ||
     database.pathname !== "/postgres" ||
