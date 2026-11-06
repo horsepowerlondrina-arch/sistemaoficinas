@@ -25,7 +25,7 @@ test("Stripe PostgreSQL: preços versionados, Pix, cartão, repetição, falha, 
    const id="cs_test_"+key.replace(/[^a-z0-9]/gi,"");
    const result={id,livemode:false,url:"https://checkout.stripe.com/c/pay/"+id,
     status:"open",payment_status:"unpaid",amount_total:1000,currency:"brl",
-    customer:"cus_"+String(input.client_reference_id).replaceAll("-",""),client_reference_id:input.client_reference_id,
+    customer:input.customer||"cus_"+String(input.client_reference_id).replaceAll("-",""),client_reference_id:input.client_reference_id,
     subscription:null,payment_intent:null};
    if(!resources.has("/checkout/sessions/"+id))resources.set("/checkout/sessions/"+id,result);
    if(failOnce){failOnce=false;throw new Error("simulated network loss after provider creation");}
