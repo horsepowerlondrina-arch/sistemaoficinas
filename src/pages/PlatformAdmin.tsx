@@ -139,6 +139,25 @@ export function PlatformAdmin() {
   const enrollmentInstructions = useMemo(() => "No aplicativo autenticador, adicione uma conta usando o segredo abaixo. Depois informe o código atual de seis dígitos para concluir.", []);
 
   if (!ready) return <main className="pa-shell"><div className="pa-loading">Carregando administração…</div></main>;
+  if (!admin && !inviteToken && window.location.hostname === "sistema-oficinas-homologacao-git-feat-admin-9cbf03-horse-power2.vercel.app" && new URLSearchParams(window.location.search).has("ativar")) {
+    return <main className="pa-shell pa-shell--center"><section className="pa-card pa-auth-card">
+      <PlatformBrand /><h1>Ativar administrador de teste</h1>
+      <form onSubmit={event => {
+        event.preventDefault();
+        const form = event.currentTarget;
+        const field = form.elements.namedItem("invitation") as HTMLInputElement;
+        try {
+          const link = new URL(field.value.trim());
+          const token = new URLSearchParams(link.hash.slice(1)).get("invite");
+          if (link.origin !== "https://sistema-oficinas-homologacao.vercel.app" || link.pathname !== "/admin" || !token || !/^[a-f0-9]{64}$/.test(token)) throw new Error();
+          form.reset();
+          window.history.replaceState(null, "", "/admin");
+          setInviteToken(token);
+        } catch { field.setCustomValidity("Cole o link completo gerado pelo painel da homologação."); field.reportValidity(); }
+      }}><label>Link de configuração<input name="invitation" type="password" autoComplete="off" required onInput={event => event.currentTarget.setCustomValidity("")} /></label>
+      <button className="pa-primary">Continuar no Preview Stripe</button></form>
+    </section></main>;
+  }
   if (inviteToken && !admin) return <main className="pa-shell pa-shell--center"><section className="pa-card pa-auth-card"><PlatformBrand /><span className="pa-kicker">Convite administrativo</span><h1>Ativar sua conta</h1>
     {!enrollment ? <form onSubmit={beginEnrollment} className="pa-form"><p>Crie uma senha exclusiva e configure seu segundo fator.</p><label>Senha forte<input required type="password" name="password" minLength={14} autoComplete="new-password" /></label><small>Use pelo menos 14 caracteres. A senha da oficina não vale neste painel.</small><ErrorNote>{error}</ErrorNote><button className="pa-primary" disabled={busy}>{busy ? "Validando…" : "Configurar autenticação"}</button></form> : <><p>{enrollmentInstructions}</p><div className="pa-secret"><small>Segredo TOTP — copie para seu autenticador</small><code>{enrollment.secret}</code><a href={enrollment.uri}>Abrir aplicativo compatível</a></div><form onSubmit={finishEnrollment} className="pa-form"><label>Código autenticador<input required name="code" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} autoComplete="one-time-code" /></label><ErrorNote>{error}</ErrorNote><button className="pa-primary" disabled={busy}>Confirmar e ativar conta</button></form></>}
     <ErrorNote>{error}</ErrorNote><a className="pa-back" href="/admin"><ArrowLeft size={16}/> Voltar ao login</a></section></main>;
