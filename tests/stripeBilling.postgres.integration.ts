@@ -96,10 +96,10 @@ test("Stripe PostgreSQL: preços versionados, Pix, cartão, repetição, falha, 
   cs.status="complete";cs.payment_status="paid";cs.subscription=`sub_TestCard${fixture}`;
   resources.set(`/subscriptions/sub_TestCard${fixture}`,{id:`sub_TestCard${fixture}`,livemode:false,customer:cs.customer,latest_invoice:`in_TestCard${fixture}`,status:"active",cancel_at_period_end:false});
   const now=Math.floor(Date.now()/1000),end=now+30*86400;
-  resources.set(`/invoices/in_TestCard${fixture}`,{id:`in_TestCard${fixture}`,created:now,livemode:false,customer:cs.customer,status:"paid",amount_paid:1000,currency:"brl",parent:{subscription_details:{subscription:`sub_TestCard${fixture}`}},lines:{has_more:false,data:[{amount:1000,period:{start:now,end}}]},payments:{has_more:false,data:[{payment:{type:"payment_intent",payment_intent:`pi_TestCard${fixture}`}}]}});
+  resources.set(`/invoices/in_TestCard${fixture}?expand[]=payments`,{id:`in_TestCard${fixture}`,created:now,livemode:false,customer:cs.customer,status:"paid",amount_paid:1000,currency:"brl",parent:{subscription_details:{subscription:`sub_TestCard${fixture}`}},lines:{has_more:false,data:[{amount:1000,period:{start:now,end}}]},payments:{has_more:false,data:[{payment:{type:"payment_intent",payment_intent:`pi_TestCard${fixture}`}}]}});
   const pi={id:`pi_TestCard${fixture}`,livemode:false,status:"succeeded",amount_received:999,currency:"brl",customer:cs.customer,latest_charge:{amount_refunded:0,disputed:false}};
   resources.set(`/payment_intents/pi_TestCard${fixture}?expand[]=latest_charge`,pi);
-  const invoice=resources.get(`/invoices/in_TestCard${fixture}`) as Record<string,unknown>;
+  const invoice=resources.get(`/invoices/in_TestCard${fixture}?expand[]=payments`) as Record<string,unknown>;
   invoice.status="open";invoice.hosted_invoice_url="https://invoice.stripe.com/i/test";invoice.amount_paid=0;cs.payment_status="unpaid";
   await service.syncSession(sessionId);
   assert.equal((await service.summary(other)).account.invoice_payment_url,"https://invoice.stripe.com/i/test");
@@ -117,7 +117,7 @@ test("Stripe PostgreSQL: preços versionados, Pix, cartão, repetição, falha, 
   assert.equal((await service.summary(other)).account.recurring,false);
   // A delayed invoice event still finds its original contract after cancellation.
   const lateInvoice={...invoice,id:`in_Late${fixture}`,payments:{has_more:false,data:[{payment:{type:"payment_intent",payment_intent:`pi_Late${fixture}`}}]}};
-  resources.set(`/invoices/in_Late${fixture}`,lateInvoice);
+  resources.set(`/invoices/in_Late${fixture}?expand[]=payments`,lateInvoice);
   resources.set(`/payment_intents/pi_Late${fixture}?expand[]=latest_charge`,{...pi,id:`pi_Late${fixture}`});
   await service.syncInvoice(`in_Late${fixture}`);
   assert.equal((await service.summary(other)).payments.length,2);

@@ -158,7 +158,7 @@ export function stripeBillingService(pool:Pool,request:StripeRequest,origin:stri
  }
  async function syncInvoice(invoiceId:string){
   if(!/^in_[A-Za-z0-9]+$/.test(invoiceId))throw new Error("Fatura inválida.");
-  const inv=object.extend({customer:z.unknown(),status:z.string(),created:z.number().int(),hosted_invoice_url:z.string().url().nullable().optional(),amount_paid:z.number().int(),currency:z.string(),parent:z.object({subscription_details:z.object({subscription:z.unknown()}).nullable().optional()}).nullable().optional()}).parse(await request("/invoices/"+invoiceId));
+  const inv=object.extend({customer:z.unknown(),status:z.string(),created:z.number().int(),hosted_invoice_url:z.string().url().nullable().optional(),amount_paid:z.number().int(),currency:z.string(),parent:z.object({subscription_details:z.object({subscription:z.unknown()}).nullable().optional()}).nullable().optional()}).parse(await request("/invoices/"+invoiceId+"?expand[]=payments"));
   const sub=identifier(inv.parent?.subscription_details?.subscription);
   if(!sub)return;
   const account=(await pool.query("SELECT a.tenant_id,a.customer_id,x.price_id,p.amount_cents FROM platform_admin.stripe_checkouts x JOIN platform_admin.stripe_accounts a ON a.tenant_id=x.tenant_id JOIN platform_admin.stripe_prices p ON p.id=x.price_id WHERE x.subscription_id=$1",[sub])).rows[0];
