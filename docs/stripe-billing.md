@@ -2,7 +2,7 @@
 
 Branch: `feat/admin-billing-stripe`. Mercado Pago: PR #121 preservado, sem merge.
 Este recurso aceita exclusivamente chaves `sk_test_` ou `rk_test_`. Chaves live e eventos live são rejeitados.
-Nenhuma migração, preço ou cobrança real foi executada por esta implementação.
+O schema Stripe foi aplicado somente na homologação autorizada.
 
 ## Funcionamento
 
@@ -45,7 +45,7 @@ Não há envio automático de email de cobrança nesta versão.
 A proteção da Vercel precisa permitir o webhook autenticado pela assinatura Stripe sem disponibilizar segredos
 de bypass publicamente. Não desativar proteção de outros deployments incidentalmente.
 
-## Migração proposta, NÃO aplicada remotamente
+## Migração da homologação
 
 SQL completo: [036-stripe-billing.sql](../local-postgres/036-stripe-billing.sql).
 Cria cinco tabelas privadas com RLS para o papel restrito administrativo.
@@ -54,7 +54,7 @@ para considerar somente contas com pagamento reconciliado, mantendo legado e sus
 Os preços históricos só permitem UPDATE na coluna active.
 O usuário operacional não acessa as tabelas financeiras da plataforma.
 
-Antes de aplicar no Supabase: confirmar projeto `vnclahdnirqlcbamodqy`, funções e papéis atuais,
+Em futuras aplicações no Supabase: confirmar projeto `vnclahdnirqlcbamodqy`, funções e papéis atuais,
 comparar SQL, obter autorização específica e backup das definições anteriores.
 Recuperação: desabilitar novas contratações e restaurar as funções anteriores em migração revisada;
 preservar tabelas e auditoria. Não apagar contratos ou pagamentos para reverter.
@@ -76,3 +76,9 @@ A conexão do plugin Stripe não substitui as variáveis do backend Vercel.
 - Cancelamento mantém o período pago. Trocas imediatas não são suportadas.
 - Lista administrativa mostra as cem contas mais recentes.
 - O teste gratuito atual deve terminar antes da contratação.
+
+## Preview exclusivo para validação
+
+A branch Stripe usa dois logins temporários de banco exclusivos e uma chave MFA própria. A validação do servidor confere ambiente, branch e projeto antes de aceitar os papéis do Preview. O login operacional herda as políticas de isolamento da oficina. O administrativo herda o acesso ao schema administrativo. As senhas de banco têm validade de 48 horas a partir do provisionamento.
+
+Crie o convite administrativo temporário pelo fluxo autenticado do painel central com apenas `platform:settings`. Conclua o cadastro pelo Preview Stripe para que o autenticador use a chave desse ambiente. Ao terminar os testes, desative a conta temporária, revogue suas sessões e encerre o acesso dos logins temporários.
