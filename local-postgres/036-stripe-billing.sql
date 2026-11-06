@@ -35,6 +35,7 @@ CREATE TABLE platform_admin.stripe_checkouts (
  due_on date NOT NULL,
  period_end date NOT NULL,
  provider_id text UNIQUE,
+ subscription_id text UNIQUE,
  url text,
  request_body jsonb NOT NULL,
  status text NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','open','paid','expired')),

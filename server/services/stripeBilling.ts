@@ -137,6 +137,10 @@ export function stripeBillingService(pool:Pool,request:StripeRequest,origin:stri
    if(!customer)throw new Error("Cliente do pagamento ausente.");
    await c.query("UPDATE platform_admin.stripe_accounts SET customer_id=$2 WHERE tenant_id=$1",[row.tenant_id,customer]);
    await c.query("UPDATE platform_admin.stripe_checkouts SET provider_id=$2 WHERE id=$1",[row.id,s.id]);
+   if(row.method==="card"&&sub){
+    if(row.subscription_id&&row.subscription_id!==sub)throw new Error("Assinatura incompatível.");
+    await c.query("UPDATE platform_admin.stripe_checkouts SET subscription_id=$2 WHERE id=$1",[row.id,sub]);
+   }
    if(row.method==="card"&&row.status!=="paid"){
     if(!sub)throw new Error("Assinatura ausente.");
     if(account.subscription_id&&account.subscription_id!==sub)throw new Error("Assinatura incompatível.");
@@ -157,7 +161,7 @@ export function stripeBillingService(pool:Pool,request:StripeRequest,origin:stri
   const inv=object.extend({customer:z.unknown(),status:z.string(),created:z.number().int(),hosted_invoice_url:z.string().url().nullable().optional(),amount_paid:z.number().int(),currency:z.string(),parent:z.object({subscription_details:z.object({subscription:z.unknown()}).nullable().optional()}).nullable().optional()}).parse(await request("/invoices/"+invoiceId));
   const sub=identifier(inv.parent?.subscription_details?.subscription);
   if(!sub)return;
-  const account=(await pool.query("SELECT a.*,p.amount_cents FROM platform_admin.stripe_accounts a JOIN platform_admin.stripe_prices p ON p.id=a.price_id WHERE subscription_id=$1",[sub])).rows[0];
+  const account=(await pool.query("SELECT a.tenant_id,a.customer_id,x.price_id,p.amount_cents FROM platform_admin.stripe_checkouts x JOIN platform_admin.stripe_accounts a ON a.tenant_id=x.tenant_id JOIN platform_admin.stripe_prices p ON p.id=x.price_id WHERE x.subscription_id=$1",[sub])).rows[0];
   if(!account)return;
   if(identifier(inv.customer)!==account.customer_id)throw new Error("Fatura de outra oficina.");
   let paymentUrl:string|null=null;

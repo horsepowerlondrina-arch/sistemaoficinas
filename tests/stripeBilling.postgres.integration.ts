@@ -112,11 +112,22 @@ test("Stripe PostgreSQL: preços versionados, Pix, cartão, repetição, falha, 
   assert.equal((await root.query("SELECT platform_admin.workshop_entitlement_status($1) AS v",[other])).rows[0].v.max_users,2);
   assert.equal((await root.query("SELECT count(*)::int AS n FROM horse_power.memberships WHERE tenant_id=$1",[other])).rows[0].n,3,"downgrade preserves existing users");
   await service.cancel(other);assert.equal((await service.summary(other)).account.cancel_at_period_end,true);
+  const cancelledSubscription=resources.get(`/subscriptions/sub_TestCard${fixture}`) as Record<string,unknown>;
+  cancelledSubscription.status="canceled";await service.syncSubscription(`sub_TestCard${fixture}`);
+  assert.equal((await service.summary(other)).account.recurring,false);
+  // A delayed invoice event still finds its original contract after cancellation.
+  const lateInvoice={...invoice,id:`in_Late${fixture}`,payments:{has_more:false,data:[{payment:{type:"payment_intent",payment_intent:`pi_Late${fixture}`}}]}};
+  resources.set(`/invoices/in_Late${fixture}`,lateInvoice);
+  resources.set(`/payment_intents/pi_Late${fixture}?expand[]=latest_charge`,{...pi,id:`pi_Late${fixture}`});
+  await service.syncInvoice(`in_Late${fixture}`);
+  assert.equal((await service.summary(other)).payments.length,2);
+  // Mark the synthetic extra receipt reverted before checking the original refund.
+  await root.query("UPDATE platform_admin.stripe_payments SET status='refunded' WHERE provider_id=$1",[`in_Late${fixture}`]);
   pi.latest_charge.amount_refunded=1000;
   resources.set(`/charges/ch_Test${fixture}`,{payment_intent:`pi_TestCard${fixture}`});
   await service.webhook({id:`evt_Refund${fixture}`,type:"charge.refunded",data:{object:{id:`ch_Test${fixture}`}}});
   await service.syncInvoice(`in_TestCard${fixture}`);
-  assert.equal((await service.summary(other)).payments[0].status,"refunded");
+  assert.ok((await service.summary(other)).payments.every((p:{status:string})=>p.status==="refunded"));
   assert.equal((await service.summary(other)).account.paid_until,null);
   assert.equal((await root.query("SELECT horse_power.local_tenant_access_state($1) AS state",[other])).rows[0].state,"read_only");
   // Scheduled Pix renewal retains the agreed inactive price; repeated jobs do not create duplicates.
