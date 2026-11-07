@@ -9,7 +9,7 @@ const order = (id: string, completed_on: string, productCost: number): Order => 
     { id: id + "-p", kind: "product", name: "Peça", quantity: 1, price: 10000, cost: productCost },
     { id: id + "-s", kind: "service", name: "Serviço", quantity: 1, price: 6000, cost: 2000 },
   ],
-} as Order);
+} as unknown as Order);
 
 test("ganhos por finalização separam peças, serviços e lucro bruto", () => {
   const orders = [order("1", "2026-11-05T15:00:00Z", 4000), order("2", "2026-10-31T15:00:00Z", 4000)];
