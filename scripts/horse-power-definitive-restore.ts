@@ -1,9 +1,10 @@
 import { createDecipheriv, createHash, scryptSync } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { gunzipSync } from "node:zlib";
 import pg from "pg";
 import { createPostgresDatabase } from "../server/db/postgres.js";
 import { importWorkshopPackage, previewWorkshopImport } from "../server/services/dataTransferImport.js";
-import { openTransferPackage } from "../shared/transferPackage.js";
+import { MAX_TRANSFER_PLAINTEXT, openTransferPackage, validateTransferPayload } from "../shared/transferPackage.js";
 
 const sourceRef = "vnclahdnirqlcbamodqy";
 const targetRef = "rvlovjpquozbrsszsxwe";
@@ -69,8 +70,13 @@ function verifySource(row: Source, phrase: string) {
   const decipher = createDecipheriv("aes-256-gcm", key, Buffer.from(envelope.iv, "base64"));
   decipher.setAAD(Buffer.from("sistema-oficinas-workshop-transfer:1"));
   decipher.setAuthTag(Buffer.from(envelope.tag, "base64"));
-  decipher.update(Buffer.from(envelope.ciphertext, "base64"));
-  decipher.final();
+  const compressed = Buffer.concat([decipher.update(Buffer.from(envelope.ciphertext, "base64")), decipher.final()]);
+  diagnosticStage = "package-decompression";
+  const plain = gunzipSync(compressed, {maxOutputLength: MAX_TRANSFER_PLAINTEXT});
+  diagnosticStage = "package-json";
+  const decoded: unknown = JSON.parse(plain.toString("utf8"));
+  diagnosticStage = "package-schema";
+  validateTransferPayload(decoded);
   diagnosticStage = "package-open";
   const payload = openTransferPackage(row.encrypted_package, phrase);
   diagnosticStage = "package-identity";
