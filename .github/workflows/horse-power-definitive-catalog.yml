@@ -13,8 +13,8 @@ on:
         description: Confirm approved use of the existing technical catalog
         type: choice
         required: true
-        default: no
-        options: [no, yes]
+        default: not-confirmed
+        options: [not-confirmed, confirmed]
 
 permissions:
   contents: read
@@ -25,7 +25,7 @@ concurrency:
 
 jobs:
   copy-catalog:
-    if: inputs.rights_confirmed == 'yes'
+    if: inputs.rights_confirmed == 'confirmed'
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     environment: horse-power-catalog-copy
