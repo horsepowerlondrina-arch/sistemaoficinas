@@ -21,7 +21,7 @@ try {
   await admin.query("SET SESSION AUTHORIZATION hp_restore_source_login");
   let sourceDenied = false;
   try { await admin.query("SELECT * FROM horse_power.definitive_restore_source()"); }
-  catch (error) { sourceDenied = (error as { code?: string }).code === "P0001"; }
+  catch (error) { sourceDenied = error?.code === "P0001"; }
   await admin.query("RESET SESSION AUTHORIZATION");
   if (!sourceDenied) throw new Error("A função de origem não bloqueou a ausência de proprietário.");
 
