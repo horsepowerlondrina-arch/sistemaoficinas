@@ -1,3 +1,4 @@
+import { VehiclePlate } from "./VehiclePlate";
 import { DocumentTerms } from "./DocumentTerms";
 import type { Entity } from "../lib/types";
 import { DocumentHeader } from "./DocumentHeader";
@@ -37,7 +38,7 @@ export function ChecklistPrint({
         <div><b>Cliente:</b> {checklist.customer_name}</div>
         <div><b>Telefone:</b> {checklist.phone || "—"}</div>
         <div><b>Veículo:</b> {checklist.vehicle_label}</div>
-        <div><b>Placa:</b> {checklist.plate}</div>
+        <div className="document-plate"><b>Placa:</b> <VehiclePlate value={checklist.plate} compact /></div>
         <div>
           <b>OS:</b>{" "}
           {checklist.order_number ? `#${checklist.order_number}` : "—"}
