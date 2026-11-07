@@ -1,4 +1,4 @@
-name: Four-porte catalog preflight and authorized homologation import
+name: Four-porte catalog preflight and authorized import
 
 on:
   workflow_dispatch:
@@ -14,7 +14,7 @@ on:
         type: choice
         required: true
         default: preflight-only
-        options: [preflight-only, load-homologation]
+        options: [preflight-only, load-homologation, load-definitive]
 
 permissions:
   contents: read
@@ -76,6 +76,15 @@ jobs:
           CATALOG_IMPORT_DATABASE_URL: ${{ secrets.CATALOG_IMPORT_DATABASE_URL }}
           CATALOG_IMPORT_TARGET: homologation
           CATALOG_IMPORT_CONFIRM: CAT-008-HOMOLOGATION-IMPORT
+          CATALOG_RIGHTS_CONFIRMED: "true"
+      - name: Import into the explicitly confirmed new Horse Power project
+        if: inputs.operation == 'load-definitive'
+        run: npm run catalog:import -- "$RUNNER_TEMP/catalogo.sqlite"
+        env:
+          CATALOG_SOURCE_SHA256: ${{ vars.CATALOG_SOURCE_SHA256 }}
+          CATALOG_IMPORT_DATABASE_URL: ${{ secrets.CATALOG_DEFINITIVE_DATABASE_URL }}
+          CATALOG_IMPORT_TARGET: horse-power-definitive
+          CATALOG_IMPORT_CONFIRM: HP-DEFINITIVE-CATALOG-IMPORT
           CATALOG_RIGHTS_CONFIRMED: "true"
       - name: Remove the private source from the ephemeral runner
         if: always()
