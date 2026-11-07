@@ -332,8 +332,7 @@ export function Finance() {
   return (
     <>
       <PageHeading
-        eyebrow="GESTÃO"
-        title="Financeiro"
+        title="Contas a receber"
         description="Clareza sobre os recebimentos e os próximos passos da oficina."
       />
       <div className="stats-grid three">

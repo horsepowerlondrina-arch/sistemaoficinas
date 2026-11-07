@@ -22,7 +22,6 @@ export function PartsProfit() {
     <>
       <FinanceNav />
       <PageHeading
-        eyebrow="FINANCEIRO"
         title="Lucro das peças"
         description="Vendas das OS finalizadas, com desconto proporcional e custo registrado no atendimento."
       />

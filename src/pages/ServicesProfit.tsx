@@ -22,7 +22,6 @@ export function ServicesProfit() {
     <>
       <FinanceNav />
       <PageHeading
-        eyebrow="FINANCEIRO"
         title="Lucro dos serviços"
         description="Serviços das OS finalizadas, com desconto proporcional e custos de terceiros registrados no atendimento."
       />
