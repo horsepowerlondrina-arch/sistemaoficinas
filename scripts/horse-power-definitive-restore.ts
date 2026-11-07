@@ -52,6 +52,7 @@ function guard() {
   return operation as "preflight-only" | "restore-definitive";
 }
 function verifySource(row: Source, phrase: string) {
+  diagnosticStage = "package-metadata";
   if (row.tenant_id !== tenantId || row.tenant_name !== "Horse Power Car Service" ||
       row.backup_id !== backupId || row.backup_sha256 !== backupSha256 ||
       Number(row.backup_bytes) !== backupBytes || !Buffer.isBuffer(row.encrypted_package) ||
@@ -61,7 +62,9 @@ function verifySource(row: Source, phrase: string) {
       !row.email_verified_at) {
     throw new Error("Identidade ou integridade do backup divergiu.");
   }
+  diagnosticStage = "package-open";
   const payload = openTransferPackage(row.encrypted_package, phrase);
+  diagnosticStage = "package-identity";
   if (payload.source.tenant.id !== tenantId || payload.records.tenant.id !== tenantId ||
       payload.source.tenant.name !== row.tenant_name ||
       payload.records.users.length !== 0 || payload.records.memberships.length !== 0) {
@@ -69,6 +72,7 @@ function verifySource(row: Source, phrase: string) {
   }
   return payload;
 }
+let diagnosticStage = "configuration";
 async function main() {
   const operation = guard();
   const phrase = process.env.HP_RESTORE_PASSPHRASE!;
@@ -82,7 +86,9 @@ async function main() {
   });
   let snapshot: Source;
   try {
+    diagnosticStage = "source-connection";
     await source.connect();
+    diagnosticStage = "source-query";
     await source.query("BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY");
     const identity = (await source.query("SELECT current_database() AS db,current_user AS role,rolsuper,rolbypassrls FROM pg_roles WHERE rolname=current_user")).rows[0];
     if (identity?.db !== "postgres" || identity?.role !== "hp_restore_source_login" || identity.rolsuper || identity.rolbypassrls)
@@ -95,6 +101,7 @@ async function main() {
     await source.query("ROLLBACK").catch(() => {});
     await source.end().catch(() => {});
   }
+  diagnosticStage = "package-validation";
   const payload = verifySource(snapshot, phrase);
   const counts = {
     customers: payload.records.customers?.length || 0,
@@ -109,12 +116,14 @@ async function main() {
     snapshot.encrypted_package.fill(0);
     return;
   }
+  diagnosticStage = "target-connection";
   const targetUrl = connection("hp_restore_target_login", targetRef, process.env.HP_RESTORE_TARGET_PASSWORD || "");
   const db = createPostgresDatabase(targetUrl);
   try {
     const identity = await db.prepare("SELECT current_database() AS db,current_user AS role").get();
     if (identity?.db !== "postgres" || identity?.role !== "hp_restore_target_login")
       throw new Error("Destino não corresponde ao banco definitivo restrito.");
+    diagnosticStage = "target-import";
     const result = await db.withRequestContext({ "app.tenant_id": tenantId, "app.user_id": snapshot.owner_user_id }, async () => {
       await db.prepare("SELECT platform_admin.provision_definitive_horse_power(?,?,?,?,?,?,?)").get(
         tenantId, snapshot.tenant_name, snapshot.owner_user_id, snapshot.owner_name,
@@ -140,7 +149,9 @@ async function main() {
     snapshot.encrypted_package.fill(0);
   }
 }
-main().catch(() => {
-  console.error("A transferência não foi concluída. Confira a etapa e o banco antes de tentar novamente.");
+main().catch((error: unknown) => {
+  const rawCode = error && typeof error === "object" && "code" in error ? String(error.code) : "";
+  const code = /^[A-Z0-9]{5}$/.test(rawCode) ? rawCode : "sem-codigo";
+  console.error(`A transferência não foi concluída na etapa ${diagnosticStage} (${code}). Nenhuma escrita foi confirmada.`);
   process.exitCode = 1;
 });
