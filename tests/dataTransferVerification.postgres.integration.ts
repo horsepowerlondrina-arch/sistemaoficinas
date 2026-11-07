@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { createHash, randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import test from "node:test";
 import { adminClient } from "../scripts/local-admin.js";
@@ -97,6 +97,28 @@ test("PostgreSQL local: transferência fictícia completa preserva IDs, relaçõ
         return {rowCount:1,rows:[{tenant_id:tenantId,name:"Oficina Fictícia MIG002"}]};
       }} as never;
       const adminTransfer=createPlatformAdminDataTransfer(db,adminTargetPool);
+      const stagedExport=await adminTransfer.stageExport(tenantId,phrase);
+      const stagedParts:Buffer[]=[];
+      for(let index=0;index<stagedExport.chunkCount;index++){
+        const part=await adminTransfer.exportChunk(tenantId,stagedExport.id,index);
+        assert.ok(part);
+        stagedParts.push(part.bytes);
+      }
+      const stagedFile=Buffer.concat(stagedParts);
+      assert.equal(stagedFile.length,stagedExport.size);
+      assert.equal(transferFileSha256(stagedFile),stagedExport.sha256);
+      assert.equal(openTransferPackage(stagedFile,phrase).source.tenant.id,tenantId);
+      assert.equal(await adminTransfer.exportChunk(tenantId,stagedExport.id,stagedExport.chunkCount),undefined);
+
+      const largeId=randomUUID();
+      const largeEncryptedFixture=randomBytes(2*1024*1024+17);
+      await db.prepare("INSERT INTO data_transfer_backups(id,tenant_id,created_by,package_sha256,package,expires_at) VALUES(?,?,?,?,?,?)")
+        .run(largeId,tenantId,userId,transferFileSha256(largeEncryptedFixture),largeEncryptedFixture,new Date(Date.now()+3600000).toISOString());
+      const largeParts=await Promise.all([0,1,2].map(index=>adminTransfer.exportChunk(tenantId,largeId,index)));
+      assert.equal(largeParts.every(Boolean),true);
+      assert.deepEqual(Buffer.concat(largeParts.map(part=>part!.bytes)),largeEncryptedFixture);
+      assert.equal(await adminTransfer.exportChunk(tenantId,largeId,3),undefined);
+      assert.equal(await adminTransfer.exportChunk(tenantId,randomUUID(),0),undefined);
       const beforeReadOnlyCounts=await db.prepare("SELECT (SELECT count(*) FROM customers WHERE tenant_id=?) AS customers,(SELECT count(*) FROM audit_events WHERE tenant_id=?) AS audit_events").get(tenantId,tenantId);
       const adminVerification=await adminTransfer.verify(tenantId,file.toString("utf8"),phrase,"empty");
       assert.equal((adminVerification as {overall:string}).overall,"divergent");
