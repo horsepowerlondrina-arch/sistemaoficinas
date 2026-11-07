@@ -75,6 +75,20 @@ export function PlatformDataTransfer({ tenantId, workshopName, environmentLabel,
   async function exportPackage() {
     setBusy(true); setError(""); setMessage("");
     try {
+      const direct = await fetch(base + "/export", { method: "POST", credentials: "same-origin", cache: "no-store",
+        headers: { "Content-Type": "application/json" }, body: JSON.stringify({ passphrase: phrase }) });
+      if (direct.ok) {
+        const url = URL.createObjectURL(await direct.blob());
+        const link = document.createElement("a"); link.href = url;
+        link.download = "oficina-" + new Date().toISOString().slice(0, 10) + ".hptx"; link.click();
+        window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
+        setPhrase("");
+        setMessage("Pacote criptografado baixado. Guarde a frase secreta separadamente.");
+        return;
+      }
+      const directError = await direct.json().catch(() => ({})) as { error?: string; code?: string };
+      if (direct.status !== 413 || directError.code !== "package_too_large")
+        throw new Error(directError.error || "Não foi possível exportar a oficina.");
       const staged = await post<{ id: string; sha256: string; size: number; chunkCount: number }>("/export/staged", { passphrase: phrase });
       if (!Number.isSafeInteger(staged.size) || staged.size < 1 || staged.size > 96 * 1024 * 1024
           || !Number.isSafeInteger(staged.chunkCount) || staged.chunkCount !== Math.ceil(staged.size / (1024 * 1024))
