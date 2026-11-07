@@ -10,7 +10,7 @@ export function billingError(error:unknown,res:Response){
  if(error instanceof BillingConflict){res.status(409).json({error:error.message});return;}
  res.status(503).json({error:"Não foi possível confirmar a cobrança. Nenhum acesso foi liberado sem confirmação. Atualize a situação e tente novamente."});
 }
-export function stripePublicRoutes(billing:StripeBilling,secret:string,cronSecret:string){
+export function stripePublicRoutes(billing:StripeBilling,secret:string,cronSecret:string,schedulerSecret?:string){
  const app=express.Router();
  app.use((_req,res,next)=>{res.set("Cache-Control","no-store");next();});
  app.post("/api/billing/stripe/webhook",express.raw({type:"application/json",limit:"256kb"}),async(req,res)=>{
@@ -20,8 +20,13 @@ export function stripePublicRoutes(billing:StripeBilling,secret:string,cronSecre
   try{await billing.webhook(event);res.json({received:true});}catch{res.status(503).json({error:"Notificação pendente de processamento."});}
  });
  app.get("/api/billing/stripe/renew",async(req,res)=>{
-  const received=Buffer.from(req.get("authorization")||""),expected=Buffer.from("Bearer "+cronSecret);
-  if(cronSecret.length<32||received.length!==expected.length||!timingSafeEqual(received,expected)){res.status(401).json({error:"Acesso não autorizado."});return;}
+  const received=Buffer.from(req.get("authorization")||"");
+  const authorized=[cronSecret,schedulerSecret].some(key=>{
+   if(!key||key.length<32)return false;
+   const expected=Buffer.from("Bearer "+key);
+   return received.length===expected.length&&timingSafeEqual(received,expected);
+  });
+  if(!authorized){res.status(401).json({error:"Acesso não autorizado."});return;}
   try{res.json(await billing.renew());}catch(e){billingError(e,res);}
  });
  return app;
