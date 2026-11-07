@@ -40,7 +40,7 @@ test("PostgreSQL local: transferência fictícia completa preserva IDs, relaçõ
   const tenantId = randomUUID(), userId = randomUUID();
   const sourceTenantId = randomUUID(), sourceUserId = randomUUID();
   const customerId = randomUUID(), vehicleId = randomUUID(), professionalId = randomUUID();
-  const catalogId = randomUUID(), orderId = randomUUID(), itemId = randomUUID(), movementId = randomUUID(), receivableId = randomUUID(), installmentId = randomUUID(), installmentId2 = randomUUID(), cashEntryId = randomUUID(), cashEntryId2 = randomUUID(), externalCaptureId = randomUUID(), revisionId = randomUUID();
+  const catalogId = randomUUID(), serviceCategoryId = randomUUID(), workshopServiceId = randomUUID(), orderId = randomUUID(), itemId = randomUUID(), movementId = randomUUID(), receivableId = randomUUID(), installmentId = randomUUID(), installmentId2 = randomUUID(), cashEntryId = randomUUID(), cashEntryId2 = randomUUID(), externalCaptureId = randomUUID(), revisionId = randomUUID();
   const documentPayload = JSON.stringify({ workshop: "Oficina Fictícia Origem", order_id: orderId, total: 8000 });
   const documentDigest = createHash("sha256").update(documentPayload).digest("hex");
   const phrase = "frase-ficticia-postgres-mig002";
@@ -60,6 +60,8 @@ test("PostgreSQL local: transferência fictícia completa preserva IDs, relaçõ
       vehicles: [{ id: vehicleId, tenant_id: sourceTenantId, customer_id: customerId, plate: "ABC1D23", brand: "Marca Fictícia", model: "Modelo Fictício", year: 2024, color: "", km: 1000, chassis: "", active: 1, service_model_id: "", service_porte_id: "" }],
       professionals: [{ id: professionalId, tenant_id: sourceTenantId, name: "Mecânico Fictício", role: "Mecânico", phone: "", email: "", active: 1 }],
       catalog: [{ id: catalogId, tenant_id: sourceTenantId, kind: "product", name: "Peça Fictícia", sku: "FAKE-MIG004", category: "Teste", cost: 5000, price: 8000, stock: 3, minimum_stock: 0, active: 1 }],
+      workshop_service_categories: [{ id: serviceCategoryId, tenant_id: sourceTenantId, name: "Categoria de serviço fictícia", name_key: "categoria-servico-ficticia", active: 1 }],
+      workshop_services: [{ id: workshopServiceId, tenant_id: sourceTenantId, name: "Serviço fictício", name_key: "servico-ficticio", execution: "internal", reference: "SVC-FICTICIO", category_id: serviceCategoryId }],
       external_captures: [{ id: externalCaptureId, tenant_id: sourceTenantId, capture_id: "capture-fake-001", order_id: orderId, item_id: itemId, catalog_id: catalogId, source: "fixture", external_key: "external-capture-fake", payload_hash: createHash("sha256").update("fixture-only").digest("hex"), duration_seconds: 3600, source_cost: 5000, source_price: 8000, vehicle_label: "Veículo Fictício", created_at: "2026-10-21T10:00:00.000Z", batch_id: "batch-fake-001", source_quantity: 2, freight_total: 350 }],
       external_catalog_links: [{ tenant_id: sourceTenantId, source: "fixture", external_key: "external-key-fake", catalog_id: catalogId }],
       orders: [{ id: orderId, tenant_id: sourceTenantId, number: 1, customer_id: customerId, vehicle_id: vehicleId, status: "completed", entered_on: "2026-10-20", due_on: "2026-10-21", completed_on: "2026-10-21", km: 1000, problem: "Dado fictício", notes: "", discount: 0, total: 8000, created_at: "2026-10-20T10:00:00.000Z" }],
@@ -89,6 +91,9 @@ test("PostgreSQL local: transferência fictícia completa preserva IDs, relaçõ
       assert.equal(result.counts.external_captures, 1);
       const capture = await db.prepare("SELECT batch_id,source_quantity,freight_total FROM external_captures WHERE tenant_id=? AND id=?").get(tenantId, externalCaptureId);
       assert.deepEqual(capture, { batch_id: "batch-fake-001", source_quantity: 2, freight_total: 350 });
+      assert.equal(result.counts.workshop_service_categories, 1);
+      assert.equal(result.counts.workshop_services, 1);
+      assert.deepEqual(await db.prepare("SELECT s.category_id,c.id AS category_id_check FROM workshop_services s JOIN workshop_service_categories c ON c.id=s.category_id AND c.tenant_id=s.tenant_id WHERE s.tenant_id=? AND s.id=?").get(tenantId,workshopServiceId), { category_id: serviceCategoryId, category_id_check: serviceCategoryId });
       assert.equal(result.counts.customers, 1);
       assert.equal(result.counts.vehicles, 1);
       assert.equal(result.counts.orders, 1);
@@ -153,6 +158,7 @@ test("PostgreSQL local: transferência fictícia completa preserva IDs, relaçõ
       assert.equal(openTransferPackage(backup!, phrase).records.stock_movements?.length, 1);
       assert.equal(openTransferPackage(backup!, phrase).records.cash_entries?.length, 2);
       assert.equal(openTransferPackage(backup!, phrase).records.external_captures?.length, 1);
+      assert.equal(openTransferPackage(backup!, phrase).records.workshop_service_categories?.length, 1);
       assert.deepEqual(openTransferPackage(backup!, phrase).records.users, []);
       assert.deepEqual(openTransferPackage(backup!, phrase).records.memberships, []);
       assert.equal((await db.prepare("SELECT token_hash FROM sessions WHERE tenant_id=? AND token_hash=?").get(tenantId,preservedSessionHash))?.token_hash, preservedSessionHash);
@@ -165,6 +171,7 @@ test("PostgreSQL local: transferência fictícia completa preserva IDs, relaçõ
       assert.equal((await db.prepare("SELECT count(*) AS count FROM data_transfer_archived_documents WHERE tenant_id=?").get(tenantId))?.count, 1);
       const reexported = openTransferPackage(await createWorkshopTransfer(db, tenantId, phrase), phrase);
       assert.equal(reexported.records.data_transfer_archived_documents?.length, 1);
+      assert.equal(reexported.records.workshop_service_categories?.length, 1);
     }, () => false);
 
     await admin.query("INSERT INTO horse_power.customers(id,tenant_id,name,email) VALUES($1,$2,$3,$4)", ["rollback-customer-" + tenantId, tenantId, "Cliente Fictício Preservado", "rollback@example.invalid"]);
@@ -187,6 +194,8 @@ test("PostgreSQL local: transferência fictícia completa preserva IDs, relaçõ
       await admin.query("DELETE FROM horse_power.sessions WHERE tenant_id=$1", [tenantId]);
       await admin.query("DELETE FROM horse_power.data_transfer_backups WHERE tenant_id=$1", [tenantId]).catch(() => {});
       await admin.query("DELETE FROM horse_power.data_transfer_records WHERE tenant_id=$1", [tenantId]).catch(() => {});
+      await admin.query("DELETE FROM horse_power.workshop_services WHERE tenant_id=$1", [tenantId]);
+      await admin.query("DELETE FROM horse_power.workshop_service_categories WHERE tenant_id=$1", [tenantId]);
       await admin.query("DELETE FROM horse_power.customers WHERE tenant_id=$1", [tenantId]);
       await admin.query("DELETE FROM horse_power.memberships WHERE tenant_id=$1", [tenantId]);
       await admin.query("DELETE FROM horse_power.users WHERE id=$1", [userId]);
