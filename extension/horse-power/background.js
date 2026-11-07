@@ -1,8 +1,8 @@
 const appOrigins = new Set([
   "https://sistema-oficinas-homologacao.vercel.app",
-  "https://osdrive.com.br",
+  "https://oficinahorsepower.com.br",
 ]);
-const defaultAppOrigin = "https://osdrive.com.br";
+const defaultAppOrigin = "https://oficinahorsepower.com.br";
 const sources = {
   "https://cliente.skypecas.com.br": "sky",
 };
