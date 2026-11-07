@@ -88,7 +88,6 @@ export function CashControl() {
     <>
       <FinanceNav />
       <PageHeading
-        eyebrow="FINANCEIRO"
         title="Controle de caixa"
         description="Saldo por conta bancária e dinheiro físico, atualizado por movimentos confirmados."
         actions={
