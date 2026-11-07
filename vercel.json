@@ -2,8 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "vite",
   "env": {
-    "APP_ENV": "development",
-    "EXPECTED_DATABASE_PROJECT": "vnclahdnirqlcbamodqy"
+    "APP_ENV": "horse_power"
   },
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
@@ -16,7 +15,6 @@
       "includeFiles": "server/db/certs/**"
     }
   },
-  "crons": [{"path": "/api/billing/stripe/renew", "schedule": "0 9 * * *"}],
   "rewrites": [
     {
       "source": "/admin-api",
