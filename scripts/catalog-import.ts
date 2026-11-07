@@ -101,9 +101,10 @@ export function assertTarget(env: NodeJS.ProcessEnv = process.env) {
     throw new Error("Importação recusada: URL PostgreSQL inválida.");
 
   const target = env.CATALOG_IMPORT_TARGET || "local";
-  if (target === "homologation" || target === "homologation-direct") {
+  const definitive = target === "horse-power-definitive";
+  if (target === "homologation" || target === "homologation-direct" || definitive) {
     const directExecution = target === "homologation-direct";
-    const projectRef = "vnclahdnirqlcbamodqy";
+    const projectRef = definitive ? "rvlovjpquozbrsszsxwe" : "vnclahdnirqlcbamodqy";
     const directHost = `db.${projectRef}.supabase.co`;
     const sessionUser = `hp_catalog_import_login.${projectRef}`;
     const directAllowed =
@@ -120,27 +121,28 @@ export function assertTarget(env: NodeJS.ProcessEnv = process.env) {
         env.CATALOG_IMPORT_CONFIRM === "CAT-008-HOMOLOGATION-DIRECT-IMPORT"
       : env.GITHUB_ACTIONS === "true" &&
         env.GITHUB_EVENT_NAME === "workflow_dispatch" &&
-        env.CATALOG_IMPORT_CONFIRM === "CAT-008-HOMOLOGATION-IMPORT";
+        env.CATALOG_IMPORT_CONFIRM === (definitive
+          ? "HP-DEFINITIVE-CATALOG-IMPORT"
+          : "CAT-008-HOMOLOGATION-IMPORT");
     const connectionAllowed = directAllowed || poolerAllowed;
     if (
-      !executionConfirmed ||
-      env.CATALOG_RIGHTS_CONFIRMED !== "true" ||
-      !url.password ||
-      url.pathname !== "/postgres" ||
-      !connectionAllowed ||
+      !executionConfirmed || env.CATALOG_RIGHTS_CONFIRMED !== "true" ||
+      !url.password || url.pathname !== "/postgres" || !connectionAllowed ||
       params.some((key) => key !== "sslmode") ||
       (url.searchParams.has("sslmode") &&
         url.searchParams.get("sslmode") !== "require")
     )
       throw new Error(
-        directExecution
-          ? "Importação recusada: execução direta exige autorização explícita, direitos declarados e conexão restrita ao projeto vnclahdnirqlcbamodqy."
-          : "Importação recusada: homologação exige workflow_dispatch confirmado, direitos declarados e conexão do projeto vnclahdnirqlcbamodqy.",
+        definitive
+          ? "Importação recusada: Horse Power definitivo exige workflow_dispatch confirmado, direitos declarados e conexão restrita ao projeto rvlovjpquozbrsszsxwe."
+          : directExecution
+            ? "Importação recusada: execução direta exige autorização explícita, direitos declarados e conexão restrita ao projeto vnclahdnirqlcbamodqy."
+            : "Importação recusada: homologação exige workflow_dispatch confirmado, direitos declarados e conexão do projeto vnclahdnirqlcbamodqy.",
       );
     url.search = "";
     return {
       connectionString: url.toString(),
-      target: "homologation" as const,
+      target: definitive ? "definitive" as const : "homologation" as const,
     };
   }
 
@@ -397,7 +399,7 @@ async function main() {
   }
   const target = assertTarget();
   const pool = new pg.Pool({ connectionString: target.connectionString,
-    ssl: target.target === "homologation" ? { ca: readFileSync(resolve("server/db/certs/supabase-ca.crt"), "utf8"), rejectUnauthorized: true } : false,
+    ssl: target.target !== "local" ? { ca: readFileSync(resolve("server/db/certs/supabase-ca.crt"), "utf8"), rejectUnauthorized: true } : false,
     max: 1, connectionTimeoutMillis: 15000, application_name: `cat009-${target.target}-import`,
   });
   let client: pg.PoolClient | undefined;
@@ -426,7 +428,7 @@ async function main() {
     }
     if ((await client.query("SELECT 1 FROM service_catalog.releases WHERE status='active' LIMIT 1")).rowCount)
       throw new Error("Existe uma release ativa; nenhuma substituição foi feita.");
-    if (target.target === "homologation") {
+    if (target.target !== "local") {
       const size = Number((await client.query("SELECT pg_database_size(current_database())::bigint n")).rows[0].n);
       if (estimateCatalogImportPeak(size, statSync(sourcePath).size) > 450 * 1024 * 1024)
         throw new Error("Projeção de armazenamento excede 450 MiB.");
@@ -437,7 +439,7 @@ async function main() {
     await validateImportedCatalog(client, source);
     const portes = await targetPorteCounts(client);
     const size = Number((await client.query("SELECT pg_database_size(current_database())::bigint n")).rows[0].n);
-    if (target.target === "homologation" && size > 450 * 1024 * 1024)
+    if (target.target !== "local" && size > 450 * 1024 * 1024)
       throw new Error("Tamanho real excede 450 MiB; a carga será revertida.");
     const activated = await client.query("UPDATE service_catalog.releases SET status='active',validated_at=statement_timestamp() WHERE version=$1 AND source_sha256=$2 AND status='loading'", [releaseVersion, expectedSha256]);
     if (activated.rowCount !== 1) throw new Error("A release não pôde ser ativada.");

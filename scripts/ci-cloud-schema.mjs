@@ -24,6 +24,7 @@ url.pathname = "/horse_power_cloud_ci";
 const files = readdirSync(new URL("../supabase/migrations/", import.meta.url))
   .filter(name => /^\d{14}_[a-z0-9_]+\.sql$/.test(name)).sort();
 if (files.length < 49) throw new Error("Conjunto de migrações incompleto.");
+console.log("Arquivos de migração verificados:", files.join(","));
 for (const name of files) {
   const client = new pg.Client({ connectionString: url.toString() });
   await client.connect();

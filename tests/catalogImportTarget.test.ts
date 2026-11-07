@@ -137,3 +137,54 @@ test("CAT-008 direct mode rejects production hosts and elevated logins", () => {
   );
 });
 
+
+const definitiveRef = "rvlovjpquozbrsszsxwe";
+const definitiveEnv = {
+  CATALOG_IMPORT_TARGET: "horse-power-definitive",
+  CATALOG_IMPORT_CONFIRM: "HP-DEFINITIVE-CATALOG-IMPORT",
+  CATALOG_RIGHTS_CONFIRMED: "true",
+  GITHUB_ACTIONS: "true",
+  GITHUB_EVENT_NAME: "workflow_dispatch",
+};
+
+test("CAT-008 definitive guard accepts only the new Horse Power project and manual dispatch", () => {
+  const direct = assertTarget({
+    ...definitiveEnv,
+    CATALOG_IMPORT_DATABASE_URL:
+      `postgres://hp_catalog_import_login:test@db.${definitiveRef}.supabase.co:5432/postgres?sslmode=require`,
+  });
+  assert.equal(direct.target, "definitive");
+  assert.equal(new URL(direct.connectionString).search, "");
+  const pooler = assertTarget({
+    ...definitiveEnv,
+    CATALOG_IMPORT_DATABASE_URL:
+      `postgres://hp_catalog_import_login.${definitiveRef}:test@aws-0-ca-central-1.pooler.supabase.com:5432/postgres?sslmode=require`,
+  });
+  assert.equal(pooler.target, "definitive");
+  for (const connection of [
+    `postgres://hp_catalog_import_login:test@db.${projectRef}.supabase.co:5432/postgres?sslmode=require`,
+    "postgres://hp_catalog_import_login:test@db.cbdwgocofigrdigfgwkp.supabase.co:5432/postgres?sslmode=require",
+    `postgres://postgres:test@db.${definitiveRef}.supabase.co:5432/postgres?sslmode=require`,
+  ]) {
+    assert.throws(
+      () => assertTarget({ ...definitiveEnv, CATALOG_IMPORT_DATABASE_URL: connection }),
+      /Horse Power definitivo exige workflow_dispatch/,
+    );
+  }
+  assert.throws(
+    () => assertTarget({
+      ...definitiveEnv,
+      GITHUB_EVENT_NAME: "pull_request",
+      CATALOG_IMPORT_DATABASE_URL: direct.connectionString,
+    }),
+    /Horse Power definitivo exige workflow_dispatch/,
+  );
+  assert.throws(
+    () => assertTarget({
+      ...definitiveEnv,
+      CATALOG_IMPORT_CONFIRM: "CAT-008-HOMOLOGATION-IMPORT",
+      CATALOG_IMPORT_DATABASE_URL: direct.connectionString,
+    }),
+    /Horse Power definitivo exige workflow_dispatch/,
+  );
+});
