@@ -4,7 +4,7 @@ import { gunzipSync } from "node:zlib";
 import pg from "pg";
 import { createPostgresDatabase } from "../server/db/postgres.js";
 import { importWorkshopPackage, previewWorkshopImport } from "../server/services/dataTransferImport.js";
-import { MAX_TRANSFER_PLAINTEXT, openTransferPackage, validateTransferPayload } from "../shared/transferPackage.js";
+import { createTransferPayload, MAX_TRANSFER_PLAINTEXT, openTransferPackage, sealTransferPackage, validateTransferPayload } from "../shared/transferPackage.js";
 
 const sourceRef = "vnclahdnirqlcbamodqy";
 const targetRef = "rvlovjpquozbrsszsxwe";
@@ -14,6 +14,8 @@ const backupSha256 = "f0c8a897919c61dd912a711c0c6d9ac6149638c9a423d3c1da22aa7659
 const backupBytes = 9320665;
 const pooler = "aws-1-ca-central-1.pooler.supabase.com";
 const branch = "infra/horse-power-definitive-restore-ci";
+
+type SourceCategory = { id: string; tenant_id: string; name: string; name_key: string; active: number; created_at: Date | string };
 
 type Source = {
   tenant_id: string;
@@ -100,6 +102,7 @@ async function main() {
     application_name: "horse-power-definitive-approved-restore",
   });
   let snapshot: Source;
+  let categories: SourceCategory[];
   try {
     diagnosticStage = "source-connection";
     await source.connect();
@@ -111,6 +114,7 @@ async function main() {
     const result = await source.query<Source>("SELECT * FROM horse_power.definitive_restore_source()");
     if (result.rowCount !== 1) throw new Error("Backup autorizado não encontrado.");
     snapshot = result.rows[0];
+    categories = (await source.query<SourceCategory>("SELECT * FROM horse_power.definitive_restore_service_categories()")).rows;
     await source.query("COMMIT");
   } finally {
     await source.query("ROLLBACK").catch(() => {});
@@ -118,7 +122,25 @@ async function main() {
   }
   diagnosticStage = "package-validation";
   const payload = verifySource(snapshot, phrase);
+  diagnosticStage = "category-validation";
+  const requiredCategories = new Set((payload.records.workshop_services || []).map((row) => row.category_id).filter((id) => id !== null && id !== undefined).map(String));
+  if (categories.length !== 1 || requiredCategories.size !== 1 || payload.records.workshop_service_categories?.length ||
+      categories.some((category) => category.tenant_id !== tenantId || !requiredCategories.has(category.id) ||
+        !category.name || !category.name_key || ![0, 1].includes(Number(category.active)) ||
+        !Number.isFinite(new Date(category.created_at).getTime()))) {
+    throw new Error("A categoria dos serviços não corresponde ao pacote aprovado.");
+  }
+  const supplementedFile = sealTransferPackage(createTransferPayload(
+    payload.source.application, payload.source.tenant,
+    { ...payload.records, workshop_service_categories: categories.map((category) => ({
+      id: category.id, tenant_id: category.tenant_id, name: category.name,
+      name_key: category.name_key, active: Number(category.active),
+      created_at: new Date(category.created_at).toISOString(),
+    })) }, payload.generatedAt,
+  ), phrase);
   const counts = {
+    workshop_service_categories: categories.length,
+    workshop_services: payload.records.workshop_services?.length || 0,
     customers: payload.records.customers?.length || 0,
     vehicles: payload.records.vehicles?.length || 0,
     orders: payload.records.orders?.length || 0,
@@ -129,6 +151,7 @@ async function main() {
   if (operation === "preflight-only") {
     console.log(JSON.stringify({ result: "verified-no-write", backupSha256, counts }));
     snapshot.encrypted_package.fill(0);
+    supplementedFile.fill(0);
     return;
   }
   diagnosticStage = "target-connection";
@@ -144,15 +167,17 @@ async function main() {
         tenantId, snapshot.tenant_name, snapshot.owner_user_id, snapshot.owner_name,
         snapshot.owner_email, snapshot.owner_password_hash, snapshot.email_verified_at,
       );
-      const preview = await previewWorkshopImport(db, tenantId, snapshot.encrypted_package, phrase, snapshot.owner_user_id, "empty");
+      const preview = await previewWorkshopImport(db, tenantId, supplementedFile, phrase, snapshot.owner_user_id, "empty");
       if (!preview.canImport || preview.mode !== "empty" ||
+          preview.entities.workshop_service_categories?.source !== counts.workshop_service_categories ||
+          preview.entities.workshop_services?.source !== counts.workshop_services ||
           preview.entities.customers?.source !== counts.customers ||
           preview.entities.vehicles?.source !== counts.vehicles ||
           preview.entities.orders?.source !== counts.orders ||
           preview.entities.order_items?.source !== counts.order_items) {
         throw new Error("A prévia bloqueou a restauração; a transação será revertida.");
       }
-      const imported = await importWorkshopPackage(db, tenantId, snapshot.encrypted_package, phrase, preview.confirmationId, snapshot.owner_user_id, "empty");
+      const imported = await importWorkshopPackage(db, tenantId, supplementedFile, phrase, preview.confirmationId, snapshot.owner_user_id, "empty");
       for (const [entity, expected] of Object.entries(counts)) {
         if (imported.counts[entity] !== expected) throw new Error("A conferência final falhou.");
       }
@@ -162,6 +187,7 @@ async function main() {
   } finally {
     await db.close();
     snapshot.encrypted_package.fill(0);
+    supplementedFile.fill(0);
   }
 }
 main().catch((error: unknown) => {
