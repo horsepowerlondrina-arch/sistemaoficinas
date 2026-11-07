@@ -34,22 +34,10 @@
     },
     {
       "source": "/",
-      "has": [
-        {
-          "type": "host",
-          "value": "oficinahorsepower.com.br"
-        }
-      ],
       "destination": "/site/index.html"
     },
     {
       "source": "/contato",
-      "has": [
-        {
-          "type": "host",
-          "value": "oficinahorsepower.com.br"
-        }
-      ],
       "destination": "/site/contato.html"
     },
     {
@@ -85,6 +73,11 @@
     }
   ],
   "redirects": [
+    {
+      "source": "/inicio",
+      "destination": "/sistema",
+      "permanent": false
+    },
     {
       "source": "/contato.html",
       "has": [

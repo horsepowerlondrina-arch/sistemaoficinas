@@ -10,7 +10,15 @@ import { assertPlatformAdminDatabase, createPlatformAdminApp } from "./platformA
 import { createPlatformAdminDataTransfer } from "./services/platformAdminDataTransfer.js";
 import { readFileSync } from "node:fs";
 const standaloneHorsePower = process.env.APP_ENV === "horse_power";
-if (standaloneHorsePower) assertHorsePowerIsolation(process.env);
+if (standaloneHorsePower) {
+  if (process.env.VERCEL_ENV === "preview" && process.env.VERCEL_URL) {
+    const previewOrigin = `https://${process.env.VERCEL_URL}`;
+    process.env.APP_ORIGIN ??= previewOrigin;
+    process.env.APP_ORIGINS ??= previewOrigin;
+    process.env.PUBLIC_ORIGIN ??= previewOrigin;
+  }
+  assertHorsePowerIsolation(process.env);
+}
 else assertDevelopmentIsolation(process.env);
 const productionHost = process.env.VERCEL_PROJECT_PRODUCTION_URL;
 if (!process.env.APP_ORIGIN && productionHost)

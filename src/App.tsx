@@ -64,7 +64,7 @@ import { OrderView } from "./pages/OrderView";
 import { Payment } from "./pages/Payment";
 import { Checklists } from "./pages/Checklists";
 import { ChecklistEditor } from "./pages/ChecklistEditor";
-export function App() {
+export function App({ homePath = "/inicio" }: { homePath?: "/" | "/inicio" } = {}) {
   const [session, setSession] = useState<Session | null>(null);
   const [data, setData] = useState<Workspace | null>(null);
   const [loading, setLoading] = useState(true);
@@ -152,7 +152,7 @@ export function App() {
       <Login
         onLogin={async () => {
           await load();
-          navigate("/inicio");
+          navigate(homePath);
         }}
       />
     );
@@ -202,12 +202,12 @@ export function App() {
       ];
   const blockedModule = uiModuleForPath(location.pathname);
   if (blockedModule && session.modules?.[blockedModule] === false)
-    return <Navigate to="/inicio" replace />;
+    return <Navigate to={homePath} replace />;
   const current =
     groups
       .flatMap((g) => g.items)
       .find(([path]) => location.pathname.startsWith(path))?.[1] ||
-    (location.pathname === "/inicio"
+    (location.pathname === homePath
       ? "Início"
       : location.pathname === "/configuracoes"
         ? "Configurações"
@@ -297,11 +297,11 @@ export function App() {
           />
         )}
         <aside className={`sidebar ${mobile ? "mobile-open" : ""}`}>
-          <NavLink className="brand" to="/inicio" aria-label={"Início de " + session.tenant.name}>
+          <NavLink className="brand" to={homePath} aria-label={"Início de " + session.tenant.name}>
             <WorkshopBrand key={session.tenant.id} shop={session.tenant} />
           </NavLink>
           <NavLink
-            to="/inicio"
+            to={homePath}
             className={({ isActive }) => `home-nav ${isActive ? "active" : ""}`}
           >
             <LayoutGrid size={21} aria-hidden="true" />
@@ -409,7 +409,7 @@ export function App() {
           </header>
           <main className="page-content">
             {!admin &&
-            location.pathname !== "/inicio" &&
+            location.pathname !== homePath &&
             !/^\/ordens(?:\/[^/]+)?$/.test(location.pathname) ? (
               <Navigate to="/ordens" replace />
             ) : !admin && location.pathname === "/ordens/nova" ? (
@@ -487,7 +487,7 @@ export function App() {
                   element={<Expenses cash />}
                 />
                 <Route path="/configuracoes" element={<SettingsPage />} />
-                <Route path="/" element={<Navigate to="/inicio" replace />} />
+                <Route path="/" element={homePath === "/" ? <Home /> : <Navigate to={homePath} replace />} />
                 <Route
                   path="*"
                   element={

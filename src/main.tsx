@@ -11,6 +11,7 @@ import { App } from "./App";
 import "./styles.css";
 import "./document.css";
 
+const systemPath = /^\/sistema(?:\/|$)/.test(window.location.pathname);
 const platformAdminAvailable = isPlatformAdminAvailable({
   development: import.meta.env.DEV,
   enabled: import.meta.env.VITE_PLATFORM_ADMIN_ENABLED,
@@ -20,14 +21,14 @@ const platformAdminAvailable = isPlatformAdminAvailable({
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <BrowserRouter>
+    <BrowserRouter basename={systemPath ? "/sistema" : "/"}>
       <Routes>
         <Route path="/ativar" element={<Activate />} />
         <Route path="/ativar-oficina" element={<ActivateWorkshop />} />
         <Route path="/recuperar-senha" element={<PasswordReset />} />
         <Route path="/p/:token" element={<PublicOrder />} />
         {platformAdminAvailable && <Route path="/admin/*" element={<PlatformAdmin />} />}
-        <Route path="*" element={<App />} />
+        <Route path="*" element={<App homePath={systemPath ? "/" : "/inicio"} />} />
       </Routes>
     </BrowserRouter>
   </React.StrictMode>,
