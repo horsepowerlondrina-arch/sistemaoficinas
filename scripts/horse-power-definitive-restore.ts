@@ -128,12 +128,13 @@ async function main() {
           preview.entities.order_items?.source !== counts.order_items) {
         throw new Error("A prévia bloqueou a restauração; a transação será revertida.");
       }
-      return importWorkshopPackage(db, tenantId, snapshot.encrypted_package, phrase, preview.confirmationId, snapshot.owner_user_id, "empty");
+      const imported = await importWorkshopPackage(db, tenantId, snapshot.encrypted_package, phrase, preview.confirmationId, snapshot.owner_user_id, "empty");
+      for (const [entity, expected] of Object.entries(counts)) {
+        if (imported.counts[entity] !== expected) throw new Error("A conferência final falhou.");
+      }
+      return imported;
     });
-    for (const [entity, expected] of Object.entries(counts)) {
-      if (result.counts[entity] !== expected) throw new Error("A conferência final falhou.");
-    }
-    console.log(JSON.stringify({ result: "restored", backupSha256, counts }));
+    console.log(JSON.stringify({ result: "restored", backupSha256, counts: result.counts }));
   } finally {
     await db.close();
     snapshot.encrypted_package.fill(0);
