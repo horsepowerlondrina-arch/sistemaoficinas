@@ -7,6 +7,7 @@ test("conector Sky Peças usa apenas a Horse Power e a homologação durante a t
   const background = readFileSync(new URL("../extension/horse-power/background.js", import.meta.url), "utf8");
   const hosts = manifest.host_permissions as string[];
   const bridge = manifest.content_scripts.find((entry: { js: string[] }) => entry.js.includes("bridge.js"));
+  assert.ok(bridge);
   assert.ok(hosts.includes("https://oficinahorsepower.com.br/*"));
   assert.ok(bridge.matches.includes("https://oficinahorsepower.com.br/*"));
   assert.ok(hosts.includes("https://sistema-oficinas-homologacao.vercel.app/*"));
