@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import test from "node:test";
 import { adminClient } from "../scripts/local-admin.js";
@@ -97,28 +97,6 @@ test("PostgreSQL local: transferência fictícia completa preserva IDs, relaçõ
         return {rowCount:1,rows:[{tenant_id:tenantId,name:"Oficina Fictícia MIG002"}]};
       }} as never;
       const adminTransfer=createPlatformAdminDataTransfer(db,adminTargetPool);
-      const stagedExport=await adminTransfer.stageExport(tenantId,phrase);
-      const stagedParts:Buffer[]=[];
-      for(let index=0;index<stagedExport.chunkCount;index++){
-        const part=await adminTransfer.exportChunk(tenantId,stagedExport.id,index);
-        assert.ok(part);
-        stagedParts.push(part.bytes);
-      }
-      const stagedFile=Buffer.concat(stagedParts);
-      assert.equal(stagedFile.length,stagedExport.size);
-      assert.equal(transferFileSha256(stagedFile),stagedExport.sha256);
-      assert.equal(openTransferPackage(stagedFile,phrase).source.tenant.id,tenantId);
-      assert.equal(await adminTransfer.exportChunk(tenantId,stagedExport.id,stagedExport.chunkCount),undefined);
-
-      const largeId=randomUUID();
-      const largeEncryptedFixture=randomBytes(2*1024*1024+17);
-      await db.prepare("INSERT INTO data_transfer_backups(id,tenant_id,created_by,package_sha256,package,expires_at) VALUES(?,?,?,?,?,?)")
-        .run(largeId,tenantId,userId,transferFileSha256(largeEncryptedFixture),largeEncryptedFixture,new Date(Date.now()+3600000).toISOString());
-      const largeParts=await Promise.all([0,1,2].map(index=>adminTransfer.exportChunk(tenantId,largeId,index)));
-      assert.equal(largeParts.every(Boolean),true);
-      assert.deepEqual(Buffer.concat(largeParts.map(part=>part!.bytes)),largeEncryptedFixture);
-      assert.equal(await adminTransfer.exportChunk(tenantId,largeId,3),undefined);
-      assert.equal(await adminTransfer.exportChunk(tenantId,randomUUID(),0),undefined);
       const beforeReadOnlyCounts=await db.prepare("SELECT (SELECT count(*) FROM customers WHERE tenant_id=?) AS customers,(SELECT count(*) FROM audit_events WHERE tenant_id=?) AS audit_events").get(tenantId,tenantId);
       const adminVerification=await adminTransfer.verify(tenantId,file.toString("utf8"),phrase,"empty");
       assert.equal((adminVerification as {overall:string}).overall,"divergent");
@@ -427,4 +405,56 @@ test("PostgreSQL local: admin transfer uses scoped RLS context and verifies a wo
     await admin.end();
   }
   t.diagnostic("Testa somente dados fictícios; a oficina sem proprietário foi apenas exportada e conferida.");
+});
+
+test("PostgreSQL local: exportação administrativa criptografada em partes preserva isolamento", async () => {
+  const admin = adminClient();
+  await admin.connect();
+  const db = await createLocalDatabase();
+  const tenantId = randomUUID(), otherTenantId = randomUUID();
+  const userId = randomUUID(), otherUserId = randomUUID();
+  const phrase = "frase-ficticia-exportacao-em-partes";
+  try {
+    await admin.query("INSERT INTO horse_power.tenants(id,name) VALUES($1,$2),($3,$4)",
+      [tenantId,"Oficina Fictícia Exportação",otherTenantId,"Oficina Fictícia Isolada"]);
+    await admin.query("INSERT INTO horse_power.users(id,name,email,password_hash) VALUES($1,$2,$3,'fixture-hash'),($4,$5,$6,'fixture-hash')",
+      [userId,"Proprietário Fictício",`export-${userId}@example.invalid`,otherUserId,"Proprietário Fictício Isolado",`export-${otherUserId}@example.invalid`]);
+    await admin.query("INSERT INTO horse_power.memberships(user_id,tenant_id,role) VALUES($1,$2,'owner'),($3,$4,'owner')",
+      [userId,tenantId,otherUserId,otherTenantId]);
+    const names = new Map([[tenantId,"Oficina Fictícia Exportação"],[otherTenantId,"Oficina Fictícia Isolada"]]);
+    const pool = {query: async (_sql:string, values:unknown[]=[]) => {
+      const id=String(values[0]||"");
+      return names.has(id) ? {rowCount:1,rows:[{tenant_id:id,name:names.get(id)}]} : {rowCount:0,rows:[]};
+    }} as never;
+    const transfer=createPlatformAdminDataTransfer(db,pool);
+    const staged=await transfer.stageExport(tenantId,phrase);
+    const parts:Buffer[]=[];
+    for(let index=0;index<staged.chunkCount;index++){
+      const chunk=await transfer.exportChunk(tenantId,staged.id,index);
+      assert.ok(chunk);
+      parts.push(chunk.bytes);
+    }
+    const packageBytes=Buffer.concat(parts);
+    assert.equal(packageBytes.length,staged.size);
+    assert.equal(transferFileSha256(packageBytes),staged.sha256);
+    assert.equal(openTransferPackage(packageBytes,phrase).source.tenant.id,tenantId);
+    assert.equal(await transfer.exportChunk(otherTenantId,staged.id,0),undefined);
+    assert.equal(await transfer.exportChunk(tenantId,staged.id,staged.chunkCount),undefined);
+    const largeId=randomUUID(),largeBytes=Buffer.alloc(2*1024*1024+17,0x5a);
+    await admin.query("INSERT INTO horse_power.data_transfer_backups(id,tenant_id,created_by,package_sha256,package,expires_at) VALUES($1,$2,$3,$4,$5,now()+interval '1 hour')",
+      [largeId,tenantId,userId,transferFileSha256(largeBytes),largeBytes]);
+    const largeParts=await Promise.all([0,1,2].map(index=>transfer.exportChunk(tenantId,largeId,index)));
+    assert.equal(largeParts.every(Boolean),true);
+    assert.deepEqual(Buffer.concat(largeParts.map(part=>part!.bytes)),largeBytes);
+    assert.equal(await transfer.exportChunk(otherTenantId,largeId,0),undefined);
+    assert.equal(await transfer.exportChunk(tenantId,largeId,3),undefined);
+    assert.equal((await admin.query("SELECT count(*)::int AS count FROM horse_power.customers WHERE tenant_id=ANY($1::text[])",[[tenantId,otherTenantId]])).rows[0].count,0);
+  } finally {
+    await db.close();
+    await admin.query("DELETE FROM horse_power.data_transfer_backups WHERE tenant_id=ANY($1::text[])",[[tenantId,otherTenantId]]).catch(()=>{});
+    await admin.query("DELETE FROM horse_power.memberships WHERE tenant_id=ANY($1::text[])",[[tenantId,otherTenantId]]).catch(()=>{});
+    await admin.query("DELETE FROM horse_power.users WHERE id=ANY($1::text[])",[[userId,otherUserId]]).catch(()=>{});
+    await admin.query("DELETE FROM horse_power.tenants WHERE id=ANY($1::text[])",[[tenantId,otherTenantId]]).catch(()=>{});
+    await admin.end();
+  }
 });
