@@ -428,7 +428,7 @@ async function main() {
     }
     if ((await client.query("SELECT 1 FROM service_catalog.releases WHERE status='active' LIMIT 1")).rowCount)
       throw new Error("Existe uma release ativa; nenhuma substituição foi feita.");
-    if (target.target === "homologation") {
+    if (target.target !== "local") {
       const size = Number((await client.query("SELECT pg_database_size(current_database())::bigint n")).rows[0].n);
       if (estimateCatalogImportPeak(size, statSync(sourcePath).size) > 450 * 1024 * 1024)
         throw new Error("Projeção de armazenamento excede 450 MiB.");
