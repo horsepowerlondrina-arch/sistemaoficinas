@@ -249,7 +249,7 @@ export function OrderResultReport(props: {
       </Modal>
       {createPortal(
         <div className="os-results-print">
-          <ReportContent {...props} />
+          <ReportContent {...props} mode={mode} />
         </div>,
         document.body,
       )}
