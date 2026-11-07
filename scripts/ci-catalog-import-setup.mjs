@@ -56,8 +56,10 @@ const target = new pg.Client({
 try {
   await target.connect();
   // The disposable database needs the application role referenced by local migrations.
-  if (!(await target.query("SELECT 1 FROM pg_roles WHERE rolname = $1", ["hp_local_app"])).rowCount) {
-    await target.query("CREATE ROLE hp_local_app NOLOGIN");
+  for (const role of ["hp_local_app", "hp_platform_admin_app"]) {
+    if (!(await target.query("SELECT 1 FROM pg_roles WHERE rolname = $1", [role])).rowCount) {
+      await target.query(`CREATE ROLE ${role} NOLOGIN`);
+    }
   }
   const files = readdirSync("local-postgres")
     .filter((name) => /^\d{3}-.*\.sql$/.test(name))
