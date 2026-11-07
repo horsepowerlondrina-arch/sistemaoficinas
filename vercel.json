@@ -16,6 +16,7 @@
       "includeFiles": "server/db/certs/**"
     }
   },
+  "crons": [{"path": "/api/billing/stripe/renew", "schedule": "0 9 * * *"}],
   "rewrites": [
     {
       "source": "/admin-api",
