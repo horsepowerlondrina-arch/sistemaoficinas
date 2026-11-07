@@ -86,8 +86,8 @@ const connect = {
     batch_id: "11111111-1111-4111-8111-111111111111",
   },
 };
-const osdrive = {
-  url: "https://osdrive.com.br/ordens/o/editar",
+const horsePower = {
+  url: "https://oficinahorsepower.com.br/ordens/o/editar",
   frameId: 0,
   tab: { id: 4 },
 };
@@ -96,7 +96,7 @@ test("commercial extension injects the bridge and can fetch from both app domain
   const manifest = JSON.parse(readFileSync("extension/horse-power/manifest.json", "utf8"));
   const appHosts = [
     "https://sistema-oficinas-homologacao.vercel.app/*",
-    "https://osdrive.com.br/*",
+    "https://oficinahorsepower.com.br/*",
   ];
   for (const host of appHosts) {
     assert.ok(manifest.host_permissions.includes(host));
@@ -109,20 +109,20 @@ test("commercial extension injects the bridge and can fetch from both app domain
   assert.equal(JSON.stringify(manifest).includes("tempar"), false);
 });
 
-test("osdrive.com.br pairs with Sky, sends to its own origin and rejects lookalike sites", async () => {
+test("oficinahorsepower.com.br pairs with Sky, sends to its own origin and rejects lookalike sites", async () => {
   const w = worker();
   assert.equal((await w.send({ type: "HP_OPEN" }, popup)).ok, true);
-  assert.equal(w.tabs[0].url, "https://osdrive.com.br/ordens");
-  assert.equal((await w.send(connect, osdrive)).ok, true);
-  assert.equal((await w.send({ type: "HP_STATUS" }, osdrive)).connected, true);
+  assert.equal(w.tabs[0].url, "https://oficinahorsepower.com.br/ordens");
+  assert.equal((await w.send(connect, horsePower)).ok, true);
+  assert.equal((await w.send({ type: "HP_STATUS" }, horsePower)).connected, true);
   assert.equal((await w.send(connect, {
-    ...osdrive, url: "https://osdrive.com.br.evil.example/ordens/o/editar",
+    ...horsePower, url: "https://oficinahorsepower.com.br.evil.example/ordens/o/editar",
   })).ok, false);
   const captureId = randomUUID();
   assert.equal((await w.send({
     type: "HP_CAPTURE", item: { capture_id: captureId, name: "Peça" },
   }, sky)).ok, true);
-  assert.equal(w.calls[0].url, "https://osdrive.com.br/api/extension/import");
+  assert.equal(w.calls[0].url, "https://oficinahorsepower.com.br/api/extension/import");
   assert.equal(JSON.parse(w.calls[0].body).capture_id, captureId);
   assert.equal(w.local.data.pending.length, 0);
 });
@@ -130,33 +130,33 @@ test("osdrive.com.br pairs with Sky, sends to its own origin and rejects lookali
 test("switching trusted app aliases requires the same destination and no pending capture", async () => {
   const w = worker();
   assert.equal((await w.send(connect, app)).ok, true);
-  assert.equal((await w.send({ type: "HP_STATUS" }, osdrive)).connected, false);
-  assert.equal((await w.send({ type: "HP_STATUS" }, osdrive)).orderId, undefined);
-  assert.equal((await w.send({ type: "HP_SET_FREIGHT", freight_total: 2000 }, osdrive)).ok, false);
+  assert.equal((await w.send({ type: "HP_STATUS" }, horsePower)).connected, false);
+  assert.equal((await w.send({ type: "HP_STATUS" }, horsePower)).orderId, undefined);
+  assert.equal((await w.send({ type: "HP_SET_FREIGHT", freight_total: 2000 }, horsePower)).ok, false);
   assert.equal((await w.send({
     ...connect, target: { ...connect.target, orderId: "other" },
-  }, osdrive)).ok, false);
+  }, horsePower)).ok, false);
   w.setFail(true);
   const captureId = randomUUID();
   assert.equal((await w.send({
     type: "HP_CAPTURE", item: { capture_id: captureId, name: "Peça" },
   }, sky)).ok, false);
   assert.equal(w.local.data.pending.length, 1);
-  const denied = await w.send(connect, osdrive);
+  const denied = await w.send(connect, horsePower);
   assert.equal(denied.ok, false);
   assert.match(denied.error, /itens pendentes/);
   assert.equal(w.session.data.target.origin, new URL(app.url).origin);
   assert.equal(w.local.data.pending[0].item.capture_id, captureId);
   w.setFail(false);
   assert.equal((await w.send({ type: "HP_RETRY" }, popup)).ok, true);
-  assert.equal((await w.send(connect, osdrive)).ok, true);
-  assert.equal(w.session.data.target.origin, "https://osdrive.com.br");
+  assert.equal((await w.send(connect, horsePower)).ok, true);
+  assert.equal(w.session.data.target.origin, "https://oficinahorsepower.com.br");
   assert.equal((await w.send({ type: "HP_STATUS" }, app)).connected, false);
-  assert.equal((await w.send({ type: "HP_STATUS" }, osdrive)).connected, true);
+  assert.equal((await w.send({ type: "HP_STATUS" }, horsePower)).connected, true);
   assert.equal((await w.send({
     type: "HP_CAPTURE", item: { capture_id: randomUUID(), name: "Outra peça" },
   }, sky)).ok, true);
-  assert.equal(w.calls.at(-1).url, "https://osdrive.com.br/api/extension/import");
+  assert.equal(w.calls.at(-1).url, "https://oficinahorsepower.com.br/api/extension/import");
 });
 
 test("Sky and popup receive safe plate context while removed origins are rejected", async () => {
