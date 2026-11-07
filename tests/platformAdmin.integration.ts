@@ -85,6 +85,8 @@ test("PostgreSQL platform admin: login, MFA, separated sessions, roles, audit an
     const transferStub = {
       target: async (tenantId: string) => { if (tenantId !== fakeTenant) throw new Error("tenant-not-registered"); return { tenantId, workshopName: "Oficina Fictícia ADM" }; },
       exportPackage: async (tenantId: string) => ({ workshopName: "Oficina Fictícia ADM", archive: Buffer.from(tenantId) }),
+      stageExport: async () => ({ id: fakeTenant, workshopName: "Oficina Fictícia ADM", sha256: "0".repeat(64), size: 4, chunkCount: 1 }),
+      exportChunk: async () => ({ bytes: Buffer.from("fake"), sha256: "0".repeat(64), size: 4 }),
       preview: async () => ({ canImport: true }), verify: async () => { if (verificationFailure) throw verificationFailure; return { overall: "not-verifiable" }; },
       import: async () => ({ mode: "empty" }), backups: async () => [], backup: async () => undefined,
       approvalConsumed: async () => false,

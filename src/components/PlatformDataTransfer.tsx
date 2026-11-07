@@ -75,12 +75,46 @@ export function PlatformDataTransfer({ tenantId, workshopName, environmentLabel,
   async function exportPackage() {
     setBusy(true); setError(""); setMessage("");
     try {
-      const response = await fetch(base + "/export", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ passphrase: phrase }) });
-      if (!response.ok) { const result = await response.json().catch(() => ({})) as { error?: string }; throw new Error(result.error || "Não foi possível exportar a oficina."); }
-      const url = URL.createObjectURL(await response.blob());
-      const link = document.createElement("a"); link.href = url; link.download = "oficina-" + new Date().toISOString().slice(0, 10) + ".hptx"; link.click();
+      const direct = await fetch(base + "/export", { method: "POST", credentials: "same-origin", cache: "no-store",
+        headers: { "Content-Type": "application/json" }, body: JSON.stringify({ passphrase: phrase }) });
+      if (direct.ok) {
+        const url = URL.createObjectURL(await direct.blob());
+        const link = document.createElement("a"); link.href = url;
+        link.download = "oficina-" + new Date().toISOString().slice(0, 10) + ".hptx"; link.click();
+        window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
+        setPhrase("");
+        setMessage("Pacote criptografado baixado. Guarde a frase secreta separadamente.");
+        return;
+      }
+      const directError = await direct.json().catch(() => ({})) as { error?: string; code?: string };
+      if (direct.status !== 413 || directError.code !== "package_too_large")
+        throw new Error(directError.error || "Não foi possível exportar a oficina.");
+      const staged = await post<{ id: string; sha256: string; size: number; chunkCount: number }>("/export/staged", { passphrase: phrase });
+      if (!Number.isSafeInteger(staged.size) || staged.size < 1 || staged.size > 96 * 1024 * 1024
+          || !Number.isSafeInteger(staged.chunkCount) || staged.chunkCount !== Math.ceil(staged.size / (1024 * 1024))
+          || !/^[a-f0-9]{64}$/.test(staged.sha256)) throw new Error("A descrição do pacote não passou na validação.");
+      const chunks: ArrayBuffer[] = [];
+      for (let index = 0; index < staged.chunkCount; index++) {
+        const response = await fetch(base + "/exports/" + encodeURIComponent(staged.id) + "/chunks/" + index,
+          { credentials: "same-origin", cache: "no-store" });
+        if (!response.ok) throw new Error("A parte " + (index + 1) + " do pacote não foi recebida. Tente baixar novamente.");
+        if (response.headers.get("X-Package-Sha256") !== staged.sha256 || Number(response.headers.get("X-Package-Size")) !== staged.size)
+          throw new Error("As partes recebidas não pertencem ao mesmo pacote.");
+        const bytes = await response.arrayBuffer();
+        if (bytes.byteLength !== Math.min(1024 * 1024, staged.size - index * 1024 * 1024))
+          throw new Error("O pacote recebido está incompleto.");
+        chunks.push(bytes);
+      }
+      const archive = new Blob(chunks, { type: "application/vnd.sistema-oficinas.transfer+json" });
+      const digest = await crypto.subtle.digest("SHA-256", await archive.arrayBuffer());
+      const actual = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("");
+      if (archive.size !== staged.size || actual !== staged.sha256) throw new Error("A integridade do pacote não confere. Nenhum arquivo foi baixado.");
+      const url = URL.createObjectURL(archive);
+      const link = document.createElement("a"); link.href = url;
+      link.download = "oficina-" + new Date().toISOString().slice(0, 10) + ".hptx"; link.click();
       window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
-      setMessage("Pacote criptografado baixado. Guarde a frase secreta separadamente.");
+      setPhrase("");
+      setMessage("Pacote criptografado baixado e conferido por SHA-256. Guarde a frase secreta separadamente.");
       await refresh();
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Falha na exportação."); }
     finally { setBusy(false); }
@@ -160,7 +194,7 @@ export function PlatformDataTransfer({ tenantId, workshopName, environmentLabel,
     <section className="panel">
       <h2>Transferência completa da oficina</h2>
       <p><strong>{workshopName}</strong> · ID <code>{tenantId}</code> · {environmentLabel}</p>
-      <p>Área administrativa restrita. As operações reutilizam as regras de exportação, importação, mesclagem, substituição e conferência já existentes. Usuários, senhas, vínculos e sessões da oficina de destino não são importados nem alterados.</p>
+      <p>Área administrativa restrita. A exportação é preparada em cópia criptografada temporária e baixada em partes, com verificação de integridade. As operações reutilizam as regras de exportação, importação, mesclagem, substituição e conferência já existentes. Usuários, senhas, vínculos e sessões da oficina de destino não são importados nem alterados.</p>
       <label className="field"><span>Frase secreta do pacote</span><input type="password" autoComplete="new-password" minLength={12} maxLength={1024} value={phrase} onChange={event => setPhrase(event.target.value)} /></label>
       <div className="button-row"><button type="button" className="button primary" disabled={busy || phrase.length < 12} onClick={() => void exportPackage()}>{busy ? <LockKeyhole size={16}/> : <Download size={16}/>} Exportar pacote protegido</button></div>
       <hr />
@@ -197,7 +231,7 @@ export function PlatformDataTransfer({ tenantId, workshopName, environmentLabel,
       <section className="panel"><h3>Aprovações de substituição</h3><p className="muted">A aprovação é específica para o SHA-256 do pacote e exige administrador diferente de quem solicitou.</p>
         {requests.map(item => <p key={item.id}>{item.requesterEmail} · {item.approverEmail || "aguardando aprovação"} · {item.status} · SHA {item.packageSha256.slice(0, 12)}… {item.status === "requested" && canApproveCritical && <button type="button" className="button" disabled={busy} onClick={() => void approve(item.id)}>Aprovar</button>}</p>)}
       </section>
-      <section className="panel"><h3>Cópias de segurança de substituições</h3><p className="muted">Criptografadas, até cinco por oficina e por 30 dias. A auditoria registra downloads sem incluir o conteúdo dos arquivos.</p><button type="button" className="button" onClick={() => void refresh().catch(cause => setError(cause instanceof Error ? cause.message : "Falha ao atualizar."))}>Atualizar listas</button>
+      <section className="panel"><h3>Cópias de segurança temporárias</h3><p className="muted">Criptografadas, até cinco por oficina e por 30 dias, incluindo exportações preparadas no painel. A auditoria registra downloads sem incluir o conteúdo dos arquivos.</p><button type="button" className="button" onClick={() => void refresh().catch(cause => setError(cause instanceof Error ? cause.message : "Falha ao atualizar."))}>Atualizar listas</button>
         {backups.map(item => <p key={item.id}>{new Date(item.created_at).toLocaleString("pt-BR")} · expira {new Date(item.expires_at).toLocaleDateString("pt-BR")} · SHA {item.package_sha256.slice(0, 12)}… <button type="button" className="button" onClick={() => void downloadBackup(item.id)}>Baixar .hptx</button></p>)}
       </section>
       {showHistory&&<section className="panel"><h3>Histórico de operações</h3><p className="muted">Auditoria administrativa da oficina selecionada.</p>{history.map(item => <p key={item.id}>{new Date(item.created_at).toLocaleString("pt-BR")} · {item.actor_email} · {adminActionLabel(item.action)} · {adminResultLabel(item.result)}</p>)}</section>}
