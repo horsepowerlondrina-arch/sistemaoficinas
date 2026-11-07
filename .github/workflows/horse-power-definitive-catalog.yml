@@ -54,7 +54,7 @@ jobs:
         run: node scripts/ci-catalog-import-setup.mjs
         env:
           CI_PG_ADMIN_URL: postgres://postgres:ci-temporary-only@127.0.0.1:5432/postgres
-      - name: Copy seven read-only tables to encrypted runner storage
+      - name: Copy seven read-only tables to temporary runner storage
         run: node scripts/catalog-copy-from-homologation.mjs "$RUNNER_TEMP/catalog-copy.sqlite"
         env:
           HP_CATALOG_SOURCE_PASSWORD: ${{ secrets.HP_CATALOG_SOURCE_PASSWORD }}
