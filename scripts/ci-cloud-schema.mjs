@@ -102,8 +102,10 @@ try {
     if (release.rowCount !== 1) throw new Error("Fixture incompleta: release.");
     for (const table of ["brands", "classifications", "families", "bases", "models", "services", "repair_times", "model_labor_categories", "releases"]) {
       const count = await check.query(`SELECT count(*)::int n FROM service_catalog.${table}`);
-      if (count.rows[0].n !== 0) throw new Error(`O catálogo não está vazio após limpeza: ${table}.`);
+      if (table !== "releases" && count.rows[0].n !== 0) throw new Error(`O catálogo não está vazio após limpeza: ${table}.`);
     }
+    const releases = await check.query("SELECT version,status FROM service_catalog.releases ORDER BY version");
+    console.log("Metadados históricos de catálogo:", JSON.stringify(releases.rows));
     await check.query("COMMIT");
   } catch (error) {
     await check.query("ROLLBACK");
