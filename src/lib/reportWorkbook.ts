@@ -4,7 +4,6 @@ import {
   dateBasisLabel,
   durationLabel,
   reportDate,
-  reportNote,
   reportTotals,
   type OrderFilters,
   type OrderResult,
@@ -33,7 +32,6 @@ export function resultWorkbook(
         [dateBasisLabel[filters.basis], `De ${reportDate(filters.from)} até ${reportDate(filters.to)}`],
         ["Situações", filters.statuses.map((s) => statusLabel[s]).join(", ") || "Todas"],
         ["Pesquisa", search || "Todas"],
-        [reportNote],
         [],
         heading(["OS", "Valor da OS", "Custos conhecidos", "Taxas realizadas", "Resultado estimado", "Margem (%)"]),
         ...results.map((r) => [
@@ -61,7 +59,6 @@ export function resultWorkbook(
           filters.statuses.map((s) => statusLabel[s]).join(", ") || "Todas",
         ],
         ["Pesquisa", search || "Todas"],
-        [reportNote],
         [],
         heading([
           "OS",

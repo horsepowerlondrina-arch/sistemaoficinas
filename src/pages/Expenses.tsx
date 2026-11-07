@@ -1,6 +1,6 @@
 import { NumericInput } from "../components/NumericInput";
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 import {
   Plus,
   ArrowDownLeft,
@@ -22,12 +22,12 @@ import {
 export function FinanceNav() {
   return (
     <div className="tabs finance-nav">
-      <Link to="/financeiro">Contas a pagar</Link>
-      <Link to="/financeiro/receber">Contas a receber</Link>
-      <Link to="/financeiro/caixa">Caixa</Link>
-      <Link to="/financeiro/pecas">Lucro das peças</Link>
-      <Link to="/financeiro/servicos">Lucro dos serviços</Link>
-      <Link to="/financeiro/ganhos">Ganhos por período</Link>
+      <NavLink to="/financeiro" end>Contas a pagar</NavLink>
+      <NavLink to="/financeiro/receber">Contas a receber</NavLink>
+      <NavLink to="/financeiro/caixa">Caixa</NavLink>
+      <NavLink to="/financeiro/pecas">Lucro das peças</NavLink>
+      <NavLink to="/financeiro/servicos">Lucro dos serviços</NavLink>
+      <NavLink to="/financeiro/ganhos">Ganhos por período</NavLink>
     </div>
   );
 }
