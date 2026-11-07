@@ -21,8 +21,31 @@ export function resultWorkbook(
   filters: OrderFilters,
   search: string,
   company: string,
+  mode: "detailed" | "compact" = "detailed",
 ) {
   const totals = reportTotals(results);
+  if (mode === "compact") {
+    return createWorkbook([{
+      name: "Totais por OS",
+      widths: [12, 18, 20, 20, 20, 20],
+      rows: [
+        heading(["Totais das OS", company]),
+        [dateBasisLabel[filters.basis], `De ${reportDate(filters.from)} até ${reportDate(filters.to)}`],
+        ["Situações", filters.statuses.map((s) => statusLabel[s]).join(", ") || "Todas"],
+        ["Pesquisa", search || "Todas"],
+        [reportNote],
+        [],
+        heading(["OS", "Valor da OS", "Custos conhecidos", "Taxas realizadas", "Resultado estimado", "Margem (%)"]),
+        ...results.map((r) => [
+          r.order.number, currency(r.total), currency(r.missingCost ? null : r.productCost + r.serviceCost),
+          currency(r.fees), currency(r.result),
+          r.margin === null ? "—" : Math.round(r.margin * 10000) / 100,
+        ]),
+        ["TOTAL", currency(totals.total), currency(totals.cost), currency(totals.fees), currency(totals.result),
+          results.some((r) => r.missingCost) ? "—" : totals.total ? Math.round((totals.result / totals.total) * 10000) / 100 : "—"],
+      ],
+    }]);
+  }
   const sheets: Sheet[] = [
     {
       name: "Resumo",
@@ -165,8 +188,9 @@ export function downloadResults(
   filters: OrderFilters,
   search: string,
   company: string,
+  mode: "detailed" | "compact" = "detailed",
 ) {
-  const bytes = resultWorkbook(results, filters, search, company);
+  const bytes = resultWorkbook(results, filters, search, company, mode);
   const url = URL.createObjectURL(
     new Blob([bytes as BlobPart], {
       type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -174,7 +198,7 @@ export function downloadResults(
   );
   const anchor = document.createElement("a");
   anchor.href = url;
-  anchor.download = `oficina-resultado-os-${new Date().toISOString().slice(0, 10)}.xlsx`;
+  anchor.download = `oficina-resultado-os-${mode}-${new Date().toISOString().slice(0, 10)}.xlsx`;
   anchor.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

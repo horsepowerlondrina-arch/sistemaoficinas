@@ -55,7 +55,7 @@ export function Orders() {
     Number(!!filters.from || !!filters.to) +
     Number(filters.basis !== "opening");
   const results = showReport ? financialRows.map((o) => orderResult(o, data)) : [];
-  const exportExcel = async () => {
+  const exportExcel = async (mode: "detailed" | "compact") => {
     setExporting(true);
     try {
       const { downloadResults } = await import("../lib/reportWorkbook");
@@ -64,6 +64,7 @@ export function Orders() {
         filters,
         search,
         session.tenant.name,
+        mode,
       );
       notify("Relatório exportado em Excel.");
     } catch {
@@ -251,8 +252,8 @@ export function Orders() {
           search={search}
           company={session.tenant.name}
           onClose={() => setShowReport(false)}
-          onExcel={() => {
-            if (!exporting) void exportExcel();
+          onExcel={(mode) => {
+            if (!exporting) void exportExcel(mode);
           }}
           exporting={exporting}
         />

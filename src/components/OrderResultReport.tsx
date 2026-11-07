@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Modal } from "./ui";
 import { money, statusLabel } from "../lib/types";
@@ -18,17 +18,19 @@ function ReportContent({
   filters,
   search,
   company,
+  mode,
 }: {
   results: OrderResult[];
   filters: OrderFilters;
   search: string;
   company: string;
+  mode: "detailed" | "compact";
 }) {
   const totals = reportTotals(results);
   const missing = results.filter((r) => r.missingCost).length;
   return (
     <div className="os-result-content">
-      <h1>Resultado estimado da OS</h1>
+      <h1>Resultado estimado da OS · {mode === "compact" ? "compacto" : "detalhado"}</h1>
       <p>{company}</p>
       <p>
         {dateBasisLabel[filters.basis]}:{" "}
@@ -54,7 +56,23 @@ function ReportContent({
           Resultado estimado <b>{money(totals.result)}</b>
         </span>
       </div>
-      {results.map((r) => (
+      {mode === "compact" ? (
+        <div className="report-table-scroll">
+          <table>
+            <thead><tr><th>OS</th><th>Valor da OS</th><th>Custos conhecidos</th><th>Taxas realizadas</th><th>Resultado estimado</th><th>Margem</th></tr></thead>
+            <tbody>
+              {results.map((r) => <tr key={r.order.id}>
+                <td>{r.order.number}</td>
+                <td>{money(r.total)}</td>
+                <td>{r.missingCost ? "Custo não informado" : money(r.productCost + r.serviceCost)}</td>
+                <td>{money(r.fees)}</td>
+                <td>{r.result === null ? "Custo não informado" : money(r.result)}</td>
+                <td>{r.margin === null ? "—" : `${(r.margin * 100).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%`}</td>
+              </tr>)}
+            </tbody>
+          </table>
+        </div>
+      ) : results.map((r) => (
         <article className="os-result-order" key={r.order.id}>
           <h2>
             OS {r.order.number} · {r.order.customer_name}
@@ -195,9 +213,10 @@ export function OrderResultReport(props: {
   search: string;
   company: string;
   onClose: () => void;
-  onExcel: () => void;
+  onExcel: (mode: "detailed" | "compact") => void;
   exporting: boolean;
 }) {
+  const [mode, setMode] = useState<"detailed" | "compact">("detailed");
   useEffect(() => {
     document.body.classList.add("printing-os-results");
     return () => document.body.classList.remove("printing-os-results");
@@ -212,23 +231,25 @@ export function OrderResultReport(props: {
       >
         <div className="modal-body">
           <div className="report-actions">
+            <label><input type="radio" name="report-mode" checked={mode === "detailed"} onChange={() => setMode("detailed")} /> Detalhado</label>
+            <label><input type="radio" name="report-mode" checked={mode === "compact"} onChange={() => setMode("compact")} /> Compacto</label>
             <button className="button primary" onClick={() => window.print()}>
               Imprimir / salvar PDF
             </button>
             <button
               className="button"
-              onClick={props.onExcel}
+              onClick={() => props.onExcel(mode)}
               disabled={props.exporting}
             >
               {props.exporting ? "Gerando Excel..." : "Baixar Excel (.xlsx)"}
             </button>
           </div>
-          <ReportContent {...props} />
+          <ReportContent {...props} mode={mode} />
         </div>
       </Modal>
       {createPortal(
         <div className="os-results-print">
-          <ReportContent {...props} />
+          <ReportContent {...props} mode={mode} />
         </div>,
         document.body,
       )}
