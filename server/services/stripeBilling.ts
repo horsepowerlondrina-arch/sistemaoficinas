@@ -30,7 +30,7 @@ export function stripeBillingService(pool:Pool,request:StripeRequest,origin:stri
    pool.query("SELECT plan_code,method,managed,due_on::text,paid_until::text,subscription_status,invoice_payment_url,cancel_at_period_end,subscription_id IS NOT NULL AS recurring FROM platform_admin.stripe_accounts WHERE tenant_id=$1",[tenant]),
    pool.query("SELECT provider_id,amount_cents,period_start::text,period_end::text,status FROM platform_admin.stripe_payments WHERE tenant_id=$1 ORDER BY created_at DESC LIMIT 24",[tenant]),
    pool.query("SELECT trial_ends_at FROM platform_admin.workshops WHERE tenant_id=$1 AND status='trial'",[tenant]),
-   pool.query("SELECT url,method FROM platform_admin.stripe_checkouts WHERE tenant_id=$1 AND status='open'",[tenant]),
+   pool.query("SELECT url,method FROM platform_admin.stripe_checkouts WHERE tenant_id=$1 AND status='open' AND to_timestamp((request_body->>'expires_at')::bigint)>now()",[tenant]),
   ]);
   const a=account.rows[0];
   return {enabled:true,test_mode:true,pending:pending.rows[0]??null,prices:prices.rows,account:a??null,payments:payments.rows,read_only:a?billingReadOnly({managed:a.managed,paidUntil:a.paid_until,dueOn:a.due_on,trialUntil:workshop.rows[0]?.trial_ends_at}):false};
@@ -56,6 +56,8 @@ export function stripeBillingService(pool:Pool,request:StripeRequest,origin:stri
  async function checkout(tenant:string,email:string,input:unknown,renewal=false){
   requireTestTenant(tenant);
   const p=z.object({price_id:z.string().uuid(),method:z.enum(["card","pix"])}).strict().parse(input);
+  const stale=await pool.query("SELECT provider_id FROM platform_admin.stripe_checkouts WHERE tenant_id=$1 AND status='open' AND to_timestamp((request_body->>'expires_at')::bigint)<=now()",[tenant]);
+  if(stale.rows[0])await syncSession(stale.rows[0].provider_id);
   const row=await tx(async c=>{
    await c.query("SELECT pg_advisory_xact_lock(hashtextextended($1,1232))",[tenant]);
    const workshop=(await c.query("SELECT status,trial_ends_at FROM platform_admin.workshops WHERE tenant_id=$1",[tenant])).rows[0];
@@ -67,6 +69,7 @@ export function stripeBillingService(pool:Pool,request:StripeRequest,origin:stri
    if(renewal&&old?.cancel_at_period_end)throw new BillingConflict("A renovação está cancelada.");
    const existing=(await c.query("SELECT * FROM platform_admin.stripe_checkouts WHERE tenant_id=$1 AND status IN ('pending','open')",[tenant])).rows[0];
    if(existing){
+    if(existing.status==='open'&&existing.request_body.expires_at<=Date.now()/1000)throw new BillingConflict('O Stripe ainda está confirmando a expiração do pagamento anterior. Tente novamente em instantes.');
     if(existing.price_id!==p.price_id||existing.method!==p.method)throw new BillingConflict("Existe um pagamento pendente. Atualize sua situação antes de escolher outro.");
     return existing;
    }
@@ -241,7 +244,7 @@ export function stripeBillingService(pool:Pool,request:StripeRequest,origin:stri
  }
  async function renew(){
   // Bounded daily reconciliation. SKIP LOCKED plus retry_after distributes consecutive executions.
-  const rows=await tx(async c=>(await c.query("UPDATE platform_admin.stripe_accounts SET retry_after=now()+interval '1 day' WHERE tenant_id IN (SELECT tenant_id FROM platform_admin.stripe_accounts WHERE managed AND tenant_id=ANY($1::text[]) AND (retry_after IS NULL OR retry_after<now()) ORDER BY retry_after NULLS FIRST LIMIT 10 FOR UPDATE SKIP LOCKED) RETURNING tenant_id,billing_email,price_id,method,cancel_at_period_end,due_on::text",[[...allowed]])).rows);
+  const rows=await tx(async c=>(await c.query("UPDATE platform_admin.stripe_accounts SET retry_after=(date_trunc('day',now() AT TIME ZONE 'America/Sao_Paulo')+interval '1 day') AT TIME ZONE 'America/Sao_Paulo' WHERE tenant_id IN (SELECT tenant_id FROM platform_admin.stripe_accounts WHERE managed AND tenant_id=ANY($1::text[]) AND (retry_after IS NULL OR retry_after<now()) ORDER BY retry_after NULLS FIRST LIMIT 10 FOR UPDATE SKIP LOCKED) RETURNING tenant_id,billing_email,price_id,method,cancel_at_period_end,due_on::text",[[...allowed]])).rows);
   let completed=0,failed=0;
   for(const a of rows){
    try{
