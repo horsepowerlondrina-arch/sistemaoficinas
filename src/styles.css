@@ -5484,7 +5484,7 @@ body {
   font-size: 14px;
   letter-spacing: 1.5px;
 }
-.vehicle-plate-input { width: 100%; min-width: 145px; }
+.vehicle-plate-input { width: 100%; min-width: 145px; }\n.field > .vehicle-plate-input { box-sizing: border-box; }
 .vehicle-plate-number-input {
   box-sizing: border-box;
   width: 100%;
