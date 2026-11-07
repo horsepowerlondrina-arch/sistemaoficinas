@@ -55,6 +55,8 @@ const target = new pg.Client({
 });
 try {
   await target.connect();
+  // The disposable database needs the application role referenced by local migrations.
+  await target.query("CREATE ROLE hp_local_app NOLOGIN");
   const files = readdirSync("local-postgres")
     .filter((name) => /^\d{3}-.*\.sql$/.test(name))
     .sort();
