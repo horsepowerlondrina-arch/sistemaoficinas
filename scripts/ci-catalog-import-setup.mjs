@@ -42,6 +42,10 @@ try {
   await admin.query(
     `CREATE DATABASE ${database} ENCODING 'UTF8' TEMPLATE template0`,
   );
+  // An early local migration grants CONNECT on the app database by name.
+  if (!(await admin.query("SELECT 1 FROM pg_database WHERE datname = $1", ["horse_power_local"])).rowCount) {
+    await admin.query("CREATE DATABASE horse_power_local ENCODING 'UTF8' TEMPLATE template0");
+  }
 } finally {
   await admin.end().catch(() => {});
 }
