@@ -123,3 +123,7 @@ jobs:
         run: node scripts/ci-cloud-schema.mjs
         env:
           CI_PG_ADMIN_URL: postgres://postgres:ci-temporary-only@127.0.0.1:5432/postgres
+      - name: Validate temporary Horse Power restore gates on disposable PostgreSQL 17
+        run: node scripts/ci-hp-restore-sql.mjs
+        env:
+          CI_PG_ADMIN_URL: postgres://postgres:ci-temporary-only@127.0.0.1:5432/postgres
