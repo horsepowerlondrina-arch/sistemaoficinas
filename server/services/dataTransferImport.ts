@@ -11,7 +11,7 @@ import type { TransferPayload, TransferRow, TransferTable } from "../../shared/t
 
 export type WorkshopImportMode = "empty" | "merge" | "replace";
 const insertOrder: TransferTable[] = [
-  "product_categories", "professionals", "suppliers", "catalog", "workshop_services",
+  "product_categories", "professionals", "suppliers", "catalog", "workshop_service_categories", "workshop_services",
   "labor_rates", "labor_commercial_rates", "customers", "vehicles", "expense_templates",
   "payment_settings", "card_rates", "card_machines", "card_machine_rates", "cash_accounts", "orders", "order_items",
   "stock_invoices", "stock_invoice_products", "stock_movements", "receivables",
@@ -29,7 +29,7 @@ const BACKUP_RETENTION_DAYS = 30;
 const MAX_WORKSHOP_BACKUPS = 5;
 const safelyUpdatable = new Set<TransferTable>([
   "customers", "vehicles", "professionals", "suppliers", "product_categories", "catalog",
-  "workshop_services", "labor_rates", "labor_commercial_rates", "payment_settings", "card_rates",
+  "workshop_service_categories", "workshop_services", "labor_rates", "labor_commercial_rates", "payment_settings", "card_rates",
 ]);
 
 // Only these known relationships are rewritten when a globally unique source ID
@@ -37,7 +37,7 @@ const safelyUpdatable = new Set<TransferTable>([
 const linkedIdFields: Partial<Record<TransferTable, Record<string, TransferTable>>> = {
   vehicles: { customer_id: "customers" },
   catalog: { merged_into: "catalog" },
-  workshop_services: {},
+  workshop_services: { category_id: "workshop_service_categories" },
   orders: { customer_id: "customers", vehicle_id: "vehicles" },
   order_items: { order_id: "orders", catalog_id: "catalog", professional_id: "professionals" },
   stock_invoices: { supplier_id: "suppliers" },
@@ -92,7 +92,7 @@ const uniqueKeys: Partial<Record<TransferTable, string[][]>> = {
   card_machines: [["name_key"]],
   vehicles: [["plate"]], catalog: [["sku"]], orders: [["number"]], receivables: [["order_id"]],
   cash_entries: [["installment_id"]], payment_installments: [["receivable_id", "sequence"]],
-  product_categories: [["name_key"]], suppliers: [["document"]],
+  product_categories: [["name_key"]], workshop_service_categories: [["name_key"]], suppliers: [["document"]],
   cash_movements: [["origin", "source_id"]], service_times: [["capture_id"]],
   service_aliases: [["alias_key"]], external_catalog_links: [["source", "external_key"]],
   external_captures: [["capture_id"]], stock_invoices: [["invoice_key"]],
