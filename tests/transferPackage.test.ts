@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { randomBytes } from "node:crypto";
 import { test } from "node:test";
 import {
   createTransferPayload,
@@ -52,4 +53,16 @@ test("exige hash e contagem para toda entidade e recusa segredos aninhados", () 
     customers: [{ id: "customer-1", tenant_id: "source-tenant", metadata: { api_key: "fake-secret" } }],
   });
   assert.throws(() => sealTransferPackage(nested, passphrase), /campos de autenticação/);
+});
+
+
+test("abre pacote fictício grande sem estourar a validação Base64", () => {
+  const payload = createTransferPayload("fixture", { id: "source-tenant", name: "Oficina Fictícia" }, {
+    tenant: { id: "source-tenant", name: "Oficina Fictícia" },
+    users: [], memberships: [],
+    customers: [{ id: "customer-large", tenant_id: "source-tenant", notes: randomBytes(7 * 1024 * 1024).toString("base64") }],
+  });
+  const file = sealTransferPackage(payload, passphrase);
+  assert.ok(file.length > 9_000_000);
+  assert.equal(openTransferPackage(file, passphrase).records.customers?.[0].id, "customer-large");
 });

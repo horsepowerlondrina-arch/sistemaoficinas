@@ -158,9 +158,11 @@ export function sealTransferPackage(payload: TransferPayload, passphrase: string
 }
 
 function decodeBase64(value: unknown, length?: number): Buffer {
-  if (typeof value !== "string" || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value))
-    throw new Error("Arquivo de transferência inválido.");
+  if (typeof value !== "string") throw new Error("Arquivo de transferência inválido.");
   const result = Buffer.from(value, "base64");
+  const canonical = result.toString("base64");
+  if (value !== canonical && value !== canonical.replace(/=+$/, ""))
+    throw new Error("Arquivo de transferência inválido.");
   if (length !== undefined && result.length !== length) throw new Error("Arquivo de transferência inválido.");
   return result;
 }
