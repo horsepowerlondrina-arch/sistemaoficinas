@@ -1,4 +1,6 @@
 import type { Pool } from "pg";
+import { randomUUID } from "node:crypto";
+import { transferFileSha256 } from "../../shared/transferPackage.js";
 import type { DB } from "../db/database.js";
 import { createWorkshopTransfer } from "./dataTransferExport.js";
 import { getWorkshopTransferBackup, importWorkshopPackage, listWorkshopTransferBackups, previewWorkshopImport } from "./dataTransferImport.js";
@@ -6,9 +8,14 @@ import type { WorkshopImportMode } from "./dataTransferImport.js";
 import { TransferVerificationError, verifyWorkshopImport } from "./dataTransferVerification.js";
 
 export const ADMIN_TRANSFER_MAX_FILE_BYTES = 4 * 1024 * 1024;
+export const ADMIN_TRANSFER_CHUNK_BYTES = 1024 * 1024;
+export type StagedWorkshopExport = { id: string; workshopName: string; sha256: string; size: number; chunkCount: number };
+export type WorkshopExportChunk = { bytes: Buffer; sha256: string; size: number };
 export type PlatformAdminDataTransfer = {
   target(tenantId: string): Promise<{ tenantId: string; workshopName: string }>;
   exportPackage(tenantId: string, passphrase: string): Promise<{ workshopName: string; archive: Buffer }>;
+  stageExport(tenantId: string, passphrase: string): Promise<StagedWorkshopExport>;
+  exportChunk(tenantId: string, exportId: string, index: number): Promise<WorkshopExportChunk | undefined>;
   preview(tenantId: string, packageText: string, passphrase: string, mode: WorkshopImportMode): Promise<unknown>;
   verify(tenantId: string, packageText: string, passphrase: string, mode: WorkshopImportMode): Promise<unknown>;
   import(tenantId: string, packageText: string, passphrase: string, confirmationId: string, mode: WorkshopImportMode, workshopConfirmation: string | undefined, approvalId?: string): Promise<unknown>;
@@ -58,6 +65,36 @@ export function createPlatformAdminDataTransfer(db: DB, adminPool: Pool): Platfo
         const archive = await createWorkshopTransfer(db, selected.tenantId, passphrase);
         if (archive.length > ADMIN_TRANSFER_MAX_FILE_BYTES) throw new Error("O pacote excede o limite de resposta online de 4 MiB.");
         return { workshopName: selected.workshopName, archive };
+      });
+    },
+    async stageExport(tenantId, passphrase) {
+      return within(tenantId, async selected => {
+        const archive = await createWorkshopTransfer(db, selected.tenantId, passphrase);
+        const id = randomUUID();
+        const sha256 = transferFileSha256(archive);
+        await db.prepare("INSERT INTO data_transfer_backups(id,tenant_id,created_by,package_sha256,package,expires_at) VALUES(?,?,?,?,?,?)")
+          .run(id, selected.tenantId, selected.ownerUserId, sha256, archive, new Date(Date.now() + 30 * 86400000).toISOString());
+        const stored = await db.prepare("SELECT package_sha256,octet_length(package) AS size FROM data_transfer_backups WHERE tenant_id=? AND id=?")
+          .get(selected.tenantId, id);
+        if (!stored || String(stored.package_sha256) !== sha256 || Number(stored.size) !== archive.length)
+          throw new Error("A cópia criptografada não pôde ser validada no armazenamento.");
+        return { id, workshopName: selected.workshopName, sha256, size: archive.length,
+          chunkCount: Math.ceil(archive.length / ADMIN_TRANSFER_CHUNK_BYTES) };
+      });
+    },
+    async exportChunk(tenantId, exportId, index) {
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(exportId)
+          || !Number.isSafeInteger(index) || index < 0 || index > 95) return undefined;
+      return within(tenantId, async selected => {
+        const row = await db.prepare("SELECT package_sha256,octet_length(package) AS size,substring(package,?,?) AS chunk FROM data_transfer_backups WHERE tenant_id=? AND id=? AND expires_at>now()")
+          .get(index * ADMIN_TRANSFER_CHUNK_BYTES + 1, ADMIN_TRANSFER_CHUNK_BYTES, selected.tenantId, exportId);
+        if (!row) return undefined;
+        const size = Number(row.size);
+        if (index >= Math.ceil(size / ADMIN_TRANSFER_CHUNK_BYTES)) return undefined;
+        const bytes = Buffer.from(row.chunk);
+        if (bytes.length !== Math.min(ADMIN_TRANSFER_CHUNK_BYTES, size - index * ADMIN_TRANSFER_CHUNK_BYTES))
+          throw new Error("Parte incompleta do pacote criptografado.");
+        return { bytes, sha256: String(row.package_sha256), size };
       });
     },
     async preview(tenantId, text, passphrase, mode) {
