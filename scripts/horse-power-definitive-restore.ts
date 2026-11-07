@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createDecipheriv, createHash, scryptSync } from "node:crypto";
 import { readFileSync } from "node:fs";
 import pg from "pg";
 import { createPostgresDatabase } from "../server/db/postgres.js";
@@ -62,6 +62,15 @@ function verifySource(row: Source, phrase: string) {
       !row.email_verified_at) {
     throw new Error("Identidade ou integridade do backup divergiu.");
   }
+  diagnosticStage = "package-envelope";
+  const envelope = JSON.parse(row.encrypted_package.toString("utf8")) as {salt: string; iv: string; tag: string; ciphertext: string};
+  diagnosticStage = "package-authentication";
+  const key = scryptSync(phrase, Buffer.from(envelope.salt, "base64"), 32, {N: 32768, r: 8, p: 1, maxmem: 64 * 1024 * 1024});
+  const decipher = createDecipheriv("aes-256-gcm", key, Buffer.from(envelope.iv, "base64"));
+  decipher.setAAD(Buffer.from("sistema-oficinas-workshop-transfer:1"));
+  decipher.setAuthTag(Buffer.from(envelope.tag, "base64"));
+  decipher.update(Buffer.from(envelope.ciphertext, "base64"));
+  decipher.final();
   diagnosticStage = "package-open";
   const payload = openTransferPackage(row.encrypted_package, phrase);
   diagnosticStage = "package-identity";
