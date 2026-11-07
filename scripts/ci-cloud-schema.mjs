@@ -29,6 +29,34 @@ for (const name of files) {
   await client.connect();
   try {
     await client.query(readFileSync(new URL(`../supabase/migrations/${name}`, import.meta.url), "utf8"));
+    if (name.startsWith("20261019215935_")) {
+      // The next historical migration activates the catalog only after checking its data.
+      // A tiny fictional release exercises that path without copying the real catalog.
+      await client.query(`INSERT INTO service_catalog.brands(id,name) VALUES
+          ('00000000-0000-4000-8000-000000000001','Marca Fictícia');
+        INSERT INTO service_catalog.classifications(id,name) VALUES
+          ('00000000-0000-4000-8000-000000000004','Compacto'),
+          ('00000000-0000-4000-8000-000000000014','Médio'),
+          ('00000000-0000-4000-8000-000000000024','Premium'),
+          ('00000000-0000-4000-8000-000000000034','Pesado');
+        INSERT INTO service_catalog.families(id,brand_id) VALUES
+          ('00000000-0000-4000-8000-000000000002','00000000-0000-4000-8000-000000000001');
+        INSERT INTO service_catalog.bases(id,family_id,service_count) VALUES
+          ('00000000-0000-4000-8000-000000000003','00000000-0000-4000-8000-000000000002',1);
+        INSERT INTO service_catalog.services(id,name) VALUES
+          ('00000000-0000-4000-8000-000000000005','Serviço Fictício');
+        INSERT INTO service_catalog.models
+          (id,brand_id,family_id,classification_id,name,fipe_code,complete,service_count,base_id,excluded_service_ids)
+          VALUES ('00000000-0000-4000-8000-000000000006','00000000-0000-4000-8000-000000000001',
+          '00000000-0000-4000-8000-000000000002','00000000-0000-4000-8000-000000000004',
+          'Modelo Fictício','000000-0',1,1,'00000000-0000-4000-8000-000000000003','[]');
+        INSERT INTO service_catalog.repair_times
+          (id,base_id,service_id,service_name,minutes,time_identifier)
+          VALUES ('00000000-0000-4000-8000-000000000007','00000000-0000-4000-8000-000000000003',
+          '00000000-0000-4000-8000-000000000005','Serviço Fictício',30,'fixture');
+        INSERT INTO service_catalog.releases(version,status,source_sha256,model_count,time_count,application_count)
+          VALUES ('homologacao-sintetica','loading','synthetic',1,1,1)`);
+    }
   } catch (error) {
     throw new Error(`Falha na migração ${name}: ${error instanceof Error ? error.message : "erro"}`);
   } finally {
