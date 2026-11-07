@@ -13,15 +13,21 @@ const admin = new pg.Client({ connectionString: url.toString() });
 await admin.connect();
 try {
   await admin.query(readFileSync("ops/horse-power-definitive-restore/source.sql", "utf8"));
+  await admin.query(readFileSync("ops/horse-power-definitive-restore/source-categories.sql", "utf8"));
   await admin.query(readFileSync("ops/horse-power-definitive-restore/target.sql", "utf8"));
   const roles = await admin.query("SELECT rolname,rolcanlogin,rolsuper,rolbypassrls FROM pg_roles WHERE rolname IN ('hp_restore_source_login','hp_restore_target_login') ORDER BY rolname");
   if (roles.rowCount !== 2 || roles.rows.some(r => r.rolcanlogin || r.rolsuper || r.rolbypassrls))
     throw new Error("Papéis temporários do ensaio não estão restritos.");
 
+  const categoryAccess = await admin.query("SELECT has_function_privilege('hp_restore_source_login','horse_power.definitive_restore_service_categories()','EXECUTE') AS source_allowed, has_function_privilege('hp_restore_target_login','horse_power.definitive_restore_service_categories()','EXECUTE') AS target_allowed, has_table_privilege('hp_restore_source_login','horse_power.workshop_service_categories','SELECT') AS table_allowed");
+  if (!categoryAccess.rows[0]?.source_allowed || categoryAccess.rows[0]?.target_allowed || categoryAccess.rows[0]?.table_allowed)
+    throw new Error("A leitura temporária de categorias não está restrita à função dedicada.");
   await admin.query("SET SESSION AUTHORIZATION hp_restore_source_login");
   let sourceDenied = false;
   try { await admin.query("SELECT * FROM horse_power.definitive_restore_source()"); }
   catch (error) { sourceDenied = error?.code === "P0001"; }
+  const sourceCategories = await admin.query("SELECT * FROM horse_power.definitive_restore_service_categories()");
+  if (sourceCategories.rowCount !== 0) throw new Error("O ensaio do banco descartável deveria começar sem categorias.");
   await admin.query("RESET SESSION AUTHORIZATION");
   if (!sourceDenied) throw new Error("A função de origem não bloqueou a ausência de proprietário.");
 
@@ -39,6 +45,12 @@ try {
     const state = await admin.query("SELECT horse_power.local_tenant_access_state($1) AS access_state,horse_power.local_tenant_catalog_included($1) AS catalog", [tenantId]);
     if (state.rows[0]?.access_state !== "active" || state.rows[0]?.catalog !== true)
       throw new Error("Plano Premium vitalício não liberou o acesso esperado.");
+    const categoryId = "00000000-0000-4000-8000-000000000902";
+    const serviceId = "00000000-0000-4000-8000-000000000903";
+    await admin.query("INSERT INTO horse_power.workshop_service_categories(id,tenant_id,name,name_key) VALUES($1,$2,$3,$4)", [categoryId, tenantId, "Categoria Fictícia", "categoria-ficticia"]);
+    await admin.query("INSERT INTO horse_power.workshop_services(id,tenant_id,name,execution,name_key,reference,category_id) VALUES($1,$2,$3,$4,$5,$6,$7)", [serviceId, tenantId, "Serviço Fictício", "internal", "servico-ficticio", "SVC-FICTICIO", categoryId]);
+    const serviceLink = await admin.query("SELECT c.id AS category_id FROM horse_power.workshop_services s JOIN horse_power.workshop_service_categories c ON c.tenant_id=s.tenant_id AND c.id=s.category_id WHERE s.id=$1", [serviceId]);
+    if (serviceLink.rows[0]?.category_id !== categoryId) throw new Error("A categoria fictícia não permaneceu vinculada ao serviço.");
   } finally {
     await admin.query("ROLLBACK");
     await admin.query("RESET SESSION AUTHORIZATION");
