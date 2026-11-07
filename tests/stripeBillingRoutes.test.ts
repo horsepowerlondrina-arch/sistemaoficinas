@@ -15,7 +15,7 @@ test("Stripe rotas: proprietário, tenant da sessão, webhook assinado e cron pr
   webhook:async(e:{id:string})=>{events.push(e.id);},
   renew:async()=>({completed:0,failed:0}),
  } as unknown as StripeBilling;
- const app=express();app.use(stripePublicRoutes(billing,"whsec_fixture","x".repeat(32)));app.use(express.json());
+ const app=express();app.use(stripePublicRoutes(billing,"whsec_fixture","x".repeat(32),"y".repeat(32)));app.use(express.json());
  app.use((req,res,next)=>{res.locals.context={userId:"fixture",tenantId:"session-workshop",role:req.get("x-test-role")||"operator"};next();});
  app.use("/api",stripeWorkshopRoutes({} as DB,billing));
  const server=app.listen(0,"127.0.0.1");await once(server,"listening");
@@ -26,6 +26,8 @@ test("Stripe rotas: proprietário, tenant da sessão, webhook assinado e cron pr
   assert.deepEqual(tenants,["session-workshop"]);
   assert.equal((await fetch(base+"/api/billing/stripe/renew")).status,401);
   assert.equal((await fetch(base+"/api/billing/stripe/renew",{headers:{authorization:"Bearer "+"x".repeat(32)}})).status,200);
+  assert.equal((await fetch(base+"/api/billing/stripe/renew",{headers:{authorization:"Bearer "+"y".repeat(32)}})).status,200);
+  assert.equal((await fetch(base+"/api/billing/stripe/renew",{headers:{authorization:"Bearer "+"z".repeat(32)}})).status,401);
   const body=JSON.stringify({id:"evt_Fixture",livemode:false,type:"invoice.paid",data:{object:{id:"in_Fixture"}}});
   assert.equal((await fetch(base+"/api/billing/stripe/webhook",{method:"POST",headers:{"content-type":"application/json"},body})).status,400);
   const t=Math.floor(Date.now()/1000);const sig=createHmac("sha256","whsec_fixture").update(t+"."+body).digest("hex");
