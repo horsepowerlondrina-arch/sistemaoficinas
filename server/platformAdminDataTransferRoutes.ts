@@ -120,7 +120,10 @@ export function createPlatformAdminDataTransferRoutes(
       await audit(actor,tenantId,"admin.data_transfer.exported","success",{package_sha256:transferFileSha256(result.archive)});
       res.set("Cache-Control","no-store").set("Content-Type",TRANSFER_MEDIA_TYPE)
         .set("Content-Disposition","attachment; filename=\"oficina-"+new Date().toISOString().slice(0,10)+".hptx\"").send(result.archive);
-    } catch { await audit(actor,tenantId,"admin.data_transfer.export_failed","failure").catch(()=>{}); res.status(400).json({error:"Não foi possível exportar os dados desta oficina."}); }
+    } catch (error) { await audit(actor,tenantId,"admin.data_transfer.export_failed","failure").catch(()=>{});
+      if (error instanceof Error && error.message.includes("limite de resposta online de 4 MiB"))
+        res.status(413).json({code:"package_too_large",error:"O pacote ultrapassa o limite de uma resposta; o download em partes será iniciado."});
+      else res.status(400).json({error:"Não foi possível exportar os dados desta oficina."}); }
   });
   router.post("/admin-api/workshops/:id/data-transfer/preview",requireSession,requirePermission("data-transfer:manage"),async(req,res)=>{
     const input=packageSchema.safeParse(req.body);
