@@ -7,7 +7,6 @@ import {
   dateBasisLabel,
   durationLabel,
   reportDate,
-  reportNote,
   reportTotals,
   type OrderFilters,
   type OrderResult,
@@ -39,7 +38,6 @@ function ReportContent({
         {filters.statuses.map((s) => statusLabel[s]).join(", ") || "todas"}.
         {search && ` Pesquisa: ${search}.`}
       </p>
-      <p className="report-explanation">{reportNote}</p>
       {missing > 0 && <p>{missing} OS com custo de peças não informado, excluídas do total de resultado. Custos apresentados são parciais.</p>}
       <div className="report-summary">
         <span>{results.length} OS</span>
