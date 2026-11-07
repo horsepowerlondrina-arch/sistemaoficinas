@@ -35,10 +35,10 @@ for (const name of files) {
       await client.query(`INSERT INTO service_catalog.brands(id,name) VALUES
           ('00000000-0000-4000-8000-000000000001','Marca Fictícia');
         INSERT INTO service_catalog.classifications(id,name) VALUES
-          ('00000000-0000-4000-8000-000000000004','Compacto'),
-          ('00000000-0000-4000-8000-000000000014','Médio'),
-          ('00000000-0000-4000-8000-000000000024','Premium'),
-          ('00000000-0000-4000-8000-000000000034','Pesado');
+          ('00000000-0000-4000-8000-000000000004','Veículo Compacto'),
+          ('00000000-0000-4000-8000-000000000014','Veículo Médio'),
+          ('00000000-0000-4000-8000-000000000024','Veículo Premium'),
+          ('00000000-0000-4000-8000-000000000034','Veículo de Luxo');
         INSERT INTO service_catalog.families(id,brand_id) VALUES
           ('00000000-0000-4000-8000-000000000002','00000000-0000-4000-8000-000000000001');
         INSERT INTO service_catalog.bases(id,family_id,service_count) VALUES
