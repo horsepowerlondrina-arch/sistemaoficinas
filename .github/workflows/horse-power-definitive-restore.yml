@@ -1,0 +1,43 @@
+name: Horse Power definitive operational restore
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: "Verify only, or restore the approved backup into the empty definitive database"
+        required: true
+        type: choice
+        options: [preflight-only, restore-definitive]
+        default: preflight-only
+      confirmation:
+        description: "Confirm the specifically approved Horse Power operational transfer"
+        required: true
+        type: choice
+        options: [not-confirmed, confirmed]
+        default: not-confirmed
+
+permissions:
+  contents: read
+
+jobs:
+  restore:
+    if: github.ref_name == 'infra/horse-power-definitive-restore-ci' && inputs.confirmation == 'confirmed'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: horse-power-operational-restore
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Verify and conditionally restore approved encrypted backup
+        run: npx tsx scripts/horse-power-definitive-restore.ts
+        env:
+          HP_RESTORE_OPERATION: ${{ inputs.operation }}
+          HP_RESTORE_CONFIRMED: ${{ inputs.confirmation }}
+          HP_RESTORE_TARGET: horse-power-definitive
+          HP_RESTORE_SOURCE_PASSWORD: ${{ secrets.HP_RESTORE_SOURCE_PASSWORD }}
+          HP_RESTORE_TARGET_PASSWORD: ${{ secrets.HP_RESTORE_TARGET_PASSWORD }}
+          HP_RESTORE_PASSPHRASE: ${{ secrets.HP_RESTORE_PASSPHRASE }}
