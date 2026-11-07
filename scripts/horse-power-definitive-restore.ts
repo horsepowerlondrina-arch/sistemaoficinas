@@ -167,6 +167,8 @@ async function main() {
 main().catch((error: unknown) => {
   const rawCode = error && typeof error === "object" && "code" in error ? String(error.code) : "";
   const code = /^[A-Z0-9]{5}$/.test(rawCode) ? rawCode : "sem-codigo";
-  console.error(`A transferência não foi concluída na etapa ${diagnosticStage} (${code}). Nenhuma escrita foi confirmada.`);
+  const rawConstraint = error && typeof error === "object" && "constraint" in error ? String(error.constraint) : "";
+  const constraint = /^[a-z0-9_]{1,100}$/.test(rawConstraint) ? rawConstraint : "nao-identificada";
+  console.error(`A transferência não foi concluída na etapa ${diagnosticStage} (${code}; restrição ${constraint}). Nenhuma escrita foi confirmada.`);
   process.exitCode = 1;
 });
