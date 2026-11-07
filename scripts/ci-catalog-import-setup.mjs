@@ -42,6 +42,10 @@ try {
   await admin.query(
     `CREATE DATABASE ${database} ENCODING 'UTF8' TEMPLATE template0`,
   );
+  // An early local migration grants CONNECT on the app database by name.
+  if (!(await admin.query("SELECT 1 FROM pg_database WHERE datname = $1", ["horse_power_local"])).rowCount) {
+    await admin.query("CREATE DATABASE horse_power_local ENCODING 'UTF8' TEMPLATE template0");
+  }
 } finally {
   await admin.end().catch(() => {});
 }
@@ -55,6 +59,12 @@ const target = new pg.Client({
 });
 try {
   await target.connect();
+  // The disposable database needs the application role referenced by local migrations.
+  for (const role of ["hp_local_app", "hp_platform_admin_app"]) {
+    if (!(await target.query("SELECT 1 FROM pg_roles WHERE rolname = $1", [role])).rowCount) {
+      await target.query(`CREATE ROLE ${role} NOLOGIN`);
+    }
+  }
   const files = readdirSync("local-postgres")
     .filter((name) => /^\d{3}-.*\.sql$/.test(name))
     .sort();
