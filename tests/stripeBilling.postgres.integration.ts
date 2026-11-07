@@ -116,10 +116,13 @@ test("Stripe PostgreSQL: preços versionados, Pix, cartão, repetição, falha, 
   cancelledSubscription.status="canceled";await service.syncSubscription(`sub_TestCard${fixture}`);
   assert.equal((await service.summary(other)).account.recurring,false);
   // A delayed invoice event still finds its original contract after cancellation.
-  const lateInvoice={...invoice,id:`in_Late${fixture}`,payments:{has_more:false,data:[{payment:{type:"payment_intent",payment_intent:`pi_Late${fixture}`}}]}};
+  const nextEnd=new Date(end*1000);nextEnd.setUTCMonth(nextEnd.getUTCMonth()+1);
+  const lateInvoice={...invoice,lines:{has_more:false,data:[{amount:1000,period:{start:end,end:nextEnd.getTime()/1000}}]},id:`in_Late${fixture}`,payments:{has_more:false,data:[{payment:{type:"payment_intent",payment_intent:`pi_Late${fixture}`}}]}};
   resources.set(`/invoices/in_Late${fixture}?expand[]=payments`,lateInvoice);
   resources.set(`/payment_intents/pi_Late${fixture}?expand[]=latest_charge`,{...pi,id:`pi_Late${fixture}`});
-  await service.syncInvoice(`in_Late${fixture}`);
+  const renewedEvent={id:`evt_CardRenewed${fixture}`,type:'invoice.paid',data:{object:{id:`in_Late${fixture}`}}};
+  await service.webhook(renewedEvent);await service.webhook(renewedEvent);
+  assert.equal((await service.summary(other)).account.paid_until,billingDate(nextEnd));
   assert.equal((await service.summary(other)).payments.length,2);
   // Mark the synthetic extra receipt reverted before checking the original refund.
   await root.query("UPDATE platform_admin.stripe_payments SET status='refunded' WHERE provider_id=$1",[`in_Late${fixture}`]);
@@ -141,6 +144,9 @@ test("Stripe PostgreSQL: preços versionados, Pix, cartão, repetição, falha, 
   assert.equal((await pool.query("SELECT count(*)::int AS n FROM platform_admin.stripe_checkouts WHERE tenant_id=$1",[tenant])).rows[0].n,2);
   await service.cancel(tenant);
   const pending=resources.get("/checkout/sessions/"+renewal.provider_id) as Record<string,unknown>;
+  await root.query("UPDATE platform_admin.stripe_checkouts SET request_body=jsonb_set(request_body,'{expires_at}','1') WHERE provider_id=$1",[renewal.provider_id]);
+  assert.equal((await service.summary(tenant)).pending,null,"expired links disappear without a manual refresh");
+  await assert.rejects(service.checkout(tenant,"owner@example.test",p),/confirmando a expiração/);
   pending.status="expired";await service.refresh(tenant);
   await root.query("UPDATE platform_admin.stripe_accounts SET retry_after=NULL WHERE tenant_id=$1",[tenant]);
   await service.renew();

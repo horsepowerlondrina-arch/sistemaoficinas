@@ -35,5 +35,5 @@ const billing = process.env.STRIPE_BILLING_ENABLED === "true"
  ? stripeBillingService(adminPool,createStripeGateway(process.env.STRIPE_SECRET_KEY||""),process.env.APP_ORIGIN!, (process.env.STRIPE_TEST_TENANT_IDS||"").split(",").map(v=>v.trim()).filter(Boolean)) : undefined;
 if (billing && !process.env.STRIPE_WEBHOOK_SECRET?.startsWith("whsec_")) throw new Error("Configure o webhook Stripe de teste.");
 const app = createApp(db, createPlatformAdminApp(adminPool, adminKey, transfer,billing),{},billing,
- billing?stripePublicRoutes(billing,process.env.STRIPE_WEBHOOK_SECRET!,process.env.STRIPE_CRON_SECRET||""):undefined);
+ billing?stripePublicRoutes(billing,process.env.STRIPE_WEBHOOK_SECRET!,process.env.STRIPE_CRON_SECRET||"",process.env.CRON_SECRET):undefined);
 export default app;
