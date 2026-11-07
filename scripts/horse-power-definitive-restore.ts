@@ -12,7 +12,7 @@ const backupId = "05fa154b-3f96-4fe0-855a-a0af10f46e8f";
 const backupSha256 = "f0c8a897919c61dd912a711c0c6d9ac6149638c9a423d3c1da22aa76592154a1";
 const backupBytes = 9320665;
 const pooler = "aws-1-ca-central-1.pooler.supabase.com";
-const branch = "infra/horse-power-operational-restore";
+const branch = "infra/horse-power-definitive-restore-ci";
 
 type Source = {
   tenant_id: string;
