@@ -75,7 +75,41 @@ try {
     (SELECT count(*) FROM pg_tables WHERE schemaname='horse_power' AND rowsecurity) >= 30 AS tenant_rls`);
   if (!Object.values(result.rows[0]).every(Boolean))
     throw new Error("Esquema isolado incompleto.");
-  console.log(`Esquema novo validado com ${files.length} migrações em PostgreSQL 17 descartável.`);
+  // The historical chain needs a tiny release; the definitive catalog must start empty.
+  await check.query("BEGIN");
+  try {
+    const modelId = "00000000-0000-4000-8000-000000000006";
+    await check.query("DELETE FROM service_catalog.model_labor_categories WHERE model_id=$1", [modelId]);
+    for (const [table, id] of [
+      ["repair_times", "00000000-0000-4000-8000-000000000007"],
+      ["models", modelId],
+      ["bases", "00000000-0000-4000-8000-000000000003"],
+      ["families", "00000000-0000-4000-8000-000000000002"],
+      ["services", "00000000-0000-4000-8000-000000000005"],
+      ["brands", "00000000-0000-4000-8000-000000000001"],
+    ]) {
+      const deleted = await check.query(`DELETE FROM service_catalog.${table} WHERE id=$1`, [id]);
+      if (deleted.rowCount !== 1) throw new Error(`Fixture incompleta: ${table}.`);
+    }
+    const classes = await check.query("DELETE FROM service_catalog.classifications WHERE id=ANY($1::uuid[])", [[
+      "00000000-0000-4000-8000-000000000004",
+      "00000000-0000-4000-8000-000000000014",
+      "00000000-0000-4000-8000-000000000024",
+      "00000000-0000-4000-8000-000000000034",
+    ]]);
+    if (classes.rowCount !== 4) throw new Error("Fixture incompleta: classificações.");
+    const release = await check.query("DELETE FROM service_catalog.releases WHERE version='homologacao-sintetica' AND source_sha256='synthetic'");
+    if (release.rowCount !== 1) throw new Error("Fixture incompleta: release.");
+    for (const table of ["brands", "classifications", "families", "bases", "models", "services", "repair_times", "model_labor_categories", "releases"]) {
+      const count = await check.query(`SELECT count(*)::int n FROM service_catalog.${table}`);
+      if (count.rows[0].n !== 0) throw new Error(`O catálogo não está vazio após limpeza: ${table}.`);
+    }
+    await check.query("COMMIT");
+  } catch (error) {
+    await check.query("ROLLBACK");
+    throw error;
+  }
+  console.log(`Esquema novo validado com ${files.length} migrações e catálogo vazio em PostgreSQL 17 descartável.`);
 } finally {
   await check.end();
 }
