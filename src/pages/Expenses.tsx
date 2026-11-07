@@ -113,7 +113,6 @@ export function Expenses({ cash = false }: { cash?: boolean }) {
     <>
       <FinanceNav />
       <PageHeading
-        eyebrow="FINANCEIRO"
         title={cash ? "Caixa da oficina" : "Contas a pagar"}
         description={
           cash
