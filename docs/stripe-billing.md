@@ -37,7 +37,7 @@ A assinatura é conferida no corpo original, antes do parser JSON. Eventos nunca
 os recursos atuais são consultados na Stripe, verificando cliente, moeda, valor e pagamento liquidado.
 
 Job autenticado: `GET /api/billing/stripe/renew`, Authorization Bearer com o segredo do job.
-Executar a cada cinco minutos no ambiente de testes autorizado. Cada lote processa até dez contas,
+Na homologação, a Vercel chama a rotina diariamente às 09:00 UTC (06:00 de Brasília), usando `CRON_SECRET`. O segredo separado `STRIPE_CRON_SECRET` continua válido para o acionamento controlado. Cada lote processa até dez contas,
 com retomada e exclusão mútua no PostgreSQL. A cobrança vencida é bloqueada na leitura do acesso,
 independentemente da execução do job. O Pix pendente aparece na conta da oficina.
 Não há envio automático de email de cobrança nesta versão.
