@@ -112,7 +112,7 @@ export function assertTarget(env: NodeJS.ProcessEnv = process.env) {
       url.port === "5432" &&
       decodeURIComponent(url.username) === "hp_catalog_import_login";
     const poolerAllowed =
-      /^aws-\\d+-ca-central-1\\.pooler\\.supabase\\.com$/.test(url.hostname) &&
+      /^aws-\d+-ca-central-1\.pooler\.supabase\.com$/.test(url.hostname) &&
       url.port === "5432" &&
       decodeURIComponent(url.username) === sessionUser;
     const params = [...url.searchParams.keys()];
