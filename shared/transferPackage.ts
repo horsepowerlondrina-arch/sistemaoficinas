@@ -16,7 +16,7 @@ export const MAX_TRANSFER_FILE = 96 * 1024 * 1024;
 /** Explicit allowlist: credentials, sessions, link grants and global platform tables are excluded. */
 export const TRANSFER_TABLES = [
   "customers", "vehicles", "professionals", "catalog", "product_categories",
-  "workshop_services", "labor_rates", "labor_commercial_rates", "orders",
+  "workshop_service_categories", "workshop_services", "labor_rates", "labor_commercial_rates", "orders",
   "order_items", "stock_movements", "stock_invoices", "stock_invoice_products",
   "suppliers", "receivables", "cash_entries", "payment_installments",
   "payment_settings", "card_rates", "card_machines", "card_machine_rates", "expense_templates", "payables",
