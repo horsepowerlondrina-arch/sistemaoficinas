@@ -52,6 +52,7 @@ function guard() {
   return operation as "preflight-only" | "restore-definitive";
 }
 function verifySource(row: Source, phrase: string) {
+  diagnosticStage = "package-metadata";
   if (row.tenant_id !== tenantId || row.tenant_name !== "Horse Power Car Service" ||
       row.backup_id !== backupId || row.backup_sha256 !== backupSha256 ||
       Number(row.backup_bytes) !== backupBytes || !Buffer.isBuffer(row.encrypted_package) ||
@@ -61,7 +62,9 @@ function verifySource(row: Source, phrase: string) {
       !row.email_verified_at) {
     throw new Error("Identidade ou integridade do backup divergiu.");
   }
+  diagnosticStage = "package-open";
   const payload = openTransferPackage(row.encrypted_package, phrase);
+  diagnosticStage = "package-identity";
   if (payload.source.tenant.id !== tenantId || payload.records.tenant.id !== tenantId ||
       payload.source.tenant.name !== row.tenant_name ||
       payload.records.users.length !== 0 || payload.records.memberships.length !== 0) {
