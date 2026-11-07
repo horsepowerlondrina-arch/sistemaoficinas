@@ -421,7 +421,7 @@ test("PostgreSQL local: exportação administrativa criptografada em partes pres
       [userId,"Proprietário Fictício",`export-${userId}@example.invalid`,otherUserId,"Proprietário Fictício Isolado",`export-${otherUserId}@example.invalid`]);
     await admin.query("INSERT INTO horse_power.memberships(user_id,tenant_id,role) VALUES($1,$2,'owner'),($3,$4,'owner')",
       [userId,tenantId,otherUserId,otherTenantId]);
-    const names = new Map([[tenantId,"Oficina Fictícia Exportação"],[otherTenantId,"Oficina Fictícia Isolada"]]);
+    const names = new Map<string,string>([[tenantId,"Oficina Fictícia Exportação"],[otherTenantId,"Oficina Fictícia Isolada"]]);
     const pool = {query: async (_sql:string, values:unknown[]=[]) => {
       const id=String(values[0]||"");
       return names.has(id) ? {rowCount:1,rows:[{tenant_id:id,name:names.get(id)}]} : {rowCount:0,rows:[]};
