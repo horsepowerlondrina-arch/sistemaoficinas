@@ -85,6 +85,32 @@ export function createPlatformAdminDataTransferRoutes(
         .set("Content-Disposition","attachment; filename=\"backup-oficina-"+new Date().toISOString().slice(0,10)+".hptx\"").send(archive);
     } catch { res.status(400).json({error:"Não foi possível baixar a cópia de segurança."}); }
   });
+  router.post("/admin-api/workshops/:id/data-transfer/export/staged",requireSession,requirePermission("data-transfer:manage"),async(req,res)=>{
+    const input=z.object({passphrase:z.string().min(12).max(1024)}).strict().safeParse(req.body);
+    if(!input.success){res.status(400).json({error:"Informe uma frase secreta de pelo menos 12 caracteres."});return;}
+    if(!transfer)return unavailable(res);
+    const actor=admin(res),tenantId=String(req.params.id);
+    try {
+      const staged=await transfer.stageExport(tenantId,input.data.passphrase);
+      await audit(actor,tenantId,"admin.data_transfer.export_staged","success",{package_sha256:staged.sha256,size:staged.size});
+      res.set("Cache-Control","no-store").json(staged);
+    } catch {
+      await audit(actor,tenantId,"admin.data_transfer.export_failed","failure").catch(()=>{});
+      res.status(500).json({error:"Não foi possível preparar a cópia criptografada. Nenhum dado operacional foi alterado."});
+    }
+  });
+  router.get("/admin-api/workshops/:id/data-transfer/exports/:exportId/chunks/:index",requireSession,requirePermission("data-transfer:manage"),async(req,res)=>{
+    if(!transfer)return unavailable(res);
+    try {
+      const chunk=await transfer.exportChunk(String(req.params.id),String(req.params.exportId),Number(req.params.index));
+      if(!chunk){res.status(404).json({error:"Parte do pacote indisponível ou expirada."});return;}
+      res.set("Cache-Control","no-store").set("Content-Type","application/octet-stream")
+        .set("X-Package-Sha256",chunk.sha256).set("X-Package-Size",String(chunk.size)).send(chunk.bytes);
+    } catch {
+      res.status(503).json({error:"Não foi possível baixar esta parte do pacote criptografado."});
+    }
+  });
+
   router.post("/admin-api/workshops/:id/data-transfer/export",requireSession,requirePermission("data-transfer:manage"),async(req,res)=>{
     const input=z.object({passphrase:z.string().min(12).max(1024)}).strict().safeParse(req.body);
     if(!input.success){res.status(400).json({error:"Informe a frase secreta do pacote."});return;}
