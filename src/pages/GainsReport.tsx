@@ -10,7 +10,7 @@ import { PageHeading, Field, Modal } from "../components/ui";
 const kindLabel = { products: "Peças", services: "Serviços", both: "Peças e serviços" };
 
 function GainContent({ report, company }: { report: ReturnType<typeof gainReport>; company: string }) {
-  return <div className="os-result-content">
+  return <div className="os-result-content gain-report-content">
     <h1>Lucro bruto por período</h1>
     <p>{company} · {kindLabel[report.filters.kind]} · Finalização: {reportDate(report.filters.from)} a {reportDate(report.filters.to)}</p>
     <p className="report-explanation">Venda após desconto proporcional menos custo de peças e serviços de terceiros registrados na OS. Não inclui taxas de cartão, mão de obra interna, impostos ou despesas gerais. OS com custo de peça ausente não entram no total de lucro e custo.</p>
@@ -63,7 +63,7 @@ export function GainsReport() {
   return <>
     <FinanceNav />
     <PageHeading title="Ganhos por período" description="Lucro bruto das OS finalizadas, em peças, serviços ou ambos." />
-    <section className="panel">
+    <section className="panel gains-report-panel">
       <form className="order-report-filters" onSubmit={(event) => {
         event.preventDefault();
         if (draft.from > draft.to) { notify("A data inicial deve ser anterior ou igual à final."); return; }
