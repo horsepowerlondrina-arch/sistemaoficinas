@@ -5510,8 +5510,8 @@ body {
 .vehicle-plate-input:has(input:disabled) { background: #f4f6f8; opacity: .78; }
 .vehicle-plate-empty { color: #7a8390; font-size: .9em; }
 @media (max-width: 540px) {
-  .vehicle-plate { width: 158px; }
-  .vehicle-plate-number { font-size: 19px; letter-spacing: 2.3px; }
+  .vehicle-plate:not(.vehicle-plate-compact) { width: 158px; }
+  .vehicle-plate:not(.vehicle-plate-compact) .vehicle-plate-number { font-size: 19px; letter-spacing: 2.3px; }
 }
 @media print {
   .vehicle-plate, .vehicle-plate-input {
@@ -5520,3 +5520,6 @@ body {
   }
 }
 .document-plate { display: flex; align-items: center; gap: 8px; }
+
+.work-order-summary-item > .vehicle-plate-compact { align-self: flex-start; }
+.order-mobile-vehicle-detail { min-width: 0; display: grid; justify-items: start; gap: 4px; }
