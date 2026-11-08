@@ -5466,7 +5466,7 @@ body {
   white-space: nowrap;
 }
 .vehicle-plate-compact {
-  width: 112px;
+  width: 100px;
   min-height: 32px;
   border-radius: 4px;
 }
