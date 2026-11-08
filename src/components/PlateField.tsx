@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Search, LoaderCircle } from "lucide-react";
 import { send } from "../lib/api";
 import { Field } from "./ui";
+import { VehiclePlateInput } from "./VehiclePlate";
 import type { Entity } from "../lib/types";
 import { candidateFields, type FipeCandidate } from "../../shared/vehicleFipe";
 type Lookup = {
@@ -80,7 +81,7 @@ export function PlateField({
     <div className="plate-lookup full">
       <div className="plate-lookup-row">
         <Field label="Placa">
-          <input
+          <VehiclePlateInput
             maxLength={8}
             placeholder="ABC1D23"
             disabled={disabled}

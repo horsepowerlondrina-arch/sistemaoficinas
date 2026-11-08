@@ -1,3 +1,4 @@
+import { VehiclePlate } from "./VehiclePlate";
 import { useState, type KeyboardEvent } from "react";
 import { ArrowUpDown, CarFront, ChevronDown, ChevronUp } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -156,7 +157,7 @@ export function OrderTable({ orders }: { orders: Order[] }) {
                       <CarFront size={15} />
                       <div>
                         <span>{[order.brand, order.model].filter(Boolean).join(" ") || "Veículo não informado"}</span>
-                        <small className="plate">{order.plate || "Sem placa"}</small>
+                        <VehiclePlate value={order.plate} compact />
                       </div>
                     </div>
                   </td>

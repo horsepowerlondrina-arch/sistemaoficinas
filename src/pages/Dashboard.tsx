@@ -1,3 +1,4 @@
+import { VehiclePlate } from "../components/VehiclePlate";
 import { PLATFORM } from "../../shared/platformIdentity";
 import { needsReplenishment } from "../../shared/stockThreshold";
 import { useState } from "react";
@@ -353,7 +354,7 @@ export function Dashboard() {
                     </strong>
                     <small>{o.customer_name}</small>
                     <span>
-                      {dateLabel(o.due_on)} <b>·</b> {o.plate}
+                      {dateLabel(o.due_on)} <b>·</b> <VehiclePlate value={o.plate} compact />
                     </span>
                   </div>
                   <ArrowUpRight size={16} />

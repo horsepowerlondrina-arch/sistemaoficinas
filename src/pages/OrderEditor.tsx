@@ -1,3 +1,4 @@
+import { VehiclePlate } from "../components/VehiclePlate";
 import { horsePowerExtensionEnabled } from "../../shared/horsePowerExtension";
 import { NumericInput } from "../components/NumericInput";
 import { RepairServicePicker, ServiceExecutionFields } from '../components/RepairServicePicker';
@@ -487,7 +488,7 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
                     />
                     {order?.vehicle_id ? (
                       <Field label="Placa do veículo vinculado">
-                        <input readOnly value={vehicle?.plate || lookupPlate || "Não informado"} />
+                        <VehiclePlate value={vehicle?.plate || lookupPlate} />
                       </Field>
                     ) : (
                     <PlateField
@@ -567,7 +568,7 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
                                 setError("");
                               }}
                             >
-                              <span className="order-vehicle-plate">{item.plate || "Sem placa"}</span>
+                              <VehiclePlate value={item.plate} compact />
                               <strong>{item.brand} {vehicleDisplayModel(item)}</strong>
                               <small>{item.year || "Ano não informado"} · {Number(item.km || 0).toLocaleString("pt-BR")} km</small>
                             </button>
