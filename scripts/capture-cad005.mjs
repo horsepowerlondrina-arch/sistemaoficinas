@@ -83,15 +83,16 @@ export async function captureCad005(page, entry) {
   }
   await association.locator("summary").click();
   if (entry.id.includes("switch")) {
-    const currentPlate = await page.getByRole("textbox", { name: "Placa do veículo vinculado" }).inputValue();
+    const linkedPlate = page.locator(".field").filter({ hasText: "Placa do veículo vinculado" }).getByRole("img");
+    const currentPlate = await linkedPlate.getAttribute("aria-label");
     await page.getByPlaceholder("Placa, modelo ou proprietário...").fill("CAD0A05");
     const alternate = page.locator(".order-vehicle-card").filter({ hasText: "CAD0A05" });
     page.once("dialog", dialog => dialog.dismiss());
     await alternate.click();
-    await expect(page.getByRole("textbox", { name: "Placa do veículo vinculado" })).toHaveValue(currentPlate);
+    await expect(linkedPlate).toHaveAttribute("aria-label", currentPlate);
     page.once("dialog", dialog => dialog.accept());
     await alternate.click();
-    await expect(page.getByRole("textbox", { name: "Placa do veículo vinculado" })).toHaveValue("CAD0A05");
+    await expect(linkedPlate).toHaveAttribute("aria-label", "Placa do veículo CAD0A05");
     await expect(page.getByRole("textbox", { name: "Relato do cliente / problema" })).toHaveValue("Relato fictício preservado");
     await page.getByPlaceholder("Placa, modelo ou proprietário...").fill("");
   }

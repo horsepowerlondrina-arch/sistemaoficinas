@@ -1,3 +1,4 @@
+import { VehiclePlate } from "../components/VehiclePlate";
 import { useEffect, useMemo, useState } from "react";
 import { Camera, ClipboardCheck, Plus } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -78,7 +79,7 @@ export function Checklists() {
                   <ClipboardCheck size={22} />
                 </div>
                 <div className="checklist-card-main">
-                  <strong>{row.plate}</strong>
+                  <VehiclePlate value={row.plate} compact />
                   <span>{row.vehicle_label || "Veículo"}</span>
                   <small>
                     {row.customer_name}

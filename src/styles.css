@@ -5410,3 +5410,116 @@ body {
   .work-order-summary-item:nth-child(5),
   .work-order-summary-item:nth-child(6) { grid-column: 1 / -1; }
 }
+
+
+/* Presentação visual compartilhada da placa padrão Mercosul. */
+.vehicle-plate,
+.vehicle-plate-input {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  overflow: hidden;
+  width: 178px;
+  max-width: 100%;
+  min-height: 48px;
+  border: 1px solid #aeb7c2;
+  border-radius: 5px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgb(16 24 40 / 12%);
+  vertical-align: middle;
+  color: #111827;
+}
+.vehicle-plate-band {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 13px;
+  padding: 0 8px;
+  background: #1768a5;
+  color: white;
+  font: 700 7px/1 Arial, sans-serif;
+  letter-spacing: 1.1px;
+}
+.vehicle-plate-band i {
+  position: relative;
+  width: 10px;
+  height: 7px;
+  background: #2b9a56;
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+.vehicle-plate-band i::after {
+  content: "";
+  position: absolute;
+  inset: 2px 3px;
+  border-radius: 50%;
+  background: #f7d047;
+}
+.vehicle-plate-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 33px;
+  padding: 0 8px;
+  font: 700 22px/1 Arial, sans-serif;
+  letter-spacing: 2.8px;
+  white-space: nowrap;
+}
+.vehicle-plate-compact {
+  width: 100px;
+  min-height: 32px;
+  border-radius: 4px;
+}
+.vehicle-plate-compact .vehicle-plate-band {
+  height: 9px;
+  padding-inline: 5px;
+  font-size: 5px;
+  letter-spacing: .7px;
+}
+.vehicle-plate-compact .vehicle-plate-band i { width: 7px; height: 5px; }
+.vehicle-plate-compact .vehicle-plate-band i::after { inset: 1px 2px; }
+.vehicle-plate-compact .vehicle-plate-number {
+  min-height: 22px;
+  padding-inline: 5px;
+  font-size: 14px;
+  letter-spacing: 1.5px;
+}
+.vehicle-plate-input { width: 100%; min-width: 145px; }
+.field > .vehicle-plate-input { box-sizing: border-box; }
+.vehicle-plate-number-input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 33px;
+  border: 0 !important;
+  border-radius: 0 !important;
+  outline: 0;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 3px 8px 3px 14px !important;
+  color: #111827 !important;
+  text-align: center;
+  font: 700 22px/1 Arial, sans-serif !important;
+  letter-spacing: 2.8px;
+  text-transform: uppercase;
+}
+.vehicle-plate-input:focus-within {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+.vehicle-plate-input:has(input:disabled) { background: #f4f6f8; opacity: .78; }
+.vehicle-plate-empty { color: #7a8390; font-size: .9em; }
+@media (max-width: 540px) {
+  .vehicle-plate:not(.vehicle-plate-compact) { width: 158px; }
+  .vehicle-plate:not(.vehicle-plate-compact) .vehicle-plate-number { font-size: 19px; letter-spacing: 2.3px; }
+}
+@media print {
+  .vehicle-plate, .vehicle-plate-input {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}
+.document-plate { display: flex; align-items: center; gap: 8px; }
+
+.work-order-summary-item > .vehicle-plate-compact { align-self: flex-start; }
+.order-mobile-vehicle-detail { min-width: 0; display: grid; justify-items: start; gap: 4px; }
