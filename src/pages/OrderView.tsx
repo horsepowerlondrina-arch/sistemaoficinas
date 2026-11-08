@@ -1,3 +1,4 @@
+import { VehiclePlate } from "../components/VehiclePlate";
 import { IssuedDocumentActions, IssuedDocumentPreview, IssuedDocumentProvider } from "../components/IssuedDocument";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -168,7 +169,7 @@ export function OrderView() {
           <span>OS</span><strong>#{order.number}</strong>
         </div>
         <div className="work-order-summary-item">
-          <span>Placa</span><strong>{displayValue(order.plate, vehicle?.plate, order.guest_plate)}</strong>
+          <span>Placa</span><VehiclePlate value={displayValue(order.plate, vehicle?.plate, order.guest_plate)} compact />
         </div>
         <div className="work-order-summary-item">
           <span>Cliente</span><strong>{displayValue(order.customer_name, customer?.name, order.guest_name)}</strong>
