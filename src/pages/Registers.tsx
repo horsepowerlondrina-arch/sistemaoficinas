@@ -1,3 +1,4 @@
+import { VehiclePlate } from "../components/VehiclePlate";
 import { productLabel, productDetails, matchesSearch } from "../../shared/productIdentity";
 import { needsReplenishment } from "../../shared/stockThreshold";
 import { ProductCategories } from "../components/ProductCategories";
@@ -276,7 +277,7 @@ export function Registers({ kind, tabs }: { kind: Kind; tabs?: ReactNode }) {
                           </div>
                         </td>
                         <td>
-                          <span className="plate-tag">{r.plate}</span>
+                          <VehiclePlate value={r.plate} compact />
                         </td>
                         <td>{r.customer_name}</td>
                         <td>{r.km.toLocaleString("pt-BR")} km</td>
