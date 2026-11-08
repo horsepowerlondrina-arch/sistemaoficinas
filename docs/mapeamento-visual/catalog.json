@@ -249,10 +249,10 @@
       "viewport": "mobile",
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/05-checklist/novo-checklist.png",
-      "updatedAt": "2026-10-22",
-      "commit": null,
-      "freshness": "revisar",
-      "reason": "Captura real com dados fictícios feita em 22/10/2026. O commit de origem não foi registrado; recaptura Playwright e atualização do commit estão pendentes."
+      "updatedAt": "2026-11-08",
+      "commit": "dca9c029e9b6ad77cb847ed9c46d42c52ef4a23e",
+      "freshness": "atual",
+      "reason": "Captura Playwright do CI #676 com PostgreSQL 17 temporário e dados fictícios; placa editável compacta."
     },
     {
       "id": "orcamento-novo",
@@ -309,10 +309,10 @@
       "viewport": "mobile",
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/07-ordens-servico/nova-os.png",
-      "updatedAt": "2026-10-22",
-      "commit": null,
-      "freshness": "revisar",
-      "reason": "Captura real com dados fictícios feita em 22/10/2026. O commit de origem não foi registrado; recaptura Playwright e atualização do commit estão pendentes."
+      "updatedAt": "2026-11-08",
+      "commit": "dca9c029e9b6ad77cb847ed9c46d42c52ef4a23e",
+      "freshness": "atual",
+      "reason": "Captura Playwright do CI #676 com PostgreSQL 17 temporário e dados fictícios; placa editável compacta."
     },
     {
       "id": "financeiro-pagar",
@@ -757,12 +757,12 @@
       "route": "/checklists/novo",
       "kind": "Formulário",
       "viewport": "desktop",
-      "status": "pendente",
+      "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/05-checklist/novo-checklist-desktop.png",
-      "updatedAt": null,
-      "commit": null,
-      "freshness": "pendente",
-      "reason": "Variante desktop ainda não foi gerada. Execute a captura Playwright em ambiente local de teste."
+      "updatedAt": "2026-11-08",
+      "commit": "dca9c029e9b6ad77cb847ed9c46d42c52ef4a23e",
+      "freshness": "atual",
+      "reason": "Captura Playwright do CI #676 com PostgreSQL 17 temporário e dados fictícios; placa editável compacta."
     },
     {
       "id": "orcamento-novo-desktop",
@@ -817,12 +817,12 @@
       "route": "/ordens/nova",
       "kind": "Formulário",
       "viewport": "desktop",
-      "status": "pendente",
+      "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/07-ordens-servico/nova-os-desktop.png",
-      "updatedAt": null,
-      "commit": null,
-      "freshness": "pendente",
-      "reason": "Variante desktop ainda não foi gerada. Execute a captura Playwright em ambiente local de teste."
+      "updatedAt": "2026-11-08",
+      "commit": "dca9c029e9b6ad77cb847ed9c46d42c52ef4a23e",
+      "freshness": "atual",
+      "reason": "Captura Playwright do CI #676 com PostgreSQL 17 temporário e dados fictícios; placa editável compacta."
     },
     {
       "id": "financeiro-pagar-desktop",
