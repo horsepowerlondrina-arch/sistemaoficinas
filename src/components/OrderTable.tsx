@@ -193,7 +193,10 @@ export function OrderTable({ orders }: { orders: Order[] }) {
               </div>
               <div className="order-mobile-vehicle">
                 <CarFront size={16} />
-                <span>{[order.brand, order.model].filter(Boolean).join(" ") || "Veículo não informado"}<small>{order.plate || "Sem placa"}</small></span>
+                <div className="order-mobile-vehicle-detail">
+                  <span>{[order.brand, order.model].filter(Boolean).join(" ") || "Veículo não informado"}</span>
+                  <VehiclePlate value={order.plate} compact />
+                </div>
               </div>
               <dl className="order-mobile-meta">
                 <div><dt>Abertura</dt><dd>{orderListDateLabel(order.entered_on)}</dd></div>
