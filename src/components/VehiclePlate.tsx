@@ -15,7 +15,7 @@ export function VehiclePlateInput(props: InputHTMLAttributes<HTMLInputElement>) 
   return (
     <span className="vehicle-plate-input">
       <span className="vehicle-plate-band" aria-hidden="true"><span>BRASIL</span><i /></span>
-      <input {...props} className={`vehicle-plate-number-input ${props.className || ""}`} aria-label={props["aria-label"] || "Placa do veículo"} />
+      <input {...props} className={`vehicle-plate-number-input ${props.className || ""}`} />
     </span>
   );
 }
