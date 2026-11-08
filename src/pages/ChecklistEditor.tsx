@@ -1,3 +1,4 @@
+import { VehiclePlate } from "../components/VehiclePlate";
 import { IssuedDocument } from "../components/IssuedDocument";
 import { NumericInput } from "../components/NumericInput";
 import {
@@ -659,7 +660,7 @@ export function ChecklistEditor() {
                 <div className="checklist-linked-data">
                   <strong>{selectedCustomer?.name || creating.customer_name}</strong>
                   <span>
-                    {creating.plate} · {creating.vehicle_data.brand}{" "}
+                    <VehiclePlate value={creating.plate} compact /> · {creating.vehicle_data.brand}{" "}
                     {vehicleDisplayModel(creating.vehicle_data)} · {creating.vehicle_data.year}
                   </span>
                 </div>
@@ -748,7 +749,7 @@ export function ChecklistEditor() {
         </button>
         <PageHeading
           eyebrow="CHECKLIST DE ENTRADA"
-          title={`${record.plate} · ${record.vehicle_label}`}
+          title={record.vehicle_label || "Checklist"}
           description={`${record.customer_name}${
             record.order_number
               ? ` · OS #${record.order_number}`
@@ -787,7 +788,7 @@ export function ChecklistEditor() {
               <input value={record.customer_name} disabled />
             </Field>
             <Field label="Placa">
-              <input value={record.plate} disabled />
+              <VehiclePlate value={record.plate} />
             </Field>
             <Field label="Veículo" full>
               <input value={record.vehicle_label} disabled />
