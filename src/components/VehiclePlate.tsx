@@ -1,4 +1,5 @@
 import type { InputHTMLAttributes } from "react";
+import { Pencil } from "lucide-react";
 
 export function VehiclePlate({ value, compact = false }: { value?: string | null; compact?: boolean }) {
   const plate = (value || "").replace(/[^A-Za-z0-9]/g, "").toUpperCase();
@@ -13,9 +14,12 @@ export function VehiclePlate({ value, compact = false }: { value?: string | null
 
 export function VehiclePlateInput(props: InputHTMLAttributes<HTMLInputElement>) {
   return (
-    <span className="vehicle-plate-input">
-      <span className="vehicle-plate-band" aria-hidden="true"><span>BRASIL</span><i /></span>
-      <input {...props} className={`vehicle-plate-number-input ${props.className || ""}`} />
+    <span className="vehicle-plate-editable">
+      <span className="vehicle-plate-input">
+        <span className="vehicle-plate-band" aria-hidden="true"><span>BRASIL</span><i /></span>
+        <input {...props} className={`vehicle-plate-number-input ${props.className || ""}`} />
+      </span>
+      {!props.disabled && <span className="vehicle-plate-edit-hint" aria-hidden="true"><Pencil size={14} /> Editar placa</span>}
     </span>
   );
 }
