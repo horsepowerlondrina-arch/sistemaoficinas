@@ -5484,8 +5484,26 @@ body {
   font-size: 14px;
   letter-spacing: 1.5px;
 }
-.vehicle-plate-input { width: 100%; min-width: 145px; }
-.field > .vehicle-plate-input { box-sizing: border-box; }
+.vehicle-plate-editable {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  width: max-content;
+  max-width: 100%;
+}
+.vehicle-plate-input { box-sizing: border-box; width: 150px; min-width: 0; flex: none; }
+.vehicle-plate-edit-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: text;
+}
 .vehicle-plate-number-input {
   box-sizing: border-box;
   width: 100%;

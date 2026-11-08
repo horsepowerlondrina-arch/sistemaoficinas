@@ -188,7 +188,15 @@ Estado inicial do formulário; não foi criado nenhum registro.
 
 [![Novo checklist](./capturas/05-checklist/novo-checklist.png)](./capturas/05-checklist/novo-checklist.png)
 
-Estado: capturada · mobile · captura 2026-10-22 · commit de origem: não registrado · [arquivo completo](./capturas/05-checklist/novo-checklist.png)
+Estado: capturada · mobile · captura 2026-11-08 · commit de origem: dca9c029e9b6ad77cb847ed9c46d42c52ef4a23e · [arquivo completo](./capturas/05-checklist/novo-checklist.png)
+
+### Novo checklist
+
+Estado inicial do formulário; não foi criado nenhum registro.
+
+[![Novo checklist](./capturas/05-checklist/novo-checklist-desktop.png)](./capturas/05-checklist/novo-checklist-desktop.png)
+
+Estado: capturada · desktop · captura 2026-11-08 · commit de origem: dca9c029e9b6ad77cb847ed9c46d42c52ef4a23e · [arquivo completo](./capturas/05-checklist/novo-checklist-desktop.png)
 
 ### CAD-005 — Veículo no checklist (desktop)
 
@@ -260,7 +268,15 @@ Formulário inicial; nenhum atendimento foi salvo.
 
 [![Nova ordem de serviço](./capturas/07-ordens-servico/nova-os.png)](./capturas/07-ordens-servico/nova-os.png)
 
-Estado: capturada · mobile · captura 2026-10-22 · commit de origem: não registrado · [arquivo completo](./capturas/07-ordens-servico/nova-os.png)
+Estado: capturada · mobile · captura 2026-11-08 · commit de origem: dca9c029e9b6ad77cb847ed9c46d42c52ef4a23e · [arquivo completo](./capturas/07-ordens-servico/nova-os.png)
+
+### Nova ordem de serviço
+
+Formulário inicial; nenhum atendimento foi salvo.
+
+[![Nova ordem de serviço](./capturas/07-ordens-servico/nova-os-desktop.png)](./capturas/07-ordens-servico/nova-os-desktop.png)
+
+Estado: capturada · desktop · captura 2026-11-08 · commit de origem: dca9c029e9b6ad77cb847ed9c46d42c52ef4a23e · [arquivo completo](./capturas/07-ordens-servico/nova-os-desktop.png)
 
 ### Serviços próprios na OS
 
