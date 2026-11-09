@@ -138,3 +138,12 @@ test("order total remains hidden from non-owner roles", () => {
   const html = renderOrder(baseOrder(), { role: "operator", vehicle: {} });
   assert.doesNotMatch(html, /Valor total|R\$ 1\.250,00/);
 });
+
+test("owner can change a completed OS status; mechanic cannot", () => {
+  const completed = baseOrder({ status: "completed", receivable_id: "receivable-test" });
+  const ownerHtml = renderOrder(completed);
+  assert.match(ownerHtml, /Alterar status/);
+  assert.match(ownerHtml, /Receber OS/);
+  const mechanicHtml = renderOrder(completed, { role: "operator" });
+  assert.doesNotMatch(mechanicHtml, /Alterar status/);
+});
