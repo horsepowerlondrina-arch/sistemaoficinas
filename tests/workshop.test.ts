@@ -240,7 +240,7 @@ test("administrador pode reabrir atendimento cancelado e editar novamente", asyn
   }
 });
 
-test("OS nova finalizada preserva estoque, cobrança e plano sem reabertura", async () => {
+test("OS finalizada sem pagamento reabre e desfaz estoque, cobrança e plano", async () => {
   const db = fixture();
   try {
     const record = await saveOrder(db, ctx, input());
@@ -251,12 +251,13 @@ test("OS nova finalizada preserva estoque, cobrança e plano sem reabertura", as
       method: "Cartão de crédito", installments: 2, card_fee_bps: 0,
       interest_bps: 0, first_due_on: "2026-09-20",
     });
-    await assert.rejects(transitionOrder(db, ctx, record, "working"), /não pode ser reaberta/);
-    assert.equal(db.prepare("SELECT stock FROM catalog WHERE id=?").get("a-product")!.stock, 3);
-    assert.equal(db.prepare("SELECT COUNT(*) n FROM stock_movements WHERE order_id=?").get(record)!.n, 1);
-    assert.equal(db.prepare("SELECT COUNT(*) n FROM receivables WHERE order_id=?").get(record)!.n, 1);
     assert.equal(db.prepare("SELECT COUNT(*) n FROM payment_installments").get()!.n, 2);
-    assert.equal(db.prepare("SELECT status FROM orders WHERE id=?").get(record)!.status, "completed");
+    await transitionOrder(db, ctx, record, "working");
+    assert.equal(db.prepare("SELECT stock FROM catalog WHERE id=?").get("a-product")!.stock, 5);
+    assert.equal(db.prepare("SELECT COUNT(*) n FROM stock_movements WHERE order_id=?").get(record)!.n, 0);
+    assert.equal(db.prepare("SELECT COUNT(*) n FROM receivables WHERE order_id=?").get(record)!.n, 0);
+    assert.equal(db.prepare("SELECT COUNT(*) n FROM payment_installments").get()!.n, 0);
+    assert.equal(db.prepare("SELECT status FROM orders WHERE id=?").get(record)!.status, "working");
   } finally { db.close(); }
 });
 
@@ -272,7 +273,7 @@ test("OS com recebimento confirmado não pode ser reaberta", async () => {
     await settle(db, ctx, String(receivable.id), "Pix");
     await assert.rejects(
       async () => await transitionOrder(db, ctx, record, "working"),
-      /não pode ser reaberta/,
+      /recebimento confirmado/,
     );
     assert.equal(
       db.prepare("SELECT status FROM orders WHERE id=?").get(record)!.status,
