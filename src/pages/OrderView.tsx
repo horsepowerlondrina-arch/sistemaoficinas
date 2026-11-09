@@ -120,7 +120,7 @@ export function OrderView() {
               customerPhone={customer?.phone}
             />
           )}
-          {admin && (order.status !== "completed" || !!order.identity_legacy) && (
+          {admin && (
             <button className="button" onClick={() => setStatusPicker(true)}>
               Alterar status
             </button>
