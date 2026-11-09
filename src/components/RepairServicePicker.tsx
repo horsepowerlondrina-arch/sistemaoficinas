@@ -499,7 +499,7 @@ export function RepairServicePicker({ vehicle, modelId, onModelChange, onAdd, br
         ...(minutesValue > 0 ? { service_minutes: minutesValue } : {}),
         ...(isPrivate || (pricingMode === "price" && priceValue > 0) ? { manual_price: priceValue } : {}),
       };
-      const preview = await send("/repair-services/preview", selection);
+      const preview = await send(isPrivate ? "/workshop-services/preview" : "/repair-services/preview", selection);
       onAdd({
         ...preview,
         ...selection,

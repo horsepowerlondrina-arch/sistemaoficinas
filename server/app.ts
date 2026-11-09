@@ -87,7 +87,7 @@ import { listCardMachines, saveCardMachine, resolveCardPayments } from "./servic
 import { calculatePaymentPlan, paymentMethods } from "./domain/payments.js";
 import { lookupVehicle, lookupVehicleExternal, normalizePlate, vehicleLookupAccess } from "./services/vehicleLookup.js";
 import { vehicleFipeFields } from "./services/vehicleFipeFields.js";
-import { serviceInfo, saveLaborRates, searchBrands, searchModels, repairModel, identifyVehicleModel, catalogAccessState, searchRepairServices, listWorkshopServices, saveWorkshopService, setWorkshopServiceActive, listWorkshopServiceCategories, saveWorkshopServiceCategory, setWorkshopServiceCategoryActive, resolveService, serviceSelectionSchema, withTenantScope, previewVehicleCatalogReview, registrationVehicleModels, confirmRegistrationVehicleModel } from './services/repairCatalog.js';
+import { serviceInfo, saveLaborRates, searchBrands, searchModels, repairModel, identifyVehicleModel, catalogAccessState, searchRepairServices, listWorkshopServices, saveWorkshopService, setWorkshopServiceActive, listWorkshopServiceCategories, saveWorkshopServiceCategory, setWorkshopServiceCategoryActive, resolveService, previewWorkshopService, serviceSelectionSchema, withTenantScope, previewVehicleCatalogReview, registrationVehicleModels, confirmRegistrationVehicleModel } from './services/repairCatalog.js';
 const text = z.string().trim().max(500).default("");
 const name = z
   .string()
@@ -1214,6 +1214,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
     await transaction(db,async()=>{await setWorkshopServiceCategoryActive(db,res.locals.context,String(req.params.id),input.active);await audit(db,res.locals.context,input.active?'workshop_service_category.reactivated':'workshop_service_category.inactivated',String(req.params.id));});
     res.json({ok:true});
   });
+  app.post('/api/workshop-services/preview',async(req,res)=>res.json(await previewWorkshopService(db,res.locals.context,req.body)));
   app.post('/api/repair-services/preview',async(req,res)=>res.json(await resolveService(db,res.locals.context,req.body)));
   app.post('/api/repair-services/reprice',async(req,res)=>{
     const input=z.object({order_id:z.string(),item_id:z.string(),execution:z.enum(['internal','outsourced']),cost:integer,commercial_category_id:z.enum(['compacto','medio','premium','pesado']).optional()}).parse(req.body);

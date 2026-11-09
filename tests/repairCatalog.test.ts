@@ -8,6 +8,7 @@ import {
   searchModels,
   searchRepairServices,
   resolveService,
+  previewWorkshopService,
   saveWorkshopService,
   listWorkshopServices,
   setWorkshopServiceActive,
@@ -155,6 +156,34 @@ test("limpar o vínculo do modelo preserva o snapshot existente da OS", async ()
     assert.deepEqual(after.items, before.items);
   } finally { f.db.close(); }
 });
+test("oficina sem Catálogo Técnico adiciona serviço próprio sem liberar serviço técnico ou outra oficina", async () => {
+  const f = fixture();
+  try {
+    const basic = { ...ctx, modules: { catalog: true, technical_catalog: false } };
+    const service = await saveWorkshopService(f.db, basic, {
+      service_type: "private", name: "Serviço próprio básico", price: 5900,
+    });
+    const selection = { workshop_service_id: service, manual_price: 6400 };
+    const preview = await previewWorkshopService(f.db, basic, selection);
+    assert.equal(preview.price, 6400);
+    assert.equal(preview.service_type, "private");
+    const id = await saveOrder(f.db, basic, {
+      status: "quote", customer_id: "c", vehicle_id: "v",
+      entered_on: "2026-11-09", due_on: "2026-11-09",
+      km: 0, discount: 0, notes: "", problem: "",
+      items: [{ ...selection, id: randomUUID(), price: preview.price, quantity: 1 }],
+    });
+    assert.equal((await listOrders(f.db, "a")).find((order) => order.id === id)?.items[0].price, 6400);
+    await assert.rejects(previewWorkshopService(f.db, basic, {
+      repair_service_id: f.service, repair_model_id: f.model,
+    }), /serviço da oficina/);
+    await assert.rejects(previewWorkshopService(f.db, basic, {
+      workshop_service_id: service, repair_service_id: f.service, repair_model_id: f.model,
+    }), /serviço da oficina/);
+    await assert.rejects(previewWorkshopService(f.db, { ...basic, tenantId: "b" }, selection), /nesta oficina/);
+  } finally { f.db.close(); }
+});
+
 test("OS preserva snapshots após mudança de tarifa, catálogo e assinatura; nova inclusão não burla acesso", async () => {
   const f = fixture();
   try {
