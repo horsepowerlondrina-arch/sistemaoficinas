@@ -210,6 +210,35 @@ test("PostgreSQL local: autenticação, oficinas, transações e RLS do catálog
     }),e=>e===stop);
     assert.equal((await listOrders(db,"local-a")).length,0);
   });
+  await t.test("OS finalizada reabre com reversão atômica e bloqueia recebimento confirmado", async () => {
+    const { saveOrder, transitionOrder, listOrders } = await import("../server/services/workshop");
+    const ctx = { tenantId: "local-a", userId: "local-owner-a", role: "owner" };
+    const stop = new Error("rollback reopen fixture");
+    await assert.rejects(db.transaction(async () => {
+      await db.prepare("SELECT set_config('app.user_id',?,true)").get(ctx.userId);
+      await db.withTenantRead("local-a", async () => {
+        await db.prepare("INSERT INTO catalog(id,tenant_id,kind,name,sku,cost,price,stock,minimum_stock) VALUES('reopen-product','local-a','product','Peça fictícia','REOPEN',500,1000,3,0)").run();
+      });
+      const record = await saveOrder(db, ctx, {
+        status: "open", customer_id: "local-a-customer", vehicle_id: "local-a-vehicle",
+        entered_on: "2026-10-30", due_on: "2026-11-03", km: 0, discount: 0,
+        notes: "", problem: "", items: [{ catalog_id: "reopen-product", quantity: 1, price: 1000 }],
+      });
+      await transitionOrder(db, ctx, record, "completed");
+      assert.equal((await db.withTenantRead("local-a", () => db.prepare("SELECT stock FROM catalog WHERE id='reopen-product'").get()))!.stock, 2);
+      await transitionOrder(db, ctx, record, "open");
+      assert.equal((await listOrders(db, "local-a")).find(row => row.id === record)!.status, "open");
+      assert.equal((await db.withTenantRead("local-a", () => db.prepare("SELECT stock FROM catalog WHERE id='reopen-product'").get()))!.stock, 3);
+      assert.equal((await db.withTenantRead("local-a", () => db.prepare("SELECT count(*) n FROM receivables WHERE order_id=?").get(record)))!.n, 0);
+      await transitionOrder(db, ctx, record, "completed");
+      await db.withTenantRead("local-a", () => db.prepare("UPDATE receivables SET status='paid' WHERE order_id=?").run(record));
+      await assert.rejects(transitionOrder(db, ctx, record, "open"), /recebimento confirmado/);
+      assert.equal((await listOrders(db, "local-a")).find(row => row.id === record)!.status, "completed");
+      assert.equal((await db.withTenantRead("local-a", () => db.prepare("SELECT stock FROM catalog WHERE id='reopen-product'").get()))!.stock, 2);
+      assert.equal((await db.withTenantRead("local-a", () => db.prepare("SELECT status FROM receivables WHERE order_id=?").get(record)))!.status, "paid");
+      throw stop;
+    }), error => error === stop);
+  });
   await t.test("CAD-005: troca atômica, confirmação, histórico, bloqueios e isolamento no PostgreSQL", async () => {
     const { saveOrder, listOrders } = await import("../server/services/workshop");
     const ctx = { tenantId: "local-a", userId: "local-owner-a", role: "owner" };
