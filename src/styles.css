@@ -5312,7 +5312,7 @@ body {
 .products-register-table td:nth-child(n+3) { white-space: nowrap; }
 .products-register-table th:last-child, .products-register-table td:last-child { text-align: center; }
 
-/* Product mark uses the approved OSDrive art without altering the source image. */
+/* Horse Power logo used by the dedicated installation. */
 .platform-brand--full{display:block;width:min(100%,380px)}
 .platform-brand--full .platform-brand-logo{display:block;width:100%;height:auto;border-radius:0}
 /* Workshop colors are scoped to the authenticated shell, leaving admin branding independent. */
@@ -5338,7 +5338,7 @@ body {
   .settings-tabs button { padding:12px 10px; }
 }
 
-/* The workshop login shares the OSDrive administrative login's light visual language. */
+/* Login styling for the dedicated Horse Power installation. */
 .office-auth{min-height:100dvh;display:grid;place-items:center;padding:32px 18px;background:radial-gradient(ellipse at top,#fbeaec 0,#f7f5f5 58%);color:#202022}
 .office-auth-card{width:min(100%,460px);display:flex;flex-direction:column;gap:18px;padding:32px;background:#fff;border:1px solid #e2e7ec;border-top:4px solid #a31c28;border-radius:14px;box-shadow:0 6px 22px #172b3a0a}
 .office-auth-kicker{font-size:11px;font-weight:750;letter-spacing:.11em;text-transform:uppercase;color:#758391}

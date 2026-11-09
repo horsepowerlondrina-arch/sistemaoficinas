@@ -1,9 +1,9 @@
-/** Product identity shared by all workshops; workshop accents remain independent. */
+/** Dedicated Horse Power installation identity. */
 export const PLATFORM = Object.freeze({
-  name: "OSDrive",
-  description: "Gestão para oficinas",
-  icon: "/brand/osdrive-icon.png",
-  logo: "/brand/osdrive-logo-transparent.png",
+  name: "Horse Power",
+  description: "Car Service",
+  icon: "/brand/icon.jpg",
+  logo: "/brand/horse-power.jpg",
 });
 export function platformTitle(workshopName?: string) {
   const name = workshopName?.trim();

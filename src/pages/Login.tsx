@@ -43,7 +43,7 @@ export function Login({ onLogin }: { onLogin: () => Promise<void> }) {
   }
   return (
     <main className="office-auth">
-      <section className="office-auth-card" aria-label="Acesso ao OSDrive">
+      <section className="office-auth-card" aria-label="Acesso à Horse Power">
         <PlatformBrand />
         <span className="office-auth-kicker">Acesso à oficina</span>
         <h1>Entre na sua oficina</h1>
