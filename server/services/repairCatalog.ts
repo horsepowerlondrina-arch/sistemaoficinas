@@ -752,6 +752,13 @@ export async function saveWorkshopService(
   return key;
   });
 }
+export async function previewWorkshopService(db: DB, ctx: Context, input: Row): Promise<Row> {
+  const selected = serviceSelectionSchema.parse(input);
+  if (!selected.workshop_service_id || selected.repair_service_id || selected.repair_model_id)
+    throw new Error("Escolha um serviço da oficina.");
+  return resolveService(db, ctx, selected);
+}
+
 export async function resolveService(
   db: DB,
   ctx: Context,
