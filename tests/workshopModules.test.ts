@@ -53,6 +53,7 @@ test("workspace não devolve dados de funcionalidades desabilitadas", () => {
   for (const key of ["customers","vehicles","catalog","product_categories","professionals","suppliers","orders","receivables","cash","installments","cash_accounts","card_rates","movements"])
     assert.deepEqual(filtered[key as keyof typeof filtered], []);
   assert.equal(filtered.payment_settings, null);
+  assert.deepEqual((filtered as typeof workspace & { receipt_accounts: unknown[] }).receipt_accounts, []);
   assert.equal("parts_pricing" in filtered, false);
   assert.equal("catalog_mode" in filtered, false);
   assert.equal(workspace.customers.length, 1, "filtering must not mutate the caller's payload");
