@@ -106,7 +106,7 @@ export function workspaceForModules<T extends Record<string, unknown>>(workspace
       if (safeOrder.status === "completed") safeOrder.display_status = "completed";
       return safeOrder;
     });
-    value.receipt_accounts = (Array.isArray(value.cash_accounts) ? value.cash_accounts : [])
+    value.receipt_accounts = (enabled("orders") && Array.isArray(value.cash_accounts) ? value.cash_accounts : [])
       .filter((account) => account && typeof account === "object" && Boolean((account as Record<string, unknown>).active))
       .map((account) => ({
         id: String((account as Record<string, unknown>).id),
