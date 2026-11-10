@@ -12,7 +12,7 @@ export async function captureSettings(page, entry) {
   }
   if (entry.route.includes("aba=assinatura")) {
     await expect(page.locator('[data-settings-tab="assinatura"]')).toHaveText("Assinatura e pagamentos");
-    await expect(page.getByRole("heading",{name:"Assinatura e pagamentos"})).toBeVisible();
+    await expect(page.getByRole("heading",{name:"Assinatura e pagamentos"})).toHaveCount(0);
     await expect(page.getByText("A cobrança está desabilitada neste ambiente.",{exact:true})).toBeVisible();
     await expect(page.getByRole("button",{name:"Continuar no Stripe"})).toHaveCount(0);
   }
@@ -23,6 +23,11 @@ export async function captureSettings(page, entry) {
     });
     const initial = await name.inputValue();
     await name.fill("Oficina Rascunho Fictícia");
+    await page.getByRole("tab", { name: "Contatos" }).click();
+    await expect(name).toHaveCount(0);
+    await expect(page.getByRole("textbox", { name: "Telefone", exact: true })).toBeVisible();
+    await page.getByRole("tab", { name: "Identificação" }).click();
+    await expect(name).toHaveValue("Oficina Rascunho Fictícia");
     page.once("dialog", (dialog) => dialog.dismiss());
     await page.locator('[data-settings-tab="pecas"]').click();
     await expect(name).toHaveValue("Oficina Rascunho Fictícia");
@@ -54,7 +59,7 @@ export async function captureSettings(page, entry) {
     await page.route("**/api/workspace", route);
     await page.reload();
     await expect(
-      page.getByRole("combobox", { name: "Regra de preço das peças" }),
+      page.getByRole("combobox", { name: "Método de cálculo" }),
     ).toHaveValue("margin");
     let submitted;
     const saveRoute = async (route) => {
@@ -73,6 +78,7 @@ export async function captureSettings(page, entry) {
     await validateProfitTables(page);
   }
   if (entry.id === "config-dados-oficina") {
+    await page.getByRole("tab", { name: "Documentos" }).click();
     const dates = await page
       .locator(".profile-document-preview .hp-print-dates")
       .boundingBox();
@@ -112,6 +118,7 @@ async function validateProfitTables(page) {
     await (await page.request.get(origin + "/api/workspace")).json()
   ).parts_pricing;
   try {
+    await page.getByRole("tab", { name: "Serviços de terceiros" }).click();
     await page
       .getByRole("button", {
         name: "Adicionar faixa de terceiros",
@@ -160,6 +167,7 @@ async function validateProfitTables(page) {
       page.getByText("Alterações não salvas.", { exact: true }),
     ).toHaveCount(0);
     await page.reload();
+    await page.getByRole("tab", { name: "Serviços de terceiros" }).click();
     await expect(
       page.getByLabel("Lucro de terceiros faixa 2", { exact: true }),
     ).toHaveValue("10");
