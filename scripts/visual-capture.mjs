@@ -55,10 +55,14 @@ if (moduleFilter && !catalog.modules.some((module) => module.id === moduleFilter
 const candidates = catalog.entries.filter((entry) => entry.driver !== "admin-interface" && entry.image && entry.route.startsWith("/") && (!selectedModules || selectedModules.has(entry.module)) && entry.id !== "login-painel-central");
 if (!selectedModules || selectedModules.has("14-configuracoes")) {
   for (const viewport of ["desktop","mobile"]) {
-    const id = "config-conta-integracoes-" + viewport;
-    if (!candidates.some(entry=>entry.id===id)) {
-      const entry = {id,module:"14-configuracoes",title:"Conta e integrações",description:"Responsabilidades administrativas e extensões disponíveis.",route:"/configuracoes?aba=conta",kind:"Configuração",viewport,image:"docs/mapeamento-visual/capturas/14-configuracoes/"+id+".png"};
-      candidates.push(entry); catalog.entries.push(entry);
+    for (const [id,title,description,route] of [
+      ["config-conta-integracoes-"+viewport,"Conta e integrações","Responsabilidades administrativas e extensões disponíveis.","/configuracoes?aba=conta"],
+      ["config-assinatura-pagamentos-"+viewport,"Assinatura e pagamentos","Plano, vencimento e pagamentos da oficina.","/configuracoes?aba=assinatura"],
+    ]) {
+      if (!candidates.some(entry=>entry.id===id)) {
+        const entry = {id,module:"14-configuracoes",title,description,route,kind:"Configuração",viewport,image:"docs/mapeamento-visual/capturas/14-configuracoes/"+id+".png"};
+        candidates.push(entry); catalog.entries.push(entry);
+      }
     }
   }
 }

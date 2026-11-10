@@ -7,8 +7,11 @@ export async function captureSettings(page, entry) {
   if (entry.route.includes("aba=conta")) {
     await expect(page.locator('[data-settings-tab="conta"]')).toHaveText("Conta");
     await expect(page.getByRole("heading",{name:"Administrador da conta"})).toBeVisible();
-    await expect(page.getByRole("heading",{name:"Plano da oficina"})).toBeVisible();
     await expect(page.getByRole("button",{name:"Enviar link para alterar senha"})).toBeEnabled();
+    await expect(page.getByRole("heading",{name:"Assinatura e pagamentos"})).toHaveCount(0);
+  }
+  if (entry.route.includes("aba=assinatura")) {
+    await expect(page.locator('[data-settings-tab="assinatura"]')).toHaveText("Assinatura e pagamentos");
     await expect(page.getByRole("heading",{name:"Assinatura e pagamentos"})).toBeVisible();
     await expect(page.getByText("A cobrança está desabilitada neste ambiente.",{exact:true})).toBeVisible();
     await expect(page.getByRole("button",{name:"Continuar no Stripe"})).toHaveCount(0);

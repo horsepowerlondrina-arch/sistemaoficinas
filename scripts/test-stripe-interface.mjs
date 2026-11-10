@@ -16,7 +16,8 @@ try{
  browser=await chromium.launch();const page=await browser.newPage({viewport:{width:1400,height:1000}});page.setDefaultTimeout(15000);
  const errors=[];page.on("pageerror",e=>errors.push(e.message));
  const prices=[{id:"00000000-0000-4000-8000-000000000001",plan_code:"basic",amount_cents:1000},{id:"00000000-0000-4000-8000-000000000002",plan_code:"professional",amount_cents:2000},{id:"00000000-0000-4000-8000-000000000003",plan_code:"premium",amount_cents:3000}];
- let saves=0,fail=true,cancelled=false,incomplete=false;
+ const today=new Intl.DateTimeFormat("en-CA",{timeZone:"America/Sao_Paulo",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+ let saves=0,fail=true,cancelled=false,incomplete=false,refreshes=0;
  await page.route("**/admin-api/billing**",async route=>{
   if(route.request().method()==="POST"){
    if(fail)return route.fulfill({status:503,json:{error:"Falha fictícia temporária"}});
@@ -27,8 +28,10 @@ try{
  });
  await page.route("**/api/account/billing**",async route=>{
   if(route.request().url().endsWith("/cancel")){if(route.request().postDataJSON().confirm!==true)throw Error("Missing confirmation");cancelled=true;}
-  return route.fulfill({json:{enabled:true,test_mode:true,prices,read_only:false,pending:null,account:{plan_code:"premium",method:incomplete?"card":"pix",managed:!incomplete,due_on:"2026-12-05",paid_until:"2026-12-05",recurring:incomplete,cancel_at_period_end:cancelled,subscription_status:null},payments:[]}});
+  if(route.request().url().endsWith("/refresh"))refreshes++;
+  return route.fulfill({json:{enabled:true,test_mode:true,prices,read_only:false,pending:null,account:{plan_code:"premium",method:incomplete?"card":"pix",managed:!incomplete,due_on:today,paid_until:today,recurring:incomplete,cancel_at_period_end:cancelled,subscription_status:null,invoice_payment_url:null},payments:[]}});
  });
+ await page.route("**/api/account/plan",route=>route.fulfill({json:{plan:{plan_code:"premium",status:"active",trial_ends_at:null}}}));
  await page.goto("http://127.0.0.1:5181/stripe-ui-fixture.html");
  await page.getByLabel("Mensalidade em reais").fill("12,34");await page.getByLabel("Justificativa").fill("Teste fictício de preço");
  await page.getByRole("button",{name:"Salvar novo preço"}).click();await expect(page.getByRole("alert")).toHaveText("Falha fictícia temporária");
@@ -38,7 +41,9 @@ try{
  await page.screenshot({path:resolve(output,"stripe-admin-desktop.png"),fullPage:true});
  await page.goto("http://127.0.0.1:5181/stripe-ui-fixture.html?owner");
  await expect(page.getByLabel("Plano mensal")).toHaveCount(0);
- await page.getByRole("button",{name:"Assinar plano ou renovar"}).click();
+ await expect.poll(()=>refreshes).toBe(1);
+ await expect(page.getByRole("button",{name:"Atualizar situação do pagamento"})).toHaveCount(0);
+ await page.getByRole("button",{name:"Pagar próxima mensalidade"}).click();
  await page.getByLabel("Plano mensal").selectOption(prices[0].id);
  await expect(page.getByRole("button",{name:"Continuar no Stripe"})).toBeDisabled();
  await page.getByLabel(/Li os valores/).check();await expect(page.getByRole("button",{name:"Continuar no Stripe"}).first()).toBeEnabled();
@@ -50,6 +55,7 @@ try{
  await page.setViewportSize({width:390,height:844});await page.screenshot({path:resolve(output,"stripe-oficina-mobile.png"),fullPage:true});
  if(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1))throw Error("Billing overflows mobile viewport");
  incomplete=true;cancelled=false;await page.reload();
+ await expect(page.getByText("Tudo certo com o seu Plano!")).toBeVisible();
  await expect(page.getByRole("button",{name:"Cancelar renovação",exact:true})).toBeVisible();
  await page.getByLabel(/Confirmo o cancelamento/).check();await page.getByRole("button",{name:"Cancelar renovação",exact:true}).click();
  await expect(page.getByText("Renovação cancelada. O período já pago será preservado.")).toBeVisible();
