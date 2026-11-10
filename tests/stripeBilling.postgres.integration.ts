@@ -59,6 +59,9 @@ test("Stripe PostgreSQL: preços versionados, Pix, cartão, repetição, falha, 
   await assert.rejects(service.checkout(tenant,"owner@example.test",p),/simulated network/);
   const urls=await Promise.all([service.checkout(tenant,"owner@example.test",p),service.checkout(tenant,"owner@example.test",p)]);
   assert.equal(urls[0].url,urls[1].url);assert.equal(requests.size,1);
+  const checkoutRequest=[...requests.values()][0];
+  assert.equal(checkoutRequest.success_url,"https://example.test/configuracoes?aba=assinatura&pagamento=retorno");
+  assert.equal(checkoutRequest.cancel_url,"https://example.test/configuracoes?aba=assinatura");
   assert.equal((await pool.query("SELECT count(*)::int AS n FROM platform_admin.stripe_checkouts WHERE tenant_id=$1",[tenant])).rows[0].n,1);
   let sessionId=urls[0].url.split("/").at(-1)!;
   const s=resources.get("/checkout/sessions/"+sessionId) as Record<string,unknown>;

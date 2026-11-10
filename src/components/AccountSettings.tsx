@@ -1,29 +1,13 @@
-import { WorkshopBilling } from "./StripeBilling";
-import { useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { ShieldCheck } from "lucide-react";
 import { useApp } from "../lib/context";
-import { api, send } from "../lib/api";
-
-type PlanSummary = { plan_code: string | null; status: string | null; trial_ends_at: string | null } | null;
-const planLabel: Record<string,string> = { basic:"Básico", professional:"Profissional", premium:"Premium" };
-const statusLabel: Record<string,string> = { active:"Ativo", trial:"Período de teste", blocked:"Bloqueado", canceled:"Cancelado" };
+import { send } from "../lib/api";
 
 export function AccountSettings() {
   const { session } = useApp();
-  const [plan,setPlan] = useState<PlanSummary>(null);
-  const [loading,setLoading] = useState(true);
-  const [planError,setPlanError] = useState("");
   const [passwordBusy,setPasswordBusy] = useState(false);
   const [passwordMessage,setPasswordMessage] = useState("");
   const [passwordError,setPasswordError] = useState("");
-  useEffect(() => {
-    let active = true;
-    setLoading(true);setPlanError("");setPlan(null);
-    api<{plan:PlanSummary}>("/account/plan").then(result => {if(active)setPlan(result.plan);})
-      .catch(() => {if(active)setPlanError("Não foi possível consultar o plano agora.");})
-      .finally(() => {if(active)setLoading(false);});
-    return () => {active=false;};
-  },[session.tenant.id]);
   async function requestPasswordChange(event:FormEvent<HTMLFormElement>) {
     event.preventDefault();if(passwordBusy)return;
     setPasswordBusy(true);setPasswordError("");setPasswordMessage("");
@@ -49,14 +33,5 @@ export function AccountSettings() {
       {passwordMessage&&<p role="status">{passwordMessage}</p>}
       {passwordError&&<p role="alert" className="error-box">{passwordError}</p>}
     </section>
-    <section className="panel settings-card">
-      <h2>Plano da oficina</h2>
-      {loading?<p>Carregando plano…</p>:planError?<p role="alert">{planError}</p>:plan?
-        <><p><strong>{plan.plan_code ? planLabel[plan.plan_code]??plan.plan_code : "Nenhum plano contratado"}</strong></p>
-        <p>Situação: {plan.status ? statusLabel[plan.status]??plan.status : "Não informada"}</p>
-        {plan.status==="trial"&&plan.trial_ends_at&&<p>Teste até {new Date(plan.trial_ends_at).toLocaleDateString("pt-BR")}</p>}</>
-        :<p>Plano ainda não atribuído pela administração central.</p>}
-    </section>
-    <WorkshopBilling tenantId={session.tenant.id}/>
   </>;
 }

@@ -8,4 +8,23 @@
 .billing-section .billing-plan{padding:18px;display:flex;flex-direction:column;gap:10px;min-width:0}
 .billing-plan h3,.billing-plan p{margin:0}
 .billing-section .pa-form{gap:16px}
+.billing-workshop{display:flex;flex-direction:column;gap:16px;max-width:1100px}
+.billing-heading h2{margin:0 0 4px;font-size:23px}
+.billing-heading p,.billing-label,.billing-sync-note,.billing-policy{color:#718096}
+.billing-heading p{margin:0}
+.billing-test-note{align-self:flex-start;margin:0;padding:7px 10px;border-radius:7px;background:#f4ecee;color:#7a4651;font-size:12px}
+.billing-summary-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.billing-summary-card{min-width:0}
+.billing-summary-card p{margin:12px 0 0;line-height:1.5}
+.billing-summary-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.billing-label,.billing-value{display:block}
+.billing-label{font-size:12px;margin-bottom:5px}
+.billing-value{font-size:20px;overflow-wrap:anywhere}
+.billing-status{border-radius:999px;padding:5px 9px;background:#eaf5ee;color:#276c4d;font-size:12px;font-weight:600;max-width:55%;text-align:right}
+.billing-workshop .billing-section{gap:12px}
+.billing-workshop .billing-section .button{align-self:flex-start}
+.billing-chooser{display:flex;flex-direction:column;gap:12px;margin-top:16px;max-width:480px}
+.billing-success{color:#276c4d;font-weight:700}
+.billing-policy,.billing-sync-note{font-size:12px}
 @media(max-width:800px){.billing-admin-grid{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:600px){.billing-summary-grid{grid-template-columns:minmax(0,1fr)}.billing-workshop .billing-section .button{max-width:100%}}
