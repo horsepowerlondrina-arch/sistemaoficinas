@@ -37,6 +37,7 @@ export interface Workspace {
   installments: Entity[];
   payment_settings: Entity | null;
   cash_accounts?: Entity[];
+  receipt_accounts?: { id: string; name: string }[];
   card_rates?: Entity[];
   plate_lookup_enabled?: boolean;
 }
