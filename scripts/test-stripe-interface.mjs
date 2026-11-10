@@ -16,7 +16,9 @@ try{
  browser=await chromium.launch();const page=await browser.newPage({viewport:{width:1400,height:1000}});page.setDefaultTimeout(15000);
  const errors=[];page.on("pageerror",e=>errors.push(e.message));
  const prices=[{id:"00000000-0000-4000-8000-000000000001",plan_code:"basic",amount_cents:1000},{id:"00000000-0000-4000-8000-000000000002",plan_code:"professional",amount_cents:2000},{id:"00000000-0000-4000-8000-000000000003",plan_code:"premium",amount_cents:3000}];
- const today=new Intl.DateTimeFormat("en-CA",{timeZone:"America/Sao_Paulo",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+ const parts=new Intl.DateTimeFormat("en-CA",{timeZone:"America/Sao_Paulo",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date());
+ const datePart=type=>parts.find(p=>p.type===type).value;
+ const today=`${datePart("year")}-${datePart("month")}-${datePart("day")}`;
  let saves=0,fail=true,cancelled=false,incomplete=false,refreshes=0;
  await page.route("**/admin-api/billing**",async route=>{
   if(route.request().method()==="POST"){
