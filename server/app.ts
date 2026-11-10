@@ -36,6 +36,7 @@ import {
   updateChecklist,
 } from "./services/checklists.js";
 import express from "express";
+import { requestQuery } from "./requestQuery.js";
 import { randomBytes } from "node:crypto";
 import { cancelPasswordReset, completePasswordReset, issuePasswordReset, newPasswordResetToken, passwordResetRequestId, sendPasswordResetEmail, type PasswordResetMailConfig } from "./services/passwordReset.js";
 import { z } from "zod";
@@ -630,7 +631,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
             db,
             res.locals.context,
             String(req.params.id),
-            req.query.kind,
+            requestQuery(req).kind,
             req.headers["content-type"]?.split(";")[0],
             req.body,
           ),
@@ -1174,7 +1175,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
     const query = z.object({
       limit: z.coerce.number().int().min(1).max(50).default(20),
       offset: z.coerce.number().int().min(0).max(100000).default(0),
-    }).parse(req.query);
+    }).parse(requestQuery(req));
     res.json(await previewVehicleCatalogReview(db, res.locals.context, {
       ...query,
       plateLookupEnabled: (await vehicleLookupAccess(db, res.locals.context.tenantId)).enabled,
@@ -1191,11 +1192,11 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
   app.post('/api/repair-services/identify-model',async(req,res)=>res.json(await identifyVehicleModel(db,res.locals.context,req.body.vehicle || req.body)));
   app.post('/api/vehicles/catalog-backfill/preview',async(req,res)=>{ requireAdmin(res.locals.context); const input=z.object({limit:z.number().int().min(1).max(500).optional(),cursor:z.string().max(80).optional()}).parse(req.body||{}); res.json(await previewVehicleCatalogBackfill(db,res.locals.context,input.limit,input.cursor)); });
   app.post('/api/vehicles/catalog-backfill/apply',async(req,res)=>{ requireAdmin(res.locals.context); const input=z.object({limit:z.number().int().min(1).max(50).optional(),cursor:z.string().max(80).optional()}).parse(req.body||{}); res.json(await applyVehicleCatalogBackfill(db,res.locals.context,input.limit,input.cursor)); });
-  app.get('/api/repair-services/brands',async(req,res)=>res.json(await searchBrands(db,res.locals.context,req.query)));
-  app.get('/api/repair-services/models',async(req,res)=>res.json(await searchModels(db,res.locals.context,req.query)));
+  app.get('/api/repair-services/brands',async(req,res)=>res.json(await searchBrands(db,res.locals.context,requestQuery(req))));
+  app.get('/api/repair-services/models',async(req,res)=>res.json(await searchModels(db,res.locals.context,requestQuery(req))));
   app.get('/api/repair-services/models/:id',async(req,res)=>res.json(await repairModel(db,res.locals.context,String(req.params.id))));
-  app.get('/api/repair-services/models/:id/services',async(req,res)=>res.json(await searchRepairServices(db,res.locals.context,String(req.params.id),req.query)));
-  app.get('/api/workshop-services',async(req,res)=>res.json(await listWorkshopServices(db,res.locals.context,req.query)));
+  app.get('/api/repair-services/models/:id/services',async(req,res)=>res.json(await searchRepairServices(db,res.locals.context,String(req.params.id),requestQuery(req))));
+  app.get('/api/workshop-services',async(req,res)=>res.json(await listWorkshopServices(db,res.locals.context,requestQuery(req))));
   app.post('/api/workshop-services',async(req,res)=>res.json({id:await transaction(db,async()=>{const key=await saveWorkshopService(db,res.locals.context,req.body);await audit(db,res.locals.context,'workshop_service.created',key);return key;})}));
   app.put('/api/workshop-services/:id',async(req,res)=>res.json({id:await transaction(db,async()=>{const key=await saveWorkshopService(db,res.locals.context,req.body,String(req.params.id));await audit(db,res.locals.context,'workshop_service.updated',key);return key;})}));
   app.delete('/api/workshop-services/:id',async(req,res)=>{
@@ -1206,7 +1207,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
     await transaction(db,async()=>{await setWorkshopServiceActive(db,res.locals.context,String(req.params.id),input.active);await audit(db,res.locals.context,input.active?'workshop_service.reactivated':'workshop_service.inactivated',String(req.params.id));});
     res.json({ok:true});
   });
-  app.get('/api/workshop-service-categories',async(req,res)=>res.json(await listWorkshopServiceCategories(db,res.locals.context,req.query)));
+  app.get('/api/workshop-service-categories',async(req,res)=>res.json(await listWorkshopServiceCategories(db,res.locals.context,requestQuery(req))));
   app.post('/api/workshop-service-categories',async(req,res)=>res.json({id:await transaction(db,async()=>{const id=await saveWorkshopServiceCategory(db,res.locals.context,req.body);await audit(db,res.locals.context,'workshop_service_category.created',id);return id;})}));
   app.put('/api/workshop-service-categories/:id',async(req,res)=>res.json({id:await transaction(db,async()=>{const id=await saveWorkshopServiceCategory(db,res.locals.context,req.body,String(req.params.id));await audit(db,res.locals.context,'workshop_service_category.updated',id);return id;})}));
   app.patch('/api/workshop-service-categories/:id/status',async(req,res)=>{
@@ -1522,8 +1523,9 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
 
   app.get("/api/documents/:kind/:id",async(req,res)=>{
     const kind=z.enum(["order","checklist"]).parse(req.params.kind),id=String(req.params.id),ctx=res.locals.context;
-    const revision=req.query.revision===undefined?undefined:z.coerce.number().int().positive().parse(req.query.revision);
-    if(req.query.current==="1") {
+    const query=requestQuery(req);
+    const revision=query.revision===undefined?undefined:z.coerce.number().int().positive().parse(query.revision);
+    if(query.current==="1") {
       if(kind!=="order" || revision) throw Object.assign(new Error("Visualização atual inválida."),{status:400});
       res.set("Cache-Control","no-store").json(await issueDocument(db,ctx,kind,id,false,true));
       return;
