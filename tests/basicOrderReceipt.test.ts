@@ -48,6 +48,10 @@ test("Básico finaliza OS e registra recebimento integral uma única vez", async
     assert.equal(db.prepare("SELECT COUNT(*) n FROM audit_events WHERE tenant_id='a' AND entity_id=? AND action='order.basic_receipt_registered'").get(orderId)!.n, 1);
     await assert.rejects(recordBasicOrderReceipt(db, basicOwner, orderId, "Pix"), /já foi registrado/);
     assert.equal(db.prepare("SELECT COUNT(*) n FROM cash_entries WHERE tenant_id='a'").get()!.n, 1);
+    const after = workspaceForModules({ orders: await listOrders(db, "a"), cash_accounts: [] }, basicOwner.modules);
+    assert.equal(after.orders[0].payment_status, "paid");
+    assert.equal(after.orders[0].payment_method, "Pix");
+    assert.ok(after.orders[0].payment_paid_at);
     await assert.rejects(transitionOrder(db, basicOwner, orderId, "open"), /recebimento confirmado/);
   } finally {
     db.close();
