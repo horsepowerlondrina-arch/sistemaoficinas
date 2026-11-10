@@ -536,11 +536,11 @@ Identidade, taxas, mão de obra e preços.
 
 ### Dados da Oficina Fictícia A
 
-Identificação, endereço efetivo, navegação por seções e prévia de documento.
+Dados da oficina em seções separadas; edição preservada ao navegar e prévia de documentos.
 
 [![Dados da Oficina Fictícia A](./capturas/14-configuracoes/dados-oficina-a.png)](./capturas/14-configuracoes/dados-oficina-a.png)
 
-Estado: capturada · mobile · captura 2026-11-01 · commit de origem: 56b226764ee6420a52bdff3a41bd459113618460 · [arquivo completo](./capturas/14-configuracoes/dados-oficina-a.png)
+Estado: capturada · mobile · captura 2026-11-10 · commit de origem: 87f4e7157094219d64c30322a5d954aeb2fca465 · [arquivo completo](./capturas/14-configuracoes/dados-oficina-a.png)
 
 ### Taxas e parcelamento
 
@@ -560,19 +560,19 @@ Estado: capturada · mobile · captura 2026-11-01 · commit de origem: 56b226764
 
 ### Lucro de peças e terceiros
 
-Faixas editáveis de peças e terceiros com simuladores que mostram o preço sugerido.
+Peças e serviços de terceiros em abas separadas, com faixas e simuladores de preço.
 
 [![Lucro de peças e terceiros](./capturas/14-configuracoes/lucro-pecas-terceiros.png)](./capturas/14-configuracoes/lucro-pecas-terceiros.png)
 
-Estado: capturada · mobile · captura 2026-11-03 · commit de origem: b8d27c0f97305c128c7a4a8ed9047aad4c061261 · [arquivo completo](./capturas/14-configuracoes/lucro-pecas-terceiros.png)
+Estado: capturada · mobile · captura 2026-11-10 · commit de origem: 87f4e7157094219d64c30322a5d954aeb2fca465 · [arquivo completo](./capturas/14-configuracoes/lucro-pecas-terceiros.png)
 
 ### Dados da Oficina Fictícia A
 
-Identificação, endereço efetivo, navegação por seções e prévia de documento.
+Dados da oficina em seções separadas; edição preservada ao navegar e prévia de documentos.
 
 [![Dados da Oficina Fictícia A](./capturas/14-configuracoes/dados-oficina-a-desktop.png)](./capturas/14-configuracoes/dados-oficina-a-desktop.png)
 
-Estado: capturada · desktop · captura 2026-11-01 · commit de origem: 56b226764ee6420a52bdff3a41bd459113618460 · [arquivo completo](./capturas/14-configuracoes/dados-oficina-a-desktop.png)
+Estado: capturada · desktop · captura 2026-11-10 · commit de origem: 87f4e7157094219d64c30322a5d954aeb2fca465 · [arquivo completo](./capturas/14-configuracoes/dados-oficina-a-desktop.png)
 
 ### Taxas e parcelamento
 
@@ -592,27 +592,27 @@ Estado: capturada · desktop · captura 2026-11-01 · commit de origem: 56b22676
 
 ### Lucro de peças e terceiros
 
-Faixas editáveis de peças e terceiros com simuladores que mostram o preço sugerido.
+Peças e serviços de terceiros em abas separadas, com faixas e simuladores de preço.
 
 [![Lucro de peças e terceiros](./capturas/14-configuracoes/lucro-pecas-terceiros-desktop.png)](./capturas/14-configuracoes/lucro-pecas-terceiros-desktop.png)
 
-Estado: capturada · desktop · captura 2026-11-03 · commit de origem: b8d27c0f97305c128c7a4a8ed9047aad4c061261 · [arquivo completo](./capturas/14-configuracoes/lucro-pecas-terceiros-desktop.png)
+Estado: capturada · desktop · captura 2026-11-10 · commit de origem: 87f4e7157094219d64c30322a5d954aeb2fca465 · [arquivo completo](./capturas/14-configuracoes/lucro-pecas-terceiros-desktop.png)
 
 ### Conta da oficina
 
-Administrador, alteração de senha por e-mail, plano contratado e ações de assinatura futuras.
+Administrador, alteração de senha por e-mail e integração exclusiva da Horse Power; assinatura em aba própria.
 
 [![Conta da oficina](./capturas/14-configuracoes/config-conta-integracoes-desktop.png)](./capturas/14-configuracoes/config-conta-integracoes-desktop.png)
 
-Estado: capturada · desktop · captura 2026-11-03 · commit de origem: f02307752aaf81e1b2d86b9974e444c660c44f3f · [arquivo completo](./capturas/14-configuracoes/config-conta-integracoes-desktop.png)
+Estado: capturada · desktop · captura 2026-11-10 · commit de origem: 87f4e7157094219d64c30322a5d954aeb2fca465 · [arquivo completo](./capturas/14-configuracoes/config-conta-integracoes-desktop.png)
 
 ### Conta da oficina
 
-Administrador, alteração de senha por e-mail, plano contratado e ações de assinatura futuras.
+Administrador, alteração de senha por e-mail e integração exclusiva da Horse Power; assinatura em aba própria.
 
 [![Conta da oficina](./capturas/14-configuracoes/config-conta-integracoes-mobile.png)](./capturas/14-configuracoes/config-conta-integracoes-mobile.png)
 
-Estado: capturada · mobile · captura 2026-11-03 · commit de origem: f02307752aaf81e1b2d86b9974e444c660c44f3f · [arquivo completo](./capturas/14-configuracoes/config-conta-integracoes-mobile.png)
+Estado: capturada · mobile · captura 2026-11-10 · commit de origem: 87f4e7157094219d64c30322a5d954aeb2fca465 · [arquivo completo](./capturas/14-configuracoes/config-conta-integracoes-mobile.png)
 
 ### Máquina e taxas por parcela
 
