@@ -9,9 +9,7 @@
 .billing-plan h3,.billing-plan p{margin:0}
 .billing-section .pa-form{gap:16px}
 .billing-workshop{display:flex;flex-direction:column;gap:16px;max-width:1100px}
-.billing-heading h2{margin:0 0 4px;font-size:23px}
-.billing-heading p,.billing-label,.billing-sync-note,.billing-policy{color:#718096}
-.billing-heading p{margin:0}
+.billing-label,.billing-sync-note,.billing-policy{color:#718096}
 .billing-test-note{align-self:flex-start;margin:0;padding:7px 10px;border-radius:7px;background:#f4ecee;color:#7a4651;font-size:12px}
 .billing-summary-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
 .billing-summary-card{min-width:0}

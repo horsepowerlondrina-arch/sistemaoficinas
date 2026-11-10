@@ -47,8 +47,7 @@ export function WorkshopBilling({tenantId}:{tenantId:string}){
  const action=data?.enabled?workshopBillingAction(data,trialActive,today):null;
  const status=data?.read_only?"Somente leitura":data?.pending?"Pagamento pendente":trialActive?"Em teste":account?.managed?"Em dia":plan?.status?statusLabels[plan.status]??plan.status:"Sem assinatura";
  const actionReady=!syncing&&!syncError;
- return <div className="billing-workshop">
-  <div className="billing-heading"><h2>Assinatura e pagamentos</h2><p>Plano, vencimento e pagamentos da oficina.</p></div>
+ return <div className="billing-workshop" aria-label="Assinatura e pagamentos">
   {data?.test_mode&&<p className="billing-test-note">Ambiente de teste · pagamentos fictícios</p>}
   {error&&<p role="alert" className="error-box">{error}</p>}
   {planError&&<p role="alert" className="error-box">{planError}</p>}

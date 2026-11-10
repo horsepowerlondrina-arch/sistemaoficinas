@@ -146,12 +146,11 @@ export function CardMachines() {
   };
   return (
     <section className="panel work-order-section card-machines">
-      <h2>Máquinas de cartão</h2>
-      <p>
-        Taxas percentuais totais por operação. Campo vazio deixa a modalidade
-        indisponível; 0 registra uma taxa de zero por cento. Alterações valem
-        para novos planos de recebimento.
-      </p>
+      <div className="settings-card-header">
+        <div><h2>Máquinas de cartão</h2><p>Configure as taxas que a oficina paga em cada operação.</p></div>
+        {loaded && <button type="button" className="button primary" onClick={() => open()}>Cadastrar máquina</button>}
+      </div>
+      <p className="muted">Campo vazio deixa a modalidade indisponível; 0 registra uma taxa de zero por cento. Alterações valem para novos planos de recebimento.</p>
       {error && (
         <p role="alert" className="error-box">
           {error}
@@ -160,35 +159,22 @@ export function CardMachines() {
       {!loaded && !error && <p role="status">Carregando máquinas...</p>}
       {loaded && (
         <>
-          <button
-            type="button"
-            className="button primary"
-            onClick={() => open()}
-          >
-            Cadastrar máquina
-          </button>
           {!machines.length && <p>Nenhuma máquina cadastrada.</p>}
-          <div className="form-grid">
+          <div className="settings-machine-list">
             {machines.map((m) => (
-              <section className="panel settings-card" key={m.id}>
-                <h3>{m.name}</h3>
-                <p>
-                  {m.operator} · {m.active ? "Ativa" : "Desativada"}
-                  {m.is_default ? " · Padrão" : ""}
-                </p>
-                <p>
-                  Até {m.max_installments} parcelas · {m.rates.length} taxas
-                  cadastradas
-                </p>
+              <div className="settings-machine-row" key={m.id}>
+                <div><strong>{m.name}</strong>{m.is_default && <span className="settings-machine-badge">Padrão</span>}
+                  <small>{m.operator} · {m.active ? "Ativa" : "Desativada"} · até {m.max_installments} parcelas · {m.rates.length} taxas cadastradas</small>
+                </div>
                 <button
                   type="button"
                   className="button"
                   aria-label={`Editar ${m.name}`}
                   onClick={() => open(m)}
                 >
-                  Editar
+                  Editar taxas
                 </button>
-              </section>
+              </div>
             ))}
           </div>
         </>
