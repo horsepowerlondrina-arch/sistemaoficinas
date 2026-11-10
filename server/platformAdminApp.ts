@@ -3,6 +3,7 @@ import { stripeAdminRoutes } from "./stripeBillingRoutes.js";
 import type { StripeBilling } from "./services/stripeBilling.js";
 import { plateLookupStatus } from "./services/vehicleLookup.js";
 import express, { type NextFunction, type Request, type Response } from "express";
+import { requestQuery } from "./requestQuery.js";
 import { randomBytes, randomUUID } from "node:crypto";
 import type { Pool } from "pg";
 import { z } from "zod";
@@ -443,10 +444,11 @@ export function createPlatformAdminApp(pool: Pool, encryptionKey: string, transf
     res.json({ ok: true });
   });
   app.get("/admin-api/workshops", requireSession, requirePermission("workshops:read"), async (req, res) => {
-    const search = z.string().trim().max(120).catch("").parse(req.query.search);
-    const status = z.enum(["all", ...workshopStatuses]).catch("all").parse(req.query.status);
-    const page = z.coerce.number().int().min(1).max(100000).catch(1).parse(req.query.page);
-    const pageSize = z.coerce.number().int().min(1).max(100).catch(25).parse(req.query.page_size);
+    const query = requestQuery(req);
+    const search = z.string().trim().max(120).catch("").parse(query.search);
+    const status = z.enum(["all", ...workshopStatuses]).catch("all").parse(query.status);
+    const page = z.coerce.number().int().min(1).max(100000).catch(1).parse(query.page);
+    const pageSize = z.coerce.number().int().min(1).max(100).catch(25).parse(query.page_size);
     const rows = await pool.query("SELECT * FROM platform_admin.workshop_directory($1,$2,$3,$4,NULL)", [search,status,pageSize,(page-1)*pageSize]);
     const invitations = await invitationViews(pool, rows.rows.map(row => String(row.tenant_id)));
     const items = rows.rows.map(row => ({ ...row, ...(invitations.get(String(row.tenant_id)) || { invitation_status:"none", invitation_expires_at:null, invitation_sent_at:null }) }));
@@ -658,7 +660,7 @@ export function createPlatformAdminApp(pool: Pool, encryptionKey: string, transf
     res.status(410).json({error:"Esta alteração foi encerrada. Use o seletor de plano e acesso da oficina."});
   });
   app.get("/admin-api/audit", requireSession, requirePermission("audit:read"), async (req, res) => {
-    const limit = Math.max(1, Math.min(200, Number(req.query.limit) || 100));
+    const limit = Math.max(1, Math.min(200, Number(requestQuery(req).limit) || 100));
     const rows = await pool.query(`SELECT id,actor_administrator_id,subject_administrator_id,actor_email,action,result,technical_context,created_at
       FROM platform_admin.audit_events ORDER BY created_at DESC LIMIT $1`, [limit]);
     res.json(rows.rows);
