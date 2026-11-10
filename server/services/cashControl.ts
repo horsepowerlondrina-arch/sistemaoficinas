@@ -18,10 +18,13 @@ export async function cashAccount(
   accountId: string | undefined,
   day: string,
   scheduled = false,
+  allowNoActiveAccount = false,
 ) {
   if (!accountId) {
     const existing = await db
-      .prepare("SELECT COUNT(*) n FROM cash_accounts WHERE tenant_id=?")
+      .prepare(allowNoActiveAccount
+        ? "SELECT COUNT(*) n FROM cash_accounts WHERE tenant_id=? AND active=1"
+        : "SELECT COUNT(*) n FROM cash_accounts WHERE tenant_id=?")
       .get(ctx.tenantId);
     if (Number(existing?.n))
       throw new Error(
