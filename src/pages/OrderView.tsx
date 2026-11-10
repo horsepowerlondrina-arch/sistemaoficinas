@@ -237,7 +237,9 @@ export function OrderView() {
         {admin && !financeEnabled && order.status === "completed" && Number(order.total) > 0 && (
           <div className="work-order-summary-item">
             <span>Recebimento</span>
-            <strong>{order.payment_status === "paid" ? "Recebido" : "Pendente"}</strong>
+            <strong>{order.payment_status === "paid"
+              ? `Recebido${order.payment_paid_at ? ` em ${dateLabel(order.payment_paid_at)}` : ""}${order.payment_method ? ` · ${order.payment_method}` : ""}`
+              : "Pendente"}</strong>
           </div>
         )}
         {admin && (
