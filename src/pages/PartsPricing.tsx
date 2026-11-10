@@ -50,28 +50,11 @@ function ProfitTable({
   return (
     <>
       <p className="muted">Faixas de custo em reais, sem lacunas ou sobreposições.</p>
-      <div className="table-scroll">
-        <table
-          aria-label={
-            thirdParty
-              ? "Tabela de Serviços de Terceiros"
-              : "Tabela de Peças e Produtos"
-          }
-        >
-          <thead>
-            <tr>
-              <th>Custo inicial (R$)</th>
-              <th>Custo final (R$)</th>
-              <th>Lucro — acréscimo (%)</th>
-              {!thirdParty && <th>Ganho mínimo / un. (R$)</th>}
-              <th>Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r, i) => (
-              <tr key={r.key}>
-                <td>
-                  <NumericInput
+      <div className="pricing-ranges" aria-label={thirdParty ? "Faixas dos serviços de terceiros" : "Faixas de peças e produtos"}>
+        {rows.map((r, i) => (
+          <div className={thirdParty ? "pricing-range third-party" : "pricing-range"} key={r.key}>
+            <Field label="Custo inicial (R$)">
+              <NumericInput
                     aria-label={`Custo inicial de ${label} faixa ${i + 1}`}
                     type="number"
                     required
@@ -84,10 +67,10 @@ function ProfitTable({
                         from: Math.round(Number(e.target.value) * 100),
                       })
                     }
-                  />
-                </td>
-                <td>
-                  {r.up_to !== null && (
+              />
+            </Field>
+            <div className="field"><span>Custo final (R$)</span>
+              {r.up_to !== null && (
                     <NumericInput
                       aria-label={`Custo final de ${label} faixa ${i + 1}`}
                       type="number"
@@ -102,8 +85,8 @@ function ProfitTable({
                         })
                       }
                     />
-                  )}
-                  {i === rows.length - 1 && (
+              )}
+              {i === rows.length - 1 && (
                     <label className="checkbox-label">
                       <input
                         type="checkbox"
@@ -118,10 +101,10 @@ function ProfitTable({
                       />
                       Sem limite máximo de {label}
                     </label>
-                  )}
-                </td>
-                <td>
-                  <NumericInput
+              )}
+            </div>
+            <Field label="Acréscimo (%)">
+              <NumericInput
                     aria-label={`Lucro de ${label} faixa ${i + 1}`}
                     type="number"
                     required
@@ -134,11 +117,11 @@ function ProfitTable({
                         markup_bps: Math.round(Number(e.target.value) * 100),
                       })
                     }
-                  />
-                </td>
-                {!thirdParty && (
-                  <td>
-                    <NumericInput
+              />
+            </Field>
+            {!thirdParty && (
+              <Field label="Ganho mínimo / un. (R$)">
+                <NumericInput
                       aria-label={`Ganho mínimo de peças faixa ${i + 1}`}
                       type="number"
                       required
@@ -153,24 +136,18 @@ function ProfitTable({
                           ),
                         })
                       }
-                    />
-                  </td>
-                )}
-                <td>
-                  <button
+                />
+              </Field>
+            )}
+            <button
                     type="button"
                     className="button small"
                     aria-label={`Excluir faixa ${i + 1} de ${label}`}
                     disabled={rows.length === 1}
                     onClick={() => setRows(rows.filter((_, n) => n !== i))}
-                  >
-                    Excluir
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+            >Excluir</button>
+          </div>
+        ))}
       </div>
       <button
         type="button"
@@ -208,6 +185,7 @@ export function PartsPricing() {
   const [mode, setMode] = useState<PricingPolicy["mode"]>(
     initial.mode ?? "legacy",
   );
+  const [activeSection, setActiveSection] = useState<"parts" | "third-party">("parts");
   const [rate, setRate] = useState(initial.rate_bps ?? 4000);
   const policy = {
     mode,
@@ -247,7 +225,7 @@ export function PartsPricing() {
       : "");
   return (
     <form
-      className="panel work-order-section"
+      className="parts-pricing-form"
       onSubmit={async (e) => {
         e.preventDefault();
         if (invalid) {
@@ -268,106 +246,49 @@ export function PartsPricing() {
         }
       }}
     >
-      <fieldset disabled={busy} className="product-batch-fields">
-        <h2>Peças e Produtos</h2>
-        <p className="muted">Defina o lucro sugerido conforme o custo de cada peça.</p>
-        <Field label="Regra de preço das peças">
-          <select
-            value={mode}
-            onChange={(e) => setMode(e.target.value as PricingPolicy["mode"])}
-          >
-            <option value="legacy">Faixas de custo e ganho mínimo</option>
-            <option value="markup">Acréscimo sobre o custo</option>
-            <option value="margin">Margem sobre a venda</option>
-          </select>
-        </Field>
-        {mode !== "legacy" && (
-          <Field
-            label={
-              mode === "margin"
-                ? "Margem sobre a venda (%)"
-                : "Acréscimo sobre o custo (%)"
-            }
-          >
-            <NumericInput
-              type="number"
-              required
-              min="0"
-              max={mode === "margin" ? "99.99" : "1000"}
-              step="0.01"
-              value={rate / 100}
-              onChange={(e) =>
-                setRate(Math.round(Number(e.target.value) * 100))
-              }
-            />
-          </Field>
-        )}
-        {mode !== "legacy" && (
-          <p className="muted">As faixas ficam guardadas para quando este modo for selecionado.</p>
-        )}
-        <ProfitTable rows={rules} setRows={setRules} />
-        <h3>Simular preço de peça</h3>
-        <div className="form-grid">
-          <Field label="Custo sem frete (R$)">
-            <NumericInput
-              type="number"
-              min="0"
-              step="0.01"
-              value={cost / 100}
-              onChange={(e) =>
-                setCost(Math.round(Number(e.target.value) * 100))
-              }
-            />
-          </Field>
-          <Field label="Frete por unidade (R$)">
-            <NumericInput
-              type="number"
-              min="0"
-              step="0.01"
-              value={freight / 100}
-              onChange={(e) =>
-                setFreight(Math.round(Number(e.target.value) * 100))
-              }
-            />
-          </Field>
-        </div>
-        {simulationError ? (
-          <p role="alert">{simulationError}</p>
-        ) : (
-          <p data-testid="product-price-simulation">
-            Preço sugerido: <strong>{money(price)}</strong>
-          </p>
-        )}
-        <h3>Serviços de Terceiros</h3>
-        <p className="muted">Defina o lucro sugerido para serviços contratados de terceiros.</p>
-        <ProfitTable rows={serviceRules} setRows={setServiceRules} thirdParty />
-        <h3>Simular preço de serviço</h3>
-        <Field label="Custo do serviço de terceiros (R$)">
-          <NumericInput
-            type="number"
-            min="0"
-            step="0.01"
-            value={serviceCost / 100}
-            onChange={(e) =>
-              setServiceCost(Math.round(Number(e.target.value) * 100))
-            }
-          />
-        </Field>
-        {serviceError ? (
-          <p role="alert">{serviceError}</p>
-        ) : (
-          <p data-testid="service-price-simulation">
-            Preço sugerido: <strong>{money(servicePrice)}</strong>
-          </p>
-        )}
-
-        {error && (
-          <div role="alert" className="error-box">
-            {error}
-          </div>
-        )}
-        {dirty && <p role="status">Alterações não salvas.</p>}
-        <Submit busy={busy}>Salvar política de preços</Submit>
+      <div className="tabs settings-section-links" role="tablist" aria-label="Lucro de peças e terceiros">
+        <button type="button" role="tab" id="pricing-parts-tab" aria-controls="pricing-parts-panel" aria-selected={activeSection === "parts"} className={activeSection === "parts" ? "active" : ""} onClick={() => setActiveSection("parts")}>Peças e produtos</button>
+        <button type="button" role="tab" id="pricing-third-tab" aria-controls="pricing-third-panel" aria-selected={activeSection === "third-party"} className={activeSection === "third-party" ? "active" : ""} onClick={() => setActiveSection("third-party")}>Serviços de terceiros</button>
+      </div>
+      <fieldset disabled={busy} className="pricing-fields">
+        {activeSection === "parts" ? <div id="pricing-parts-panel" role="tabpanel" aria-labelledby="pricing-parts-tab" className="pricing-content-grid">
+          <section className="panel work-order-section">
+            <h2>Regra de preço das peças</h2>
+            <p className="muted">Escolha como o preço sugerido será calculado.</p>
+            <Field label="Método de cálculo"><select value={mode} onChange={(e) => setMode(e.target.value as PricingPolicy["mode"])}>
+              <option value="legacy">Faixas de custo e ganho mínimo</option>
+              <option value="markup">Acréscimo sobre o custo</option>
+              <option value="margin">Margem sobre a venda</option>
+            </select></Field>
+            {mode !== "legacy" && <Field label={mode === "margin" ? "Margem sobre a venda (%)" : "Acréscimo sobre o custo (%)"}>
+              <NumericInput type="number" required min="0" max={mode === "margin" ? "99.99" : "1000"} step="0.01" value={rate / 100} onChange={(e) => setRate(Math.round(Number(e.target.value) * 100))}/>
+            </Field>}
+            {mode === "legacy" ? <><h3>Faixas de custo</h3><ProfitTable rows={rules} setRows={setRules}/></>
+              : <p className="muted">As faixas continuam guardadas e reaparecem quando este método for selecionado.</p>}
+          </section>
+          <section className="panel work-order-section">
+            <h2>Simular preço</h2><p className="muted">Confira o resultado antes de salvar.</p>
+            <Field label="Custo da peça (R$)"><NumericInput type="number" min="0" step="0.01" value={cost / 100} onChange={(e) => setCost(Math.round(Number(e.target.value) * 100))}/></Field>
+            <Field label="Frete por unidade (R$)"><NumericInput type="number" min="0" step="0.01" value={freight / 100} onChange={(e) => setFreight(Math.round(Number(e.target.value) * 100))}/></Field>
+            {simulationError ? <p role="alert">{simulationError}</p> : <p className="pricing-simulation" data-testid="product-price-simulation">Preço sugerido <strong>{money(price)}</strong></p>}
+            <p className="muted">A simulação não altera produtos cadastrados.</p>
+          </section>
+        </div> : <div id="pricing-third-panel" role="tabpanel" aria-labelledby="pricing-third-tab" className="pricing-content-grid">
+          <section className="panel work-order-section">
+            <h2>Lucro dos serviços de terceiros</h2>
+            <p className="muted">Defina o acréscimo sugerido conforme o custo contratado.</p>
+            <h3>Faixas de custo</h3>
+            <ProfitTable rows={serviceRules} setRows={setServiceRules} thirdParty/>
+          </section>
+          <section className="panel work-order-section">
+            <h2>Simular preço</h2><p className="muted">Confira o resultado antes de salvar.</p>
+            <Field label="Custo do serviço (R$)"><NumericInput type="number" min="0" step="0.01" value={serviceCost / 100} onChange={(e) => setServiceCost(Math.round(Number(e.target.value) * 100))}/></Field>
+            {serviceError ? <p role="alert">{serviceError}</p> : <p className="pricing-simulation" data-testid="service-price-simulation">Preço sugerido <strong>{money(servicePrice)}</strong></p>}
+            <p className="muted">A simulação não altera serviços cadastrados.</p>
+          </section>
+        </div>}
+        {error && <div role="alert" className="error-box">{error}</div>}
+        <div className="pricing-save-footer"><p role="status">{dirty ? "Alterações não salvas." : "Política de preços salva."}</p><Submit busy={busy}>Salvar política de preços</Submit></div>
       </fieldset>
     </form>
   );
