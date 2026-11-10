@@ -73,6 +73,7 @@ export function OrderEditor() {
 function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
   const { data, session, refresh, notify } = useApp();
   const admin = session.role === "owner";
+  const financeEnabled = session.modules?.finance !== false;
   const navigate = useNavigate();
   const [form, setForm] = useState({
     guest_name: order?.guest_name || "",
@@ -345,12 +346,14 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
         result.warnings?.length
           ? `OS finalizada com aviso: ${result.warnings.join(" ")}`
           : confirm === "completed"
-            ? "OS finalizada. Estoque disponível baixado e contas a receber atualizadas."
+            ? financeEnabled
+              ? "OS finalizada. Estoque disponível baixado e contas a receber atualizadas."
+              : "OS finalizada. O recebimento pode ser registrado no resumo da OS."
             : "Situação atualizada.",
       );
       setConfirm("");
       navigate(
-        `/ordens/${order!.id}${confirm === "completed" ? "/receber" : ""}`,
+        `/ordens/${order!.id}${confirm === "completed" && financeEnabled ? "/receber" : ""}`,
       );
     } catch (e) {
       setError((e as Error).message);
@@ -955,7 +958,9 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
           <p className="summary-note">
             {form.status === "quote"
               ? "No status Orçamento, a OS não movimenta estoque nem gera cobrança."
-              : "Ao finalizar, as peças são baixadas do estoque e o valor é lançado em contas a receber."}
+              : financeEnabled
+                ? "Ao finalizar, as peças são baixadas do estoque e o valor é lançado em contas a receber."
+                : "Ao finalizar, as peças são baixadas e o recebimento pode ser registrado na própria OS."}
           </p>
           {order && admin && (
             <button
@@ -976,7 +981,7 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
               {next[order.status][1]}
             </button>
           )}
-          {order && order.status === "completed" && (
+          {order && order.status === "completed" && financeEnabled && (
             <button
               className="button full-width"
               onClick={() => navigate("/financeiro")}
@@ -1154,7 +1159,9 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
             order!.status === "completed" && confirm !== "completed"
               ? "A finalização será desfeita: as peças baixadas voltarão ao estoque e a cobrança ainda não recebida será removida. Se já houver pagamento confirmado, a reabertura será bloqueada."
               : confirm === "completed"
-                ? "Esta ação baixa os produtos do estoque, gera a cobrança e bloqueia a edição até que a OS seja reaberta."
+                ? financeEnabled
+                  ? "Esta ação baixa os produtos do estoque, gera a cobrança e bloqueia a edição até que a OS seja reaberta."
+                  : "Esta ação finaliza a OS e baixa os produtos do estoque. O recebimento pode ser registrado depois, na própria OS."
                 : confirm === "quote"
                   ? "A OS voltará ao status Orçamento e poderá ser editada normalmente."
                   : confirm === "cancelled"

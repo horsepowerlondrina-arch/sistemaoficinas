@@ -30,10 +30,11 @@ const baseOrder = (overrides: Partial<Order> = {}): Order => ({
   ...overrides,
 });
 
-function renderOrder(order: Order, options: { role?: string; vehicle?: Record<string, any> } = {}) {
+function renderOrder(order: Order, options: { role?: string; vehicle?: Record<string, any>; modules?: Record<string, boolean> } = {}) {
   const context: any = {
     session: {
       role: options.role || "owner",
+      modules: options.modules,
       user: { id: "user-test", name: "Admin Teste", email: "admin@example.test" },
       tenant: { id: "tenant-test", name: "Oficina Fictícia" },
       tenants: [],
@@ -146,4 +147,27 @@ test("owner can change a completed OS status; mechanic cannot", () => {
   assert.match(ownerHtml, /Receber OS/);
   const mechanicHtml = renderOrder(completed, { role: "operator" });
   assert.doesNotMatch(mechanicHtml, /Alterar status/);
+});
+
+test("plano Básico mantém OS finalizada e oferece recebimento apenas ao administrador", () => {
+  const pending = renderOrder(baseOrder({
+    status: "completed", display_status: "completed", payment_status: "open",
+  }), { modules: { orders: true, finance: false } });
+  assert.match(pending, /Finalizada/);
+  assert.match(pending, /Recebimento/);
+  assert.match(pending, /Pendente/);
+  assert.match(pending, /Registrar recebimento/);
+  assert.doesNotMatch(pending, /Receber OS|Ver recebimento/);
+
+  const received = renderOrder(baseOrder({
+    status: "completed", display_status: "completed", payment_status: "paid",
+    payment_method: "Pix", payment_paid_at: "2026-11-10T12:00:00Z",
+  }), { modules: { orders: true, finance: false } });
+  assert.match(received, /Recebido em 10\/11.*Pix/);
+  assert.doesNotMatch(received, /Registrar recebimento/);
+
+  const operator = renderOrder(baseOrder({
+    status: "completed", display_status: "completed", payment_status: "open",
+  }), { role: "operator", modules: { orders: true, finance: false } });
+  assert.doesNotMatch(operator, /Registrar recebimento|Valor total/);
 });

@@ -1,4 +1,5 @@
 import { productLabel } from "../../shared/productIdentity.js";
+import type { BasicOrderReceiptMethod } from "../../shared/basicOrderReceipt.js";
 import { resolveService, identifyVehicleModel, confirmVehicleModel, catalogAccessState } from './repairCatalog.js';
 import {
   normalizeCustomerName,
@@ -11,6 +12,7 @@ import type { Context } from "../auth/session.js";
 import { assertTransition, totalOf, type Status } from "../domain/orders.js";
 import {
   configurePlan,
+  configureBasicOrderPlan,
   settleInstallment,
   settleCredit,
   requireAdmin,
@@ -146,7 +148,7 @@ export async function listOrders(db: DB, tenant: string): Promise<Row[]> {
     .prepare(
       `SELECT o.*,COALESCE(c.name,NULLIF(o.guest_name,''),'Cliente não informado') customer_name,
  COALESCE(v.plate,o.guest_plate) plate,COALESCE(v.brand,'') brand,COALESCE(NULLIF(v.fipe_model,''),v.model,o.guest_vehicle) model,
- r.id receivable_id,r.status payment_status,
+ r.id receivable_id,r.status payment_status,r.method payment_method,r.paid_at payment_paid_at,
  CASE WHEN o.status='completed' AND r.status='open' THEN 'awaiting_payment' ELSE o.status END display_status
  FROM orders o LEFT JOIN customers c ON c.id=o.customer_id AND c.tenant_id=o.tenant_id
  LEFT JOIN vehicles v ON v.id=o.vehicle_id AND v.tenant_id=o.tenant_id
@@ -713,6 +715,46 @@ export async function transitionOrder(
       record,
     );
     return { warnings };
+  });
+}
+export async function recordBasicOrderReceipt(
+  db: DB,
+  ctx: Context,
+  orderId: string,
+  method: BasicOrderReceiptMethod,
+  accountId?: string,
+) {
+  requireAdmin(ctx);
+  if (ctx.modules?.orders === false || ctx.modules?.finance !== false)
+    throw Object.assign(new Error("Recebimento simples indisponível para esta oficina."), { status: 403 });
+  return transaction(db, async () => {
+    const order = await scoped(db, "orders", ctx.tenantId, orderId);
+    if (order.status !== "completed" || Number(order.total) <= 0)
+      throw new Error("Finalize uma OS com valor a receber antes de registrar o pagamento.");
+    const receivable = await db
+      .prepare("SELECT * FROM receivables WHERE tenant_id=? AND order_id=?")
+      .get(ctx.tenantId, orderId);
+    if (!receivable)
+      throw Object.assign(new Error("Recebimento não encontrado nesta oficina."), { status: 404 });
+    if (receivable.status !== "open")
+      throw new Error("O recebimento desta OS já foi registrado.");
+    const existingPlan = await db
+      .prepare("SELECT 1 FROM payment_installments WHERE tenant_id=? AND receivable_id=? LIMIT 1")
+      .get(ctx.tenantId, receivable.id);
+    const existingCash = await db
+      .prepare("SELECT 1 FROM cash_entries WHERE tenant_id=? AND receivable_id=? LIMIT 1")
+      .get(ctx.tenantId, receivable.id);
+    if (receivable.plan_configured || existingPlan || existingCash)
+      throw new Error("Esta OS já possui condições ou pagamentos registrados. Use o Financeiro para concluir a cobrança.");
+    await configureBasicOrderPlan(db, ctx, String(receivable.id), method);
+    const installment = await db
+      .prepare("SELECT id FROM payment_installments WHERE tenant_id=? AND receivable_id=? AND status='open' LIMIT 1")
+      .get(ctx.tenantId, receivable.id);
+    if (!installment) throw new Error("Não foi possível preparar o recebimento.");
+    await settleInstallment(db, ctx, String(installment.id), accountId, true);
+    await audit(db, ctx, "order.basic_receipt_registered", orderId, {
+      method, amount: Number(receivable.amount), receivable_id: receivable.id,
+    });
   });
 }
 export async function settle(

@@ -44,6 +44,7 @@ import { normalizeVehicleModelLink, serviceModelIdSchema } from "./services/vehi
 import { resolve } from "node:path";
 import type { DB } from "./db/database.js";
 import { defaultWorkshopModules, moduleForApiRequest, workspaceForModules } from "../shared/workshopModules.js";
+import { basicOrderReceiptMethods } from "../shared/basicOrderReceipt.js";
 import { transaction } from "./db/database.js";
 import {
   auth,
@@ -65,6 +66,7 @@ import {
   saveOrder,
   scoped,
   settle,
+  recordBasicOrderReceipt,
   transitionOrder,
 } from "./services/workshop.js";
 import { statuses } from "./domain/orders.js";
@@ -1697,6 +1699,14 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
       date.optional().parse(req.body.due_on),
     );
     res.json({ ok: true, ...result });
+  });
+  app.post("/api/orders/:id/basic-receipt", async (req, res) => {
+    await recordBasicOrderReceipt(
+      db, res.locals.context, String(req.params.id),
+      z.enum(basicOrderReceiptMethods).parse(req.body.method),
+      z.string().min(1).optional().parse(req.body.account_id),
+    );
+    res.json({ ok: true });
   });
   app.post("/api/receivables/:id/settle", async (req, res) => {
     await settle(

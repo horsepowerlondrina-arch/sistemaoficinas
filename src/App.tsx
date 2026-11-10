@@ -428,7 +428,9 @@ export function App() {
                 <Route path="/ordens/:id/editar" element={<OrderEditor />} />
                 <Route
                   path="/ordens/:id/receber"
-                  element={<Payment key={location.pathname} />}
+                  element={session.modules?.finance === false
+                     ? <Navigate to={location.pathname.replace(/\/receber$/, "")} replace />
+                     : <Payment key={location.pathname} />}
                 />
                 <Route path="/orcamentos/novo" element={<Navigate to="/ordens/nova?status=quote" replace />} />
                 <Route path="/checklists" element={<Checklists />} />

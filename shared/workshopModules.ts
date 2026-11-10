@@ -99,6 +99,19 @@ export function workspaceForModules<T extends Record<string, unknown>>(workspace
   if (!enabled("suppliers") && Array.isArray(value.suppliers)) value.suppliers = [];
   if (!enabled("orders") && Array.isArray(value.orders)) value.orders = [];
   if (!enabled("finance")) {
+    if (Array.isArray(value.orders)) value.orders = value.orders.map((order) => {
+      if (!order || typeof order !== "object") return order;
+      const safeOrder = { ...(order as Record<string, unknown>) };
+      delete safeOrder.receivable_id;
+      if (safeOrder.status === "completed") safeOrder.display_status = "completed";
+      return safeOrder;
+    });
+    value.receipt_accounts = (enabled("orders") && Array.isArray(value.cash_accounts) ? value.cash_accounts : [])
+      .filter((account) => account && typeof account === "object" && Boolean((account as Record<string, unknown>).active))
+      .map((account) => ({
+        id: String((account as Record<string, unknown>).id),
+        name: String((account as Record<string, unknown>).name),
+      }));
     for (const key of ["receivables", "cash", "installments", "cash_accounts", "card_rates"] as const) {
       if (Array.isArray(value[key])) value[key] = [];
     }

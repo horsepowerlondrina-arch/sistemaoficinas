@@ -7,6 +7,7 @@ test("permissões por oficina usam compatibilidade habilitada e rotas conhecidas
   assert.equal(defaultWorkshopModules.technical_catalog, true);
   assert.equal(workshopModuleLabels.technical_catalog, "Catálogo Técnico de Tempos");
   assert.deepEqual(moduleForApiRequest("/orders/123/status"), ["orders"]);
+  assert.deepEqual(moduleForApiRequest("/orders/123/basic-receipt", "POST"), ["orders"]);
   assert.deepEqual(moduleForApiRequest("/orders", "POST"), ["orders","customers_vehicles"]);
   assert.deepEqual(moduleForApiRequest("/catalog-capture/123/start", "POST"), ["inventory","catalog"]);
   assert.deepEqual(moduleForApiRequest("/stock-invoices/import", "POST"), ["inventory","catalog","suppliers"]);
@@ -52,7 +53,34 @@ test("workspace não devolve dados de funcionalidades desabilitadas", () => {
   for (const key of ["customers","vehicles","catalog","product_categories","professionals","suppliers","orders","receivables","cash","installments","cash_accounts","card_rates","movements"])
     assert.deepEqual(filtered[key as keyof typeof filtered], []);
   assert.equal(filtered.payment_settings, null);
+  assert.deepEqual((filtered as typeof workspace & { receipt_accounts: unknown[] }).receipt_accounts, []);
   assert.equal("parts_pricing" in filtered, false);
   assert.equal("catalog_mode" in filtered, false);
   assert.equal(workspace.customers.length, 1, "filtering must not mutate the caller's payload");
+});
+
+test("oficina sem Financeiro conserva a OS finalizada e recebe somente contas de destino mínimas", () => {
+  const workspace = {
+    orders: [{ id: "order-a", status: "completed", display_status: "awaiting_payment",
+      receivable_id: "secret-receivable", payment_status: "open", total: 2001 }],
+    receivables: [{ id: "secret-receivable" }],
+    cash: [{ id: "secret-entry" }],
+    installments: [{ id: "secret-installment" }],
+    cash_accounts: [
+      { id: "active-account", name: "Conta ativa", active: 1, opening_balance: 5000 },
+      { id: "paused-account", name: "Conta pausada", active: 0, opening_balance: 9000 },
+    ],
+    card_rates: [{ id: "secret-rate" }],
+    payment_settings: { credit_fee_bps: 100 },
+  };
+  const filtered = workspaceForModules(workspace, { orders: true, finance: false });
+  assert.equal(filtered.orders[0].display_status, "completed");
+  assert.equal(filtered.orders[0].payment_status, "open");
+  assert.equal("receivable_id" in filtered.orders[0], false);
+  assert.deepEqual((filtered as typeof workspace & { receipt_accounts: unknown[] }).receipt_accounts,
+    [{ id: "active-account", name: "Conta ativa" }]);
+  for (const key of ["receivables", "cash", "installments", "cash_accounts", "card_rates"] as const)
+    assert.deepEqual(filtered[key], []);
+  assert.equal(filtered.payment_settings, null);
+  assert.equal(workspace.orders[0].display_status, "awaiting_payment");
 });

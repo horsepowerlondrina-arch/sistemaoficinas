@@ -1,4 +1,5 @@
 import { VehiclePlate } from "../components/VehiclePlate";
+import { basicOrderReceiptMethods, type BasicOrderReceiptMethod } from "../../shared/basicOrderReceipt";
 import { IssuedDocumentActions, IssuedDocumentPreview, IssuedDocumentProvider } from "../components/IssuedDocument";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -15,13 +16,19 @@ export function OrderView() {
   const navigate = useNavigate();
   const order = data.orders.find((o) => o.id === id);
   const admin = session.role === "owner";
+  const financeEnabled = session.modules?.finance !== false;
+  const receiptAccounts = data.receipt_accounts || [];
   const [confirm, setConfirm] = useState(""),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
     [approvalDueOn, setApprovalDueOn] = useState(""),
     [editingNotes, setEditingNotes] = useState(false),
     [notes, setNotes] = useState(""),
-    [statusPicker, setStatusPicker] = useState(false);
+    [statusPicker, setStatusPicker] = useState(false),
+    [receiptOpen, setReceiptOpen] = useState(false),
+    [receiptMethod, setReceiptMethod] = useState<BasicOrderReceiptMethod>("Pix"),
+    [receiptAccountId, setReceiptAccountId] = useState(""),
+    [receiptError, setReceiptError] = useState("");
   if (!order) return <Empty title="Atendimento não encontrado" />;
   const editable = ["quote", "open", "working", "ready"].includes(order.status);
   const customer = data.customers.find((c) => c.id === order.customer_id);
@@ -31,14 +38,16 @@ export function OrderView() {
     ["open", "OS aberta", "Deixar a OS aberta, antes do início da execução."],
     ["working", "Em execução", "Retomar ou colocar a OS em execução."],
     ["ready", "Pronta para entrega", "Marcar a OS como pronta para entrega."],
-    ["completed", "Finalizada", "Finalizar a OS, baixar estoque e gerar cobrança."],
+    ["completed", "Finalizada", financeEnabled
+      ? "Finalizar a OS, baixar estoque e gerar cobrança."
+      : "Finalizar a OS e baixar estoque. O recebimento pode ser registrado depois."],
     ["cancelled", "Cancelada", "Cancelar o atendimento mantendo o histórico."],
   ] as const;
   const next: Record<string, [string, string]> = {
     quote: ["open", "Aprovar OS"],
     open: ["working", "Iniciar execução"],
     working: ["ready", "Marcar como pronta"],
-    ready: ["completed", "Finalizar OS e receber"],
+    ready: ["completed", financeEnabled ? "Finalizar OS e receber" : "Finalizar OS"],
   };
   const action = next[order.status];
   const displayValue = (...values: unknown[]) => {
@@ -78,10 +87,27 @@ export function OrderView() {
           ? `OS finalizada com aviso: ${result.warnings.join(" ")}`
           : "Situação atualizada.",
       );
-      if (confirm === "completed") navigate(`/ordens/${id}/receber`);
+      if (confirm === "completed" && financeEnabled) navigate(`/ordens/${id}/receber`);
     } catch (e) {
       setError((e as Error).message);
       setConfirm("");
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function registerBasicReceipt() {
+    setBusy(true);
+    setReceiptError("");
+    try {
+      await send(`/orders/${id}/basic-receipt`, {
+        method: receiptMethod,
+        ...(receiptAccountId ? { account_id: receiptAccountId } : {}),
+      });
+      await refresh();
+      setReceiptOpen(false);
+      notify("Recebimento integral registrado na OS.");
+    } catch (e) {
+      setReceiptError((e as Error).message);
     } finally {
       setBusy(false);
     }
@@ -143,12 +169,22 @@ export function OrderView() {
               {action[1]}
             </button>
           )}
-          {admin && order.status === "completed" && order.receivable_id && (
+          {admin && financeEnabled && order.status === "completed" && order.receivable_id && (
             <button
               className="button primary"
               onClick={() => navigate(`/ordens/${id}/receber`)}
             >
               {order.payment_status === "paid" ? "Ver recebimento" : "Receber OS"}
+            </button>
+          )}
+          {admin && !financeEnabled && order.status === "completed" && Number(order.total) > 0 && order.payment_status === "open" && (
+            <button className="button primary" disabled={busy} onClick={() => {
+              setReceiptMethod("Pix");
+              setReceiptAccountId(receiptAccounts[0]?.id || "");
+              setReceiptError("");
+              setReceiptOpen(true);
+            }}>
+              Registrar recebimento
             </button>
           )}
         </div>
@@ -198,6 +234,14 @@ export function OrderView() {
         <div className="work-order-summary-item">
           <span>Status</span><strong><Badge status={displayStatus(order)} /></strong>
         </div>
+        {admin && !financeEnabled && order.status === "completed" && Number(order.total) > 0 && (
+          <div className="work-order-summary-item">
+            <span>Recebimento</span>
+            <strong>{order.payment_status === "paid"
+              ? `Recebido${order.payment_paid_at ? ` em ${dateLabel(order.payment_paid_at)}` : ""}${order.payment_method ? ` · ${order.payment_method}` : ""}`
+              : "Pendente"}</strong>
+          </div>
+        )}
         {admin && (
           <div className="work-order-summary-item work-order-summary-total">
             <span>Valor total</span><strong>{money(order.total)}</strong>
@@ -269,6 +313,36 @@ export function OrderView() {
       )}
       </div>
       <IssuedDocumentPreview />
+      {receiptOpen && (
+        <Modal
+          title="Registrar recebimento integral"
+          description={`OS #${order.number} · ${money(order.total)}`}
+          onClose={() => !busy && setReceiptOpen(false)}
+        >
+          <div className="modal-body">
+            <Field label="Forma de recebimento">
+              <select value={receiptMethod} onChange={(event) => setReceiptMethod(event.target.value as BasicOrderReceiptMethod)}>
+                {basicOrderReceiptMethods.map((method) => <option key={method} value={method}>{method}</option>)}
+              </select>
+            </Field>
+            {receiptAccounts.length > 0 && (
+              <Field label="Conta de destino">
+                <select value={receiptAccountId} onChange={(event) => setReceiptAccountId(event.target.value)}>
+                  {receiptAccounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
+                </select>
+              </Field>
+            )}
+            <p className="muted">Registro integral, sem parcelamento ou taxas. Confira o valor antes de confirmar.</p>
+            {receiptError && <div className="error-box" role="alert">{receiptError}</div>}
+          </div>
+          <div className="modal-footer">
+            <button className="button" disabled={busy} onClick={() => setReceiptOpen(false)}>Voltar</button>
+            <button className="button primary" disabled={busy} onClick={() => void registerBasicReceipt()}>
+              {busy ? "Registrando..." : "Confirmar recebimento"}
+            </button>
+          </div>
+        </Modal>
+      )}
       {statusPicker && (
         <Modal
           title="Alterar status do atendimento"
@@ -302,7 +376,9 @@ export function OrderView() {
             order.status === "completed" && confirm !== "completed"
               ? "A finalização será desfeita: as peças baixadas voltarão ao estoque e a cobrança ainda não recebida será removida. Se já houver pagamento confirmado, a reabertura será bloqueada."
               : confirm === "completed"
-                ? "As peças serão baixadas do estoque e você seguirá para o recebimento."
+                ? financeEnabled
+                  ? "As peças serão baixadas do estoque e você seguirá para o recebimento."
+                  : "As peças serão baixadas do estoque. O recebimento pode ser registrado no resumo da OS."
                 : confirm === "quote"
                   ? "A OS voltará ao status Orçamento e poderá ser editada normalmente."
                   : confirm === "cancelled"

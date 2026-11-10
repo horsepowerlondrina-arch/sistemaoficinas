@@ -1,4 +1,5 @@
 import { resolveCardPayments } from "./cardMachines.js";
+import { basicOrderReceiptMethods, type BasicOrderReceiptMethod } from "../../shared/basicOrderReceipt.js";
 import { transaction, type DB } from "../db/database.js";
 import type { Context } from "../auth/session.js";
 import { calculatePaymentPlan, type PaymentInput, type MixedPaymentInput } from "../domain/payments.js";
@@ -116,8 +117,13 @@ export async function configurePlan(
   record: string,
   input: PaymentInput | MixedPaymentInput,
   discount?: ReceiptDiscountInput,
+  basicOrderReceipt = false,
 ) {
   requireAdmin(ctx);
+  if (basicOrderReceipt && (
+    ctx.modules?.orders === false || ctx.modules?.finance !== false || discount ||
+    "payments" in input || !basicOrderReceiptMethods.includes(input.method as BasicOrderReceiptMethod)
+  )) throw Object.assign(new Error("Recebimento simples indisponível para esta oficina."), { status: 403 });
   return await transaction(db, async () => {
     if (discount) await persistReceivableDiscount(db, ctx, record, discount);
     const r = await scoped(db, "receivables", ctx.tenantId, record);
@@ -130,7 +136,7 @@ export async function configurePlan(
         .get(ctx.tenantId, record))
     )
       throw new Error("O plano não pode mudar após um recebimento.");
-    const plan = calculatePaymentPlan(r.amount, await resolveCardPayments(db, ctx, input));
+    const plan = calculatePaymentPlan(r.amount, basicOrderReceipt ? input : await resolveCardPayments(db, ctx, input));
     const credit = plan.plans.find(p=>p.method==='Cartão de crédito');
     const saleOn = credit ? credit.input.sale_on || cashToday() : '';
     const method = plan.plans.length>1 ? 'Misto' : plan.plans[0].method;
@@ -192,11 +198,17 @@ export async function configurePlan(
     return plan;
   });
 }
+export function configureBasicOrderPlan(db: DB, ctx: Context, record: string, method: BasicOrderReceiptMethod) {
+  return configurePlan(db, ctx, record, {
+    method, installments: 1, card_fee_bps: 0, interest_bps: 0, first_due_on: cashToday(),
+  }, undefined, true);
+}
 export async function settleInstallment(
   db: DB,
   ctx: Context,
   record: string,
   accountId?: string,
+  allowNoActiveAccount = false,
 ) {
   requireAdmin(ctx);
   return await transaction(db, async () => {
@@ -207,7 +219,7 @@ export async function settleInstallment(
       throw new Error("Esta parcela já foi recebida.");
     const now = new Date().toISOString();
     const day = cashToday(),
-      account = await cashAccount(db, ctx, accountId, day);
+      account = await cashAccount(db, ctx, accountId, day, false, allowNoActiveAccount);
     await db
       .prepare(
         "UPDATE payment_installments SET status='paid',paid_at=? WHERE tenant_id=? AND id=?",
