@@ -26,6 +26,6 @@ test("pending and invoice links take priority and reject other destinations", ()
   assert.deepEqual(workshopBillingAction(pending, false, today),
     { kind: "link", label: "Continuar pagamento", url: "https://checkout.stripe.com/c/test" });
   assert.equal(workshopBillingAction({ ...pending, pending: { ...pending.pending, url: "https://example.com/fake" } }, false, today).kind, "unavailable");
-  assert.deepEqual(workshopBillingAction({ ...base, account: { ...account, method: "card", recurring: true, invoice_payment_url: "https://invoice.stripe.com/i/test" }, read_only: true }, false, today),
+  assert.deepEqual(workshopBillingAction({ ...base, account: { ...account, method: "card", recurring: true, invoice_payment_url: "https://invoice.stripe.com/i/test" } }, false, today),
     { kind: "link", label: "Regularizar pagamento", url: "https://invoice.stripe.com/i/test" });
 });

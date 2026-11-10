@@ -27,7 +27,7 @@ export function workshopBillingAction(data: BillingSummary, trialActive: boolean
       { kind: "unavailable", message: "O endereço do pagamento pendente está indisponível. Solicite ajuda à administração." };
   }
   const invoiceUrl = stripeUrl(data.account?.invoice_payment_url, ["invoice.stripe.com", "pay.stripe.com"]);
-  if (invoiceUrl && data.read_only) return { kind: "link", label: "Regularizar pagamento", url: invoiceUrl };
+  if (invoiceUrl) return { kind: "link", label: "Regularizar pagamento", url: invoiceUrl };
   if (data.account?.recurring && data.read_only) return {
     kind: "unavailable", message: "Não há um link de regularização disponível. Solicite ajuda à administração."
   };

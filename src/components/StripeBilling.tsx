@@ -25,7 +25,7 @@ export function WorkshopBilling({tenantId}:{tenantId:string}){
  const [choosing,setChoosing]=useState(false),[priceId,setPriceId]=useState("");
  useEffect(()=>{
   let active=true;
-  setChoosing(false);setPriceId("");setConfirmed(false);setData(null);setPlan(null);setError("");setPlanError("");setSyncError("");
+  setChoosing(false);setPriceId("");setConfirmed(false);setData(null);setPlan(null);setError("");setPlanError("");setSyncError("");setSyncing(false);
   api<{plan:PlanSummary}>("/account/plan").then(v=>{if(active)setPlan(v.plan);}).catch(()=>{if(active)setPlanError("Não foi possível consultar o plano agora.");});
   api<BillingSummary>("/account/billing").then(async v=>{
    if(!active)return;
@@ -46,6 +46,7 @@ export function WorkshopBilling({tenantId}:{tenantId:string}){
  const periodPaid=!!account?.paid_until&&account.paid_until>today;
  const action=data?.enabled?workshopBillingAction(data,trialActive,today):null;
  const status=data?.read_only?"Somente leitura":data?.pending?"Pagamento pendente":trialActive?"Em teste":account?.managed?"Em dia":plan?.status?statusLabels[plan.status]??plan.status:"Sem assinatura";
+ const actionReady=!syncing&&!syncError;
  return <div className="billing-workshop">
   <div className="billing-heading"><h2>Assinatura e pagamentos</h2><p>Plano, vencimento e pagamentos da oficina.</p></div>
   {data?.test_mode&&<p className="billing-test-note">Ambiente de teste · pagamentos fictícios</p>}
@@ -56,7 +57,7 @@ export function WorkshopBilling({tenantId}:{tenantId:string}){
   {data?.enabled&&<>
    <div className="billing-summary-grid">
     <section className="panel settings-card billing-summary-card">
-     <div className="billing-summary-top"><div><span className="billing-label">Plano atual</span><strong className="billing-value">{currentPlan}</strong></div><span className="billing-status">{status}</span></div>
+     <div className="billing-summary-top"><div><span className="billing-label">Plano atual</span><strong className="billing-value">{currentPlan}</strong></div><span className="billing-status">{syncing?"Conferindo":syncError?"Último registro: "+status:status}</span></div>
      <p>{account?(account.method==="card"?"Cartão · renovação mensal automática":"Pix mensal"):"Escolha um plano para começar."}</p>
      {plan?.status==="trial"&&plan.trial_ends_at&&<p>Teste até {new Date(plan.trial_ends_at).toLocaleDateString("pt-BR")}</p>}
      {account?.cancel_at_period_end&&<p>Renovação cancelada. O período já pago será preservado.</p>}
@@ -70,10 +71,10 @@ export function WorkshopBilling({tenantId}:{tenantId:string}){
    <section className="panel settings-card billing-section">
     <h3>{action?.kind==="success"?"Sua assinatura":"Próxima ação"}</h3>
     {syncing?<p role="status">Conferindo a situação do pagamento…</p>:syncError?<p role="alert">{syncError}</p>:<p className="billing-sync-note">Situação conferida automaticamente ao abrir esta aba.</p>}
-    {action?.kind==="link"&&<a className="button primary" href={action.url}>{action.label}</a>}
-    {action?.kind==="unavailable"&&<p role="status">{action.message}</p>}
-    {action?.kind==="success"&&<p className="billing-success" role="status">Tudo certo com o seu Plano!</p>}
-    {action?.kind==="choose"&&<div>
+    {actionReady&&action?.kind==="link"&&<a className="button primary" href={action.url}>{action.label}</a>}
+    {actionReady&&action?.kind==="unavailable"&&<p role="status">{action.message}</p>}
+    {actionReady&&action?.kind==="success"&&<p className="billing-success" role="status">Tudo certo com o seu Plano!</p>}
+    {actionReady&&action?.kind==="choose"&&<div>
      <button type="button" className="button primary" aria-expanded={choosing} disabled={busy} onClick={()=>{setChoosing(!choosing);setConfirmed(false);setPriceId("");}}>{choosing?"Voltar":action.label}</button>
      {choosing&&<div className="billing-chooser">
       <label>Plano mensal<select value={priceId} disabled={busy} onChange={e=>{setPriceId(e.target.value);setConfirmed(false);}}>

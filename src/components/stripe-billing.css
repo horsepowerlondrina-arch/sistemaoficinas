@@ -20,7 +20,7 @@
 .billing-label,.billing-value{display:block}
 .billing-label{font-size:12px;margin-bottom:5px}
 .billing-value{font-size:20px;overflow-wrap:anywhere}
-.billing-status{border-radius:999px;padding:5px 9px;background:#eaf5ee;color:#276c4d;font-size:12px;font-weight:600;white-space:nowrap}
+.billing-status{border-radius:999px;padding:5px 9px;background:#eaf5ee;color:#276c4d;font-size:12px;font-weight:600;max-width:55%;text-align:right}
 .billing-workshop .billing-section{gap:12px}
 .billing-workshop .billing-section .button{align-self:flex-start}
 .billing-chooser{display:flex;flex-direction:column;gap:12px;margin-top:16px;max-width:480px}
