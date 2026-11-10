@@ -43,8 +43,11 @@ test("Básico finaliza OS e registra recebimento integral uma única vez", async
     assert.equal(receivable.status, "paid");
     assert.equal(receivable.amount, 2001);
     assert.equal(db.prepare("SELECT COUNT(*) n FROM payment_installments WHERE tenant_id='a' AND receivable_id=?").get(receivable.id)!.n, 1);
-    assert.deepEqual(db.prepare("SELECT amount,gross_amount,fee_amount,method FROM cash_entries WHERE tenant_id='a' AND receivable_id=?").get(receivable.id),
-      { amount: 2001, gross_amount: 2001, fee_amount: 0, method: "Pix" });
+    const cashEntry = db.prepare("SELECT amount,gross_amount,fee_amount,method FROM cash_entries WHERE tenant_id='a' AND receivable_id=?").get(receivable.id)!;
+    assert.equal(cashEntry.amount, 2001);
+    assert.equal(cashEntry.gross_amount, 2001);
+    assert.equal(cashEntry.fee_amount, 0);
+    assert.equal(cashEntry.method, "Pix");
     assert.equal(db.prepare("SELECT COUNT(*) n FROM audit_events WHERE tenant_id='a' AND entity_id=? AND action='order.basic_receipt_registered'").get(orderId)!.n, 1);
     await assert.rejects(recordBasicOrderReceipt(db, basicOwner, orderId, "Pix"), /já foi registrado/);
     assert.equal(db.prepare("SELECT COUNT(*) n FROM cash_entries WHERE tenant_id='a'").get()!.n, 1);
