@@ -55,7 +55,7 @@ test("Básico finaliza OS e registra recebimento integral uma única vez", async
     assert.equal(after.orders[0].payment_status, "paid");
     assert.equal(after.orders[0].payment_method, "Pix");
     assert.ok(after.orders[0].payment_paid_at);
-    await assert.rejects(transitionOrder(db, basicOwner, orderId, "open"), /recebimento confirmado/);
+    await assert.rejects(transitionOrder(db, basicOwner, orderId, "open"), /motivo do estorno/);
   } finally {
     db.close();
   }
@@ -98,6 +98,67 @@ test("recebimento simples preserva plano existente e exige conta ativa quando ho
     assert.equal(db.prepare("SELECT COUNT(*) n FROM cash_entries WHERE tenant_id='a'").get()!.n, 0);
     await recordBasicOrderReceipt(db, basicOwner, nextOrder, "Dinheiro", "account-a");
     assert.equal(db.prepare("SELECT COUNT(*) n FROM cash_movements WHERE tenant_id='a' AND account_id='account-a' AND origin='receipt'").get()!.n, 1);
+  } finally {
+    db.close();
+  }
+});
+
+test("Básico estorna recebimento com motivo, compensa caixa e reabre a OS sem perder a auditoria", async () => {
+  const db = fixture();
+  try {
+    const orderId = await completedOrder(db);
+    db.prepare("INSERT INTO cash_accounts(id,tenant_id,name,kind,opening_balance,opening_on,active) VALUES('account-a','a','Caixa','cash',0,'2026-01-01',1)").run();
+    await recordBasicOrderReceipt(db, basicOwner, orderId, "Dinheiro", "account-a");
+    const receivable = db.prepare("SELECT id FROM receivables WHERE tenant_id='a' AND order_id=?").get(orderId)!;
+    const entry = db.prepare("SELECT id FROM cash_entries WHERE tenant_id='a' AND receivable_id=?").get(receivable.id)!;
+    await assert.rejects(transitionOrder(db, basicOwner, orderId, "working"), /motivo do estorno/);
+    assert.equal(db.prepare("SELECT status FROM orders WHERE tenant_id='a' AND id=?").get(orderId)!.status, "completed");
+    await transitionOrder(db, basicOwner, orderId, "working", undefined, "Pagamento lançado por engano");
+    assert.equal(db.prepare("SELECT status FROM orders WHERE tenant_id='a' AND id=?").get(orderId)!.status, "working");
+    assert.equal(db.prepare("SELECT stock FROM catalog WHERE tenant_id='a' AND id='p'").get()!.stock, 5);
+    assert.equal(db.prepare("SELECT COUNT(*) n FROM receivables WHERE tenant_id='a' AND order_id=?").get(orderId)!.n, 0);
+    assert.equal(db.prepare("SELECT COUNT(*) n FROM cash_entries WHERE tenant_id='a' AND id=?").get(entry.id)!.n, 0);
+    const movements = db.prepare("SELECT amount,origin,source_payload FROM cash_movements WHERE tenant_id='a' ORDER BY created_at,id").all();
+    assert.equal(movements.length, 2);
+    assert.equal(movements.reduce((sum, movement) => sum + Number(movement.amount), 0), 0);
+    assert.ok(movements.some((movement) => movement.origin === "adjustment" && JSON.parse(String(movement.source_payload)).reason === "Pagamento lançado por engano"));
+    const reversal = db.prepare("SELECT metadata FROM audit_events WHERE tenant_id='a' AND entity_id=? AND action='order.basic_receipt_reversed'").get(orderId)!;
+    const snapshot = JSON.parse(String(reversal.metadata));
+    assert.equal(snapshot.reason, "Pagamento lançado por engano");
+    assert.equal(snapshot.cash_entry.id, entry.id);
+    assert.equal(snapshot.receivable.id, receivable.id);
+    await assert.rejects(transitionOrder(db, basicOwner, orderId, "working", undefined, "Estorno repetido"), /já está nesta situação/);
+    await transitionOrder(db, basicOwner, orderId, "completed");
+    assert.equal(db.prepare("SELECT COUNT(*) n FROM receivables WHERE tenant_id='a' AND order_id=?").get(orderId)!.n, 1);
+  } finally {
+    db.close();
+  }
+});
+
+test("estorno no Básico exige administrador da oficina e recebimento simples reconhecido", async () => {
+  const db = fixture();
+  try {
+    const orderId = await completedOrder(db);
+    await recordBasicOrderReceipt(db, basicOwner, orderId, "Pix");
+    await assert.rejects(transitionOrder(db, { ...basicOwner, tenantId: "b" }, orderId, "open", undefined, "Pagamento lançado por engano"), /não encontrado/);
+    await assert.rejects(transitionOrder(db, { ...basicOwner, role: "operator" }, orderId, "open", undefined, "Pagamento lançado por engano"), /mecânico/);
+    await assert.rejects(transitionOrder(db, { ...basicOwner, modules: { orders: true, finance: true } }, orderId, "open", undefined, "Pagamento lançado por engano"), /financeiro antes de reabrir/);
+    assert.equal(db.prepare("SELECT COUNT(*) n FROM cash_entries WHERE tenant_id='a'").get()!.n, 1);
+
+    const otherOrder = await completedOrder(db);
+    const otherReceivable = db.prepare("SELECT id FROM receivables WHERE tenant_id='a' AND order_id=?").get(otherOrder)!;
+    await configurePlan(db, { ...basicOwner, modules: { orders: true, finance: true } }, String(otherReceivable.id), {
+      method: "Pix", installments: 1, card_fee_bps: 0, interest_bps: 0, first_due_on: "2026-10-15",
+    });
+    const part = db.prepare("SELECT id FROM payment_installments WHERE tenant_id='a' AND receivable_id=?").get(otherReceivable.id)!;
+    db.prepare("UPDATE payment_installments SET status='paid' WHERE id=?").run(part.id);
+    db.prepare("UPDATE receivables SET status='paid' WHERE id=?").run(otherReceivable.id);
+    db.prepare("INSERT INTO cash_entries(id,tenant_id,receivable_id,installment_id,amount,gross_amount,fee_amount,method) VALUES('other-entry','a',?,?,2001,2001,0,'Pix')").run(otherReceivable.id, part.id);
+    await assert.rejects(transitionOrder(db, basicOwner, otherOrder, "open", undefined, "Pagamento lançado por engano"), /correção pelo Financeiro/);
+    assert.equal(db.prepare("SELECT status FROM orders WHERE id=?").get(otherOrder)!.status, "completed");
+    await transitionOrder(db, basicOwner, orderId, "open", undefined, "Pagamento lançado por engano");
+    assert.equal(db.prepare("SELECT COUNT(*) n FROM cash_movements WHERE tenant_id='a'").get()!.n, 0);
+    assert.equal(db.prepare("SELECT COUNT(*) n FROM audit_events WHERE tenant_id='a' AND entity_id=? AND action='order.basic_receipt_reversed'").get(orderId)!.n, 1);
   } finally {
     db.close();
   }
