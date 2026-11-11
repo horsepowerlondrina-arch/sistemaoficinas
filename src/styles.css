@@ -5576,7 +5576,8 @@ body {
   margin-top: 12px;
   padding-top: 16px;
   border-top: 1px solid var(--border);
-  font-size: 15px;
+  font-size: 16px;
+  font-weight: 700;
 }
 .work-order-subtotal strong { white-space: nowrap; }
 .post-receipt-actions { flex-wrap: wrap; }
