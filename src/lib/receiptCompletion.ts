@@ -1,5 +1,5 @@
 export function receiptIsCompleteAfterSettlement(
-  parts: Array<{ id: string; method: string; status: string }>,
+  parts: Array<{ id: string; method?: string; status?: string }>,
   settledId: string,
   isCredit: boolean,
 ) {
