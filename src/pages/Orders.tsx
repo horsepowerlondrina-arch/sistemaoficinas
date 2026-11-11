@@ -19,16 +19,15 @@ export function Orders() {
   const [params, setParams] = useSearchParams();
   const filterStorageKey = orderFilterStorageKey(session.tenant.id, session.user.id);
   const filterSearch = params.toString();
+  const storedSearch = typeof sessionStorage === "undefined" ? "" : readOrderFilterSearch(sessionStorage, filterStorageKey);
+  const appliedParams = filterSearch ? params : new URLSearchParams(storedSearch);
   useEffect(() => {
-    if (filterSearch) return;
-    const saved = readOrderFilterSearch(sessionStorage, filterStorageKey);
-    if (saved) setParams(saved, { replace: true });
-  }, [filterStorageKey]);
-  useEffect(() => {
-    saveOrderFilterSearch(sessionStorage, filterStorageKey, filterSearch);
+    if (filterSearch && typeof sessionStorage !== "undefined") {
+      saveOrderFilterSearch(sessionStorage, filterStorageKey, filterSearch);
+    }
   }, [filterStorageKey, filterSearch]);
   const [search, setSearch] = useState("");
-  const status = params.get("status") || "active";
+  const status = appliedParams.get("status") || "active";
   const initialStatuses =
     status === "all"
       ? []
@@ -40,10 +39,10 @@ export function Orders() {
             ...(session.role === "owner" ? ["quote", "awaiting_payment"] : []),
           ]
         : status.split(",");
-  const requestedBasis = params.get("basis");
+  const requestedBasis = appliedParams.get("basis");
   const filters: OrderFilters = {
-    from: params.get("from") || "",
-    to: params.get("to") || "",
+    from: appliedParams.get("from") || "",
+    to: appliedParams.get("to") || "",
     basis:
       requestedBasis === "completion"
         ? "completion"
@@ -122,14 +121,14 @@ export function Orders() {
                 );
                 return;
               }
-              setParams({
-                status: draft.statuses.length
-                  ? draft.statuses.join(",")
-                  : "all",
+              const next = new URLSearchParams({
+                status: draft.statuses.length ? draft.statuses.join(",") : "all",
                 basis: draft.basis,
                 from: draft.from,
                 to: draft.to,
               });
+              saveOrderFilterSearch(sessionStorage, filterStorageKey, next.toString());
+              setParams(next);
             }}
           >
             <div className="report-filter-dates">
@@ -229,6 +228,7 @@ export function Orders() {
                   };
                   setDraft(cleared);
                   setSearch("");
+                  saveOrderFilterSearch(sessionStorage, filterStorageKey, "status=all");
                   setParams({ status: "all" });
                 }}
               >

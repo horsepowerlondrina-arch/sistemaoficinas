@@ -5568,18 +5568,15 @@ body {
 .order-mobile-vehicle-detail { min-width: 0; display: grid; justify-items: start; gap: 4px; }
 
 /* OS details: keep each list total below its own items. */
-.work-order-grid > .work-order-section {
-  display: flex;
-  flex-direction: column;
-}
 .work-order-subtotal {
   display: flex;
+  align-items: baseline;
   justify-content: space-between;
   gap: 16px;
-  margin-top: auto;
+  margin-top: 12px;
   padding-top: 16px;
   border-top: 1px solid var(--border);
-  font-size: 14px;
+  font-size: 15px;
 }
 .work-order-subtotal strong { white-space: nowrap; }
 .post-receipt-actions { flex-wrap: wrap; }
