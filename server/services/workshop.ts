@@ -1,5 +1,5 @@
 import { productLabel } from "../../shared/productIdentity.js";
-import type { BasicOrderReceiptMethod } from "../../shared/basicOrderReceipt.js";
+import { basicOrderReceiptMethods, type BasicOrderReceiptMethod } from "../../shared/basicOrderReceipt.js";
 import { resolveService, identifyVehicleModel, confirmVehicleModel, catalogAccessState } from './repairCatalog.js';
 import {
   normalizeCustomerName,
@@ -17,6 +17,7 @@ import {
   settleCredit,
   requireAdmin,
 } from "./payments.js";
+import { cashToday } from "./cashControl.js";
 export const id = () => randomUUID();
 async function hasOwnerTransfer(db: DB, tenant: string, vehicle: string, customer: string) {
   const transfers = await db.prepare("SELECT action FROM audit_events WHERE tenant_id=? AND entity_id=? AND action LIKE 'vehicles.owner_changed:%'").all(tenant,vehicle);
@@ -528,7 +529,7 @@ export async function saveOrder(
     return orderId;
   });
 }
-async function reverseCompletedOrder(db: DB, ctx: Context, order: Row) {
+async function reverseCompletedOrder(db: DB, ctx: Context, order: Row, reversalReason?: string) {
   const receivable = await db
     .prepare("SELECT * FROM receivables WHERE tenant_id=? AND order_id=?")
     .get(ctx.tenantId, order.id);
@@ -543,10 +544,42 @@ async function reverseCompletedOrder(db: DB, ctx: Context, order: Row) {
         "SELECT 1 paid FROM cash_entries WHERE tenant_id=? AND receivable_id=? LIMIT 1",
       )
       .get(ctx.tenantId, receivable.id);
-    if (receivable.status === "paid" || paidInstallment || cashEntry)
-      throw new Error(
+    if (receivable.status === "paid" || paidInstallment || cashEntry) {
+      const basic = ctx.role === "owner" && ctx.modules?.orders !== false && ctx.modules?.finance === false;
+      if (!basic) throw new Error(
         "Esta OS já possui recebimento confirmado. Corrija ou estorne o financeiro antes de reabrir a OS.",
       );
+      const reason = reversalReason?.trim() || "";
+      if (reason.length < 10 || reason.length > 500)
+        throw new Error("Informe o motivo do estorno com 10 a 500 caracteres antes de reabrir a OS.");
+      const parts = await db.prepare("SELECT * FROM payment_installments WHERE tenant_id=? AND receivable_id=?").all(ctx.tenantId, receivable.id);
+      const entries = await db.prepare("SELECT * FROM cash_entries WHERE tenant_id=? AND receivable_id=?").all(ctx.tenantId, receivable.id);
+      const registered = await db.prepare("SELECT 1 FROM audit_events WHERE tenant_id=? AND entity_id=? AND action='order.basic_receipt_registered' LIMIT 1").get(ctx.tenantId, order.id);
+      const part = parts[0], entry = entries[0];
+      if (!registered || parts.length !== 1 || entries.length !== 1 || part.status !== "paid" ||
+          entry.installment_id !== part.id || Number(part.gross) !== Number(receivable.amount) ||
+          Number(part.fee) !== 0 || Number(part.interest) !== 0 ||
+          Number(entry.amount) !== Number(part.net) || entry.method !== part.method ||
+          !basicOrderReceiptMethods.includes(part.method))
+        throw new Error("Este recebimento exige correção pelo Financeiro antes de reabrir a OS.");
+      const movements = await db.prepare("SELECT * FROM cash_movements WHERE tenant_id=? AND origin='receipt' AND source_id=?").all(ctx.tenantId, part.id);
+      if (movements.length > 1 || (movements.length === 1 && Number(movements[0].amount) !== Number(entry.amount)))
+        throw new Error("O lançamento do caixa está inconsistente. Corrija-o antes de reabrir a OS.");
+      const originalMovement = movements[0] || null;
+      const reversalId = originalMovement ? id() : null;
+      const archived = await audit(db, ctx, "order.basic_receipt_reversed", String(order.id), {
+        reason, receivable, installment: part, cash_entry: entry,
+        cash_movement: originalMovement, reversal_movement_id: reversalId,
+      });
+      if (!archived) throw new Error("A auditoria detalhada está indisponível. Nenhum recebimento foi estornado.");
+      if (originalMovement) await db.prepare(
+        "INSERT INTO cash_movements(id,tenant_id,account_id,day,amount,gross_amount,fee_amount,description,method,origin,source_id,source_payload) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+      ).run(reversalId, ctx.tenantId, originalMovement.account_id, cashToday(),
+        -Number(originalMovement.amount), -Number(originalMovement.gross_amount), -Number(originalMovement.fee_amount),
+        `Estorno de recebimento OS #${order.number}`, originalMovement.method, "adjustment",
+        `basic-reversal:${part.id}`, JSON.stringify({ reason, original_movement_id: originalMovement.id, order_id: order.id }));
+      await db.prepare("DELETE FROM cash_entries WHERE tenant_id=? AND id=?").run(ctx.tenantId, entry.id);
+    }
     await db
       .prepare(
         "DELETE FROM payment_installments WHERE tenant_id=? AND receivable_id=?",
@@ -579,6 +612,7 @@ export async function transitionOrder(
   record: string,
   status: Status,
   dueOn?: string,
+  reversalReason?: string,
 ) {
   return await transaction(db, async () => {
     const warnings: string[] = [];
@@ -629,7 +663,7 @@ export async function transitionOrder(
     }
 
     if (order.status === "completed" && status !== "completed")
-      await reverseCompletedOrder(db, ctx, order);
+      await reverseCompletedOrder(db, ctx, order, reversalReason);
 
     if (status === "completed") {
       const items = (await db

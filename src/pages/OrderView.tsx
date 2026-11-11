@@ -27,6 +27,7 @@ export function OrderView() {
     [editingNotes, setEditingNotes] = useState(false),
     [notes, setNotes] = useState(""),
     [statusPicker, setStatusPicker] = useState(false),
+    [reversalReason, setReversalReason] = useState(""),
     [receiptOpen, setReceiptOpen] = useState(false),
     [receiptMethod, setReceiptMethod] = useState<BasicOrderReceiptMethod>("Pix"),
     [receiptAccountId, setReceiptAccountId] = useState(""),
@@ -52,6 +53,7 @@ export function OrderView() {
     ready: ["completed", financeEnabled ? "Finalizar OS e receber" : "Finalizar OS"],
   };
   const action = next[order.status];
+  const basicPaidReopen = !financeEnabled && order.status === "completed" && order.payment_status === "paid" && Boolean(confirm) && confirm !== "completed";
   const displayValue = (...values: unknown[]) => {
     const value = values.find((item) => item !== undefined && item !== null && String(item).trim() !== "");
     return value === undefined ? "Não informado" : String(value);
@@ -78,12 +80,14 @@ export function OrderView() {
     try {
       const result = await send(`/orders/${id}/status`, {
         status: confirm,
+        ...(basicPaidReopen ? { reversal_reason: reversalReason.trim() } : {}),
         ...(order!.status === "quote" && !["quote", "cancelled"].includes(confirm)
           ? { due_on: approvalDueOn }
           : {}),
       });
       await refresh();
       setConfirm("");
+      setReversalReason("");
       notify(
         result.warnings?.length
           ? `OS finalizada com aviso: ${result.warnings.join(" ")}`
@@ -371,6 +375,7 @@ export function OrderView() {
                   key={value}
                   onClick={() => {
                     setStatusPicker(false);
+                    setReversalReason("");
                     setConfirm(value);
                   }}
                 >
@@ -386,7 +391,9 @@ export function OrderView() {
           title={`Alterar status para ${statusLabel[confirm] || confirm}?`}
           description={
             order.status === "completed" && confirm !== "completed"
-              ? "A finalização será desfeita: as peças baixadas voltarão ao estoque e a cobrança ainda não recebida será removida. Se já houver pagamento confirmado, a reabertura será bloqueada."
+              ? basicPaidReopen
+                ? "O recebimento será estornado com registro do motivo e compensação no caixa. As peças voltarão ao estoque e a OS poderá ser editada. Uma devolução real ao cliente, quando necessária, deve ser feita separadamente."
+                : "A finalização será desfeita: as peças baixadas voltarão ao estoque e a cobrança ainda não recebida será removida. Se já houver pagamento confirmado, a reabertura será bloqueada."
               : confirm === "completed"
                 ? financeEnabled
                   ? "As peças serão baixadas do estoque e você seguirá para o recebimento."
@@ -406,6 +413,14 @@ export function OrderView() {
               </Field>
             </div>
           )}
+          {basicPaidReopen && (
+            <div className="modal-body">
+              <Field label="Motivo do estorno">
+                <textarea value={reversalReason} maxLength={500} onChange={(event) => setReversalReason(event.target.value)} placeholder="Explique por que o recebimento precisa ser estornado" />
+              </Field>
+              <p className="muted">Mínimo de 10 caracteres. O recebimento anterior ficará registrado na auditoria.</p>
+            </div>
+          )}
           <div className="modal-footer">
             <button
               className="button"
@@ -416,10 +431,10 @@ export function OrderView() {
             </button>
             <button
               className="button primary"
-              disabled={busy || (order.status === "quote" && !["quote", "cancelled"].includes(confirm) && (!approvalDueOn || approvalDueOn < order.entered_on))}
+              disabled={busy || (basicPaidReopen && reversalReason.trim().length < 10) || (order.status === "quote" && !["quote", "cancelled"].includes(confirm) && (!approvalDueOn || approvalDueOn < order.entered_on))}
               onClick={transition}
             >
-              {busy ? "Processando..." : "Confirmar"}
+              {busy ? "Processando..." : basicPaidReopen ? "Estornar e reabrir" : "Confirmar"}
             </button>
           </div>
         </Modal>

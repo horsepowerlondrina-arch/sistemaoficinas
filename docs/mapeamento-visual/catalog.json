@@ -1265,6 +1265,20 @@
       "reason": "A interação ainda não possui arquivo PNG correspondente; executar em navegador e dados de teste isolados."
     },
     {
+      "id": "os-basico-estorno-reabertura",
+      "module": "07-ordens-servico",
+      "title": "Estorno e reabertura de OS no plano Básico",
+      "description": "Confirmar motivo do estorno de recebimento fictício e reabrir a OS no ambiente isolado.",
+      "route": "/ordens/:id",
+      "kind": "Confirmação de reabertura",
+      "viewport": "desktop",
+      "status": "pendente",
+      "image": null,
+      "updatedAt": null,
+      "commit": null,
+      "reason": "A interação requer OS paga fictícia em PostgreSQL descartável; a captura gravadora não foi executada sem esse ambiente."
+    },
+    {
       "id": "os-recebimento",
       "module": "07-ordens-servico",
       "title": "Finalização e recebimento",

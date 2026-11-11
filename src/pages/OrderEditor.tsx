@@ -125,6 +125,8 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
   const [confirm, setConfirm] = useState("");
   const [approvalDueOn, setApprovalDueOn] = useState("");
   const [statusPicker, setStatusPicker] = useState(false);
+  const [reversalReason, setReversalReason] = useState("");
+  const basicPaidReopen = !financeEnabled && order?.status === "completed" && order.payment_status === "paid" && Boolean(confirm) && confirm !== "completed";
   const [discountMode, setDiscountMode] = useState<"money" | "percent">(
     "money",
   );
@@ -337,6 +339,7 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
         );
       const result = await send(`/orders/${order!.id}/status`, {
         status: confirm,
+        ...(basicPaidReopen ? { reversal_reason: reversalReason.trim() } : {}),
         ...(order!.status === "quote" && !["quote", "cancelled"].includes(confirm)
           ? { due_on: approvalDueOn }
           : {}),
@@ -352,6 +355,7 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
             : "Situação atualizada.",
       );
       setConfirm("");
+      setReversalReason("");
       navigate(
         `/ordens/${order!.id}${confirm === "completed" && financeEnabled ? "/receber" : ""}`,
       );
@@ -1142,6 +1146,7 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
                   key={value}
                   onClick={() => {
                     setStatusPicker(false);
+                    setReversalReason("");
                     setConfirm(value);
                   }}
                 >
@@ -1157,7 +1162,9 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
           title={`Alterar status para ${statusLabel[confirm] || confirm}?`}
           description={
             order!.status === "completed" && confirm !== "completed"
-              ? "A finalização será desfeita: as peças baixadas voltarão ao estoque e a cobrança ainda não recebida será removida. Se já houver pagamento confirmado, a reabertura será bloqueada."
+              ? basicPaidReopen
+                ? "O recebimento será estornado com registro do motivo e compensação no caixa. As peças voltarão ao estoque e a OS poderá ser editada. Uma devolução real ao cliente, quando necessária, deve ser feita separadamente."
+                : "A finalização será desfeita: as peças baixadas voltarão ao estoque e a cobrança ainda não recebida será removida. Se já houver pagamento confirmado, a reabertura será bloqueada."
               : confirm === "completed"
                 ? financeEnabled
                   ? "Esta ação baixa os produtos do estoque, gera a cobrança e bloqueia a edição até que a OS seja reaberta."
@@ -1177,6 +1184,14 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
               </Field>
             </div>
           )}
+          {basicPaidReopen && (
+            <div className="modal-body">
+              <Field label="Motivo do estorno">
+                <textarea value={reversalReason} maxLength={500} onChange={(event) => setReversalReason(event.target.value)} placeholder="Explique por que o recebimento precisa ser estornado" />
+              </Field>
+              <p className="muted">Mínimo de 10 caracteres. O recebimento anterior ficará registrado na auditoria.</p>
+            </div>
+          )}
           <div className="modal-footer">
             <button
               className="button"
@@ -1188,9 +1203,9 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
             <button
               className="button primary"
               onClick={transition}
-              disabled={busy || (order?.status === "quote" && !["quote", "cancelled"].includes(confirm) && (!approvalDueOn || approvalDueOn < form.entered_on))}
+              disabled={busy || (basicPaidReopen && reversalReason.trim().length < 10) || (order?.status === "quote" && !["quote", "cancelled"].includes(confirm) && (!approvalDueOn || approvalDueOn < form.entered_on))}
             >
-              {busy ? "Processando..." : "Confirmar"}
+              {busy ? "Processando..." : basicPaidReopen ? "Estornar e reabrir" : "Confirmar"}
             </button>
           </div>
         </Modal>

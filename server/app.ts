@@ -1697,6 +1697,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
       String(req.params.id),
       z.enum(statuses).parse(req.body.status),
       date.optional().parse(req.body.due_on),
+      z.string().trim().min(10).max(500).optional().parse(req.body.reversal_reason),
     );
     res.json({ ok: true, ...result });
   });
