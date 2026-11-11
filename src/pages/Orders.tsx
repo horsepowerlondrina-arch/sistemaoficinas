@@ -4,6 +4,7 @@ import { Plus, Download, Filter, ChevronDown } from "lucide-react";
 import { useApp } from "../lib/context";
 import { money, statusLabel } from "../lib/types";
 import { PageHeading, SearchBox } from "../components/ui";
+import { orderFilterStorageKey, readOrderFilterSearch, saveOrderFilterSearch } from "../lib/orderFilterSession";
 import { OrderTable } from "../components/OrderTable";
 import { OrderResultReport } from "../components/OrderResultReport";
 import {
@@ -16,6 +17,16 @@ export function Orders() {
   const { data, notify, session } = useApp();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
+  const filterStorageKey = orderFilterStorageKey(session.tenant.id, session.user.id);
+  const filterSearch = params.toString();
+  useEffect(() => {
+    if (filterSearch) return;
+    const saved = readOrderFilterSearch(sessionStorage, filterStorageKey);
+    if (saved) setParams(saved, { replace: true });
+  }, [filterStorageKey]);
+  useEffect(() => {
+    saveOrderFilterSearch(sessionStorage, filterStorageKey, filterSearch);
+  }, [filterStorageKey, filterSearch]);
   const [search, setSearch] = useState("");
   const status = params.get("status") || "active";
   const initialStatuses =

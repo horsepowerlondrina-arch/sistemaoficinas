@@ -1,4 +1,5 @@
 import { platformTitle } from "../shared/platformIdentity";
+import { clearOrderFilterSession } from "./lib/orderFilterSession";
 import { workshopTheme } from "../shared/workshopTheme";
 import { uiModuleForPath } from "../shared/workshopModules";
 import { PlatformBrand } from "./components/PlatformBrand";
@@ -93,7 +94,10 @@ export function App() {
       setSession(nextSession);
       setData(nextData);
     } catch (e) {
-      if ((e as Error).message.includes("Entre na sua conta")) setSession(null);
+      if ((e as Error).message.includes("Entre na sua conta")) {
+        clearOrderFilterSession(sessionStorage);
+        setSession(null);
+      }
       else setLoadError((e as Error).message);
     } finally {
       setLoading(false);
@@ -354,6 +358,7 @@ export function App() {
                 onClick={async () => {
                   try {
                     await send("/logout", {});
+                    clearOrderFilterSession(sessionStorage);
                     setSession(null);
                     setData(null);
                   } catch (e) {

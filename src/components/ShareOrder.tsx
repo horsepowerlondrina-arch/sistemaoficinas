@@ -4,7 +4,7 @@ import { useApp } from "../lib/context";
 import { send } from "../lib/api";
 import { money, type Order } from "../lib/types";
 import { Modal, Field } from "./ui";
-export function ShareOrder({ order, shopName, customerPhone }: { order: Pick<Order,"id"|"number"|"status"|"total"|"plate"|"customer_name"|"customer_id">; shopName?:string; customerPhone?:string }) {
+export function ShareOrder({ order, shopName, customerPhone, onOpenWhatsApp }: { order: Pick<Order,"id"|"number"|"status"|"total"|"plate"|"customer_name"|"customer_id">; shopName?:string; customerPhone?:string; onOpenWhatsApp?: () => void }) {
   const { data, session } = useApp();
   const customer = data.customers.find((c) => c.id === order.customer_id);
   const [open, setOpen] = useState(false),
@@ -148,6 +148,7 @@ export function ShareOrder({ order, shopName, customerPhone }: { order: Pick<Ord
                 href={`https://wa.me/${digits}?text=${encodeURIComponent(message)}`}
                 target="_blank"
                 rel="noreferrer"
+                onClick={() => { if (onOpenWhatsApp) window.setTimeout(onOpenWhatsApp, 0); }}
               >
                 Abrir WhatsApp
               </a>
