@@ -6,7 +6,7 @@ import pg from "pg";
 import { adminClient } from "../scripts/local-admin.js";
 import { localDatabaseUrl, platformAdminDatabaseUrl } from "../server/localConfig.js";
 import { createPlatformAdminApp } from "../server/platformAdminApp.js";
-import { digestAdminToken } from "../server/auth/platformAdmin.js";
+import { digestAdminToken, encryptTotpSecret, hashAdminPassword, newTotpSecret } from "../server/auth/platformAdmin.js";
 
 test("PostgreSQL: chamados isolados por oficina, permissões administrativas e auditoria",async()=>{
   const owner=adminClient(),app=new pg.Client({connectionString:localDatabaseUrl(process.env.LOCAL_DATABASE_URL),ssl:false});
@@ -29,8 +29,9 @@ test("PostgreSQL: chamados isolados por oficina, permissões administrativas e a
     assert.equal((await app.query("SELECT * FROM platform_support.workshop_support_messages($1)",[ticket])).rows.length,0);
     assert.equal((await app.query("SELECT platform_support.workshop_support_reply($1,$2,$3) AS ok",[ticket,randomUUID(),"Resposta cruzada"])).rows[0].ok,false);
     await app.query("ROLLBACK");
-    await owner.query(`INSERT INTO platform_admin.administrators(id,email,display_name,role,permissions,active,enrolled)
-      VALUES($1,$2,'Suporte Fictício','technical_support','["workshops:read"]',true,true)`,[adminId,`${adminId}@example.test`]);
+    await owner.query(`INSERT INTO platform_admin.administrators(id,email,display_name,role,permissions,password_hash,totp_secret_ciphertext,active,enrolled)
+      VALUES($1,$2,'Suporte Fictício','technical_support','["workshops:read"]',$3,$4,true,true)`,
+      [adminId,`${adminId}@example.test`,hashAdminPassword(randomUUID()),encryptTotpSecret(newTotpSecret(),"0".repeat(64))]);
     await owner.query("INSERT INTO platform_admin.sessions(token_hash,administrator_id,expires_at) VALUES($1,$2,now()+interval '1 hour')",[digestAdminToken(token),adminId]);
     server=createPlatformAdminApp(adminPool,"0".repeat(64)).listen(0,"127.0.0.1");await once(server,"listening");
     const address=server.address();assert.ok(address&&typeof address!=="string");
