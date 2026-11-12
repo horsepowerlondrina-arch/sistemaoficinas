@@ -1,7 +1,7 @@
 import { VehiclePlate } from "../components/VehiclePlate";
-import { IssuedDocumentActions, IssuedDocumentPreview, IssuedDocumentProvider } from "../components/IssuedDocument";
+import { IssuedDocumentActions, IssuedDocumentPreview, IssuedDocumentProvider, PostReceiptActions } from "../components/IssuedDocument";
 import { useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useApp } from "../lib/context";
 import { send } from "../lib/api";
 import { money, dateLabel, statusLabel } from "../lib/types";
@@ -13,6 +13,8 @@ export function OrderView() {
   const { id } = useParams();
   const { data, session, refresh, notify } = useApp();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [postReceiptOpen, setPostReceiptOpen] = useState(Boolean(location.state?.postReceipt));
   const order = data.orders.find((o) => o.id === id);
   const admin = session.role === "owner";
   const [confirm, setConfirm] = useState(""),
@@ -78,7 +80,10 @@ export function OrderView() {
           ? `OS finalizada com aviso: ${result.warnings.join(" ")}`
           : "Situação atualizada.",
       );
-      if (confirm === "completed") navigate(`/ordens/${id}/receber`);
+      if (confirm === "completed") {
+        if (Number(order!.total) > 0) navigate(`/ordens/${id}/receber`);
+        else setPostReceiptOpen(true);
+      }
     } catch (e) {
       setError((e as Error).message);
       setConfirm("");
@@ -86,6 +91,7 @@ export function OrderView() {
       setBusy(false);
     }
   }
+  const finishReceipt = () => navigate("/ordens", { replace: true });
   return (
     <IssuedDocumentProvider key={id} kind="order" id={id!} currentOnly>
       <>
@@ -211,10 +217,10 @@ export function OrderView() {
         </p>
       </section>
       <div className="work-order-grid">
-        {[
+        {([
           ["service", "Serviços"],
           ["product", "Produtos e peças"],
-        ].map(([kind, title]) => (
+        ] as const).map(([kind, title]) => (
           <section key={kind} className="panel work-order-section">
             <h2>
               {title}{" "}
@@ -237,6 +243,10 @@ export function OrderView() {
             {!order.items.some((i) => i.kind === kind) && (
               <p className="muted">Nenhum item informado.</p>
             )}
+            {admin && <div className="work-order-subtotal">
+              <span>Total de {kind === "service" ? "serviços" : "peças"}</span>
+              <strong>{money(order.items.filter((item) => item.kind === kind).reduce((sum, item) => sum + Math.round(Number(item.quantity) * Number(item.price)), 0))}</strong>
+            </div>}
           </section>
         ))}
       </div>
@@ -269,6 +279,7 @@ export function OrderView() {
       )}
       </div>
       <IssuedDocumentPreview />
+      {postReceiptOpen && <PostReceiptActions order={order} shopName={session.tenant.name} customerPhone={customer?.phone} onDone={finishReceipt} />}
       {statusPicker && (
         <Modal
           title="Alterar status do atendimento"

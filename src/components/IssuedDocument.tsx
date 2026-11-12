@@ -3,6 +3,8 @@ import { api, send } from "../lib/api";
 import { OrderPrint } from "./OrderPrint";
 import { ChecklistPrint } from "./ChecklistPrint";
 import { useApp } from "../lib/context";
+import { Modal } from "./ui";
+import type { Order } from "../lib/types";
 import { ShareOrder } from "./ShareOrder";
 
 type Kind = "order" | "checklist";
@@ -18,7 +20,7 @@ type DocumentContextValue = {
   setPayload: (payload: Record<string, any> | null) => void;
   setError: (error: string) => void;
   setBusy: (busy: boolean) => void;
-  issue: (newRevision: boolean) => Promise<void>;
+  issue: (newRevision: boolean) => Promise<boolean>;
   currentOnly: boolean;
   setPrinting: (printing: boolean) => void;
 };
@@ -77,8 +79,10 @@ export function IssuedDocumentProvider({ kind, id, currentOnly = false, children
       setPayload(value);
       if (!currentOrder) setHistory(await api(endpoint));
       setPrinting(true);
+      return true;
     } catch (cause) {
       setError((cause as Error).message);
+      return false;
     } finally {
       setBusy(false);
     }
@@ -192,5 +196,40 @@ function IssuedDocumentLegacyControls() {
         : <p>Emissões são imutáveis. Alterar dados da oficina, itens ou pagamentos não modifica revisões já emitidas.</p>}
       <IssuedDocumentActions />
     </section>
+  );
+}
+
+export function PostReceiptActions({ order, shopName, customerPhone, onDone }: {
+  order: Order;
+  shopName: string;
+  customerPhone?: string;
+  onDone: () => void;
+}) {
+  const { history, payload, busy, error, issue, setPrinting } = useIssuedDocument();
+  async function printAndReturn() {
+    const done = () => onDone();
+    window.addEventListener("afterprint", done, { once: true });
+    if (history.legacy && payload) {
+      setPrinting(true);
+    } else if (!await issue(history.legacy)) {
+      window.removeEventListener("afterprint", done);
+    }
+  }
+  return (
+    <Modal
+      title="Recebimento concluído"
+      description={`OS #${order.number} finalizada. Deseja entregar uma cópia ao cliente?`}
+      onClose={onDone}
+    >
+      <div className="modal-body">
+        <p>Você pode imprimir a OS, compartilhar pelo WhatsApp ou voltar à lista.</p>
+        {error && <p className="error-box" role="alert">{error}</p>}
+      </div>
+      <div className="modal-footer post-receipt-actions">
+        <button type="button" className="button" disabled={busy} onClick={onDone}>Agora não</button>
+        <button type="button" className="button" disabled={busy} onClick={() => void printAndReturn()}>Imprimir PDF</button>
+        <ShareOrder order={order} shopName={shopName} customerPhone={customerPhone} onOpenWhatsApp={onDone} />
+      </div>
+    </Modal>
   );
 }

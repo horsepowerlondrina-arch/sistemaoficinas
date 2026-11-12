@@ -147,3 +147,21 @@ test("owner can change a completed OS status; mechanic cannot", () => {
   const mechanicHtml = renderOrder(completed, { role: "operator" });
   assert.doesNotMatch(mechanicHtml, /Alterar status/);
 });
+
+test("service and parts totals appear beneath their respective item lists", () => {
+  const html = renderOrder(baseOrder({
+    items: [
+      { id: "service-1", kind: "service", name: "Alinhamento", quantity: 1, price: 8000 },
+      { id: "service-2", kind: "service", name: "Balanceamento", quantity: 2, price: 2000 },
+      { id: "part-1", kind: "product", name: "Peça de teste", quantity: 1, price: 3500 },
+    ] as Order["items"],
+  }));
+  const service = html.slice(html.indexOf("<h2>Serviços"), html.indexOf("<h2>Produtos e peças"));
+  const products = html.slice(html.indexOf("<h2>Produtos e peças"), html.indexOf("<h2>Observações para a equipe"));
+  assert.ok(service.indexOf("Balanceamento") < service.indexOf("Total de serviços"));
+  assert.match(service, /Total de serviços.*R\$\s?120,00/);
+  assert.ok(products.indexOf("Peça de teste") < products.indexOf("Total de peças"));
+  assert.match(products, /Total de peças.*R\$\s?35,00/);
+  const operator = renderOrder(baseOrder({ items: [{ id: "part-1", kind: "product", name: "Peça", quantity: 1, price: 3500 }] as Order["items"] }), { role: "operator" });
+  assert.doesNotMatch(operator, /Total de peças|R\$\s?35,00/);
+});

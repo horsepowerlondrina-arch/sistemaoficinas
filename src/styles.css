@@ -5566,3 +5566,21 @@ body {
 
 .work-order-summary-item > .vehicle-plate-compact { align-self: flex-start; }
 .order-mobile-vehicle-detail { min-width: 0; display: grid; justify-items: start; gap: 4px; }
+
+/* Totals remain directly below each OS item list. */
+.work-order-subtotal {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  font-size: 16px;
+  font-weight: 700;
+}
+.work-order-subtotal strong { white-space: nowrap; }
+.post-receipt-actions { flex-wrap: wrap; }
+@media (max-width: 600px) {
+  .post-receipt-actions > .button { flex: 1 1 100%; justify-content: center; }
+}
