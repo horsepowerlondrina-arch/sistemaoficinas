@@ -55,7 +55,7 @@ export function moduleForApiRequest(path: string, method = "GET"): WorkshopModul
   const pathname = path.split(/[?#]/, 1)[0] || "/";
   const normalizedPath = pathname.replace(/^\/api(?=\/|$)/, "");
   const p = normalizedPath.replace(/\/+$/, "") || "/";
-  if (["/session", "/logout", "/tenant", "/workspace"].includes(p)) return [];
+  if (["/session", "/logout", "/tenant", "/workspace"].includes(p) || /^\/support\/tickets(?:\/|$)/.test(p)) return [];
   if (p === "/customers-with-vehicle") return ["orders","customers_vehicles"];
   if (/^\/orders(?:\/|$)/.test(p)) {
     const isCreatingOrEditing = (method === "POST" && p === "/orders") || (method === "PUT" && /^\/orders\/[^/]+$/.test(p));

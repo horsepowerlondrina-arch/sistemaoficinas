@@ -65,6 +65,7 @@ import { OrderView } from "./pages/OrderView";
 import { Payment } from "./pages/Payment";
 import { Checklists } from "./pages/Checklists";
 import { ChecklistEditor } from "./pages/ChecklistEditor";
+import { WorkshopSupport } from "./pages/WorkshopSupport";
 export function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [data, setData] = useState<Workspace | null>(null);
@@ -213,6 +214,8 @@ export function App() {
       .find(([path]) => location.pathname.startsWith(path))?.[1] ||
     (location.pathname === "/inicio"
       ? "Início"
+      : location.pathname === "/suporte"
+        ? "Suporte"
       : location.pathname === "/configuracoes"
         ? "Configurações"
         : "Atendimento");
@@ -335,6 +338,7 @@ export function App() {
             ))}
           </nav>
           <div className="sidebar-bottom">
+            {session.support_available && <NavLink to="/suporte" className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}><ShieldCheck size={19}/><span>Suporte</span></NavLink>}
             {admin && available("/configuracoes") && (
               <NavLink
                 to="/configuracoes"
@@ -494,6 +498,7 @@ export function App() {
                   element={<Expenses cash />}
                 />
                 <Route path="/configuracoes" element={<SettingsPage />} />
+                <Route path="/suporte" element={session.support_available?<WorkshopSupport/>:<Navigate to="/inicio" replace/>} />
                 <Route path="/" element={<Navigate to="/inicio" replace />} />
                 <Route
                   path="*"

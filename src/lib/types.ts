@@ -46,6 +46,7 @@ export interface Session {
   tenant: Entity;
   tenants: Entity[];
   role: string;
+  support_available?: boolean;
   modules?: Record<string, boolean>;
 }
 export const money = (value: number) =>

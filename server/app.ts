@@ -37,7 +37,7 @@ import {
 } from "./services/checklists.js";
 import express from "express";
 import { requestQuery } from "./requestQuery.js";
-import { randomBytes } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { cancelPasswordReset, completePasswordReset, issuePasswordReset, newPasswordResetToken, passwordResetRequestId, sendPasswordResetEmail, type PasswordResetMailConfig } from "./services/passwordReset.js";
 import { z } from "zod";
 import { normalizeVehicleModelLink, serviceModelIdSchema } from "./services/vehicleModelLink.js";
@@ -461,10 +461,37 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
         )
         .all(ctx.userId),
       role: ctx.role,
+      support_available: !!db.withRequestContext && process.env.APP_ENV !== "horse_power",
       modules: ctx.modules || defaultWorkshopModules,
     });
   });
   app.use("/api", stripeWorkshopRoutes(db,billing));
+  if (db.withRequestContext && process.env.APP_ENV !== "horse_power") {
+  app.get("/api/support/tickets", async (_req,res) => {
+    const rows=await db.prepare("SELECT * FROM platform_support.workshop_support_list()").all();
+    res.json(rows);
+  });
+  app.get("/api/support/tickets/:id/messages", async (req,res) => {
+    if (!z.uuid().safeParse(req.params.id).success) {res.status(400).json({error:"Chamado inválido."});return;}
+    const ticket=await db.prepare("SELECT id FROM platform_support.workshop_support_list() WHERE id=?").get(req.params.id);
+    if (!ticket) {res.status(404).json({error:"Chamado não encontrado."});return;}
+    res.json(await db.prepare("SELECT * FROM platform_support.workshop_support_messages(?)").all(req.params.id));
+  });
+  app.post("/api/support/tickets", async (req,res) => {
+    const parsed=z.object({subject:z.string().trim().min(5).max(160),body:z.string().trim().min(1).max(4000)}).strict().safeParse(req.body);
+    if (!parsed.success) {res.status(400).json({error:"Informe assunto e mensagem válidos."});return;}
+    const ticketId=randomUUID();
+    await db.prepare("SELECT platform_support.workshop_support_create(?,?,?,?)").get(ticketId,randomUUID(),parsed.data.subject,parsed.data.body);
+    res.status(201).json({id:ticketId});
+  });
+  app.post("/api/support/tickets/:id/messages", async (req,res) => {
+    const parsed=z.object({body:z.string().trim().min(1).max(4000)}).strict().safeParse(req.body);
+    if (!z.uuid().safeParse(req.params.id).success || !parsed.success) {res.status(400).json({error:"Mensagem inválida."});return;}
+    const result=await db.prepare("SELECT platform_support.workshop_support_reply(?,?,?) AS ok").get(req.params.id,randomUUID(),parsed.data.body);
+    if (!result?.ok) {res.status(404).json({error:"Chamado não encontrado."});return;}
+    res.json({ok:true});
+  });
+  }
   app.get("/api/account/plan", async (_req, res) => {
     const ctx: Context = res.locals.context;
     res.json({plan: await db.getTenantPlanSummary?.(ctx.tenantId) ?? null});
