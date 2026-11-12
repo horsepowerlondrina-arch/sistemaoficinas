@@ -71,3 +71,12 @@ body:has(.development-notice) .pa-topbar{top:36px}
 .pa-auth-card{border-top:4px solid #a31c28}
 .pa-topbar{border-top:3px solid #a31c28}
 .pa-shell .platform-brand--compact strong{color:#202022}
+/* Support and monitoring share the same restrained card layout on desktop and mobile. */
+.pa-support-layout{display:grid;grid-template-columns:minmax(240px,.75fr) minmax(0,1.25fr);gap:16px;align-items:start}
+.pa-support-ticket{display:grid;gap:4px;text-align:left;width:100%;border:0;border-top:1px solid #e7ebee;background:#fff;padding:13px 4px;color:#263441;cursor:pointer}
+.pa-support-ticket[aria-current=true]{background:#f8f1f2}.pa-support-ticket span,.pa-support-ticket small,.pa-support-messages small{font-size:12px;color:#677785}
+.pa-support-messages{display:grid;gap:10px;margin:16px 0;max-height:520px;overflow:auto}.pa-support-messages article{padding:12px;border:1px solid #e1e6ea;border-radius:8px;overflow-wrap:anywhere}.pa-support-messages article strong{display:block}.pa-support-messages article p{white-space:pre-wrap;margin:8px 0 0}
+.pa-support-form,.pa-support-form label{display:grid;gap:8px}.pa-support-form{margin:16px 0}.pa-support-form input,.pa-support-form textarea{width:100%;box-sizing:border-box;padding:10px;border:1px solid #cbd4dc;border-radius:8px;font:inherit}.pa-support-form textarea{min-height:110px;resize:vertical}.pa-support-form button{justify-self:start}
+.workshop-support{padding:20px;max-width:1200px;margin:auto}.workshop-support header{margin-bottom:20px}.workshop-support .pa-card{background:#fff;border:1px solid #e1e6ea;border-radius:12px;padding:20px}
+.pa-monitoring{display:grid;gap:16px}.pa-monitoring-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.pa-monitoring-grid article{display:grid;gap:7px;border:1px solid #e1e6ea;border-radius:8px;padding:14px}.pa-monitoring-grid small{color:#677785}
+@media(max-width:800px){.pa-support-layout{grid-template-columns:1fr}.pa-monitoring-grid{grid-template-columns:1fr}.workshop-support{padding:12px}}

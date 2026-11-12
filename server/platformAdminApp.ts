@@ -665,6 +665,61 @@ export function createPlatformAdminApp(pool: Pool, encryptionKey: string, transf
       FROM platform_admin.audit_events ORDER BY created_at DESC LIMIT $1`, [limit]);
     res.json(rows.rows);
   });
+  app.get("/admin-api/monitoring", requireSession, requirePermission("audit:read"), async (_req,res) => {
+    const [health, failures, tickets] = await Promise.all([
+      pool.query("SELECT now() AS checked_at, current_database() AS database"),
+      pool.query(`SELECT action,count(*)::integer AS count FROM platform_admin.audit_events
+        WHERE result='failure' AND created_at>now()-interval '24 hours'
+        GROUP BY action ORDER BY count DESC LIMIT 20`),
+      pool.query(`SELECT status,count(*)::integer AS count FROM platform_support.support_tickets GROUP BY status`),
+    ]);
+    res.json({checked_at:health.rows[0].checked_at,database_available:true,
+      integrations:[
+        {name:"Stripe",configured:!!process.env.STRIPE_SECRET_KEY,failures:null},
+        {name:"Resend",configured:!!process.env.RESEND_API_KEY,failures:failures.rows.filter(row=>String(row.action).includes("invitation.delivery_failed")).reduce((sum,row)=>sum+Number(row.count),0)},
+        {name:"FipePlaca",configured:!!process.env.FIPEPLACA_PLATFORM_TOKEN,failures:null},
+      ],audit_failures:failures.rows,support_by_status:tickets.rows});
+  });
+  app.get("/admin-api/support/tickets", requireSession, requirePermission("workshops:read"), async (_req,res) => {
+    const rows=await pool.query(`SELECT t.id,t.tenant_id,w.name AS workshop_name,t.subject,t.status,t.created_at,t.updated_at
+      FROM platform_support.support_tickets t LEFT JOIN platform_admin.workshops w ON w.tenant_id=t.tenant_id
+      ORDER BY t.updated_at DESC LIMIT 200`);
+    res.json(rows.rows);
+  });
+  app.get("/admin-api/support/tickets/:id/messages", requireSession, requirePermission("workshops:read"), async (req,res) => {
+    if (!z.uuid().safeParse(req.params.id).success) {res.status(400).json({error:"Chamado inválido."});return;}
+    const ticket=await pool.query("SELECT id FROM platform_support.support_tickets WHERE id=$1",[req.params.id]);
+    if (!ticket.rowCount) {res.status(404).json({error:"Chamado não encontrado."});return;}
+    const rows=await pool.query(`SELECT id,sender_kind,body,created_at FROM platform_support.support_messages
+      WHERE ticket_id=$1 ORDER BY created_at,id LIMIT 500`,[req.params.id]);
+    res.json(rows.rows);
+  });
+  app.post("/admin-api/support/tickets/:id/messages", requireSession, requirePermission("workshops:manage"), async (req,res) => {
+    const parsed=z.object({body:z.string().trim().min(1).max(4000)}).strict().safeParse(req.body);
+    if (!z.uuid().safeParse(req.params.id).success || !parsed.success) {res.status(400).json({error:"Mensagem inválida."});return;}
+    const actor=res.locals.admin as AdminContext, client=await pool.connect();
+    try {
+      await client.query("BEGIN");
+      const ticket=await client.query("UPDATE platform_support.support_tickets SET status='waiting_workshop',updated_at=now() WHERE id=$1 RETURNING tenant_id",[req.params.id]);
+      if (!ticket.rowCount) {await client.query("ROLLBACK");res.status(404).json({error:"Chamado não encontrado."});return;}
+      await client.query(`INSERT INTO platform_support.support_messages(id,tenant_id,ticket_id,sender_kind,sender_id,body)
+        VALUES($1,$2,$3,'admin',$4,$5)`,[randomUUID(),ticket.rows[0].tenant_id,req.params.id,actor.id,parsed.data.body]);
+      await writeAdminAudit(client,{actorId:actor.id,actorEmail:actor.email,subjectTenantId:ticket.rows[0].tenant_id,action:"admin.support.replied",result:"success",technical:{ticket_id:String(req.params.id)}});
+      await client.query("COMMIT");res.json({ok:true});
+    } catch(e) {await client.query("ROLLBACK").catch(()=>{});throw e;} finally {client.release();}
+  });
+  app.patch("/admin-api/support/tickets/:id/status", requireSession, requirePermission("workshops:manage"), async (req,res) => {
+    const parsed=z.object({status:z.enum(["open","resolved"])}).strict().safeParse(req.body);
+    if (!z.uuid().safeParse(req.params.id).success || !parsed.success) {res.status(400).json({error:"Estado inválido."});return;}
+    const actor=res.locals.admin as AdminContext, client=await pool.connect();
+    try {
+      await client.query("BEGIN");
+      const ticket=await client.query("UPDATE platform_support.support_tickets SET status=$2,updated_at=now() WHERE id=$1 RETURNING tenant_id",[req.params.id,parsed.data.status]);
+      if (!ticket.rowCount) {await client.query("ROLLBACK");res.status(404).json({error:"Chamado não encontrado."});return;}
+      await writeAdminAudit(client,{actorId:actor.id,actorEmail:actor.email,subjectTenantId:ticket.rows[0].tenant_id,action:"admin.support.status_changed",result:"success",technical:{ticket_id:String(req.params.id),status:parsed.data.status}});
+      await client.query("COMMIT");res.json({ok:true});
+    } catch(e) {await client.query("ROLLBACK").catch(()=>{});throw e;} finally {client.release();}
+  });
   app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
     console.error("Falha na API de administração central.");
     if (!res.headersSent) res.status(500).json({ error: "Não foi possível concluir a operação." });
