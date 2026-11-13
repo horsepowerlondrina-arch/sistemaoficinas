@@ -670,14 +670,15 @@ export function createPlatformAdminApp(pool: Pool, encryptionKey: string, transf
       pool.query("SELECT now() AS checked_at, current_database() AS database"),
       pool.query(`SELECT action,count(*)::integer AS count FROM platform_admin.audit_events
         WHERE result='failure' AND created_at>now()-interval '24 hours'
-        GROUP BY action ORDER BY count DESC LIMIT 20`),
+        GROUP BY action ORDER BY count DESC`),
       pool.query(`SELECT status,count(*)::integer AS count FROM platform_support.support_tickets GROUP BY status`),
     ]);
+    const countFailures=(provider:string)=>failures.rows.filter(row=>row.action===`integration.${provider}.failure` || (provider==="resend" && row.action==="admin.workshop.invitation.delivery_failed")).reduce((sum,row)=>sum+Number(row.count),0);
     res.json({checked_at:health.rows[0].checked_at,database_available:true,
       integrations:[
-        {name:"Stripe",configured:!!process.env.STRIPE_SECRET_KEY,failures:null},
-        {name:"Resend",configured:!!process.env.RESEND_API_KEY,failures:failures.rows.filter(row=>String(row.action).includes("invitation.delivery_failed")).reduce((sum,row)=>sum+Number(row.count),0)},
-        {name:"FipePlaca",configured:!!process.env.FIPEPLACA_PLATFORM_TOKEN,failures:null},
+        {name:"Stripe",configured:!!process.env.STRIPE_SECRET_KEY && !!process.env.STRIPE_WEBHOOK_SECRET,failures:countFailures("stripe")},
+        {name:"Resend",configured:!!process.env.RESEND_API_KEY && !!process.env.WORKSHOP_ACTIVATION_FROM,failures:countFailures("resend")},
+        {name:"FipePlaca",configured:!!(process.env.FIPEPLACA_PLATFORM_TOKEN || process.env.FIPEPLACA_TOKENS_JSON || process.env.PLACA_FIPE_TOKENS_JSON),failures:countFailures("fipeplaca")},
       ],audit_failures:failures.rows,support_by_status:tickets.rows});
   });
   app.get("/admin-api/support/tickets", requireSession, requirePermission("workshops:read"), async (_req,res) => {

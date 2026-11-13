@@ -11,6 +11,11 @@ export const plannedWorkshopPlans = [
   { code: "premium", label: "Premium", users: 10, description: "Profissional e Catálogo Técnico de Tempos." },
 ] as const;
 const actions: Record<string,string> = {
+ "integration.stripe.failure":"Falha na comunicação com Stripe",
+ "integration.fipeplaca.failure":"Falha na consulta externa de placas",
+ "integration.resend.failure":"Falha no envio de e-mail",
+ "admin.support.replied":"Resposta enviada ao chamado",
+ "admin.support.status_changed":"Situação do chamado alterada",
  "admin.stripe.price_changed":"Preço mensal atualizado",
  "stripe.checkout.prepared":"Pagamento da assinatura preparado",
  "stripe.payment.reconciled":"Pagamento da assinatura conferido",

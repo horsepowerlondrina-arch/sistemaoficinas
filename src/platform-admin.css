@@ -80,3 +80,36 @@ body:has(.development-notice) .pa-topbar{top:36px}
 .workshop-support{padding:20px;max-width:1200px;margin:auto}.workshop-support header{margin-bottom:20px}.workshop-support .pa-card{background:#fff;border:1px solid #e1e6ea;border-radius:12px;padding:20px}
 .pa-monitoring{display:grid;gap:16px}.pa-monitoring-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.pa-monitoring-grid article{display:grid;gap:7px;border:1px solid #e1e6ea;border-radius:8px;padding:14px}.pa-monitoring-grid small{color:#677785}
 @media(max-width:800px){.pa-support-layout{grid-template-columns:1fr}.pa-monitoring-grid{grid-template-columns:1fr}.workshop-support{padding:12px}}
+
+/* Shared administrative controls; scoped to preserve operational screens. */
+.pa-shell{--pa-border:#d7dfe5;--pa-muted:#596775;font-size:14px;line-height:1.5}
+.pa-shell [hidden]{display:none!important}
+.pa-shell h2{font-size:18px;line-height:1.35;margin:0 0 12px;letter-spacing:-.02em}
+.pa-shell h3{font-size:15px;line-height:1.4;margin:0 0 8px}
+.pa-shell p{overflow-wrap:anywhere}
+.pa-shell button,.pa-shell input,.pa-shell select,.pa-shell textarea{font-family:inherit;font-size:14px}
+.pa-shell :is(.pa-primary,.pa-quiet,.button){min-height:42px;border-radius:8px;padding:9px 14px;font-size:13px;font-weight:650;line-height:1.35}
+.pa-shell button:disabled{cursor:not-allowed}
+.pa-shell label{font-size:13px;color:#43515f}
+.pa-shell :is(input,select,textarea):not([type=checkbox]):not([type=radio]){box-sizing:border-box;width:100%;min-width:0;min-height:42px;border:1px solid var(--pa-border);border-radius:8px;padding:9px 12px;color:#202022;background:#fff}
+.pa-shell textarea{min-height:100px;resize:vertical}
+.pa-shell :is(input,select,textarea):focus-visible{outline:2px solid #a31c28;outline-offset:2px}
+.pa-shell :is(input[type=checkbox],input[type=radio]){accent-color:#a31c28;width:16px;height:16px;flex:none}
+.pa-shell :is(.pa-workshop-actions,.pa-account-actions){gap:10px;flex-wrap:wrap}
+.pa-shell .pa-workshop-tabs{flex-wrap:nowrap;overflow-x:auto;gap:4px;padding:0;border-bottom:1px solid var(--pa-border);margin:0 0 20px}
+.pa-shell .pa-workshop-tabs button{flex:none;min-height:44px;padding:10px 14px;border:0;border-bottom:3px solid transparent;border-radius:0;background:transparent;color:var(--pa-muted);font-size:13px;font-weight:600;white-space:nowrap}
+.pa-shell .pa-workshop-tabs button[aria-selected=true]{border-bottom-color:#a31c28;color:#a31c28;background:#fff5f6}
+.pa-shell .pa-card small,.pa-shell .pa-help{color:var(--pa-muted);font-size:12px;line-height:1.5}
+.pa-shell .pa-help{margin-top:18px}
+.pa-admin-workspace{min-width:0}
+.pa-admin-workspace .pa-form{max-width:720px}
+.pa-event-summary{padding:0;list-style:none;margin:0}
+.pa-event-summary li{display:flex;justify-content:space-between;gap:16px;padding:12px 0;border-bottom:1px solid var(--pa-border)}
+.pa-shell .pa-account{padding:20px 0}
+.pa-shell .pa-account-head strong,.pa-shell .pa-workshop-row strong{font-size:14px}
+.pa-shell .pa-role-editor{flex-wrap:wrap;font-size:13px}
+.pa-shell .pa-role-editor select{width:auto;flex:1;min-width:160px}
+.pa-shell .pa-section-title{align-items:center}
+.pa-shell .pa-note:empty{display:none}
+.pa-shell .billing-admin-grid{grid-template-columns:1fr}
+@media(max-width:640px){.pa-shell .pa-section-title{align-items:flex-start;flex-wrap:wrap}.pa-shell .pa-heading{flex-wrap:wrap}.pa-shell .pa-permission-editor{grid-template-columns:1fr}.pa-shell .pa-workshop-actions :is(.pa-quiet,.pa-primary){min-height:42px;font-size:13px}.pa-shell .pa-user{max-width:145px}}
