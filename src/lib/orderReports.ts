@@ -106,7 +106,7 @@ export function orderResult(
   const payments = orderPayments(order, data);
   const productSale = sum(products, "sale"),
     serviceSale = sum(services, "sale");
-  const productCost = sum(products, "totalCost"),
+  const productCost = number(order.product_cost_total) > 0 ? number(order.product_cost_total) : sum(products, "totalCost"),
     serviceCost = sum(services, "totalCost");
   const fees = payments.reduce((s, p) => s + p.fee, 0);
   const total = number(order.total),

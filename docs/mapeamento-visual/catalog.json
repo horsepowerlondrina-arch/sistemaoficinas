@@ -86,9 +86,28 @@
       "id": "17-painel-admin-central",
       "name": "Painel Administrativo Central",
       "description": "Login, oficinas, administradores e auditoria; sessão separada."
+    },
+    {
+      "id": "18-resultados",
+      "name": "Resultados da oficina",
+      "description": "Produção, resultado estimado, caixa, metas e comparação com filtro de datas."
     }
   ],
   "entries": [
+    {
+      "id": "gestao-resultados-periodo",
+      "module": "18-resultados",
+      "title": "Resultados por intervalo",
+      "description": "Filtro livre de datas, indicadores, metas e relatório PDF com dados fictícios da oficina.",
+      "route": "/resultados",
+      "kind": "Análise de gestão",
+      "viewport": "desktop",
+      "status": "capturada",
+      "image": "docs/mapeamento-visual/capturas/18-resultados/gestao-resultados-periodo.png",
+      "updatedAt": "2026-11-13",
+      "commit": "a2989d0cf5f75f3cab1673504899d9b37d9a2a72",
+      "reason": null
+    },
     {
       "id": "login-oficina",
       "module": "01-login-acesso",
