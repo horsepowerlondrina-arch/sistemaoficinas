@@ -45,6 +45,7 @@ const moduleForUiPath = (path: string): WorkshopModuleKey | null => {
   if (path.startsWith("/fornecedores")) return "suppliers";
   if (path.startsWith("/estoque")) return "inventory";
   if (path.startsWith("/financeiro")) return "finance";
+  if (path.startsWith("/resultados")) return "finance";
   if (path.startsWith("/configuracoes")) return "settings";
   return null;
 };
@@ -79,6 +80,7 @@ export function moduleForApiRequest(path: string, method = "GET"): WorkshopModul
   if (/^\/stock-invoices(?:\/|$)/.test(p)) return ["inventory","catalog","suppliers"];
   if (/^\/stock(?:\/|$)/.test(p)) return ["inventory"];
   if (/^\/(?:expenses|payables|expense-templates|cash-control|cash-accounts|cash-adjustments|receivables|installments|payment-settings)(?:\/|$)/.test(p)) return ["finance"];
+  if (/^\/management-results(?:\/|$)/.test(p)) return ["finance", "orders"];
   if (/^\/card-machines(?:\/|$)/.test(p)) return method === "GET" ? ["finance"] : ["finance", "settings"];
   if (p === "/parts-pricing" || p.startsWith("/parts-pricing/") || p.startsWith("/workshop-profile")) return ["settings"];
   return null;

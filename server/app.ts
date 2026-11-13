@@ -86,6 +86,7 @@ import { requireAdmin } from "./services/payments.js";
 import { previewStockInvoice, importStockInvoice } from "./services/stockInvoices.js";
 import { listSuppliers, supplierDetails, saveSupplier } from "./services/suppliers.js";
 import { getWorkshopProfile, saveWorkshopProfile } from "./services/workshopProfile.js";
+import { getManagementResultsSettings, saveManagementResultsSettings } from "./services/managementResultsSettings.js";
 import { listCardMachines, saveCardMachine, resolveCardPayments } from "./services/cardMachines.js";
 import { calculatePaymentPlan, paymentMethods } from "./domain/payments.js";
 import { lookupVehicle, lookupVehicleExternal, normalizePlate, vehicleLookupAccess } from "./services/vehicleLookup.js";
@@ -926,6 +927,12 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
   });
   app.get("/api/cash-control", async (_req, res) =>
     res.json(await cashControl(db, res.locals.context)),
+  );
+  app.get("/api/management-results/settings", async (_req, res) =>
+    res.json(await getManagementResultsSettings(db, res.locals.context)),
+  );
+  app.put("/api/management-results/settings", async (req, res) =>
+    res.json(await saveManagementResultsSettings(db, res.locals.context, req.body)),
   );
   app.post("/api/cash-accounts", async (req, res) =>
     res

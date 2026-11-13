@@ -32,6 +32,14 @@ test("custo de peça ausente não vira lucro conhecido", () => {
   assert.equal(report.totals.profit, 0);
 });
 
+test("custo consolidado positivo de OS importada substitui detalhe de peça ausente", () => {
+  const imported = { ...order("77", "2026-11-05T15:00:00Z", 0), product_cost_total: 3500 };
+  const report = gainReport([imported], { from: "2026-11-01", to: "2026-11-30", kind: "both" });
+  assert.equal(report.rows[0].missingCost, false);
+  assert.equal(report.rows[0].cost, 5500);
+  assert.equal(report.rows[0].profit, imported.total - 5500);
+});
+
 test("período invertido é recusado", () => {
   assert.throws(() => gainReport([], { from: "2026-11-30", to: "2026-11-01", kind: "both" }));
 });
