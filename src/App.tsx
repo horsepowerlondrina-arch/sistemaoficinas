@@ -48,7 +48,7 @@ import {
   Command,
   CheckCircle2,
   LoaderCircle,
-  ShieldCheck,
+  MessageCircle,
   ArrowRight,
   CalendarDays,
   BarChart3,
@@ -333,7 +333,7 @@ export function App() {
                       `nav-item ${isActive ? "active" : ""}`
                     }
                   >
-                    <Icon size={19} />
+                    <Icon size={19} aria-hidden="true" style={{ flexShrink: 0 }} />
                     <span>{label}</span>
                     {path === "/ordens" && active > 0 && <b>{active}</b>}
                   </NavLink>
@@ -342,7 +342,7 @@ export function App() {
             ))}
           </nav>
           <div className="sidebar-bottom">
-            {session.support_available && <NavLink to="/suporte" className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}><ShieldCheck size={19}/><span>Suporte</span></NavLink>}
+            {session.support_available && <NavLink to="/suporte" className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}><MessageCircle size={19} aria-hidden="true" style={{ flexShrink: 0 }}/><span>Suporte</span></NavLink>}
             {admin && available("/configuracoes") && (
               <NavLink
                 to="/configuracoes"
@@ -350,7 +350,7 @@ export function App() {
                   `nav-item ${isActive ? "active" : ""}`
                 }
               >
-                <Settings size={19} />
+                <Settings size={19} aria-hidden="true" style={{ flexShrink: 0 }} />
                 <span>Configurações</span>
               </NavLink>
             )}

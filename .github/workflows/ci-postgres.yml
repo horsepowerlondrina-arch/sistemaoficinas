@@ -53,6 +53,16 @@ jobs:
       - name: ADM-002.1 administrative UI regression
         run: node scripts/test-admin-interface.mjs
         timeout-minutes: 4
+      - name: Support refresh and menu icons regression
+        run: node scripts/test-support-interface.mjs
+        timeout-minutes: 4
+      - name: Store support interface evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: support-interface
+          path: ${{ runner.temp }}/support-ui
+          retention-days: 14
       - name: Stripe billing UI regression
         run: node scripts/test-stripe-interface.mjs
         timeout-minutes: 4
