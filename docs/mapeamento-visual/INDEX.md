@@ -726,6 +726,12 @@ Componente real em Chromium com API e pagamentos fictícios; não comprova entre
 
 Estado: capturada · desktop · captura 2026-11-05 · commit de origem: ffa6ae17881c2848a19a373d48599d99fc35ef4f · [arquivo completo](./capturas/17-painel-admin-central/stripe-admin-desktop.png)
 
+## 18 — Resultados da oficina
+
+Produção, resultado estimado, caixa, metas e comparação com filtro de datas.
+
+Sem imagens reais disponíveis nesta área.
+
 ## 99 — Fluxos completos
 
 Sequências de navegação entre áreas.

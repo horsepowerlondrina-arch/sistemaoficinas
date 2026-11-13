@@ -86,9 +86,28 @@
       "id": "17-painel-admin-central",
       "name": "Painel Administrativo Central",
       "description": "Login, oficinas, administradores e auditoria; sessão separada."
+    },
+    {
+      "id": "18-resultados",
+      "name": "Resultados da oficina",
+      "description": "Produção, resultado estimado, caixa, metas e comparação com filtro de datas."
     }
   ],
   "entries": [
+    {
+      "id": "gestao-resultados-periodo",
+      "module": "18-resultados",
+      "title": "Resultados por intervalo",
+      "description": "Filtro livre de datas, indicadores, metas e relatório PDF com dados fictícios da oficina.",
+      "route": "/resultados",
+      "kind": "Análise de gestão",
+      "viewport": "desktop",
+      "status": "pendente",
+      "image": null,
+      "updatedAt": null,
+      "commit": null,
+      "reason": "A nova tela requer sessão e OS fictícias em PostgreSQL descartável para uma captura real; não foi capturada no ambiente local."
+    },
     {
       "id": "login-oficina",
       "module": "01-login-acesso",
