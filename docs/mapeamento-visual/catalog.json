@@ -102,11 +102,11 @@
       "route": "/resultados",
       "kind": "Análise de gestão",
       "viewport": "desktop",
-      "status": "pendente",
+      "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/18-resultados/gestao-resultados-periodo.png",
-      "updatedAt": null,
-      "commit": null,
-      "reason": "Captura prevista no PostgreSQL descartável do CI; PNG ainda não incorporado à biblioteca."
+      "updatedAt": "2026-11-13",
+      "commit": "a2989d0cf5f75f3cab1673504899d9b37d9a2a72",
+      "reason": null
     },
     {
       "id": "login-oficina",

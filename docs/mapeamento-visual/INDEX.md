@@ -730,7 +730,13 @@ Estado: capturada · desktop · captura 2026-11-05 · commit de origem: ffa6ae17
 
 Produção, resultado estimado, caixa, metas e comparação com filtro de datas.
 
-Sem imagens reais disponíveis nesta área.
+### Resultados por intervalo
+
+Filtro livre de datas, indicadores, metas e relatório PDF com dados fictícios da oficina.
+
+[![Resultados por intervalo](./capturas/18-resultados/gestao-resultados-periodo.png)](./capturas/18-resultados/gestao-resultados-periodo.png)
+
+Estado: capturada · desktop · captura 2026-11-13 · commit de origem: a2989d0cf5f75f3cab1673504899d9b37d9a2a72 · [arquivo completo](./capturas/18-resultados/gestao-resultados-periodo.png)
 
 ## 99 — Fluxos completos
 
