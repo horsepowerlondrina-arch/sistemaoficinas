@@ -126,6 +126,8 @@ try{
  await expect(page.getByText("Mensagem fictícia",{exact:true})).toBeVisible();
  await page.getByRole("tab",{name:"Resolvidos",exact:true}).click();
  await expect(page.getByRole("button",{name:/Consulta de teste/})).toHaveCount(0);
+ await expect(page.locator('.pa-support-layout')).toBeVisible();
+ if(await page.locator('.pa-support-layout .pa-card').evaluateAll(cards=>cards.some(card=>card.getBoundingClientRect().right>window.innerWidth)))throw Error("Support card exceeds mobile viewport");
  await page.screenshot({path:resolve(output,"suporte-mobile.png"),fullPage:true});
  if(await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth+1))throw Error("Support overflows mobile viewport");
  readOnly=true;await page.reload();await page.getByRole("button",{name:"Oficinas",exact:true}).click();await page.getByRole("button",{name:/Oficina Editada Fictícia/}).click();
