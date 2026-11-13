@@ -91,6 +91,11 @@
       "id": "18-resultados",
       "name": "Resultados da oficina",
       "description": "Produção, resultado estimado, caixa, metas e comparação com filtro de datas."
+    },
+    {
+      "id": "19-suporte",
+      "name": "Suporte da oficina",
+      "description": "Chamados e comunicação com a administração central."
     }
   ],
   "entries": [
@@ -2044,21 +2049,72 @@
       "reason": "Regressão Playwright com API fictícia."
     },
     {
+      "id": "support-admin-desktop",
+      "module": "17-painel-admin-central",
+      "title": "Suporte — atualização da conversa (admin, desktop)",
+      "description": "Interface real e APIs fictícias: atualização de mensagens, estado e rascunho preservado; menus com ícones.",
+      "route": "/admin",
+      "navigation": "Suporte → selecionar chamado → Atualizar",
+      "driver": "admin-interface",
+      "kind": "Suporte",
+      "viewport": "desktop",
+      "status": "capturada",
+      "image": "docs/mapeamento-visual/capturas/17-painel-admin-central/support-admin-desktop.png",
+      "updatedAt": "2026-11-13",
+      "commit": "1c7a0ed13dec531868f6a0eb168a08f2969dcb78",
+      "freshness": "atual",
+      "reason": "scripts/test-support-interface.mjs em loopback; sem dados persistentes."
+    },
+    {
       "id": "suporte-mobile",
       "module": "17-painel-admin-central",
-      "title": "Suporte — conversa e filtros",
-      "description": "Interface real com dados fictícios; não comprova fluxo autenticado na homologação.",
+      "title": "Suporte — atualização da conversa (admin, mobile)",
+      "description": "Interface real e APIs fictícias: atualização de mensagens, estado e rascunho preservado; menus com ícones.",
       "route": "/admin",
-      "navigation": "Suporte — conversa e filtros",
+      "navigation": "Suporte → selecionar chamado → Atualizar",
       "driver": "admin-interface",
-      "kind": "Administração",
+      "kind": "Suporte",
       "viewport": "mobile",
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/17-painel-admin-central/suporte-mobile.png",
       "updatedAt": "2026-11-13",
-      "commit": "c69d1cbbb64b78f9fa1be3a2495919f52099ec47",
+      "commit": "1c7a0ed13dec531868f6a0eb168a08f2969dcb78",
       "freshness": "atual",
-      "reason": "Regressão Playwright com API fictícia."
+      "reason": "scripts/test-support-interface.mjs em loopback; sem dados persistentes."
+    },
+    {
+      "id": "support-oficina-desktop",
+      "module": "19-suporte",
+      "title": "Suporte — atualização da conversa (oficina, desktop)",
+      "description": "Interface real e APIs fictícias: atualização de mensagens, estado e rascunho preservado; menus com ícones.",
+      "route": "/suporte",
+      "navigation": "Suporte → selecionar chamado → Atualizar",
+      "driver": "admin-interface",
+      "kind": "Suporte",
+      "viewport": "desktop",
+      "status": "capturada",
+      "image": "docs/mapeamento-visual/capturas/19-suporte/support-oficina-desktop.png",
+      "updatedAt": "2026-11-13",
+      "commit": "1c7a0ed13dec531868f6a0eb168a08f2969dcb78",
+      "freshness": "atual",
+      "reason": "scripts/test-support-interface.mjs em loopback; sem dados persistentes."
+    },
+    {
+      "id": "support-oficina-mobile",
+      "module": "19-suporte",
+      "title": "Suporte — atualização da conversa (oficina, mobile)",
+      "description": "Interface real e APIs fictícias: atualização de mensagens, estado e rascunho preservado; menus com ícones.",
+      "route": "/suporte",
+      "navigation": "Suporte → selecionar chamado → Atualizar",
+      "driver": "admin-interface",
+      "kind": "Suporte",
+      "viewport": "mobile",
+      "status": "capturada",
+      "image": "docs/mapeamento-visual/capturas/19-suporte/support-oficina-mobile.png",
+      "updatedAt": "2026-11-13",
+      "commit": "1c7a0ed13dec531868f6a0eb168a08f2969dcb78",
+      "freshness": "atual",
+      "reason": "scripts/test-support-interface.mjs em loopback; sem dados persistentes."
     }
   ],
   "flows": [

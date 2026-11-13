@@ -734,13 +734,21 @@ Interface real com dados fictícios; não comprova fluxo autenticado na homologa
 
 Estado: capturada · mobile · captura 2026-11-13 · commit de origem: 1a45971dc80ce77954c95612f39891bada77d5b4 · [arquivo completo](./capturas/17-painel-admin-central/monitoramento-mobile.png)
 
-### Suporte — conversa e filtros
+### Suporte — atualização da conversa (admin, desktop)
 
-Interface real com dados fictícios; não comprova fluxo autenticado na homologação.
+Interface real e APIs fictícias: atualização de mensagens, estado e rascunho preservado; menus com ícones.
 
-[![Suporte — conversa e filtros](./capturas/17-painel-admin-central/suporte-mobile.png)](./capturas/17-painel-admin-central/suporte-mobile.png)
+[![Suporte — atualização da conversa (admin, desktop)](./capturas/17-painel-admin-central/support-admin-desktop.png)](./capturas/17-painel-admin-central/support-admin-desktop.png)
 
-Estado: capturada · mobile · captura 2026-11-13 · commit de origem: c69d1cbbb64b78f9fa1be3a2495919f52099ec47 · [arquivo completo](./capturas/17-painel-admin-central/suporte-mobile.png)
+Estado: capturada · desktop · captura 2026-11-13 · commit de origem: 1c7a0ed13dec531868f6a0eb168a08f2969dcb78 · [arquivo completo](./capturas/17-painel-admin-central/support-admin-desktop.png)
+
+### Suporte — atualização da conversa (admin, mobile)
+
+Interface real e APIs fictícias: atualização de mensagens, estado e rascunho preservado; menus com ícones.
+
+[![Suporte — atualização da conversa (admin, mobile)](./capturas/17-painel-admin-central/suporte-mobile.png)](./capturas/17-painel-admin-central/suporte-mobile.png)
+
+Estado: capturada · mobile · captura 2026-11-13 · commit de origem: 1c7a0ed13dec531868f6a0eb168a08f2969dcb78 · [arquivo completo](./capturas/17-painel-admin-central/suporte-mobile.png)
 
 ## 18 — Resultados da oficina
 
@@ -753,6 +761,26 @@ Filtro livre de datas, indicadores, metas e relatório PDF com dados fictícios 
 [![Resultados por intervalo](./capturas/18-resultados/gestao-resultados-periodo.png)](./capturas/18-resultados/gestao-resultados-periodo.png)
 
 Estado: capturada · desktop · captura 2026-11-13 · commit de origem: a2989d0cf5f75f3cab1673504899d9b37d9a2a72 · [arquivo completo](./capturas/18-resultados/gestao-resultados-periodo.png)
+
+## 19 — Suporte da oficina
+
+Chamados e comunicação com a administração central.
+
+### Suporte — atualização da conversa (oficina, desktop)
+
+Interface real e APIs fictícias: atualização de mensagens, estado e rascunho preservado; menus com ícones.
+
+[![Suporte — atualização da conversa (oficina, desktop)](./capturas/19-suporte/support-oficina-desktop.png)](./capturas/19-suporte/support-oficina-desktop.png)
+
+Estado: capturada · desktop · captura 2026-11-13 · commit de origem: 1c7a0ed13dec531868f6a0eb168a08f2969dcb78 · [arquivo completo](./capturas/19-suporte/support-oficina-desktop.png)
+
+### Suporte — atualização da conversa (oficina, mobile)
+
+Interface real e APIs fictícias: atualização de mensagens, estado e rascunho preservado; menus com ícones.
+
+[![Suporte — atualização da conversa (oficina, mobile)](./capturas/19-suporte/support-oficina-mobile.png)](./capturas/19-suporte/support-oficina-mobile.png)
+
+Estado: capturada · mobile · captura 2026-11-13 · commit de origem: 1c7a0ed13dec531868f6a0eb168a08f2969dcb78 · [arquivo completo](./capturas/19-suporte/support-oficina-mobile.png)
 
 ## 99 — Fluxos completos
 
