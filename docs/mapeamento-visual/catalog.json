@@ -2056,7 +2056,7 @@
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/17-painel-admin-central/suporte-mobile.png",
       "updatedAt": "2026-11-13",
-      "commit": "1a45971dc80ce77954c95612f39891bada77d5b4",
+      "commit": "c69d1cbbb64b78f9fa1be3a2495919f52099ec47",
       "freshness": "atual",
       "reason": "Regressão Playwright com API fictícia."
     }

@@ -740,7 +740,7 @@ Interface real com dados fictícios; não comprova fluxo autenticado na homologa
 
 [![Suporte — conversa e filtros](./capturas/17-painel-admin-central/suporte-mobile.png)](./capturas/17-painel-admin-central/suporte-mobile.png)
 
-Estado: capturada · mobile · captura 2026-11-13 · commit de origem: 1a45971dc80ce77954c95612f39891bada77d5b4 · [arquivo completo](./capturas/17-painel-admin-central/suporte-mobile.png)
+Estado: capturada · mobile · captura 2026-11-13 · commit de origem: c69d1cbbb64b78f9fa1be3a2495919f52099ec47 · [arquivo completo](./capturas/17-painel-admin-central/suporte-mobile.png)
 
 ## 18 — Resultados da oficina
 
