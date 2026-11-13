@@ -16,15 +16,21 @@ try {
   const stamp='2026-11-13T12:00:00Z';
   let tickets=[{id:'ticket-a',subject:'Chamado A fictício',status:'open',workshop_name:'Oficina fictícia',updated_at:stamp},{id:'ticket-b',subject:'Chamado B fictício',status:'open',workshop_name:'Oficina fictícia',updated_at:stamp}];
   let messages={ 'ticket-a':[{id:'a1',sender_kind:'workshop',body:'Mensagem original A',created_at:stamp}], 'ticket-b':[{id:'b1',sender_kind:'workshop',body:'Mensagem original B',created_at:stamp}]};
-  let fail=false,hold=false,release,reads=0,lists=0,writes=0;
+  let fail=false,hold=false,release,reads=0,lists=0,writes=0,allowReply=false,failList=false;
   await page.route('**/*api/**',async route=>{
    const req=route.request(),path=new URL(req.url()).pathname;
    const json=(value,status=200)=>route.fulfill({json:value,status});
-   if(req.method()!=='GET'){writes++;return json({error:'Unexpected mutation'},400);}
+   if(req.method()!=='GET'){
+    writes++;
+    if(allowReply&&req.method()==='POST'&&path.endsWith('/ticket-b/messages')){
+     messages['ticket-b'].push({id:'b2',sender_kind:'workshop',body:req.postDataJSON().body,created_at:stamp});failList=true;return json({ok:true});
+    }
+    return json({error:'Unexpected mutation'},400);
+   }
    if(path==='/admin-api/session')return json({administrator:{id:'admin',name:'Admin Fictício',email:'admin@example.test',role:'principal',permissions:['administrators:manage','workshops:read','workshops:manage','audit:read','platform:settings']}});
    if(path==='/api/session')return json({user:{id:'owner',name:'Responsável Fictício',email:'owner@example.test'},tenant:{id:'fictional',name:'Oficina Fictícia'},tenants:[],role:'owner',support_available:true});
    if(path==='/api/workspace')return json({customers:[],vehicles:[],catalog:[],professionals:[],orders:[],receivables:[],cash:[],movements:[],installments:[],payment_settings:null});
-   if(path.endsWith('/support/tickets')){lists++;return json(tickets);}
+   if(path.endsWith('/support/tickets')){lists++;return failList?json({error:'Falha fictícia ao atualizar a lista'},503):json(tickets);}
    if(path.includes('/support/tickets/')&&path.endsWith('/messages')){
     reads++;const id=path.split('/').at(-2),result=structuredClone(messages[id]);
     if(hold&&id==='ticket-a'){hold=false;await new Promise(r=>{release=r;});}
@@ -67,7 +73,16 @@ try {
   await page.setViewportSize({width:390,height:844});
   await page.screenshot({path:resolve(output,`support-${mode}-mobile.png`),fullPage:true,animations:"disabled"});
   if(await page.locator('.pa-support-layout .pa-card').evaluateAll(cards=>cards.some(card=>card.getBoundingClientRect().right>innerWidth)))throw Error(mode+' support overflow');
-  if(writes!==0)throw Error('Refresh caused a write');if(errors.length)throw Error(errors.join('\n'));
+  if(writes!==0)throw Error('Refresh caused a write');
+  if(mode==='oficina'){
+   allowReply=true;await draft.fill('Resposta confirmada pelo servidor');
+   await page.getByRole('button',{name:'Enviar mensagem',exact:true}).click();
+   await expect(page.getByRole('alert')).toHaveText('Falha fictícia ao atualizar a lista');
+   await expect(draft).toHaveValue('');await expect(page.getByText('Resposta confirmada pelo servidor',{exact:true})).toBeVisible();
+   await expect(page.getByRole('button',{name:'Enviar mensagem',exact:true})).toBeDisabled();
+   if(writes!==1)throw Error('Successful reply duplicated after read failure');
+  }
+  if(errors.length)throw Error(errors.join('\n'));
   await page.close();
  }
  console.log('Support UI passed in both panels: refresh list + conversation + status, draft preserved, error/retry, stale response isolation, no writes, sidebar icons, desktop/mobile.');

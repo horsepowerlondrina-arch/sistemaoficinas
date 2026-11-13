@@ -31,7 +31,7 @@ export function WorkshopSupport(){
   };
   useEffect(()=>{void load().catch(e=>setError(e.message));return()=>{sequence.current++;};},[]);
   const submit=async(event:FormEvent)=>{event.preventDefault();if(busy||loading||refreshing)return;setBusy(true);setError("");try{
-    if(selected){await send(`/support/tickets/${selected.id}/messages`,{body});await open({...selected,status:"open"});await load();}else{const created=await api<{id:string}>("/support/tickets",{method:"POST",body:JSON.stringify({subject,body})});await load();const ticket={id:created.id,subject,status:"open",updated_at:new Date().toISOString()};setSelected(ticket);setMessages([{id:created.id,sender_kind:"workshop",body,created_at:new Date().toISOString()}]);}
+    if(selected){await send(`/support/tickets/${selected.id}/messages`,{body});setBody("");await open({...selected,status:"open"});await load();}else{const created=await api<{id:string}>("/support/tickets",{method:"POST",body:JSON.stringify({subject,body})});await load();const ticket={id:created.id,subject,status:"open",updated_at:new Date().toISOString()};setSelected(ticket);setMessages([{id:created.id,sender_kind:"workshop",body,created_at:new Date().toISOString()}]);}
     setSubject("");setBody("");
   }catch(e){setError((e as Error).message);}finally{setBusy(false);}};
   return <div className="workshop-support"><header><h1>Suporte</h1><p>Abra um chamado e acompanhe as respostas da equipe OSDrive.</p></header>{error&&<p role="alert" className="pa-note pa-note--error">{error}</p>}
