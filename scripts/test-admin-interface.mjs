@@ -23,6 +23,9 @@ try{
   const req=route.request(),path=new URL(req.url()).pathname,method=req.method(),body=req.postDataJSON();
   const json=(value,status=200)=>route.fulfill({status,json:value});
   if(path.endsWith("/session"))return json({administrator:{id:"admin",name:"Admin Fictício",email:"admin@example.test",role:"principal",permissions:readOnly?["workshops:read"]:["workshops:read","workshops:manage","modules:manage","data-transfer:manage","audit:read"]}});
+  if(path==="/admin-api/monitoring")return json({checked_at:"2026-11-13T12:00:00Z",database_available:true,integrations:[{name:"Stripe",configured:true,failures:2},{name:"Resend",configured:true,failures:0},{name:"FipePlaca",configured:true,failures:1}],audit_failures:[{action:"integration.stripe.failure",count:2}]});
+  if(path==="/admin-api/support/tickets")return json([{id:"ticket-a",subject:"Consulta de teste",workshop_name:"Oficina fictícia",status:"open",updated_at:"2026-11-13T12:00:00Z"}]);
+  if(path.endsWith("/ticket-a/messages"))return json([{id:"message-a",sender_kind:"workshop",body:"Mensagem fictícia",created_at:"2026-11-13T12:00:00Z"}]);
   if(path==="/admin-api/workshops")return json({items:[workshop],total:1});
   if(path.includes("/data-transfer/"))return json([]);
   if(path.endsWith("/history")){if(failHistory)return json({error:"Histórico temporariamente indisponível"},503);return json(events);}
@@ -113,6 +116,20 @@ try{
  await page.getByRole("button",{name:"Fechar e apagar",exact:true}).click();
  await expect(page.getByRole("dialog")).toHaveCount(0);
  await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:resolve(output,"oficina-convites-mobile.png"),fullPage:true});
+ await page.getByRole("button",{name:"Monitoramento",exact:true}).click();
+ await expect(page.getByText("2 falha(s) em 24 horas",{exact:true})).toBeVisible();
+ await page.getByRole("tab",{name:"Falhas registradas",exact:true}).click();
+ await expect(page.getByText("Falha na comunicação com Stripe",{exact:true})).toBeVisible();
+ await page.screenshot({path:resolve(output,"monitoramento-mobile.png"),fullPage:true});
+ await page.getByRole("button",{name:"Suporte",exact:true}).click();
+ await page.getByRole("button",{name:/Consulta de teste/}).click();
+ await expect(page.getByText("Mensagem fictícia",{exact:true})).toBeVisible();
+ await page.getByRole("tab",{name:"Resolvidos",exact:true}).click();
+ await expect(page.getByRole("button",{name:/Consulta de teste/})).toHaveCount(0);
+ await expect(page.locator('.pa-support-layout')).toBeVisible();
+ if(await page.locator('.pa-support-layout .pa-card').evaluateAll(cards=>cards.some(card=>card.getBoundingClientRect().right>window.innerWidth)))throw Error("Support card exceeds mobile viewport");
+ await page.screenshot({path:resolve(output,"suporte-mobile.png"),fullPage:true});
+ if(await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth+1))throw Error("Support overflows mobile viewport");
  readOnly=true;await page.reload();await page.getByRole("button",{name:"Oficinas",exact:true}).click();await page.getByRole("button",{name:/Oficina Editada Fictícia/}).click();
  await expect(page.getByRole("button",{name:"Editar dados",exact:true})).toHaveCount(0);
  await page.getByRole("tab",{name:"Acessos e permissões",exact:true}).click();

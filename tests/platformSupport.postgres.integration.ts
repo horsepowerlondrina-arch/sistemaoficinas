@@ -45,8 +45,12 @@ test("PostgreSQL: chamados isolados por oficina, permissões administrativas e a
     assert.equal((await request(`/admin-api/support/tickets/${ticket}/messages`,"POST",{body:"Resposta administrativa"})).status,200);
     assert.equal((await owner.query("SELECT count(*)::int AS n FROM platform_admin.audit_events WHERE action='admin.support.replied' AND subject_tenant_id=$1",[a])).rows[0].n,1);
     await owner.query("UPDATE platform_admin.administrators SET permissions=permissions || '[\"audit:read\"]'::jsonb WHERE id=$1",[adminId]);
+    await owner.query("INSERT INTO platform_admin.audit_events(id,actor_email,action,result,technical_context) VALUES($1,'system','integration.stripe.failure','failure','{}'::jsonb)",[randomUUID()]);
     const health=await request("/admin-api/monitoring");assert.equal(health.status,200);
-    assert.equal((await health.json() as {database_available:boolean}).database_available,true);
+    const report=await health.json() as {database_available:boolean;integrations:{name:string;failures:number}[]};
+    assert.equal(report.database_available,true);
+    assert.ok(report.integrations.find(i=>i.name==="Stripe")!.failures>=1);
+    assert.ok(report.integrations.every(i=>Number.isInteger(i.failures)));
     await app.query("BEGIN");await app.query("SELECT set_config('app.tenant_id',$1,true),set_config('app.user_id',$2,true)",[a,userA]);
     assert.equal((await app.query("SELECT * FROM platform_support.workshop_support_messages($1)",[ticket])).rows.length,2);
     await app.query("ROLLBACK");

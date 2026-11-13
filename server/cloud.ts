@@ -1,3 +1,4 @@
+import { integrationFailureRecorder, observeIntegration } from "./services/integrationMonitoring.js";
 import { stripeBillingService } from "./services/stripeBilling.js";
 import { createStripeGateway } from "./services/stripeGateway.js";
 import { stripePublicRoutes } from "./stripeBillingRoutes.js";
@@ -39,12 +40,14 @@ if (standaloneHorsePower) {
   });
   await assertPlatformAdminDatabase(adminPool);
   const transfer = createPlatformAdminDataTransfer(db, adminPool);
+  const recordFailure = integrationFailureRecorder(adminPool);
+  const stripeRequest = process.env.STRIPE_BILLING_ENABLED === "true" ? createStripeGateway(process.env.STRIPE_SECRET_KEY || "") : undefined;
   const billing = process.env.STRIPE_BILLING_ENABLED === "true"
-    ? stripeBillingService(adminPool, createStripeGateway(process.env.STRIPE_SECRET_KEY || ""), process.env.APP_ORIGIN!, (process.env.STRIPE_TEST_TENANT_IDS || "").split(",").map(v => v.trim()).filter(Boolean))
+    ? stripeBillingService(adminPool, (...args) => observeIntegration("stripe",recordFailure,()=>stripeRequest!(...args)), process.env.APP_ORIGIN!, (process.env.STRIPE_TEST_TENANT_IDS || "").split(",").map(v => v.trim()).filter(Boolean))
     : undefined;
   if (billing && !process.env.STRIPE_WEBHOOK_SECRET?.startsWith("whsec_"))
     throw new Error("Configure o webhook Stripe de teste.");
   app = createApp(db, createPlatformAdminApp(adminPool, adminKey, transfer, billing), {}, billing,
-    billing ? stripePublicRoutes(billing, process.env.STRIPE_WEBHOOK_SECRET!, process.env.STRIPE_CRON_SECRET || "", process.env.CRON_SECRET) : undefined);
+    billing ? stripePublicRoutes(billing, process.env.STRIPE_WEBHOOK_SECRET!, process.env.STRIPE_CRON_SECRET || "", process.env.CRON_SECRET) : undefined, recordFailure);
 }
 export default app;

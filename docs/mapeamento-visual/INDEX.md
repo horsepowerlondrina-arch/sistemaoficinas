@@ -724,7 +724,23 @@ Componente real em Chromium com API e pagamentos fictícios; não comprova entre
 
 [![Preços e assinaturas Stripe](./capturas/17-painel-admin-central/stripe-admin-desktop.png)](./capturas/17-painel-admin-central/stripe-admin-desktop.png)
 
-Estado: capturada · desktop · captura 2026-11-05 · commit de origem: ffa6ae17881c2848a19a373d48599d99fc35ef4f · [arquivo completo](./capturas/17-painel-admin-central/stripe-admin-desktop.png)
+Estado: capturada · desktop · captura 2026-11-13 · commit de origem: 1a45971dc80ce77954c95612f39891bada77d5b4 · [arquivo completo](./capturas/17-painel-admin-central/stripe-admin-desktop.png)
+
+### Monitoramento — falhas por integração
+
+Interface real com dados fictícios; não comprova fluxo autenticado na homologação.
+
+[![Monitoramento — falhas por integração](./capturas/17-painel-admin-central/monitoramento-mobile.png)](./capturas/17-painel-admin-central/monitoramento-mobile.png)
+
+Estado: capturada · mobile · captura 2026-11-13 · commit de origem: 1a45971dc80ce77954c95612f39891bada77d5b4 · [arquivo completo](./capturas/17-painel-admin-central/monitoramento-mobile.png)
+
+### Suporte — conversa e filtros
+
+Interface real com dados fictícios; não comprova fluxo autenticado na homologação.
+
+[![Suporte — conversa e filtros](./capturas/17-painel-admin-central/suporte-mobile.png)](./capturas/17-painel-admin-central/suporte-mobile.png)
+
+Estado: capturada · mobile · captura 2026-11-13 · commit de origem: c69d1cbbb64b78f9fa1be3a2495919f52099ec47 · [arquivo completo](./capturas/17-painel-admin-central/suporte-mobile.png)
 
 ## 18 — Resultados da oficina
 

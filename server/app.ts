@@ -234,7 +234,8 @@ function requestSecuritySettings(req: express.Request) {
   };
 }
 
-export function createApp(db: DB, platformAdminApp?: express.RequestHandler, passwordResetMailConfig: PasswordResetMailConfig = {}, billing?: StripeBilling, billingPublic?: express.RequestHandler) {
+import type { IntegrationFailure } from "./services/integrationMonitoring.js";
+export function createApp(db: DB, platformAdminApp?: express.RequestHandler, passwordResetMailConfig: PasswordResetMailConfig = {}, billing?: StripeBilling, billingPublic?: express.RequestHandler, recordIntegrationFailure?: IntegrationFailure) {
   const app = express();
   app.disable("x-powered-by");
   if (billingPublic) app.use(billingPublic);
@@ -337,6 +338,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
       } catch {
         try { await cancelPasswordReset(db, tokenHash); }
         catch { console.warn("Não foi possível revogar um link de recuperação não entregue."); }
+        await recordIntegrationFailure?.("resend");
         console.warn("Falha ao enviar e-mail de recuperação de senha da oficina.");
       }
     }
@@ -1084,7 +1086,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
     }
     entry.count++;
     lookupLimits.set(tenant, entry);
-    res.json(await lookupVehicle(db, tenant, plate));
+    try { res.json(await lookupVehicle(db, tenant, plate)); } catch(error) { if ((error as {status?:number}).status===502) await recordIntegrationFailure?.("fipeplaca"); throw error; }
   });
   app.post("/api/vehicles/:id/lookup-refresh", async (req, res) => {
     const tenant = res.locals.context.tenantId;
@@ -1097,7 +1099,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
     entry.count++;
     lookupLimits.set(tenant, entry);
     const current = await scoped(db, "vehicles", tenant, String(req.params.id));
-    const result = await lookupVehicleExternal(db, tenant, String(current.plate));
+    const result = await lookupVehicleExternal(db, tenant, String(current.plate)).catch(async error=>{if(error.status===502)await recordIntegrationFailure?.("fipeplaca");throw error;});
     let confirmation_token: string | undefined;
     if (result.source === "external" && result.vehicle) {
       confirmation_token = randomBytes(32).toString("hex");
