@@ -1987,10 +1987,10 @@
       "viewport": "desktop",
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/17-painel-admin-central/stripe-admin-desktop.png",
-      "updatedAt": "2026-11-05",
-      "commit": "ffa6ae17881c2848a19a373d48599d99fc35ef4f",
+      "updatedAt": "2026-11-13",
+      "commit": "1a45971dc80ce77954c95612f39891bada77d5b4",
       "freshness": "atual",
-      "reason": "CI #583. Dados exclusivamente fictícios; integração PostgreSQL validada separadamente."
+      "reason": "Interface real com API fictícia. Regressões de interação aprovadas; backend validado separadamente no CI."
     },
     {
       "id": "stripe-oficina-desktop",
@@ -2025,6 +2025,40 @@
       "commit": "ffa6ae17881c2848a19a373d48599d99fc35ef4f",
       "freshness": "atual",
       "reason": "CI #583. Dados exclusivamente fictícios; integração PostgreSQL validada separadamente."
+    },
+    {
+      "id": "monitoramento-mobile",
+      "module": "17-painel-admin-central",
+      "title": "Monitoramento — falhas por integração",
+      "description": "Interface real com dados fictícios; não comprova fluxo autenticado na homologação.",
+      "route": "/admin",
+      "navigation": "Monitoramento — falhas por integração",
+      "driver": "admin-interface",
+      "kind": "Administração",
+      "viewport": "mobile",
+      "status": "capturada",
+      "image": "docs/mapeamento-visual/capturas/17-painel-admin-central/monitoramento-mobile.png",
+      "updatedAt": "2026-11-13",
+      "commit": "1a45971dc80ce77954c95612f39891bada77d5b4",
+      "freshness": "atual",
+      "reason": "Regressão Playwright com API fictícia."
+    },
+    {
+      "id": "suporte-mobile",
+      "module": "17-painel-admin-central",
+      "title": "Suporte — conversa e filtros",
+      "description": "Interface real com dados fictícios; não comprova fluxo autenticado na homologação.",
+      "route": "/admin",
+      "navigation": "Suporte — conversa e filtros",
+      "driver": "admin-interface",
+      "kind": "Administração",
+      "viewport": "mobile",
+      "status": "capturada",
+      "image": "docs/mapeamento-visual/capturas/17-painel-admin-central/suporte-mobile.png",
+      "updatedAt": "2026-11-13",
+      "commit": "1a45971dc80ce77954c95612f39891bada77d5b4",
+      "freshness": "atual",
+      "reason": "Regressão Playwright com API fictícia."
     }
   ],
   "flows": [

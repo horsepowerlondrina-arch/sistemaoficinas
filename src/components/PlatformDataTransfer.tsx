@@ -19,6 +19,7 @@ const MAX_PACKAGE_BYTES = 4 * 1024 * 1024;
 
 export function PlatformDataTransfer({ tenantId, workshopName, environmentLabel, canRequestCritical, canApproveCritical, showHistory=true, onChanged }: Props) {
   const base = "/admin-api/workshops/" + encodeURIComponent(tenantId) + "/data-transfer";
+  const [transferTab,setTransferTab]=useState("export");
   const [fileText, setFileText] = useState("");
   const [fileName, setFileName] = useState("");
   const [phrase, setPhrase] = useState("");
@@ -190,14 +191,15 @@ export function PlatformDataTransfer({ tenantId, workshopName, environmentLabel,
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Falha ao baixar a cópia."); }
   }
 
-  return <div className="work-order-section">
-    <section className="panel">
+  return <div className="pa-admin-workspace">
+    <section className="pa-card">
       <h2>Transferência completa da oficina</h2>
       <p><strong>{workshopName}</strong> · ID <code>{tenantId}</code> · {environmentLabel}</p>
-      <p>Área administrativa restrita. A exportação é preparada em cópia criptografada temporária e baixada em partes, com verificação de integridade. As operações reutilizam as regras de exportação, importação, mesclagem, substituição e conferência já existentes. Usuários, senhas, vínculos e sessões da oficina de destino não são importados nem alterados.</p>
-      <label className="field"><span>Frase secreta do pacote</span><input type="password" autoComplete="new-password" minLength={12} maxLength={1024} value={phrase} onChange={event => setPhrase(event.target.value)} /></label>
-      <div className="button-row"><button type="button" className="button primary" disabled={busy || phrase.length < 12} onClick={() => void exportPackage()}>{busy ? <LockKeyhole size={16}/> : <Download size={16}/>} Exportar pacote protegido</button></div>
-      <hr />
+      <p>Exporte, confira ou importe dados desta oficina. Contas, senhas e acessos são preservados.</p>
+      <div role="tablist" aria-label="Operações de transferência" className="pa-workshop-tabs">{[["export","Exportar"],["import","Importar e conferir"],["approval","Aprovações"],["backup","Cópias de segurança"]].map(([id,label])=><button type="button" key={id} role="tab" aria-selected={transferTab===id} disabled={busy} onClick={()=>setTransferTab(id)}>{label}</button>)}</div>
+      <div hidden={!["export","import"].includes(transferTab)}><label className="field"><span>Frase secreta do pacote</span><input type="password" autoComplete="new-password" minLength={12} maxLength={1024} value={phrase} onChange={event => setPhrase(event.target.value)} /></label></div>
+      <div hidden={transferTab!=="export"} className="button-row"><button type="button" className="button primary" disabled={busy || phrase.length < 12} onClick={() => void exportPackage()}>{busy ? <LockKeyhole size={16}/> : <Download size={16}/>} Exportar pacote protegido</button></div>
+      <div hidden={transferTab!=="import"}>
       <label className="field"><span>Modo de importação</span><select value={mode} onChange={event => { setMode(event.target.value as Mode); setPreview(null); setVerification(null); setConfirmation(""); setWorkshopConfirmation(""); }}>
         <option value="empty">Oficina vazia</option><option value="merge">Mesclar dados</option><option value="replace">Substituir dados</option>
       </select></label>
@@ -228,13 +230,13 @@ export function PlatformDataTransfer({ tenantId, workshopName, environmentLabel,
         </>}
       </div>}
       {verification && <div className="info-box"><h3>Relatório de conferência somente leitura</h3><pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{JSON.stringify(verification, null, 2)}</pre></div>}
-      <section className="panel"><h3>Aprovações de substituição</h3><p className="muted">A aprovação é específica para o SHA-256 do pacote e exige administrador diferente de quem solicitou.</p>
+      </div><section hidden={transferTab!=="approval"}><h3>Aprovações de substituição</h3><p className="muted">A aprovação é específica para o SHA-256 do pacote e exige administrador diferente de quem solicitou.</p>
         {requests.map(item => <p key={item.id}>{item.requesterEmail} · {item.approverEmail || "aguardando aprovação"} · {item.status} · SHA {item.packageSha256.slice(0, 12)}… {item.status === "requested" && canApproveCritical && <button type="button" className="button" disabled={busy} onClick={() => void approve(item.id)}>Aprovar</button>}</p>)}
       </section>
-      <section className="panel"><h3>Cópias de segurança temporárias</h3><p className="muted">Criptografadas, até cinco por oficina e por 30 dias, incluindo exportações preparadas no painel. A auditoria registra downloads sem incluir o conteúdo dos arquivos.</p><button type="button" className="button" onClick={() => void refresh().catch(cause => setError(cause instanceof Error ? cause.message : "Falha ao atualizar."))}>Atualizar listas</button>
+      <section hidden={transferTab!=="backup"}><h3>Cópias de segurança temporárias</h3><p className="muted">Criptografadas, até cinco por oficina e por 30 dias, incluindo exportações preparadas no painel. A auditoria registra downloads sem incluir o conteúdo dos arquivos.</p><button type="button" className="button" onClick={() => void refresh().catch(cause => setError(cause instanceof Error ? cause.message : "Falha ao atualizar."))}>Atualizar listas</button>
         {backups.map(item => <p key={item.id}>{new Date(item.created_at).toLocaleString("pt-BR")} · expira {new Date(item.expires_at).toLocaleDateString("pt-BR")} · SHA {item.package_sha256.slice(0, 12)}… <button type="button" className="button" onClick={() => void downloadBackup(item.id)}>Baixar .hptx</button></p>)}
       </section>
-      {showHistory&&<section className="panel"><h3>Histórico de operações</h3><p className="muted">Auditoria administrativa da oficina selecionada.</p>{history.map(item => <p key={item.id}>{new Date(item.created_at).toLocaleString("pt-BR")} · {item.actor_email} · {adminActionLabel(item.action)} · {adminResultLabel(item.result)}</p>)}</section>}
+      {showHistory&&<section className="pa-card"><h3>Histórico de operações</h3><p className="muted">Auditoria administrativa da oficina selecionada.</p>{history.map(item => <p key={item.id}>{new Date(item.created_at).toLocaleString("pt-BR")} · {item.actor_email} · {adminActionLabel(item.action)} · {adminResultLabel(item.result)}</p>)}</section>}
       {message && <p className="info-box" role="status">{message}</p>}{error && <div role="alert" className="error-box">{error}</div>}
     </section>
   </div>;
