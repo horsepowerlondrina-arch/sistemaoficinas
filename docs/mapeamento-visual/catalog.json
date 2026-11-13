@@ -103,10 +103,10 @@
       "kind": "Análise de gestão",
       "viewport": "desktop",
       "status": "pendente",
-      "image": null,
+      "image": "docs/mapeamento-visual/capturas/18-resultados/gestao-resultados-periodo.png",
       "updatedAt": null,
       "commit": null,
-      "reason": "A nova tela requer sessão e OS fictícias em PostgreSQL descartável para uma captura real; não foi capturada no ambiente local."
+      "reason": "Captura prevista no PostgreSQL descartável do CI; PNG ainda não incorporado à biblioteca."
     },
     {
       "id": "login-oficina",
