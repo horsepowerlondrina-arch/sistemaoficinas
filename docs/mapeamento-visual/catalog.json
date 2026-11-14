@@ -90,7 +90,7 @@
     {
       "id": "18-resultados",
       "name": "Resultados da oficina",
-      "description": "Produção, resultado estimado, caixa, metas e comparação com filtro de datas."
+      "description": "Área retirada da interface; os relatórios permanecem em Financeiro."
     },
     {
       "id": "19-suporte",
@@ -107,11 +107,11 @@
       "route": "/resultados",
       "kind": "Análise de gestão",
       "viewport": "desktop",
-      "status": "capturada",
-      "image": "docs/mapeamento-visual/capturas/18-resultados/gestao-resultados-periodo.png",
+      "status": "não aplicável",
+      "image": null,
       "updatedAt": "2026-11-14",
-      "commit": "2616723bbcd976b25f013fe7850f14c76d8e03d1",
-      "reason": null
+      "commit": "96dfa252baed53629b2ed0b51f630ade3f588ebd",
+      "reason": "Módulo Resultados removido; usar os relatórios de Financeiro."
     },
     {
       "id": "login-oficina",
@@ -1947,8 +1947,8 @@
       "viewport": "desktop",
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/08-financeiro/ops002-receipt-desktop.png",
-      "updatedAt": "2026-11-01",
-      "commit": "26770cc4da2ccbf9de3620882b0a87066fdce927",
+      "updatedAt": "2026-11-14",
+      "commit": "96dfa252baed53629b2ed0b51f630ade3f588ebd",
       "freshness": "atual",
       "reason": null
     },
