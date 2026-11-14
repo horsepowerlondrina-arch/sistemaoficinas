@@ -153,6 +153,8 @@ Estados: capturada, pendente, bloqueada e não aplicável.
 | ops004-invite-desktop | Login e acesso | Ativação de colaborador — Convite seguro de colaborador; senha e token não aparecem na captura. | `capturas/01-login-acesso/ops004-invite-desktop.png` (previsto) | pendente | — | não registrado | Aguardando coleta real no CI isolado da OPS-004. |
 | ops004-office-mobile | Login e acesso | Seleção da oficina ativa — Conta fictícia com dois vínculos e perfis independentes. | `capturas/01-login-acesso/ops004-office-mobile.png` (previsto) | pendente | — | não registrado | Aguardando coleta real no CI isolado da OPS-004. |
 | ops004-invite-mobile | Login e acesso | Ativação de colaborador — Convite seguro de colaborador; senha e token não aparecem na captura. | `capturas/01-login-acesso/ops004-invite-mobile.png` (previsto) | pendente | — | não registrado | Aguardando coleta real no CI isolado da OPS-004. |
+| ops004-order-access-desktop | Ordens de serviço | Equipe e autorizações da OS — Atribuição por OS a funcionário sem login e pedido de aprovação de desconto. | `capturas/07-ordens-servico/ops004-order-access-desktop.png` (previsto) | pendente | — | não registrado | Aguardando evidência real do teste isolado da OPS-004. |
+| ops004-order-access-mobile | Ordens de serviço | Equipe e autorizações da OS — Atribuição por OS a funcionário sem login e pedido de aprovação de desconto. | `capturas/07-ordens-servico/ops004-order-access-mobile.png` (previsto) | pendente | — | não registrado | Aguardando evidência real do teste isolado da OPS-004. |
 
 ## Fluxos
 

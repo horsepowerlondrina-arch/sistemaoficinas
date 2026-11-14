@@ -2303,6 +2303,36 @@
       "commit": null,
       "reason": "Aguardando coleta real no CI isolado da OPS-004.",
       "driver": "ops004-interface"
+    },
+    {
+      "id": "ops004-order-access-desktop",
+      "module": "07-ordens-servico",
+      "title": "Equipe e autorizações da OS",
+      "description": "Atribuição por OS a funcionário sem login e pedido de aprovação de desconto.",
+      "route": "/ordens/:id",
+      "kind": "Operação",
+      "viewport": "desktop",
+      "image": "docs/mapeamento-visual/capturas/07-ordens-servico/ops004-order-access-desktop.png",
+      "status": "pendente",
+      "updatedAt": null,
+      "commit": null,
+      "reason": "Aguardando evidência real do teste isolado da OPS-004.",
+      "driver": "ops004-interface"
+    },
+    {
+      "id": "ops004-order-access-mobile",
+      "module": "07-ordens-servico",
+      "title": "Equipe e autorizações da OS",
+      "description": "Atribuição por OS a funcionário sem login e pedido de aprovação de desconto.",
+      "route": "/ordens/:id",
+      "kind": "Operação",
+      "viewport": "mobile",
+      "image": "docs/mapeamento-visual/capturas/07-ordens-servico/ops004-order-access-mobile.png",
+      "status": "pendente",
+      "updatedAt": null,
+      "commit": null,
+      "reason": "Aguardando evidência real do teste isolado da OPS-004.",
+      "driver": "ops004-interface"
     }
   ],
   "flows": [
@@ -2411,7 +2441,10 @@
         "ops004-users-desktop",
         "ops004-permissions-desktop",
         "ops004-staff-desktop",
-        "ops004-approvals-desktop"
+        "ops004-order-access-desktop",
+        "ops004-approvals-desktop",
+        "ops004-office-desktop",
+        "ops004-invite-desktop"
       ],
       "reason": "Aguardando coleta das novas interfaces na CI."
     }

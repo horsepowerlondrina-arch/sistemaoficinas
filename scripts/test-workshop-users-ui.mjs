@@ -223,6 +223,36 @@ try {
   if (!order) throw Error("OS fictícia para validação de aprovação ausente.");
   await page.goto(base + "/ordens/" + order.id);
   await page
+    .getByRole("checkbox", { name: "OPS004 Funcionário Fictício", exact: true })
+    .check();
+  await page
+    .getByRole("button", { name: "Salvar responsáveis", exact: true })
+    .click();
+  await expect
+    .poll(
+      async () =>
+        (
+          await (
+            await page.request.get(base + `/api/orders/${order.id}/assignments`)
+          ).json()
+        ).filter((a) => !a.removed_at).length,
+    )
+    .toBe(1);
+  await expect(
+    page.getByRole("button", { name: "Salvar responsáveis", exact: true }),
+  ).toBeEnabled();
+  for (const [viewport, size] of [
+    ["desktop", { width: 1440, height: 1000 }],
+    ["mobile", { width: 390, height: 844 }],
+  ]) {
+    await page.setViewportSize(size);
+    await capture({
+      path: resolve(output, `ops004-order-access-${viewport}.png`),
+      fullPage: true,
+    });
+  }
+
+  await page
     .getByRole("spinbutton", { name: "Desconto total solicitado" })
     .fill("1");
   await page

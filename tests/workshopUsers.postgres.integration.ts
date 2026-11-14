@@ -53,7 +53,13 @@ test("OPS-004 PostgreSQL17: concurrent seats, invitations, reactivation, last Ma
     const c: Context = {
       userId: user,
       tenantId: t,
-      role: "owner",
+      role: String(
+        (await database
+          .prepare(
+            "SELECT role FROM memberships WHERE tenant_id=? AND user_id=?",
+          )
+          .get(t, user))!.role,
+      ),
       modules: { ...defaultWorkshopModules },
     };
     c.access = await readUserAccess(database, c);
@@ -344,6 +350,64 @@ test("OPS-004 PostgreSQL17: concurrent seats, invitations, reactivation, last Ma
       async () => userCapacity(db, await context(db, currentMaster)),
     );
     assert.ok(capacity.active + capacity.pending <= capacity.limit);
+    const requester = (
+      await admin.query(
+        "SELECT m.user_id FROM horse_power.memberships m JOIN horse_power.workshop_user_access a ON a.tenant_id=m.tenant_id AND a.user_id=m.user_id WHERE m.tenant_id=$1 AND m.role='operator' AND a.active=1 AND m.user_id<>$2 LIMIT 1",
+        [t, scopedUser],
+      )
+    ).rows[0].user_id;
+    await admin.query(
+      "UPDATE horse_power.workshop_user_access SET profile='advisor',order_scope='all',discount_bps=500 WHERE tenant_id=$1 AND user_id=$2",
+      [t, requester],
+    );
+    await admin.query(
+      "UPDATE horse_power.workshop_user_access SET profile='manager',order_scope='all',discount_bps=10000 WHERE tenant_id=$1 AND user_id=$2",
+      [t, scopedUser],
+    );
+    const { requestDiscount, decideDiscount } =
+      await import("../server/services/workshopOperationsAccess");
+    const discount = await db.withRequestContext!(
+      settings(requester),
+      async () =>
+        requestDiscount(db, await context(db, requester), visible, {
+          mode: "percent",
+          value: 1000,
+          justification: "Solicitação concorrente fictícia",
+        }),
+    );
+    const decisions = await Promise.allSettled(
+      [db, parallel].map((database, index) =>
+        database.withRequestContext!(
+          settings([currentMaster, scopedUser][index]),
+          async () =>
+            decideDiscount(
+              database,
+              await context(database, [currentMaster, scopedUser][index]),
+              discount.id,
+              { approve: true, reason: "Aprovação concorrente fictícia" },
+            ),
+        ),
+      ),
+    );
+    assert.equal(decisions.filter((d) => d.status === "fulfilled").length, 1);
+    assert.equal(
+      (
+        await admin.query(
+          "SELECT discount FROM horse_power.orders WHERE id=$1",
+          [visible],
+        )
+      ).rows[0].discount,
+      1000,
+    );
+    assert.equal(
+      (
+        await admin.query(
+          "SELECT count(*)::int n FROM horse_power.audit_events WHERE tenant_id=$1 AND action='discount.approved'",
+          [t],
+        )
+      ).rows[0].n,
+      1,
+    );
     const grants = await admin.query(
       "SELECT EXISTS(SELECT 1 FROM pg_proc p CROSS JOIN LATERAL aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) a WHERE p.oid='horse_power.accept_employee_invite(text,text,text,text)'::regprocedure AND a.grantee=0 AND a.privilege_type='EXECUTE') allowed",
     );

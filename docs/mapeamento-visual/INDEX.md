@@ -877,6 +877,9 @@ Gestão de acessos e autorizações internas da oficina fictícia.
 1. Usuários, funcionários e vagas (pendente) — [imagem](./capturas/14-configuracoes/ops004-users-desktop.png)
 2. Perfil e permissões individuais (pendente) — [imagem](./capturas/14-configuracoes/ops004-permissions-desktop.png)
 3. Funcionário sem login e vínculo opcional (pendente) — [imagem](./capturas/14-configuracoes/ops004-staff-desktop.png)
-4. Central interna de aprovações (pendente) — [imagem](./capturas/14-configuracoes/ops004-approvals-desktop.png)
+4. Equipe e autorizações da OS (pendente) — [imagem](./capturas/07-ordens-servico/ops004-order-access-desktop.png)
+5. Central interna de aprovações (pendente) — [imagem](./capturas/14-configuracoes/ops004-approvals-desktop.png)
+6. Seleção da oficina ativa (pendente) — [imagem](./capturas/01-login-acesso/ops004-office-desktop.png)
+7. Ativação de colaborador (pendente) — [imagem](./capturas/01-login-acesso/ops004-invite-desktop.png)
 
 Estado: pendente — Aguardando coleta das novas interfaces na CI.
