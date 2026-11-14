@@ -3,6 +3,7 @@ import { existsSync, lstatSync, mkdirSync, readFileSync, writeFileSync } from "n
 import { dirname, resolve } from "node:path";
 import { chromium, expect } from "@playwright/test";
 import { HOMOLOGATION } from "./isolated-sessions.mjs";
+import { checkoutStep, stripeCardForm } from "./stripe-checkout.mjs";
 import { activationLink } from "./activation-mail.mjs";
 
 const command = process.argv[2], file = resolve(process.env.TEST_ONBOARDING_FILE || "data/test-onboarding.json");
@@ -92,23 +93,36 @@ try {
         await login(context, master, office.tenantId);
         if (command === "checkout") {
           const summary = await request(context, "GET", "/api/account/billing");
-          if (summary.test_mode !== true) throw Error("STRIPE_TEST_MODE_REQUIRED");
-          if (summary.payments.some(p => p.status === "paid") && summary.account?.plan_code === office.plan) { office.paid = true; save(data); continue; }
+          const step = checkoutStep(summary, office.plan);
+          if (step.kind === "done") { office.paid = true; save(data); continue; }
           await page.goto(HOMOLOGATION + "/configuracoes?aba=assinatura");
-          await page.getByRole("button", { name: "Assinar plano", exact: true }).click();
-          const price = summary.prices.find(p => p.plan_code === office.plan); if (!price) throw Error("PRICE_REQUIRED");
-          await page.getByLabel("Plano mensal").selectOption(price.id);
-          await page.getByLabel(/Li os valores/).check();
-          await page.getByRole("button", { name: "Continuar no Stripe" }).click();
-          await page.waitForURL(u => u.hostname === "checkout.stripe.com");
-          if (!page.url().includes("test_")) throw Error("STRIPE_TEST_CHECKOUT_REQUIRED");
-          await page.locator('[name="cardNumber"]').fill("4242424242424242");
-          await page.locator('[name="cardExpiry"]').fill("12/34");
-          await page.locator('[name="cardCvc"]').fill("123");
-          await page.locator('[name="billingName"]').fill("Master Fictício Automação");
-          const country = page.locator('[name="billingCountry"]'); if (await country.count()) await country.selectOption("BR");
-          await page.locator('[data-testid="hosted-payment-submit-button"]').click();
-          await page.waitForURL(u => u.origin === HOMOLOGATION || u.origin === "https://osdrive.com.br", { timeout: 90000 });
+          if (step.kind === "resume") {
+            if (summary.pending.method !== 'card') throw Error('PAYMENT_METHOD_MISMATCH');
+            await page.getByRole('link', { name: 'Continuar pagamento', exact: true }).click();
+          } else {
+            await page.getByRole("button", { name: "Assinar plano", exact: true }).click();
+            await page.getByLabel("Plano mensal").selectOption(step.priceId);
+            await page.getByLabel(/Li os valores/).check();
+            await page.getByRole("button", { name: "Continuar no Stripe" }).click();
+          }
+          await page.waitForURL(u => u.hostname === "checkout.stripe.com", { waitUntil: 'commit', timeout: 20000 });
+          report.checks.push({ plan: office.plan, step: 'checkout-opened', status: 'awaiting-provider-form' });
+          const form = await stripeCardForm(page);
+          await form.locator('[name="cardNumber"]').fill("4242424242424242");
+          await form.locator('[name="cardExpiry"]').fill("12/34");
+          await form.locator('[name="cardCvc"]').fill("123");
+          const scopes = [page, form];
+          for (const scope of scopes) {
+            const name = scope.locator('[name="billingName"]'); if (await name.isVisible().catch(() => false)) await name.fill('Master Fictício Automação');
+            const country = scope.locator('[name="billingCountry"]'); if (await country.isVisible().catch(() => false)) await country.selectOption('BR');
+            for (const [field, value] of [['billingPostalCode','01001000'],['billingAddressLine1','Rua Fictícia de Teste'],['billingLocality','São Paulo']]) {
+              const input = scope.locator(`[name="${field}"]`); if (await input.isVisible().catch(() => false)) await input.fill(value);
+            }
+          }
+          const submit = page.locator('[data-testid="hosted-payment-submit-button"]');
+          if (await submit.isVisible().catch(() => false)) await submit.click();
+          else await form.locator('[data-testid="hosted-payment-submit-button"]').click();
+          await page.waitForURL(u => u.origin === HOMOLOGATION || u.origin === "https://osdrive.com.br", { waitUntil: 'domcontentloaded', timeout: 90000 });
           const verified = await request(context, "POST", "/api/account/billing/refresh", {});
           if (!verified.payments.some(p => p.status === "paid") || verified.account?.plan_code !== office.plan || !verified.account?.managed) throw Error("PAYMENT_NOT_CONFIRMED");
           office.paid = true; save(data);
