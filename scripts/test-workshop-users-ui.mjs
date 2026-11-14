@@ -77,6 +77,10 @@ try {
     viewport: { width: 1440, height: 1000 },
   });
   page.setDefaultTimeout(15000);
+  const capture = async (options) => {
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.screenshot({ ...options, animations: "disabled" });
+  };
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   page.on("response", (r) => {
@@ -175,7 +179,7 @@ try {
     ["mobile", { width: 390, height: 844 }],
   ]) {
     await page.setViewportSize(size);
-    await page.screenshot({
+    await capture({
       path: resolve(output, `ops004-users-${viewport}.png`),
       fullPage: true,
     });
@@ -187,7 +191,7 @@ try {
     await expect(
       dialog.getByRole("heading", { name: "Editar acesso" }),
     ).toBeVisible();
-    await page.screenshot({
+    await capture({
       path: resolve(output, `ops004-permissions-${viewport}.png`),
       fullPage: true,
     });
@@ -196,7 +200,7 @@ try {
       .getByRole("button", { name: "Novo funcionário", exact: true })
       .click();
     await expect(page.getByRole("dialog")).toBeVisible();
-    await page.screenshot({
+    await capture({
       path: resolve(output, `ops004-staff-${viewport}.png`),
       fullPage: true,
     });
@@ -244,7 +248,7 @@ try {
     ["mobile", { width: 390, height: 844 }],
   ]) {
     await page.setViewportSize(size);
-    await page.screenshot({
+    await capture({
       path: resolve(output, `ops004-approvals-${viewport}.png`),
       fullPage: true,
     });
@@ -263,7 +267,7 @@ try {
     ["mobile", { width: 390, height: 844 }],
   ]) {
     await page.setViewportSize(size);
-    await page.screenshot({
+    await capture({
       path: resolve(output, `ops004-office-${viewport}.png`),
       fullPage: true,
     });
@@ -326,7 +330,7 @@ try {
     ["mobile", { width: 390, height: 844 }],
   ]) {
     await page.setViewportSize(size);
-    await page.screenshot({
+    await capture({
       path: resolve(output, `ops004-invite-${viewport}.png`),
       fullPage: true,
     });
