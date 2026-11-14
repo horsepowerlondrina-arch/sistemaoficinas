@@ -5,6 +5,7 @@ import { digest, hashPassword, type Context } from "../server/auth/session";
 import { createApp } from "../server/app";
 import { defaultWorkshopModules } from "../shared/workshopModules";
 import { readUserAccess } from "../server/services/userAccess";
+import {transitionOrder} from '../server/services/workshop';
 import {
   createUserInvite,
   acceptEmployeeInvite,
@@ -404,4 +405,30 @@ test("HTTP assigned OS scope, privacy, live permissions, account revocation and 
     );
     db.close();
   }
+});
+
+test('resend invalidates its old link, and employees without login never consume seats',async()=>{
+ const db=fixture();try{const master=await ctx(db,'master');const before=await userCapacity(db,master);
+ const staff=await saveStaff(db,master,null,{name:'Funcionário sem login',role:'Auxiliar',active:true,productive:false,user_id:null});
+ assert.equal((await userCapacity(db,master)).active,before.active);await assert.rejects(saveAssignments(db,master,'o1',[staff.id]),/produtivos ativos/);
+ let current='';const mail=async(value:any)=>{current=value.token;};const first=await createUserInvite(db,master,{email:'resend@example.test',profile:'mechanic'},digest('master'),mail);const old=current;
+ await createUserInvite(db,master,{email:'resend@example.test',profile:'mechanic'},digest('master'),mail,first.id);await assert.rejects(employeeInviteInfo(db,old));assert.equal((await employeeInviteInfo(db,current)).email,'resend@example.test');assert.equal((await userCapacity(db,master)).pending,1);
+ await cancelUserInvite(db,master,first.id);assert.equal((await userCapacity(db,master)).pending,0);
+ }finally{db.close();}
+});
+
+test('approved completed-OS discounts reuse the financial rules and paid requests become invalid',async()=>{
+ const db=fixture();try{const master=await ctx(db,'master');await transitionOrder(db,master,'o1','completed');
+ await saveUserAccess(db,master,'advisor',{profile:'advisor',active:true,permissions:{'finance.view':true,'finance.receive':true,'finance.edit':true},discount_bps:500},digest('master'));
+ const advisor=await ctx(db,'advisor'),manager=await ctx(db,'manager');const request=await requestDiscount(db,advisor,'o1',{mode:'money',value:1000,justification:'Desconto para recebimento fictício'});
+ assert.equal((await decideDiscount(db,manager,request.id,{approve:true,reason:'Aprovação financeira fictícia'})).status,'approved');assert.equal(db.prepare("SELECT amount FROM receivables WHERE order_id='o1'").get()!.amount,9000);
+ const next=await requestDiscount(db,advisor,'o1',{mode:'money',value:500,justification:'Pedido anterior à confirmação'});db.prepare("UPDATE receivables SET status='paid' WHERE order_id='o1'").run();assert.equal((await decideDiscount(db,manager,next.id,{approve:true,reason:'Estado deve ser revalidado'})).status,'invalidated');assert.equal(db.prepare("SELECT discount FROM orders WHERE id='o1'").get()!.discount,1000);
+ }finally{db.close();}
+});
+
+test('individual access changes are live, restore independently, and preserve the legacy schema fallback',async()=>{
+ const db=fixture();try{const master=await ctx(db,'master');await saveUserAccess(db,master,'mechanic',{profile:'mechanic',active:true,permissions:{'orders.prices':true,'customers.view':true,'personal.contact':true}},digest('master'));assert.equal((await ctx(db,'mechanic')).access!.permissions['orders.prices'],true);assert.equal((await ctx(db,'advisor')).access!.permissions['finance.costs'],false);
+ await saveUserAccess(db,master,'mechanic',{profile:'mechanic',active:true,permissions:{}},digest('master'));assert.equal((await ctx(db,'mechanic')).access!.permissions['orders.prices'],false);
+ Object.assign(db,{hasUserAccessSchema:async()=>false});const server=createApp(db).listen(0,'127.0.0.1');await new Promise<void>(r=>server.once('listening',r));try{const base='http://127.0.0.1:'+(server.address() as any).port+'/api';const headers={Cookie:'hp_session=master'};assert.equal((await fetch(base+'/workspace',{headers})).status,200);assert.equal((await fetch(base+'/users',{headers})).status,503);}finally{await new Promise<void>(r=>server.close(()=>r()));}
+ }finally{db.close();}
 });

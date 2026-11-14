@@ -62,7 +62,7 @@ export function OrderAccessControls({ orderId }: { orderId: string }) {
           </p>
           <div className="form-grid">
             {staff
-              .filter((s) => s.active === 1 && s.productive === 1)
+              .filter((s) => (s.active === 1 && s.productive === 1)||assigned.includes(s.id))
               .map((s) => (
                 <label className="checkbox-row" key={s.id}>
                   <input

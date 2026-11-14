@@ -869,3 +869,14 @@ Editar taxas, selecionar máquina, simular repasse, salvar e reabrir plano fict�
 2. Recebimento com máquina e repasse (capturada) — [imagem](./capturas/08-financeiro/ops002-receipt-desktop.png)
 
 Estado: capturada
+
+### FL-OPS004 — Usuários → permissões → funcionários → aprovações
+
+Gestão de acessos e autorizações internas da oficina fictícia.
+
+1. Usuários, funcionários e vagas (pendente) — [imagem](./capturas/14-configuracoes/ops004-users-desktop.png)
+2. Perfil e permissões individuais (pendente) — [imagem](./capturas/14-configuracoes/ops004-permissions-desktop.png)
+3. Funcionário sem login e vínculo opcional (pendente) — [imagem](./capturas/14-configuracoes/ops004-staff-desktop.png)
+4. Central interna de aprovações (pendente) — [imagem](./capturas/14-configuracoes/ops004-approvals-desktop.png)
+
+Estado: pendente — Aguardando coleta das novas interfaces na CI.

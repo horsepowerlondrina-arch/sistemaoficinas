@@ -30,6 +30,7 @@ export async function projectWorkspace(
         (c: any) => p["personal.full"] || customerIds.has(c.id),
       )
     : [];
+  if(!p['personal.full'])result.customers=result.customers.map((c:any)=>Object.fromEntries(['id','name','active',...(p['personal.contact']?['phone']:[]),...(p['personal.email']?['email']:[]),...(p['personal.address']?['address']:[])].map(key=>[key,c[key]])));
   result.vehicles = p["customers.view"]
     ? (workspace.vehicles || []).filter(
         (v: any) => p["personal.full"] || vehicleIds.has(v.id),
@@ -67,6 +68,7 @@ export async function projectWorkspace(
     result.payment_settings = null;
     result.card_rates = [];
   }
+  if(p["orders.basic_receive"]&&ctx.modules?.finance===false)result.receipt_accounts=workspace.receipt_accounts||[];
   const redacted =
     ctx.access.profile === "master" ? result : redactResponse(result, p);
   for (const key of [

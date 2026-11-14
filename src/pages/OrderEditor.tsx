@@ -829,7 +829,7 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
                                       {data.professionals
                                         .filter(
                                           (p) =>
-                                            p.active ||
+                                            (p.active&&p.productive!==0) ||
                                             p.id === item.professional_id,
                                         )
                                         .map((p) => (

@@ -24,6 +24,9 @@ const outputDir = outputArg ? resolve(outputArg) : "";
 if (noWrite && !outputDir) throw new Error("--no-write exige --output-dir para manter os arquivos fora da biblioteca versionada.");
 
 const moduleByChangedPath = (path) => {
+  if (/src\/components\/WorkshopUsers/.test(path)) return '14-configuracoes';
+  if (/src\/components\/OrderAccessControls/.test(path)) return ['14-configuracoes','06-orcamentos','07-ordens-servico'];
+  if (/AcceptEmployeeInvite/.test(path)) return '01-login-acesso';
   if (/^(src\/App\.tsx|src\/styles\.css|server\/app\.ts|shared\/workshopModules\.ts|src\/components\/|src\/lib\/)/i.test(path)) return "*";
   if (/src\/pages\/(Home|Dashboard)\.tsx/i.test(path)) return "02-dashboard";
   if (/PeopleRegisters/i.test(path)) return ["03-clientes", "04-veiculos"];
@@ -106,6 +109,14 @@ try {
     const status = await page.goto(new URL(entry.route, baseUrl).toString(), { waitUntil: "domcontentloaded", timeout: 30000 });
     if (!status?.ok()) throw new Error(`A tela ${entry.id} respondeu HTTP ${status?.status() || "sem resposta"}.`);
     await page.getByRole("main").first().waitFor({ state: "visible", timeout: 15000 }).catch(() => {});
+    if(entry.id.startsWith('ops004-')){
+      if(entry.id.includes('-approvals-'))await page.getByRole('heading',{name:'Central de aprovações',exact:true}).waitFor();
+      else{
+        await page.getByRole('heading',{name:'Usuários e permissões',exact:true}).waitFor();
+        if(entry.id.includes('-permissions-'))await page.getByRole('button',{name:'Editar acesso',exact:true}).first().click();
+        if(entry.id.includes('-staff-'))await page.getByRole('button',{name:'Novo funcionário',exact:true}).click();
+      }
+    }
     if (entry.id.startsWith("est009-os-private-")) {
       await page.getByRole("button", { name: "Adicionar produtos e serviços" }).click();
       await page.getByRole("button", { name: "Serviços", exact: true }).click();
@@ -210,6 +221,8 @@ try {
     mkdirSync(dirname(path), { recursive: true });
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({ path, fullPage: !(entry.id.startsWith("cad005-") && /register|review/.test(entry.id)), animations: "disabled" });
+    if(entry.id.includes('ops004-permissions-'))await page.getByRole('dialog').getByRole('button',{name:'Cancelar',exact:true}).click();
+    if(entry.id.includes('ops004-staff-'))await page.getByRole('dialog').getByRole('button',{name:'Fechar',exact:true}).click();
     if (stockRoute) await page.unroute("**/api/workspace", stockRoute);
     return path;
   };

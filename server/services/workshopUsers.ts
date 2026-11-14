@@ -55,7 +55,7 @@ export async function userDirectory(db: DB, ctx: Context) {
   }
   return db
     .prepare(
-      "SELECT m.user_id,u.name,u.email,m.role,COALESCE(a.profile,CASE WHEN m.role='owner' THEN 'master' ELSE 'mechanic' END) profile,COALESCE(a.active,1) active,COALESCE(a.permissions,'{}') permissions,COALESCE(a.order_scope,'all') order_scope,COALESCE(a.discount_bps,CASE WHEN m.role='owner' THEN 10000 ELSE 0 END) discount_bps,a.discount_cents FROM memberships m JOIN users u ON u.id=m.user_id LEFT JOIN workshop_user_access a ON a.tenant_id=m.tenant_id AND a.user_id=m.user_id WHERE m.tenant_id=? ORDER BY u.name",
+      "SELECT m.user_id,u.name,u.email,m.role,CASE WHEN m.role='owner' THEN 'master' WHEN a.profile='master' THEN 'mechanic' ELSE COALESCE(a.profile,'mechanic') END profile,COALESCE(a.active,1) active,COALESCE(a.permissions,'{}') permissions,COALESCE(a.order_scope,'all') order_scope,COALESCE(a.discount_bps,CASE WHEN m.role='owner' THEN 10000 ELSE 0 END) discount_bps,a.discount_cents FROM memberships m JOIN users u ON u.id=m.user_id LEFT JOIN workshop_user_access a ON a.tenant_id=m.tenant_id AND a.user_id=m.user_id WHERE m.tenant_id=? ORDER BY u.name",
     )
     .all(ctx.tenantId);
 }

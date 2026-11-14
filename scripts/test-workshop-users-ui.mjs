@@ -33,7 +33,7 @@ const children = [
     { stdio: "ignore" },
   ),
 ];
-let browser;
+let browser,page;
 try {
   let ready = false;
   for (let i = 0; i < 90; i++) {
@@ -47,7 +47,7 @@ try {
   }
   if (!ready) throw Error("Aplicação isolada não iniciou.");
   browser = await chromium.launch();
-  const page = await browser.newPage({
+  page = await browser.newPage({
     viewport: { width: 1440, height: 1000 },
   });
   page.setDefaultTimeout(15000);
@@ -57,11 +57,13 @@ try {
   await page.goto(base + "/configuracoes?aba=usuarios");
   await page.getByLabel("E-mail", { exact: true }).fill(credential.email);
   await page.getByLabel("Senha", { exact: true }).fill(credential.password);
-  await page.getByRole("button", { name: "Entrar na oficina" }).click();
+  const [login]=await Promise.all([page.waitForResponse(r=>r.url().endsWith('/api/login')&&r.request().method()==='POST'),page.getByRole("button", { name: "Entrar na oficina" }).click()]);
+  if(login.status()!==200)throw Error('Login fictício falhou; valores de credenciais omitidos.');
+  await page.getByRole('heading',{name:'Início',exact:true}).waitFor({timeout:15000});
   await page.goto(base + "/configuracoes?aba=usuarios");
   await expect(
     page.getByRole("heading", { name: "Usuários e permissões", exact: true }),
-  ).toBeVisible();
+  ).toBeVisible({timeout:15000});
   await page
     .getByRole("button", { name: "Novo funcionário", exact: true })
     .click();
@@ -78,7 +80,7 @@ try {
     page.getByRole("cell", {
       name: "OPS004 Funcionário Fictício",
       exact: true,
-    }),
+    }).first(),
   ).toBeVisible();
   await page.getByRole("button", { name: "Convidar usuário" }).click();
   dialog = page.getByRole("dialog");
@@ -195,6 +197,9 @@ try {
   console.log(
     "OPS004: navegação, funcionário sem login, convites, cancelamento, formulários, aprovações e três tamanhos validados com API e PostgreSQL fictícios.",
   );
+} catch(error){
+  if(page&&await page.locator('input[type=password]').count()===0)await page.screenshot({path:resolve(output,'failure.png'),fullPage:true}).catch(()=>{});
+  throw error;
 } finally {
   await browser?.close();
   for (const child of children) child.kill("SIGTERM");

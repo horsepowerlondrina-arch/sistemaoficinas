@@ -34,7 +34,7 @@ async function receiptDiscountState(
   if (!Number.isSafeInteger(subtotal) || subtotal !== Number(order.total) + Number(order.discount || 0))
     throw new Error("Os itens e o total da OS estão inconsistentes. Revise o atendimento antes de aplicar o desconto.");
   const discount = calculateDiscountAmount(subtotal, input.mode, input.value);
-  if(ctx.access&&discount!==Number(order.discount||0)&&!canDiscount(ctx,subtotal,discount))throw Object.assign(new Error("Desconto acima do limite. Solicite aprovação antes de finalizar a OS."),{status:403});
+  if(ctx.access&&discount!==Number(order.discount||0)&&!canDiscount(ctx,subtotal,discount))throw Object.assign(new Error("Desconto acima do limite. Solicite aprovação na OS."),{status:403});
   return {
     receivable,
     order,

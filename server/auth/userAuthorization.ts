@@ -36,7 +36,7 @@ export function permissionForRequest(
     return read
       ? "orders.view"
       : p.includes("basic-receipt")
-        ? "finance.receive"
+        ? "orders.basic_receive"
         : /capture/.test(p)
           ? "orders.items"
           : /share/.test(p)
@@ -168,7 +168,11 @@ export function userAuthorization(db: DB) {
         next();
         return;
       }
-      const permission = permissionForRequest(req.path, req.method, req.body);
+      if(!ctx.access){
+      if(ctx.role==='owner'||(/^\/documents\/order\/[^/]+$/.test(req.path)&&['GET','POST'].includes(req.method))||(req.method==='POST'&&/^\/orders\/[^/]+\/status$/.test(req.path))||(req.method==='PATCH'&&/^\/orders\/[^/]+\/notes$/.test(req.path))){next();return;}
+      accessDenied();
+    }
+    const permission = permissionForRequest(req.path, req.method, req.body);
       if (!permission) {
         throw Object.assign(new Error("Rota indisponível."), { status: 404 });
       }
@@ -246,7 +250,7 @@ export function userAuthorization(db: DB) {
         requirePermission(ctx, "orders.edit");
       if (
         ctx.access?.orderScope === "assigned" &&
-        req.path.startsWith("/management-results")
+        (req.path.startsWith("/management-results")||req.path.startsWith("/cash-control"))
       )
         accessDenied();
       if (

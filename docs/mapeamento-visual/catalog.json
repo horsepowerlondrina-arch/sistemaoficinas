@@ -2115,6 +2115,126 @@
       "commit": "1c7a0ed13dec531868f6a0eb168a08f2969dcb78",
       "freshness": "atual",
       "reason": "scripts/test-support-interface.mjs em loopback; sem dados persistentes."
+    },
+    {
+      "id": "ops004-users-desktop",
+      "module": "14-configuracoes",
+      "title": "Usuários, funcionários e vagas",
+      "description": "Gestão de acessos e autorizações com dados fictícios em PostgreSQL descartável.",
+      "route": "/configuracoes?aba=usuarios",
+      "kind": "Configuração",
+      "viewport": "desktop",
+      "status": "pendente",
+      "image": "docs/mapeamento-visual/capturas/14-configuracoes/ops004-users-desktop.png",
+      "updatedAt": null,
+      "commit": null,
+      "freshness": "pendente",
+      "reason": "Aguardando coleta real da interface na CI isolada."
+    },
+    {
+      "id": "ops004-permissions-desktop",
+      "module": "14-configuracoes",
+      "title": "Perfil e permissões individuais",
+      "description": "Gestão de acessos e autorizações com dados fictícios em PostgreSQL descartável.",
+      "route": "/configuracoes?aba=usuarios",
+      "kind": "Modal",
+      "viewport": "desktop",
+      "status": "pendente",
+      "image": "docs/mapeamento-visual/capturas/14-configuracoes/ops004-permissions-desktop.png",
+      "updatedAt": null,
+      "commit": null,
+      "freshness": "pendente",
+      "reason": "Aguardando coleta real da interface na CI isolada."
+    },
+    {
+      "id": "ops004-staff-desktop",
+      "module": "14-configuracoes",
+      "title": "Funcionário sem login e vínculo opcional",
+      "description": "Gestão de acessos e autorizações com dados fictícios em PostgreSQL descartável.",
+      "route": "/configuracoes?aba=usuarios",
+      "kind": "Formulário",
+      "viewport": "desktop",
+      "status": "pendente",
+      "image": "docs/mapeamento-visual/capturas/14-configuracoes/ops004-staff-desktop.png",
+      "updatedAt": null,
+      "commit": null,
+      "freshness": "pendente",
+      "reason": "Aguardando coleta real da interface na CI isolada."
+    },
+    {
+      "id": "ops004-approvals-desktop",
+      "module": "14-configuracoes",
+      "title": "Central interna de aprovações",
+      "description": "Gestão de acessos e autorizações com dados fictícios em PostgreSQL descartável.",
+      "route": "/aprovacoes",
+      "kind": "Fluxo",
+      "viewport": "desktop",
+      "status": "pendente",
+      "image": "docs/mapeamento-visual/capturas/14-configuracoes/ops004-approvals-desktop.png",
+      "updatedAt": null,
+      "commit": null,
+      "freshness": "pendente",
+      "reason": "Aguardando coleta real da interface na CI isolada."
+    },
+    {
+      "id": "ops004-users-mobile",
+      "module": "14-configuracoes",
+      "title": "Usuários, funcionários e vagas",
+      "description": "Gestão de acessos e autorizações com dados fictícios em PostgreSQL descartável.",
+      "route": "/configuracoes?aba=usuarios",
+      "kind": "Configuração",
+      "viewport": "mobile",
+      "status": "pendente",
+      "image": "docs/mapeamento-visual/capturas/14-configuracoes/ops004-users-mobile.png",
+      "updatedAt": null,
+      "commit": null,
+      "freshness": "pendente",
+      "reason": "Aguardando coleta real da interface na CI isolada."
+    },
+    {
+      "id": "ops004-permissions-mobile",
+      "module": "14-configuracoes",
+      "title": "Perfil e permissões individuais",
+      "description": "Gestão de acessos e autorizações com dados fictícios em PostgreSQL descartável.",
+      "route": "/configuracoes?aba=usuarios",
+      "kind": "Modal",
+      "viewport": "mobile",
+      "status": "pendente",
+      "image": "docs/mapeamento-visual/capturas/14-configuracoes/ops004-permissions-mobile.png",
+      "updatedAt": null,
+      "commit": null,
+      "freshness": "pendente",
+      "reason": "Aguardando coleta real da interface na CI isolada."
+    },
+    {
+      "id": "ops004-staff-mobile",
+      "module": "14-configuracoes",
+      "title": "Funcionário sem login e vínculo opcional",
+      "description": "Gestão de acessos e autorizações com dados fictícios em PostgreSQL descartável.",
+      "route": "/configuracoes?aba=usuarios",
+      "kind": "Formulário",
+      "viewport": "mobile",
+      "status": "pendente",
+      "image": "docs/mapeamento-visual/capturas/14-configuracoes/ops004-staff-mobile.png",
+      "updatedAt": null,
+      "commit": null,
+      "freshness": "pendente",
+      "reason": "Aguardando coleta real da interface na CI isolada."
+    },
+    {
+      "id": "ops004-approvals-mobile",
+      "module": "14-configuracoes",
+      "title": "Central interna de aprovações",
+      "description": "Gestão de acessos e autorizações com dados fictícios em PostgreSQL descartável.",
+      "route": "/aprovacoes",
+      "kind": "Fluxo",
+      "viewport": "mobile",
+      "status": "pendente",
+      "image": "docs/mapeamento-visual/capturas/14-configuracoes/ops004-approvals-mobile.png",
+      "updatedAt": null,
+      "commit": null,
+      "freshness": "pendente",
+      "reason": "Aguardando coleta real da interface na CI isolada."
     }
   ],
   "flows": [
@@ -2213,6 +2333,19 @@
         "ops002-receipt-desktop"
       ],
       "reason": null
+    },
+    {
+      "id": "FL-OPS004",
+      "name": "Usuários → permissões → funcionários → aprovações",
+      "description": "Gestão de acessos e autorizações internas da oficina fictícia.",
+      "status": "pendente",
+      "entryIds": [
+        "ops004-users-desktop",
+        "ops004-permissions-desktop",
+        "ops004-staff-desktop",
+        "ops004-approvals-desktop"
+      ],
+      "reason": "Aguardando coleta das novas interfaces na CI."
     }
   ]
 }

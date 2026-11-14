@@ -191,7 +191,7 @@ export function OrderView() {
               {order.payment_status === "paid" ? "Ver recebimento" : "Receber OS"}
             </button>
           )}
-          {admin && !financeEnabled && order.status === "completed" && Number(order.total) > 0 && order.payment_status === "open" && (
+          {can(session,"orders.basic_receive") && !financeEnabled && order.status === "completed" && Number(order.total) > 0 && order.payment_status === "open" && (
             <button className="button primary" disabled={busy} onClick={() => {
               setReceiptMethod("Pix");
               setReceiptAccountId(receiptAccounts[0]?.id || "");
@@ -248,7 +248,7 @@ export function OrderView() {
         <div className="work-order-summary-item">
           <span>Status</span><strong><Badge status={displayStatus(order)} /></strong>
         </div>
-        {admin && !financeEnabled && order.status === "completed" && Number(order.total) > 0 && (
+        {can(session,"orders.basic_receive") && !financeEnabled && order.status === "completed" && Number(order.total) > 0 && (
           <div className="work-order-summary-item">
             <span>Recebimento</span>
             <strong>{order.payment_status === "paid"

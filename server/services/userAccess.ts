@@ -105,7 +105,7 @@ export function orderStateDigest(order: Record<string, any>): string {
         status: order.status,
         customer: order.customer_id,
         vehicle: order.vehicle_id,
-        discount: order.discount,
+        discount: order.discount, payment_state:order.payment_state,
         items,
       }),
     )
@@ -131,52 +131,3 @@ export function canDiscount(
   );
 }
 
-// Responses are copied before redaction so one request never mutates a cached row.
-export function projectOrder(
-  order: Record<string, any>,
-  permissions: PermissionMap,
-): Record<string, any> {
-  const result: Record<string, any> = {
-    ...order,
-    items: (order.items || []).map((item: any) => ({ ...item })),
-  };
-  if (!permissions["orders.prices"]) {
-    for (const key of [
-      "total",
-      "discount",
-      "subtotal",
-      "payment_summary",
-      "paid",
-      "balance",
-      "receivable",
-      "receipt",
-    ])
-      delete result[key];
-    for (const item of result.items)
-      for (const key of ["price", "total", "subtotal", "discount"])
-        delete item[key];
-  }
-  if (!permissions["finance.costs"]) {
-    for (const key of ["cost", "profit", "margin", "gain", "total_cost"])
-      delete result[key];
-    for (const item of result.items) {
-      for (const key of [
-        "cost",
-        "cost_override",
-        "profit",
-        "margin",
-        "service_snapshot",
-        "service_details",
-      ])
-        delete item[key];
-    }
-  }
-  for (const [permission, keys] of [
-    ["personal.contact", ["phone", "customer_phone", "whatsapp"]],
-    ["personal.email", ["email", "customer_email"]],
-    ["personal.address", ["address", "customer_address"]],
-    ["personal.full", ["document", "customer_document", "birthday"]],
-  ] as [Permission, string[]][])
-    if (!permissions[permission]) for (const key of keys) delete result[key];
-  return result;
-}

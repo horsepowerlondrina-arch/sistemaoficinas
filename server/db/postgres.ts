@@ -155,6 +155,7 @@ export function createPostgresDatabase(url = process.env.DATABASE_URL, options: 
       }
     },
     setRequestIdentity,
+    async hasUserAccessSchema(){return (await pool.query("SELECT to_regclass('horse_power.workshop_user_access') IS NOT NULL AS installed")).rows[0]?.installed===true;},
     async recordAccessAttempt(key:string){return (await pool.query("SELECT horse_power.record_user_access_attempt($1) AS allowed",[key])).rows[0]?.allowed===true;},
     async getTenantAccessState(tenant: string) {
       const result = await query("SELECT horse_power.local_tenant_access_state($1) AS state", [tenant]);

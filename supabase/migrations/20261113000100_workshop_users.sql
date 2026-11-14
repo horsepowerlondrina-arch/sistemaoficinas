@@ -56,7 +56,7 @@ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog AS $$
 BEGIN
  IF NOT horse_power.workshop_is_master() THEN RAISE EXCEPTION 'Acesso não autorizado' USING ERRCODE='42501'; END IF;
  RETURN (SELECT coalesce(jsonb_agg(jsonb_build_object('user_id',m.user_id,'name',u.name,'email',u.email,'role',m.role,
- 'profile',coalesce(a.profile,CASE WHEN m.role='owner' THEN 'master' ELSE 'mechanic' END),
+ 'profile',CASE WHEN m.role='owner' THEN 'master' WHEN a.profile='master' THEN 'mechanic' ELSE coalesce(a.profile,'mechanic') END,
  'active',coalesce(a.active,1),'permissions',coalesce(a.permissions,'{}'),'order_scope',coalesce(a.order_scope,'all'),
  'discount_bps',coalesce(a.discount_bps,CASE WHEN m.role='owner' THEN 10000 ELSE 0 END),'discount_cents',a.discount_cents)
  ORDER BY lower(u.name)),'[]'::jsonb)
@@ -90,7 +90,8 @@ BEGIN
   FOR t IN SELECT unnest(ARRAY['workshop_user_access','staff_accounts','workshop_user_invites','order_assignments','discount_requests']) LOOP
    EXECUTE format('GRANT SELECT,INSERT,UPDATE,DELETE ON horse_power.%I TO %I',t,r);
    scope:='tenant_id=nullif(current_setting(''app.tenant_id'',true),'''')';
-   IF t='workshop_user_access' THEN EXECUTE format('CREATE POLICY %I ON horse_power.%I FOR SELECT TO %I USING(tenant_id=nullif(current_setting(''app.tenant_id'',true),'''') OR user_id=nullif(current_setting(''app.user_id'',true),''''))',r||'_read',t,r); ELSE
+   IF t='workshop_user_access' THEN EXECUTE format('CREATE POLICY %I ON horse_power.%I FOR SELECT TO %I USING(user_id=nullif(current_setting(''app.user_id'',true),'''') OR (tenant_id=nullif(current_setting(''app.tenant_id'',true),'''') AND horse_power.workshop_is_master()))',r||'_read',t,r); ELSE
+   IF t='workshop_user_invites' THEN scope:=scope||' AND horse_power.workshop_is_master()'; END IF;
    EXECUTE format('CREATE POLICY %I ON horse_power.%I FOR SELECT TO %I USING(%s)',r||'_read',t,r,scope); END IF;
    IF t IN ('workshop_user_access','workshop_user_invites') THEN scope:=scope||' AND horse_power.workshop_is_master()'; END IF;
    EXECUTE format('CREATE POLICY %I ON horse_power.%I FOR ALL TO %I USING(%s) WITH CHECK(%s)',r||'_write',t,r,scope,scope);
@@ -161,6 +162,7 @@ BEGIN
  uid:=CASE WHEN TG_OP='DELETE' THEN OLD.user_id ELSE NEW.user_id END;
  PERFORM pg_advisory_xact_lock(hashtextextended(t,104730));
  IF TG_OP='DELETE' OR (TG_OP='UPDATE' AND OLD.role='owner' AND NEW.role<>'owner') THEN
+  IF OLD.role='owner' AND uid=nullif(current_setting('app.user_id',true),'') THEN RAISE EXCEPTION 'Não pode remover o próprio acesso Master' USING ERRCODE='42501'; END IF;
   IF OLD.role='owner' AND NOT EXISTS(SELECT 1 FROM horse_power.memberships m LEFT JOIN horse_power.workshop_user_access a ON a.tenant_id=m.tenant_id AND a.user_id=m.user_id WHERE m.tenant_id=t AND m.user_id<>uid AND m.role='owner' AND coalesce(a.active,1)=1) THEN RAISE EXCEPTION 'Último Master protegido' USING ERRCODE='23514'; END IF;
  END IF;
  IF TG_OP='INSERT' THEN
@@ -179,7 +181,8 @@ LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog AS $$
 DECLARE limit_n integer; total_n integer;
 BEGIN
  PERFORM pg_advisory_xact_lock(hashtextextended(NEW.tenant_id,104730));
- IF TG_OP='UPDATE' AND OLD.active=1 AND NEW.active=0 AND EXISTS(SELECT 1 FROM horse_power.memberships WHERE tenant_id=NEW.tenant_id AND user_id=NEW.user_id AND role='owner') THEN
+ IF NEW.active=0 AND (TG_OP='INSERT' OR OLD.active=1) AND EXISTS(SELECT 1 FROM horse_power.memberships WHERE tenant_id=NEW.tenant_id AND user_id=NEW.user_id AND role='owner') THEN
+  IF NEW.user_id=nullif(current_setting('app.user_id',true),'') THEN RAISE EXCEPTION 'Não pode desativar o próprio Master' USING ERRCODE='42501'; END IF;
   IF NOT EXISTS(SELECT 1 FROM horse_power.memberships m LEFT JOIN horse_power.workshop_user_access a ON a.tenant_id=m.tenant_id AND a.user_id=m.user_id WHERE m.tenant_id=NEW.tenant_id AND m.user_id<>NEW.user_id AND m.role='owner' AND coalesce(a.active,1)=1) THEN RAISE EXCEPTION 'Último Master protegido' USING ERRCODE='23514'; END IF;
  END IF;
  IF TG_OP='UPDATE' AND OLD.active=0 AND NEW.active=1 THEN
@@ -252,3 +255,43 @@ DO $compat$ DECLARE definition text; original text; BEGIN
  IF definition=original THEN RAISE EXCEPTION 'Gestão administrativa incompatível com OPS-004'; END IF;
  EXECUTE definition;
 END $compat$;
+
+REVOKE ALL ON FUNCTION horse_power.guard_workshop_membership(),horse_power.guard_workshop_access(),horse_power.guard_employee_invite() FROM PUBLIC;
+
+-- Assignment scope also constrains SQL reads; empty identities retain only the
+-- pre-existing public-share/service policies, never a new grant.
+CREATE FUNCTION horse_power.workshop_order_visible(p_tenant text,p_order text) RETURNS boolean
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog AS $$
+DECLARE uid text; scope text; active_state bigint; member_role text;
+BEGIN
+ uid:=nullif(current_setting('app.user_id',true),'');
+ IF uid IS NULL THEN RETURN true; END IF;
+ SELECT m.role,coalesce(a.order_scope,'all'),coalesce(a.active,1) INTO member_role,scope,active_state
+ FROM horse_power.memberships m LEFT JOIN horse_power.workshop_user_access a ON a.tenant_id=m.tenant_id AND a.user_id=m.user_id WHERE m.tenant_id=p_tenant AND m.user_id=uid;
+ IF NOT FOUND OR active_state<>1 THEN RETURN false; END IF;
+ IF member_role='owner' OR scope='all' THEN RETURN true; END IF;
+ RETURN EXISTS(SELECT 1 FROM horse_power.order_assignments a JOIN horse_power.staff_accounts s ON s.tenant_id=a.tenant_id AND s.professional_id=a.professional_id WHERE a.tenant_id=p_tenant AND a.order_id=p_order AND s.user_id=uid AND a.removed_at IS NULL);
+END $$;
+REVOKE ALL ON FUNCTION horse_power.workshop_order_visible(text,text) FROM PUBLIC;
+CREATE FUNCTION horse_power.workshop_document_visible(p_tenant text,p_kind text,p_id text) RETURNS boolean
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog AS $$
+DECLARE oid text;
+BEGIN
+ IF p_kind='order' THEN RETURN horse_power.workshop_order_visible(p_tenant,p_id); END IF;
+ SELECT order_id INTO oid FROM horse_power.checklists WHERE tenant_id=p_tenant AND id=p_id;
+ RETURN horse_power.workshop_order_visible(p_tenant,oid);
+END $$;
+REVOKE ALL ON FUNCTION horse_power.workshop_document_visible(text,text,text) FROM PUBLIC;
+DO $scope$ DECLARE r text; t text; expression text; BEGIN
+ FOR r IN SELECT rolname FROM pg_roles WHERE rolname IN ('horse_power_app','hp_local_app') LOOP
+  EXECUTE format('GRANT EXECUTE ON FUNCTION horse_power.workshop_order_visible(text,text),horse_power.workshop_document_visible(text,text,text) TO %I',r);
+  FOR t IN SELECT unnest(ARRAY['orders','order_items','receivables','checklists','checklist_photos','document_revisions','discount_requests']) LOOP
+   expression:=CASE WHEN t='orders' THEN 'horse_power.workshop_order_visible(tenant_id,id)'
+    WHEN t='checklists' THEN 'horse_power.workshop_document_visible(tenant_id,''checklist'',id)'
+    WHEN t='checklist_photos' THEN 'horse_power.workshop_document_visible(tenant_id,''checklist'',checklist_id)'
+    WHEN t='document_revisions' THEN 'horse_power.workshop_document_visible(tenant_id,kind,entity_id)'
+    ELSE 'horse_power.workshop_order_visible(tenant_id,order_id)' END;
+   EXECUTE format('CREATE POLICY %I ON horse_power.%I AS RESTRICTIVE FOR SELECT TO %I USING(%s)',r||'_ops004_scope',t,r,expression);
+  END LOOP;
+ END LOOP;
+END $scope$;

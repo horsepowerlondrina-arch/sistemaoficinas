@@ -285,6 +285,11 @@ async function resolveOrderIdentity(db: DB, ctx: Context, input: Row) {
   }
   return { customerId, vehicleId };
 }
+async function eligibleProfessional(db:DB,ctx:Context,professional:string,prior?:string){
+  if(!professional||professional===prior)return;
+  const row=ctx.access?await db.prepare('SELECT p.active,COALESCE(s.productive,1) productive FROM professionals p LEFT JOIN staff_accounts s ON s.tenant_id=p.tenant_id AND s.professional_id=p.id WHERE p.tenant_id=? AND p.id=?').get(ctx.tenantId,professional):await scoped(db,'professionals',ctx.tenantId,professional);
+  if(!row?.active||row.productive===0)throw new Error('Escolha um profissional produtivo ativo.');
+}
 export async function saveOrder(
   db: DB,
   ctx: Context,
@@ -373,7 +378,7 @@ export async function saveOrder(
         const priorService=previous.find(p=>p.id===item.id && p.service_snapshot);
         if(item.repair_service_id || item.workshop_service_id){
           if(item.repair_service_id && !priorService && item.repair_model_id!==(input.service_model_id||vehicle?.service_model_id))throw new Error('Confirme o modelo usado nos serviços deste veículo.');
-          if(item.professional_id && !(await scoped(db,'professionals',ctx.tenantId,item.professional_id)).active)throw new Error('Profissional inativo.');
+          if(item.professional_id)await eligibleProfessional(db,ctx,item.professional_id,priorService?.professional_id);
           const service=await resolveService(db,ctx,item,priorService);
           const details=JSON.parse(service.service_snapshot);details.charged_price=item.price;
           return {...item,catalog_id:null,snapshotId:priorService?.id||id(),kind:'service',name:service.name,cost:service.cost,professional_id:item.professional_id||null,service_snapshot:JSON.stringify(details)};
@@ -391,18 +396,7 @@ export async function saveOrder(
           throw new Error(
             "Este item não está disponível no catálogo. Importe pela extensão ou escolha um item ativo.",
           );
-        if (
-          item.professional_id &&
-          !(
-            await scoped(
-              db,
-              "professionals",
-              ctx.tenantId,
-              item.professional_id,
-            )
-          ).active
-        )
-          throw new Error("Profissional inativo.");
+        if(item.professional_id)await eligibleProfessional(db,ctx,item.professional_id,prior?.professional_id);
         if (
           item.cost_override !== undefined &&
           (!Number.isSafeInteger(item.cost_override) || item.cost_override < 0)
@@ -526,7 +520,7 @@ export async function saveOrder(
           item.cost,
           item.service_snapshot || '',
         );
-    if (changed){await invalidateOrderShares(db, ctx, orderId);await db.prepare("UPDATE discount_requests SET status='invalidated' WHERE tenant_id=? AND order_id=? AND status='pending'").run(ctx.tenantId,orderId);}
+    if (changed){await invalidateOrderShares(db, ctx, orderId);if(ctx.access)await db.prepare("UPDATE discount_requests SET status='invalidated' WHERE tenant_id=? AND order_id=? AND status='pending'").run(ctx.tenantId,orderId);}
     if (changingVehicle) {
       const archived = await audit(db, ctx, `order.vehicle_changed:${String(old.vehicle_id || "")}:${String(vehicleId || "")}:items_removed:${previous.length}`, orderId,
         { previous_order: old, previous_items: previous, vehicle_id: vehicleId });

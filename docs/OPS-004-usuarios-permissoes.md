@@ -31,7 +31,7 @@ As funções privilegiadas ficam no schema privado `horse_power`, com `search_pa
 
 Disputas por vagas, aceitação, reativação e alterações de Masters usam a trava transacional da oficina. Triggers protegem o último Master e a contagem de vagas também em operações administrativas centrais. Desativação remove as sessões daquela oficina, preservando os vínculos e sessões das demais. Alterações de permissões são reavaliadas sem novo login; a interface atualiza o contexto periodicamente.
 
-Os descontos de recebimentos mantêm os cálculos monetários existentes e passam pelo mesmo teto individual. Solicitações que exigem aprovação são feitas antes da finalização da OS. Registros históricos de recebimentos, preços, funcionários e documentos são preservados.
+Os descontos de recebimentos mantêm os cálculos monetários existentes e passam pelo mesmo teto individual. Solicitações também podem ser feitas para OS finalizadas com recebimento ainda não confirmado, respeitando as permissões financeiras e a validação do recebimento existente. Registros históricos de recebimentos, preços, funcionários e documentos são preservados.
 
 ## Migração e liberação
 

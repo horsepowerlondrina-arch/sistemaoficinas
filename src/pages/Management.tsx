@@ -523,7 +523,7 @@ export function Finance() {
 export function Settings() {
   const [params, setParams] = useSearchParams();
   const { session, data, refresh, notify } = useApp();
-  const tabs = [["oficina","Dados da oficina"],["geral","Taxas e parcelamento"],["servicos","Mão de obra por porte"],["pecas","Lucro de peças e terceiros"],["assinatura","Assinatura e pagamentos"],["conta","Conta"],["usuarios","Usuários e funcionários"]].filter(([id])=>id==="usuarios"?can(session,"users.manage"):id==="assinatura"?session.role==="owner":["geral","servicos","pecas"].includes(id)?can(session,id==="geral"?"settings.finance":"settings.manage"):can(session,"settings.view"));
+  const tabs = [["oficina","Dados da oficina"],["geral","Taxas e parcelamento"],["servicos","Mão de obra por porte"],["pecas","Lucro de peças e terceiros"],["assinatura","Assinatura e pagamentos"],["conta","Conta"],["usuarios","Usuários e funcionários"]].filter(([id])=>id==="usuarios"?!!session.access&&can(session,"users.manage"):id==="assinatura"?session.role==="owner":["geral","servicos","pecas"].includes(id)?can(session,id==="geral"?"settings.finance":"settings.manage"):can(session,"settings.view"));
   const requestedTab = params.get("aba");
   const activeTab = tabs.some(([id]) => id === requestedTab) ? requestedTab! : "oficina";
   useEffect(() => {

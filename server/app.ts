@@ -1,3 +1,4 @@
+import {readUserAccess} from './services/userAccess';
 import {employeePublicRoutes,workshopUserRoutes} from './workshopUserRoutes';
 import {userAuthorization,redactResponse} from './auth/userAuthorization';
 import {projectWorkspace} from './services/workspaceAccess';
@@ -286,6 +287,8 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
     next();
   });
   app.use('/api',async(req,res,next)=>{
+    res.locals.userAccessEnabled=!db.hasUserAccessSchema||await db.hasUserAccessSchema();
+    if(!res.locals.userAccessEnabled&&(req.path.startsWith('/employee-invites/')||req.path==='/reauthenticate')){res.status(503).json({error:'Gestão de usuários aguarda liberação da migração.'});return;}
     if(!['/employee-invites/accept','/reauthenticate'].includes(req.path)){next();return;}
     const key=digest((req.ip||'local')+':'+req.path+':'+(req.path==='/reauthenticate'?digest(tokenFrom(req)):digest(String(req.body?.token||''))));
     const now=Date.now();
@@ -398,7 +401,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
       .run(key, now);
     const membership = await db
       .prepare(
-        "SELECT m.tenant_id FROM memberships m LEFT JOIN workshop_user_access a ON a.tenant_id=m.tenant_id AND a.user_id=m.user_id WHERE m.user_id=? AND COALESCE(a.active,1)=1 ORDER BY m.tenant_id LIMIT 1",
+        res.locals.userAccessEnabled?"SELECT m.tenant_id FROM memberships m LEFT JOIN workshop_user_access a ON a.tenant_id=m.tenant_id AND a.user_id=m.user_id WHERE m.user_id=? AND COALESCE(a.active,1)=1 ORDER BY m.tenant_id LIMIT 1":"SELECT tenant_id FROM memberships WHERE user_id=? ORDER BY tenant_id LIMIT 1",
       )
       .get(user.id);
     if (!membership) {
@@ -458,7 +461,11 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
       next();
       return;
     }
-    void db.lockTenantMutations(String(res.locals.context.tenantId)).then(() => next()).catch(next);
+    void db.lockTenantMutations(String(res.locals.context.tenantId)).then(async()=>{
+      const ctx:Context=res.locals.context;
+      if(ctx.access){const membership=await db.prepare('SELECT role FROM memberships WHERE user_id=? AND tenant_id=?').get(ctx.userId,ctx.tenantId);const alive=await db.prepare('SELECT 1 FROM sessions WHERE token_hash=? AND expires_at>?').get(digest(tokenFrom(req)),Date.now());if(!membership||!alive){res.status(401).json({error:'Entre na sua conta para continuar.'});return;}ctx.role=membership.role;ctx.access=await readUserAccess(db,ctx);if(!ctx.access.active){res.status(401).json({error:'Acesso desativado nesta oficina.'});return;}}
+      next();
+    }).catch(next);
   });
   app.get("/api/session", async (_req, res) => {
     const ctx: Context = res.locals.context;
@@ -471,12 +478,12 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
         .get(ctx.tenantId),
       tenants: await db
         .prepare(
-          "SELECT t.* FROM tenants t JOIN memberships m ON m.tenant_id=t.id LEFT JOIN workshop_user_access a ON a.tenant_id=m.tenant_id AND a.user_id=m.user_id WHERE m.user_id=? AND COALESCE(a.active,1)=1 ORDER BY t.name",
+          ctx.access?"SELECT t.* FROM tenants t JOIN memberships m ON m.tenant_id=t.id LEFT JOIN workshop_user_access a ON a.tenant_id=m.tenant_id AND a.user_id=m.user_id WHERE m.user_id=? AND COALESCE(a.active,1)=1 ORDER BY t.name":"SELECT t.* FROM tenants t JOIN memberships m ON m.tenant_id=t.id WHERE m.user_id=? ORDER BY t.name",
         )
         .all(ctx.userId),
       role: ctx.role,
       access: ctx.access,
-      must_select_office:(await db.prepare('SELECT confirmed FROM session_office_choices WHERE token_hash=?').get(digest(tokenFrom(_req))))?.confirmed===0,
+      must_select_office:ctx.access?(await db.prepare('SELECT confirmed FROM session_office_choices WHERE token_hash=?').get(digest(tokenFrom(_req))))?.confirmed===0:false,
       support_available: !!db.withRequestContext && process.env.APP_ENV !== "horse_power",
       modules: ctx.modules || defaultWorkshopModules,
     });
@@ -523,7 +530,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
     const tenant = z.string().parse(req.body.tenant_id);
     if (
       !(await db
-        .prepare("SELECT 1 FROM memberships m LEFT JOIN workshop_user_access a ON a.tenant_id=m.tenant_id AND a.user_id=m.user_id WHERE m.user_id=? AND m.tenant_id=? AND COALESCE(a.active,1)=1")
+        .prepare(ctx.access?"SELECT 1 FROM memberships m LEFT JOIN workshop_user_access a ON a.tenant_id=m.tenant_id AND a.user_id=m.user_id WHERE m.user_id=? AND m.tenant_id=? AND COALESCE(a.active,1)=1":"SELECT 1 FROM memberships WHERE user_id=? AND tenant_id=?")
         .get(ctx.userId, tenant))
     ) {
       res.status(403).json({ error: "Você não tem acesso a esta oficina." });
@@ -533,7 +540,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
     await db
       .prepare("UPDATE sessions SET tenant_id=? WHERE token_hash=?")
       .run(tenant, digest(tokenFrom(req)));
-    await db.prepare('UPDATE session_office_choices SET confirmed=1 WHERE token_hash=?').run(digest(tokenFrom(req)));
+    if(ctx.access)await db.prepare('UPDATE session_office_choices SET confirmed=1 WHERE token_hash=?').run(digest(tokenFrom(req)));
     res.json({ ok: true });
   });
   app.use("/api",userAuthorization(db));
@@ -596,7 +603,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
         )
         .all(tenant),
       professionals: await db
-        .prepare("SELECT * FROM professionals WHERE tenant_id=? ORDER BY name")
+        .prepare(context.access?"SELECT p.*,COALESCE(s.productive,1) productive FROM professionals p LEFT JOIN staff_accounts s ON s.tenant_id=p.tenant_id AND s.professional_id=p.id WHERE p.tenant_id=? ORDER BY p.name":"SELECT * FROM professionals WHERE tenant_id=? ORDER BY name")
         .all(tenant),
       card_rates: await db
         .prepare(
