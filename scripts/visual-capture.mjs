@@ -177,6 +177,15 @@ try {
       const appliedPeriod = page.locator(".management-results-report-head");
       const from = page.getByLabel("Data inicial");
       const to = page.getByLabel("Data final");
+      const cards = page.locator(".management-results-grid .management-results-section");
+      await expect(cards.nth(0).getByRole("heading", { name: "Serviços", exact: true })).toBeVisible();
+      await expect(cards.nth(0).locator("dt")).toHaveText([
+        "Serviços vendidos", "Custo de terceiros", "Horas vendidas", "Capacidade de serviço no intervalo", "Ocupação",
+      ]);
+      await expect(cards.nth(1).locator("dt")).toHaveText([
+        "Peças vendidas", "Custo conhecido com frete", "Margem conhecida", "OS sem custo completo", "OS com custo consolidado",
+      ]);
+      for (const card of [cards.nth(0), cards.nth(1), cards.nth(2)]) await expect(card.locator("p")).toHaveCount(0);
       const checkApplied = async () => {
         const displayDate = value => value.split("-").reverse().join("/");
         await expect(appliedPeriod).toContainText(`De ${displayDate(await from.inputValue())} até ${displayDate(await to.inputValue())}`);
