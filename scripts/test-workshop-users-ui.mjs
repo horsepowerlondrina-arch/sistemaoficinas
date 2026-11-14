@@ -6,13 +6,7 @@ import { chromium, expect } from "@playwright/test";
 const base = "http://127.0.0.1:5173";
 if (process.env.VERCEL || process.env.NODE_ENV === "production")
   throw Error("Somente aplicação de testes em loopback.");
-const credential = JSON.parse(
-  readFileSync(
-    process.env.LOCAL_TEST_CREDENTIALS_FILE || "data/local-credentials.json",
-    "utf8",
-  ),
-).find((c) => c.tenant === "local-a");
-if (!credential) throw Error("Credenciais fictícias locais ausentes.");
+let credential;
 const output = resolve(process.env.RUNNER_TEMP || "/tmp", "ops004-users-ui");
 mkdirSync(output, { recursive: true });
 const children = [
@@ -72,6 +66,10 @@ try {
       "utf8",
     ),
   );
+  credential = {
+    email: collaborator.ownerEmail,
+    password: collaborator.ownerPassword,
+  };
   browser = await chromium.launch();
   page = await browser.newPage({
     viewport: { width: 1440, height: 1000 },
@@ -283,7 +281,7 @@ try {
   ).toBeVisible();
   const accountA = await (await page.request.get(base + "/api/session")).json();
   expect(accountA.access.profile).toBe("finance");
-  expect(accountA.tenant.id).toBe("local-a");
+  expect(accountA.tenant.id).toBe(collaborator.tenantA);
   const dataA = await (await page.request.get(base + "/api/workspace")).json();
   for (const customer of dataA.customers)
     for (const field of ["phone", "email", "address", "document", "birthday"])
@@ -299,29 +297,31 @@ try {
   rejectNextDialog = true;
   await page
     .getByRole("combobox", { name: "Oficina ativa" })
-    .selectOption("local-b");
+    .selectOption(collaborator.tenantB);
   await expect.poll(() => guardPrompts).toBe(promptsBefore + 1);
   expect(
     (await (await page.request.get(base + "/api/session")).json()).tenant.id,
-  ).toBe("local-a");
+  ).toBe(collaborator.tenantA);
   await expect(draftReason).toHaveValue("Rascunho fictício ainda não enviado.");
   await page
     .getByRole("combobox", { name: "Oficina ativa" })
-    .selectOption("local-b");
+    .selectOption(collaborator.tenantB);
   await expect
     .poll(
       async () =>
         (await (await page.request.get(base + "/api/session")).json()).tenant
           .id,
     )
-    .toBe("local-b");
+    .toBe(collaborator.tenantB);
   const accountB = await (await page.request.get(base + "/api/session")).json();
   expect(accountB.access.profile).toBe("mechanic");
   await expect(
     page.getByRole("heading", { name: "Por onde vamos começar?", exact: true }),
   ).toBeVisible();
   const dataB = await (await page.request.get(base + "/api/workspace")).json();
-  expect(dataB.orders.every((o) => o.tenant_id === "local-b")).toBe(true);
+  expect(dataB.orders.every((o) => o.tenant_id === collaborator.tenantB)).toBe(
+    true,
+  );
   await page.goto(base + "/aceitar-convite#" + collaborator.inviteToken);
   await expect(page.getByLabel("Seu nome", { exact: true })).toBeVisible();
   await expect.poll(() => new URL(page.url()).hash).toBe("");
@@ -364,9 +364,22 @@ try {
     await page.request.get(base + "/api/session")
   ).json();
   expect(activated.user.email).toBe(collaborator.activationEmail);
-  expect(activated.tenant.id).toBe("local-a");
+  expect(activated.tenant.id).toBe(collaborator.tenantA);
   expect(activated.access.profile).toBe("mechanic");
   expect(activated.must_select_office).toBe(false);
+  await page.goto(base + "/servicos");
+  await expect(
+    page.getByRole("tab", { name: "Catálogo de Tempos", exact: true }),
+  ).toHaveAttribute("aria-selected", "true");
+  await expect(
+    page.getByRole("tab", { name: "Serviços Próprios", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Novo serviço", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("combobox", { name: "Marca", exact: true }),
+  ).toBeVisible();
   expect(errors).toEqual([]);
   console.log(
     "OPS004: navegação, funcionário sem login, convites, cancelamento, formulários, aprovações e três tamanhos validados com API e PostgreSQL fictícios.",

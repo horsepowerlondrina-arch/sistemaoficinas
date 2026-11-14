@@ -225,7 +225,7 @@ export function App() {
   const available = (path: string) => {
     if(!canOpenPath(session,path))return false;
     if (path === "/resultados" && session.modules?.orders === false) return false;
-    const module = uiModuleForPath(path);
+    const module = path === "/servicos" && !can(session,"catalog.view") && can(session,"technical.view") ? "technical_catalog" : uiModuleForPath(path);
     return !module || session.modules?.[module] !== false;
   };
   const visibleGroups = admin
@@ -236,7 +236,7 @@ export function App() {
           items: groups[0].items.filter(([path]) => path === "/ordens" && available(path)),
         },
       ];
-  const blockedModule = uiModuleForPath(location.pathname);
+  const blockedModule = ["/servicos","/tempos"].includes(location.pathname) && !can(session,"catalog.view") && can(session,"technical.view") ? "technical_catalog" : uiModuleForPath(location.pathname);
   if(!canOpenPath(session,location.pathname))return <Navigate to="/inicio" replace/>;
   if (blockedModule && session.modules?.[blockedModule] === false)
     return <Navigate to="/inicio" replace />;

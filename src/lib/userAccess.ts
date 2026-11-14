@@ -24,11 +24,19 @@ export function canOpenPath(session: Session, path: string) {
     p.startsWith("/veiculos")
   )
     return can(session, "customers.view");
-  if (p.startsWith("/catalogo") || p.startsWith("/servicos"))
+  if (p.startsWith("/catalogo")) return can(session, "catalog.view");
+  if (p.startsWith("/servicos") || p.startsWith("/tempos"))
     return can(session, "catalog.view") || can(session, "technical.view");
   if (p.startsWith("/profissionais")) return can(session, "staff.view");
   if (p.startsWith("/fornecedores")) return can(session, "catalog.view");
   if (p.startsWith("/estoque")) return can(session, "stock.view");
+  if (/^\/financeiro\/(pecas|servicos|ganhos)/.test(p))
+    return can(session, "finance.profit");
+  if (
+    p.startsWith("/financeiro/caixa") &&
+    session.access?.orderScope === "assigned"
+  )
+    return false;
   if (p.startsWith("/financeiro")) return can(session, "finance.view");
   if (p.startsWith("/resultados")) return can(session, "finance.profit");
   if (p.startsWith("/dashboard")) return can(session, "finance.reports");

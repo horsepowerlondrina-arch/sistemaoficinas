@@ -219,7 +219,8 @@ function WorkshopServiceCategories({ onClose, categories, onChanged }: { onClose
     </div>
   </Modal>;
 }
-export function WorkshopServices({ embedded = false, newServiceTrigger = 0, onFormOpenChange }: {
+export function WorkshopServices({ embedded = false, newServiceTrigger = 0, onFormOpenChange, canCreate=true, canEdit=true, canRemove=true }: {
+  canCreate?: boolean; canEdit?: boolean; canRemove?: boolean;
   embedded?: boolean;
   newServiceTrigger?: number;
   onFormOpenChange?: (open: boolean) => void;
@@ -235,7 +236,7 @@ export function WorkshopServices({ embedded = false, newServiceTrigger = 0, onFo
   const [categoryError, setCategoryError] = useState("");
   const [revision, setRevision] = useState(0);
   const [loading, setLoading] = useState(false);
-  useEffect(() => { if (newServiceTrigger > 0) setEditing(null); }, [newServiceTrigger]);
+  useEffect(() => { if (canCreate && newServiceTrigger > 0) setEditing(null); }, [newServiceTrigger]);
   useEffect(() => { onFormOpenChange?.(editing !== undefined || manageCategories); }, [editing, manageCategories, onFormOpenChange]);
   useEffect(() => {
     let active = true;
@@ -262,7 +263,7 @@ export function WorkshopServices({ embedded = false, newServiceTrigger = 0, onFo
   const addCategory = (category: Entity) => setCategories((current) => [category, ...current.filter((row) => row.id !== category.id)]);
   const hasFilters = Boolean(query.trim() || categoryFilter || status !== "active");
   return <>
-    {!embedded && <PageHeading title="Serviços Próprios" description="Gerencie os serviços particulares da oficina." actions={
+    {!embedded && <PageHeading title="Serviços Próprios" description="Gerencie os serviços particulares da oficina." actions={canCreate &&
       <button type="button" className="button primary" onClick={() => setEditing(null)}><Plus size={16} aria-hidden="true" /> Novo serviço</button>
     } />}
     <section className="panel workshop-services-panel" aria-label="Serviços próprios">
@@ -272,7 +273,7 @@ export function WorkshopServices({ embedded = false, newServiceTrigger = 0, onFo
       <div className="workshop-services-filters">
         <Field label="Categoria"><select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}><option value="">Todas as categorias</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}{!category.active ? " (inativa)" : ""}</option>)}</select></Field>
         <Field label="Situação"><select value={status} onChange={(e) => setStatus(e.target.value as typeof status)}><option value="active">Ativos</option><option value="inactive">Inativos</option><option value="all">Todos</option></select></Field>
-        <button type="button" className="button" onClick={() => setManageCategories(true)}><Tags size={16} aria-hidden="true" /> Categorias</button>
+        {(canEdit || canCreate) && <button type="button" className="button" onClick={() => setManageCategories(true)}><Tags size={16} aria-hidden="true" /> Categorias</button>}
       </div>
       {categoryError && <p className="form-error" role="alert">Não foi possível carregar as categorias: {categoryError}</p>}
       <div className="workshop-services-list-section">
@@ -282,8 +283,8 @@ export function WorkshopServices({ embedded = false, newServiceTrigger = 0, onFo
           <div className="workshop-services-item-details"><strong>{row.name}</strong><small>Referência: {row.reference || "—"} · Categoria: {row.category_name || "Sem categoria"}</small></div>
           <strong className="workshop-services-price">{money(Number(row.price || 0))}</strong>
           <div className="workshop-services-item-actions">
-            <button type="button" className="text-button" onClick={() => setEditing(row)}><Pencil size={15} aria-hidden="true" /> Editar</button>
-            <button type="button" className="text-button" onClick={async () => { try { await send(`/workshop-services/${row.id}/status`, { active: !row.active }, "PATCH"); refresh(); } catch (e) { setError((e as Error).message); } }}>{row.active ? "Inativar" : "Reativar"}</button>
+            {canEdit && <button type="button" className="text-button" onClick={() => setEditing(row)}><Pencil size={15} aria-hidden="true" /> Editar</button>}
+            {canRemove && <button type="button" className="text-button" onClick={async () => { try { await send(`/workshop-services/${row.id}/status`, { active: !row.active }, "PATCH"); refresh(); } catch (e) { setError((e as Error).message); } }}>{row.active ? "Inativar" : "Reativar"}</button>}
           </div>
         </div>)}</div> : <p className="workshop-services-empty">{hasFilters ? "Nenhum serviço corresponde à pesquisa ou aos filtros." : "Nenhum serviço ativo cadastrado."}</p>}
       </div>

@@ -7,23 +7,64 @@ import { createUserInvite } from "../server/services/workshopUsers";
 import { defaultWorkshopModules } from "../shared/workshopModules";
 import { hashPassword } from "../server/auth/session";
 
-// adminClient refuses remote hosts and production; this identity exists only in
-// the disposable fictional database used by the UI regression.
+// Only disposable loopback PostgreSQL is accepted. These offices are separate
+// from local-a/local-b, which remain the baseline of other regression suites.
 const db = adminClient();
 await db.connect();
 try {
+  const prefix = randomUUID(),
+    tenantA = `ops004-ui-${prefix}-a`,
+    tenantB = `ops004-ui-${prefix}-b`;
   const id = randomUUID(),
-    password = randomBytes(24).toString("base64url");
+    ownerA = randomUUID(),
+    ownerB = randomUUID();
   const email = "ops004-colaborador-ui@example.test",
     activationEmail = "ops004-ativacao-ui@example.test";
+  const ownerEmail = "ops004-master-ui@example.test";
+  const password = randomBytes(24).toString("base64url"),
+    ownerPassword = randomBytes(24).toString("base64url");
+  const customer = randomUUID(),
+    vehicle = randomUUID(),
+    product = randomUUID(),
+    order = randomUUID();
   await db.query("BEGIN");
+  for (const [tenant, owner, suffix, mail] of [
+    [tenantA, ownerA, "A", ownerEmail],
+    [tenantB, ownerB, "B", "ops004-outro-master-ui@example.test"],
+  ]) {
+    await db.query("INSERT INTO horse_power.tenants(id,name) VALUES($1,$2)", [
+      tenant,
+      `Oficina Fictícia ${suffix}`,
+    ]);
+    await db.query(
+      "INSERT INTO horse_power.users(id,name,email,password_hash) VALUES($1,$2,$3,$4)",
+      [
+        owner,
+        `Administrador Fictício ${suffix}`,
+        mail,
+        hashPassword(ownerPassword),
+      ],
+    );
+    await db.query(
+      "INSERT INTO horse_power.memberships(user_id,tenant_id,role) VALUES($1,$2,'owner')",
+      [owner, tenant],
+    );
+    await db.query(
+      "INSERT INTO platform_admin.workshops(tenant_id,source,name,responsible_name,responsible_email,status,email_verified_at,plan_code,plan_policy_activated_at) VALUES($1,'admin',$2,'Responsável Fictício',$3,'active',now(),'premium',now())",
+      [tenant, `Oficina Fictícia ${suffix}`, mail],
+    );
+    await db.query(
+      "INSERT INTO service_catalog.tenant_access(tenant_id,enabled,grant_reason) VALUES($1,$2,'Fixture OPS004 isolada')",
+      [tenant, tenant === tenantA],
+    );
+  }
   await db.query(
     "INSERT INTO horse_power.users(id,name,email,password_hash) VALUES($1,'Colaborador Fictício OPS004',$2,$3)",
     [id, email, hashPassword(password)],
   );
   for (const [tenant, profile] of [
-    ["local-a", "finance"],
-    ["local-b", "mechanic"],
+    [tenantA, "finance"],
+    [tenantB, "mechanic"],
   ]) {
     await db.query(
       "INSERT INTO horse_power.memberships(user_id,tenant_id,role) VALUES($1,$2,'operator')",
@@ -43,39 +84,42 @@ try {
       ],
     );
   }
-  const product = randomUUID(),
-    order = randomUUID();
   await db.query(
-    "INSERT INTO horse_power.catalog(id,tenant_id,kind,name,sku,cost,price,stock) VALUES($1,'local-a','product','Peça Fictícia OPS004','OPS004-UI',1000,10000,10)",
-    [product],
+    "INSERT INTO horse_power.customers(id,tenant_id,name,email) VALUES($1,$2,'Cliente Fictício OPS004','cliente-ficticio@example.test')",
+    [customer, tenantA],
   );
   await db.query(
-    "INSERT INTO horse_power.orders(id,tenant_id,number,status,kind,customer_id,vehicle_id,entered_on,due_on,km,total) VALUES($1,'local-a',(SELECT coalesce(max(number),0)+1 FROM horse_power.orders WHERE tenant_id='local-a'),'open','order','local-a-customer','local-a-vehicle','2026-11-13','2026-11-14',0,10000)",
-    [order],
+    "INSERT INTO horse_power.vehicles(id,tenant_id,customer_id,plate,brand,model,year) VALUES($1,$2,$3,'OPS0A04','Marca Fictícia','Modelo Fictício',2024)",
+    [vehicle, tenantA, customer],
   );
   await db.query(
-    "INSERT INTO horse_power.order_items(id,tenant_id,order_id,catalog_id,kind,name,quantity,price,cost) VALUES($1,'local-a',$2,$3,'product','Peça Fictícia OPS004',1,10000,1000)",
-    [randomUUID(), order, product],
+    "INSERT INTO horse_power.catalog(id,tenant_id,kind,name,sku,cost,price,stock) VALUES($1,$2,'product','Peça Fictícia OPS004','OPS004-UI',1000,10000,10)",
+    [product, tenantA],
+  );
+  await db.query(
+    "INSERT INTO horse_power.orders(id,tenant_id,number,status,kind,customer_id,vehicle_id,entered_on,due_on,km,total) VALUES($1,$2,1,'open','order',$3,$4,'2026-11-13','2026-11-14',0,10000)",
+    [order, tenantA, customer, vehicle],
+  );
+  await db.query(
+    "INSERT INTO horse_power.order_items(id,tenant_id,order_id,catalog_id,kind,name,quantity,price,cost) VALUES($1,$2,$3,$4,'product','Peça Fictícia OPS004',1,10000,1000)",
+    [randomUUID(), tenantA, order, product],
   );
   await db.query("COMMIT");
   let inviteToken = "";
   const app = await createLocalDatabase();
   try {
     await app.withRequestContext!(
-      { "app.tenant_id": "local-a", "app.user_id": "local-owner-a" },
+      { "app.tenant_id": tenantA, "app.user_id": ownerA },
       async () => {
         await createUserInvite(
           app,
           {
-            tenantId: "local-a",
-            userId: "local-owner-a",
+            tenantId: tenantA,
+            userId: ownerA,
             role: "owner",
             modules: { ...defaultWorkshopModules },
           },
-          {
-            email: activationEmail,
-            profile: "mechanic",
-          },
+          { email: activationEmail, profile: "mechanic" },
           "",
           async (i) => {
             inviteToken = i.token;
@@ -86,10 +130,19 @@ try {
   } finally {
     await app.close();
   }
-  // Keep credentials outside every uploaded screenshot directory and repository.
+  // Never upload this private identity file as a CI artifact.
   writeFileSync(
     resolve(process.env.RUNNER_TEMP || "/tmp", "ops004-ui-identity.json"),
-    JSON.stringify({ email, password, inviteToken, activationEmail }),
+    JSON.stringify({
+      email,
+      password,
+      inviteToken,
+      activationEmail,
+      ownerEmail,
+      ownerPassword,
+      tenantA,
+      tenantB,
+    }),
     { mode: 0o600 },
   );
 } catch (error) {

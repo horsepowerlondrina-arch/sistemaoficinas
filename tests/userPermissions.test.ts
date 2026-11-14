@@ -90,3 +90,31 @@ test("route permissions distinguish creation, administrative OS actions and fina
   );
   assert.equal(permissionForRequest("/unknown", "POST"), null);
 });
+
+test("navigation respects financial margins and separates technical consultation from product registration", async () => {
+  const { canOpenPath } = await import("../src/lib/userAccess");
+  const mechanic = {
+    role: "operator",
+    access: {
+      permissions: effectivePermissions("mechanic"),
+      orderScope: "assigned",
+    },
+  } as any;
+  assert.equal(canOpenPath(mechanic, "/servicos"), true);
+  assert.equal(canOpenPath(mechanic, "/catalogo"), false);
+  const consult = {
+    role: "operator",
+    access: {
+      permissions: effectivePermissions("advisor", { "finance.view": true }),
+      orderScope: "all",
+    },
+  } as any;
+  for (const path of [
+    "/financeiro/pecas",
+    "/financeiro/servicos",
+    "/financeiro/ganhos",
+    "/resultados",
+  ])
+    assert.equal(canOpenPath(consult, path), false, path);
+  assert.equal(canOpenPath(consult, "/financeiro"), true);
+});
