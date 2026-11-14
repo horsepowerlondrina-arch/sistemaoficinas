@@ -1,3 +1,4 @@
+import { VehiclePlate } from "./VehiclePlate";
 import { DocumentTerms } from "./DocumentTerms";
 import { money, statusLabel, type Entity } from "../lib/types";
 import { DocumentHeader } from "./DocumentHeader";
@@ -79,7 +80,7 @@ export function OrderPrint({
         </div>}
         <div className="hp-print-two">
           <span><b>Veículo:</b> {vehicleLabel}</span>
-          <span><b>Placa:</b> {plate}</span>
+          <span className="document-plate"><b>Placa:</b> <VehiclePlate value={plate === "—" ? "" : plate} compact /></span>
         </div>
         {!publicView && <div className="hp-print-two">
           <span><b>KM:</b> {Number(order.km || 0).toLocaleString("pt-BR")}</span>

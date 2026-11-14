@@ -9,7 +9,7 @@ if (!client.includes('property="og:title" content="Ordem de Serviço"') || clien
   throw new Error("Customer link metadata is not ready.");
 for (const name of ["index", "contato"]) {
   const html = await readFile(`dist/site/${name}.html`, "utf8");
-  if (!html.includes('href="/inicio"') || html.includes("noindex,nofollow"))
+  if (!html.includes('href="/sistema"') || html.includes("noindex,nofollow"))
     throw new Error("Public site is not ready: " + name);
   for (const [, path] of html.matchAll(/(?:src|href)="(\/site\/[^"#]+)"/g))
     await access("dist" + path);

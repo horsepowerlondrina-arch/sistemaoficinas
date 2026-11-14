@@ -28,7 +28,7 @@ const input = (extra: any = {}) => ({
   items: [{ catalog_id: "p", quantity: 1, price: 2000 }],
   ...extra,
 });
-test("one OS retains number and items through completion and cannot be reopened", async () => {
+test("one OS retains number and items through completion, reopening and finalization again", async () => {
   const db = fixture();
   try {
     const record = await saveOrder(db, owner, input());
@@ -55,14 +55,48 @@ test("one OS retains number and items through completion and cannot be reopened"
     await transitionOrder(db, owner, record, "completed");
     assert.equal(db.prepare("SELECT stock FROM catalog").get()!.stock, 4);
     assert.equal(db.prepare("SELECT COUNT(*) n FROM receivables").get()!.n, 1);
-    await assert.rejects(transitionOrder(db, owner, record, "quote"), /não pode ser reaberta/);
+    await transitionOrder(db, owner, record, "open");
+    assert.equal(db.prepare("SELECT stock FROM catalog").get()!.stock, 5);
+    assert.equal(db.prepare("SELECT COUNT(*) n FROM receivables").get()!.n, 0);
+    const reopened = (await listOrders(db, "a"))[0];
+    assert.equal(reopened.status, "open");
+    assert.equal(reopened.number, before.number);
+    assert.equal(reopened.items[0].id, before.items[0].id);
+    assert.equal(db.prepare("SELECT COUNT(*) n FROM stock_movements WHERE order_id=?").get(record)!.n, 0);
+    assert.equal(db.prepare("SELECT COUNT(*) n FROM audit_events WHERE entity_id=? AND action=?").get(record, "order.reopened.open")!.n, 1);
+    await transitionOrder(db, owner, record, "completed");
     assert.equal(db.prepare("SELECT stock FROM catalog").get()!.stock, 4);
     assert.equal(db.prepare("SELECT COUNT(*) n FROM receivables").get()!.n, 1);
-    assert.equal((await listOrders(db, "a"))[0].number, before.number);
   } finally {
     db.close();
   }
 });
+test("paid OS cannot be reopened; failed transition preserves stock and financial records", async () => {
+  const db = fixture();
+  try {
+    const record = await saveOrder(db, owner, input({ status: "open", customer_id: "c", vehicle_id: "v" }));
+    await transitionOrder(db, owner, record, "completed");
+    db.prepare("UPDATE receivables SET status='paid' WHERE tenant_id='a' AND order_id=?").run(record);
+    await assert.rejects(
+      transitionOrder(db, owner, record, "open"),
+      /recebimento confirmado/,
+    );
+    assert.equal((await listOrders(db, "a"))[0].status, "completed");
+    assert.equal(db.prepare("SELECT stock FROM catalog").get()!.stock, 4);
+    assert.equal(db.prepare("SELECT status FROM receivables WHERE order_id=?").get(record)!.status, "paid");
+    assert.equal(db.prepare("SELECT COUNT(*) n FROM stock_movements WHERE order_id=?").get(record)!.n, 1);
+    await assert.rejects(
+      transitionOrder(db, { ...owner, role: "operator" }, record, "open"),
+      /mecânico/,
+    );
+    await assert.rejects(
+      transitionOrder(db, { ...owner, tenantId: "b" }, record, "open"),
+    );
+  } finally {
+    db.close();
+  }
+});
+
 test("legacy kind cannot override status in permissions lists finance or anonymous draft editing", async () => {
   const db = fixture();
   try {

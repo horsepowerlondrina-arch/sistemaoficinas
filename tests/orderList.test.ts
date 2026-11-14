@@ -8,6 +8,7 @@ import { Orders } from "../src/pages/Orders";
 import { OrderTable } from "../src/components/OrderTable";
 import type { Order } from "../src/lib/types";
 import { isOrderOverdue, sortOrderList } from "../src/lib/orderList";
+import { orderFilterStorageKey, saveOrderFilterSearch } from "../src/lib/orderFilterSession";
 
 const order = (overrides: Partial<Order> = {}): Order => ({
   id: "os-1",
@@ -41,7 +42,7 @@ function renderOrderTable(orders: Order[], role = "owner") {
   );
 }
 
-function renderOrders(role = "owner") {
+function renderOrders(role = "owner", path = "/ordens") {
   const context: any = {
     session: {
       role,
@@ -65,7 +66,7 @@ function renderOrders(role = "owner") {
     h(AppContext.Provider, {
       value: context,
       children: h(MemoryRouter, {
-        initialEntries: ["/ordens"],
+        initialEntries: [path],
         children: h(Routes, {
           children: h(Route, { path: "/ordens", element: h(Orders) }),
         }),
@@ -127,4 +128,27 @@ test("only overdue delivery dates on unfinished, uncancelled OS are marked", () 
   assert.equal(isOrderOverdue(order({ status: "completed", due_on: "2026-10-01" }), "2026-10-14"), false);
   assert.equal(isOrderOverdue(order({ status: "cancelled", due_on: "2026-10-01" }), "2026-10-14"), false);
   assert.equal(isOrderOverdue(order({ status: "working", due_on: "2026-10-13" }), "2026-10-14"), true);
+});
+
+test("returning to the OS list shows session filters immediately, while an explicit URL takes precedence", () => {
+  const saved = new Map<string, string>();
+  const storage = {
+    getItem: (key: string) => saved.get(key) || null,
+    setItem: (key: string, value: string) => { saved.set(key, value); },
+  };
+  const key = orderFilterStorageKey("tenant", "user");
+  saveOrderFilterSearch(storage, key, "status=completed&basis=completion&from=2026-10-01&to=2026-10-31");
+  const original = Object.getOwnPropertyDescriptor(globalThis, "sessionStorage");
+  Object.defineProperty(globalThis, "sessionStorage", { configurable: true, value: storage });
+  try {
+    const restored = renderOrders();
+    assert.match(restored, /0 ordens de serviço/);
+    assert.match(restored, /value="2026-10-01"/);
+    assert.match(restored, /value="2026-10-31"/);
+    const explicit = renderOrders("owner", "/ordens?status=active");
+    assert.match(explicit, /1 ordens de serviço/);
+  } finally {
+    if (original) Object.defineProperty(globalThis, "sessionStorage", original);
+    else Reflect.deleteProperty(globalThis, "sessionStorage");
+  }
 });

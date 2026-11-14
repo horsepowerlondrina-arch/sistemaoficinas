@@ -13,7 +13,7 @@ export function stripeBillingService(pool:Pool,request:StripeRequest,origin:stri
  function requireTestTenant(tenant:string){if(!allowed.has(tenant))throw new BillingConflict('Esta oficina não está autorizada para testes de cobrança.');}
  const url=new URL(origin);
  if(url.protocol!=="https:"&&!["localhost","127.0.0.1"].includes(url.hostname))throw new Error("Origem de cobrança inválida.");
- const returnUrl=url.origin+"/configuracoes?aba=conta";
+ const returnUrl=url.origin+"/configuracoes?aba=assinatura";
  async function tx<T>(fn:(client:PoolClient)=>Promise<T>){
   const c=await pool.connect();
   try{await c.query("BEGIN");const value=await fn(c);await c.query("COMMIT");return value;}

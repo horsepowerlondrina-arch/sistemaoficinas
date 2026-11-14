@@ -98,7 +98,7 @@ test("editing a linked quote shows its registered customer without a duplicate g
   assert.doesNotMatch(html, /Sem cliente cadastrado/);
   assert.doesNotMatch(html, /Nome do cliente \(opcional\)/);
   assert.doesNotMatch(html, /Nome para o orçamento/);
-  assert.match(html, /value="ABC1D23"/);
+  assert.match(html, /aria-label="Placa do veículo ABC1D23"/);
 });
 test("service items retain saved pricing settings without OS execution or billing selectors", () => {
   const html = renderToStaticMarkup(h(ServiceExecutionFields, {
@@ -180,7 +180,7 @@ test("editing a linked OS shows customer vehicle choices and offers explicit edi
   });
 
   assert.match(html, /Placa do veículo vinculado/);
-  assert.match(html, /value="ABC1D23"/);
+  assert.match(html, /aria-label="Placa do veículo ABC1D23"/);
   assert.match(html, /value="Marca"/);
   assert.match(html, /value="Modelo"/);
   assert.match(html, /Editar veículo vinculado/);

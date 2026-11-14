@@ -5,7 +5,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+    branches: [main, release/horse-power-definitiva-v2, feat/hp-definitivo-sistema]
 
 permissions:
   contents: read

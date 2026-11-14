@@ -5,6 +5,7 @@ import { PartsPricing } from "./PartsPricing";
 import { LaborRates } from '../components/RepairServicePicker';
 import { WorkshopProfile } from "../components/WorkshopProfile";
 import { AccountSettings } from "../components/AccountSettings";
+import { WorkshopBilling } from "../components/StripeBilling";
 import { StockEntry } from "../components/StockEntry";
 import { StockInvoiceImport } from "../components/StockInvoiceImport";
 import { horsePowerExtensionEnabled } from "../../shared/horsePowerExtension";
@@ -519,7 +520,7 @@ export function Finance() {
 }
 export function Settings() {
   const [params, setParams] = useSearchParams();
-  const tabs = [["oficina","Dados da oficina"],["geral","Taxas e parcelamento"],["servicos","Mão de obra por porte"],["pecas","Lucro de peças e terceiros"],["conta","Conta"]];
+  const tabs = [["oficina","Dados da oficina"],["geral","Taxas e parcelamento"],["servicos","Mão de obra por porte"],["pecas","Lucro de peças e terceiros"],["assinatura","Assinatura e pagamentos"],["conta","Conta"]];
   const requestedTab = params.get("aba");
   const activeTab = tabs.some(([id]) => id === requestedTab) ? requestedTab! : "oficina";
   useEffect(() => {
@@ -535,6 +536,7 @@ export function Settings() {
     {activeTab === "oficina" ? <WorkshopProfile key={session.tenant.id} /> :
       activeTab === "servicos" ? <LaborRates /> :
       activeTab === "pecas" ? <PartsPricing /> :
+      activeTab === "assinatura" ? <WorkshopBilling tenantId={session.tenant.id}/> :
       activeTab === "conta" ? <div className="settings-grid">
         <AccountSettings />
         {horsePowerExtensionEnabled(session.tenant.id) && (

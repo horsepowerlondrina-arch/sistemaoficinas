@@ -1,4 +1,5 @@
 import { platformTitle } from "../shared/platformIdentity";
+import { clearOrderFilterSession } from "./lib/orderFilterSession";
 import { workshopTheme } from "../shared/workshopTheme";
 import { uiModuleForPath } from "../shared/workshopModules";
 import { PlatformBrand } from "./components/PlatformBrand";
@@ -9,6 +10,7 @@ import { PeopleRegisters } from "./pages/PeopleRegisters";
 import { Suppliers } from "./pages/Suppliers";
 import { ServicesProfit } from "./pages/ServicesProfit";
 import { GainsReport } from "./pages/GainsReport";
+import { ManagementResults } from "./pages/ManagementResults";
 import { Services } from './pages/Services';
 import { timesRedirectTarget } from '../shared/serviceTabs';
 import { PartsProfit } from "./pages/PartsProfit";
@@ -49,6 +51,7 @@ import {
   ShieldCheck,
   ArrowRight,
   CalendarDays,
+  BarChart3,
   TriangleAlert,
 } from "lucide-react";
 import { api, send } from "./lib/api";
@@ -64,7 +67,7 @@ import { OrderView } from "./pages/OrderView";
 import { Payment } from "./pages/Payment";
 import { Checklists } from "./pages/Checklists";
 import { ChecklistEditor } from "./pages/ChecklistEditor";
-export function App() {
+export function App({ homePath = "/inicio" }: { homePath?: "/" | "/inicio" } = {}) {
   const [session, setSession] = useState<Session | null>(null);
   const [data, setData] = useState<Workspace | null>(null);
   const [loading, setLoading] = useState(true);
@@ -93,7 +96,10 @@ export function App() {
       setSession(nextSession);
       setData(nextData);
     } catch (e) {
-      if ((e as Error).message.includes("Entre na sua conta")) setSession(null);
+      if ((e as Error).message.includes("Entre na sua conta")) {
+        clearOrderFilterSession(sessionStorage);
+        setSession(null);
+      }
       else setLoadError((e as Error).message);
     } finally {
       setLoading(false);
@@ -152,7 +158,7 @@ export function App() {
       <Login
         onLogin={async () => {
           await load();
-          navigate("/inicio");
+          navigate(homePath);
         }}
       />
     );
@@ -182,6 +188,7 @@ export function App() {
     {
       title: "GESTÃO",
       items: [
+        ["/resultados", "Resultados", BarChart3],
         ["/estoque", "Estoque", Package],
         ["/financeiro", "Financeiro", Wallet],
       ],
@@ -189,6 +196,7 @@ export function App() {
   ];
   const admin = session.role === "owner";
   const available = (path: string) => {
+    if (path === "/resultados" && session.modules?.orders === false) return false;
     const module = uiModuleForPath(path);
     return !module || session.modules?.[module] !== false;
   };
@@ -202,12 +210,12 @@ export function App() {
       ];
   const blockedModule = uiModuleForPath(location.pathname);
   if (blockedModule && session.modules?.[blockedModule] === false)
-    return <Navigate to="/inicio" replace />;
+    return <Navigate to={homePath} replace />;
   const current =
     groups
       .flatMap((g) => g.items)
       .find(([path]) => location.pathname.startsWith(path))?.[1] ||
-    (location.pathname === "/inicio"
+    (location.pathname === homePath
       ? "Início"
       : location.pathname === "/configuracoes"
         ? "Configurações"
@@ -297,11 +305,11 @@ export function App() {
           />
         )}
         <aside className={`sidebar ${mobile ? "mobile-open" : ""}`}>
-          <NavLink className="brand" to="/inicio" aria-label={"Início de " + session.tenant.name}>
+          <NavLink className="brand" to={homePath} aria-label={"Início de " + session.tenant.name}>
             <WorkshopBrand key={session.tenant.id} shop={session.tenant} />
           </NavLink>
           <NavLink
-            to="/inicio"
+            to={homePath}
             className={({ isActive }) => `home-nav ${isActive ? "active" : ""}`}
           >
             <LayoutGrid size={21} aria-hidden="true" />
@@ -322,7 +330,7 @@ export function App() {
                       `nav-item ${isActive ? "active" : ""}`
                     }
                   >
-                    <Icon size={19} />
+                    <Icon size={19} aria-hidden="true" style={{ flexShrink: 0 }} />
                     <span>{label}</span>
                     {path === "/ordens" && active > 0 && <b>{active}</b>}
                   </NavLink>
@@ -338,7 +346,7 @@ export function App() {
                   `nav-item ${isActive ? "active" : ""}`
                 }
               >
-                <Settings size={19} />
+                <Settings size={19} aria-hidden="true" style={{ flexShrink: 0 }} />
                 <span>Configurações</span>
               </NavLink>
             )}
@@ -354,6 +362,7 @@ export function App() {
                 onClick={async () => {
                   try {
                     await send("/logout", {});
+                    clearOrderFilterSession(sessionStorage);
                     setSession(null);
                     setData(null);
                   } catch (e) {
@@ -409,7 +418,7 @@ export function App() {
           </header>
           <main className="page-content">
             {!admin &&
-            location.pathname !== "/inicio" &&
+            location.pathname !== homePath &&
             !/^\/ordens(?:\/[^/]+)?$/.test(location.pathname) ? (
               <Navigate to="/ordens" replace />
             ) : !admin && location.pathname === "/ordens/nova" ? (
@@ -471,6 +480,7 @@ export function App() {
                 <Route path="/financeiro/servicos" element={<ServicesProfit />} />
                 <Route path="/financeiro/ganhos" element={<GainsReport />} />
                 <Route path="/estoque" element={<Stock />} />
+                <Route path="/resultados" element={admin && session.modules?.orders !== false ? <ManagementResults /> : <Navigate to="/inicio" replace />} />
                 <Route path="/financeiro" element={<Expenses />} />
                 <Route
                   path="/financeiro/receber"
@@ -487,7 +497,7 @@ export function App() {
                   element={<Expenses cash />}
                 />
                 <Route path="/configuracoes" element={<SettingsPage />} />
-                <Route path="/" element={<Navigate to="/inicio" replace />} />
+                <Route path="/" element={homePath === "/" ? <Home /> : <Navigate to={homePath} replace />} />
                 <Route
                   path="*"
                   element={

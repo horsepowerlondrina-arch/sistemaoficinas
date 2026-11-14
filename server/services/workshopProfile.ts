@@ -82,10 +82,12 @@ export async function saveWorkshopProfile(db:DB,ctx:Context,input:unknown) {
   const current=await getWorkshopProfile(db,ctx);
   const value=workshopProfileSchema.parse({...current,...parsed});
   const extra:Record<string,unknown>={};
+  let preserved:Record<string,unknown>={};
+  try { const parsed=JSON.parse(String((await db.prepare("SELECT profile_data FROM tenants WHERE id=?").get(ctx.tenantId))?.profile_data||"{}")); if(parsed&&typeof parsed==="object"&&!Array.isArray(parsed))preserved=parsed; } catch {}
   for(const key of EXTRA_PROFILE_FIELDS)extra[key]=value[key];
   extra.business_hours=value.business_hours;extra.quote_validity_days=value.quote_validity_days;
   await db.prepare("UPDATE tenants SET name=?,legal_name=?,document=?,phone=?,email=?,address=?,city=?,state=?,document_logo=?,profile_data=? WHERE id=?")
-   .run(value.name,value.legal_name,value.document,value.phone,value.email,value.address,value.city,value.state,value.document_logo,JSON.stringify(extra),ctx.tenantId);
+   .run(value.name,value.legal_name,value.document,value.phone,value.email,value.address,value.city,value.state,value.document_logo,JSON.stringify({...preserved,...extra}),ctx.tenantId);
   await audit(db,ctx,"workshop_profile.updated",ctx.tenantId);
   return value;
  });

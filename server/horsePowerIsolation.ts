@@ -8,16 +8,25 @@ export function assertHorsePowerIsolation(env: Record<string, string | undefined
   let database: URL;
   try { database = new URL(env.DATABASE_URL || ""); }
   catch { throw new Error("Configure o banco definitivo da Horse Power."); }
+  const allowedRoles = ["horse_power_app", "hp_definitivo_app_login"];
   const direct = database.hostname === `db.${project}.supabase.co` &&
-    decodeURIComponent(database.username) === "horse_power_app";
+    allowedRoles.includes(decodeURIComponent(database.username));
   const pooled = database.hostname.endsWith(".pooler.supabase.com") &&
     database.port === "6543" &&
-    decodeURIComponent(database.username) === `horse_power_app.${project}`;
+    allowedRoles.some(role => decodeURIComponent(database.username) === `${role}.${project}`);
   if (!["postgres:", "postgresql:"].includes(database.protocol) ||
       (!direct && !pooled) || database.pathname !== "/postgres" ||
       database.search || database.hash)
     throw new Error("A conexão da Horse Power não corresponde ao banco definitivo.");
-  const origin = "https://oficinahorsepower.com.br";
+  const preview = env.VERCEL_ENV === "preview";
+  let origin = "https://oficinahorsepower.com.br";
+  if (preview) {
+    if (env.VERCEL !== "1" || env.VERCEL_PROJECT_ID !== "prj_RJGlxZbbO3Wl4Vm3CdreT60G3FST" ||
+        !/^horse-power-definitivo-[a-z0-9-]+-horse-power2\.vercel\.app$/.test(env.VERCEL_URL || "") ||
+        project !== "rvlovjpquozbrsszsxwe")
+      throw new Error("Preview fora do projeto definitivo da Horse Power.");
+    origin = `https://${env.VERCEL_URL}`;
+  }
   if (env.APP_ORIGIN !== origin || env.APP_ORIGINS !== origin ||
       (env.PUBLIC_ORIGIN && env.PUBLIC_ORIGIN !== origin))
     throw new Error("A Horse Power exige sua própria origem pública.");

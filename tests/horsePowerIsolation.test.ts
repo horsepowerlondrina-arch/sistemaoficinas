@@ -32,3 +32,19 @@ test("Horse Power accepts only its definitive project and domain", () => {
     { VITE_PLATFORM_ADMIN_ENABLED: "true" },
   ]) assert.throws(() => assertHorsePowerIsolation({ ...env, ...patch }));
 });
+
+test("preview de login aceita somente o host exato e o banco do projeto definitivo", () => {
+  const ref = "rvlovjpquozbrsszsxwe";
+  const host = "horse-power-definitivo-example-horse-power2.vercel.app";
+  const preview = { ...env, VERCEL: "1", VERCEL_ENV: "preview", VERCEL_URL: host,
+    VERCEL_PROJECT_ID: "prj_RJGlxZbbO3Wl4Vm3CdreT60G3FST", EXPECTED_DATABASE_PROJECT: ref,
+    DATABASE_URL: `postgresql://hp_definitivo_app_login.${ref}:fixture@aws-1-ca-central-1.pooler.supabase.com:6543/postgres`,
+    APP_ORIGIN: `https://${host}`, APP_ORIGINS: `https://${host}`, PUBLIC_ORIGIN: `https://${host}`,
+  };
+  assert.doesNotThrow(() => assertHorsePowerIsolation(preview));
+  for (const patch of [
+    { VERCEL_ENV: "production" }, { VERCEL_PROJECT_ID: "outro" }, { VERCEL_URL: host + ".example.org" },
+    { APP_ORIGINS: "*" }, { EXPECTED_DATABASE_PROJECT: "vnclahdnirqlcbamodqy" },
+    { DATABASE_URL: preview.DATABASE_URL.replace("hp_definitivo_app_login", "postgres") },
+  ]) assert.throws(() => assertHorsePowerIsolation({ ...preview, ...patch }));
+});

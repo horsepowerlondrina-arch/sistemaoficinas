@@ -3,6 +3,7 @@ import { selectCardMachine } from "../../shared/cardMachines";
 import { nextBankingDay } from "../../shared/bankingDays";
 import { selectPaymentMethod } from "../../shared/paymentMethod";
 import { NumericInput } from "../components/NumericInput";
+import { receiptIsCompleteAfterSettlement } from "../lib/receiptCompletion";
 import { MixedPaymentPlan } from "../components/MixedPaymentPlan";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -502,6 +503,7 @@ export function Payment() {
                   await refresh();
                   setConfirm(null);
                   notify(confirm.is_credit ? "Total do cartão registrado para " + dateLabel(settlementOn) + "." : "Parcela recebida e caixa atualizado.");
+                  if (receiptIsCompleteAfterSettlement(parts, String(confirm.id), !!confirm.is_credit)) navigate(`/ordens/${id}`, { replace: true, state: { postReceipt: true } });
                 } catch (e) {
                   setError((e as Error).message);
                   setConfirm(null);
