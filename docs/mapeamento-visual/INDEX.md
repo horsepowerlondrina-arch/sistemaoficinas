@@ -352,7 +352,7 @@ Plano fictício salvo e reaberto: seleção da máquina, repasse e líquido pres
 
 [![Recebimento com máquina e repasse](./capturas/08-financeiro/ops002-receipt-desktop.png)](./capturas/08-financeiro/ops002-receipt-desktop.png)
 
-Estado: capturada · desktop · captura 2026-11-01 · commit de origem: 26770cc4da2ccbf9de3620882b0a87066fdce927 · [arquivo completo](./capturas/08-financeiro/ops002-receipt-desktop.png)
+Estado: capturada · desktop · captura 2026-11-14 · commit de origem: 94fa2812fa6090116c74c9a9f830de8c2ed378d3 · [arquivo completo](./capturas/08-financeiro/ops002-receipt-desktop.png)
 
 ### Recebimento com máquina e repasse
 
@@ -712,15 +712,9 @@ Estado: capturada · desktop · captura 2026-11-05 · commit de origem: ffa6ae17
 
 ## 18 — Resultados da oficina
 
-Produção, resultado estimado, caixa, metas e comparação com filtro de datas.
+Área retirada da interface; os relatórios permanecem em Financeiro.
 
-### Resultados por intervalo
-
-Filtro livre de datas, indicadores, metas e relatório PDF com dados fictícios da oficina.
-
-[![Resultados por intervalo](./capturas/18-resultados/gestao-resultados-periodo.png)](./capturas/18-resultados/gestao-resultados-periodo.png)
-
-Estado: capturada · desktop · captura 2026-11-14 · commit de origem: 2b10f1e64f91d3ca228c3fd8eefeadf6ce28e56b · [arquivo completo](./capturas/18-resultados/gestao-resultados-periodo.png)
+Sem imagens reais disponíveis nesta área.
 
 ## 99 — Fluxos completos
 
