@@ -114,6 +114,7 @@ jobs:
       - name: Verify Horse Power extension
         run: node --test tests/extension-panel.test.mjs tests/chrome-web-store.test.mjs
       - name: PostgreSQL integration suite
+        timeout-minutes: 6
         run: npm run test:postgres
 
 
