@@ -7,6 +7,7 @@ import pg from "pg";
 import { adminClient } from "../scripts/local-admin.js";
 import { platformAdminDatabaseUrl } from "../server/localConfig.js";
 import { createPlatformAdminApp } from "../server/platformAdminApp.js";
+import { createApp } from "../server/app.js";
 import { selfServiceRoutes } from "../server/selfServiceRoutes.js";
 import { stripeBillingService, type StripeRequest } from "../server/services/stripeBilling.js";
 import { createLocalDatabase } from "../server/db/local.js";
@@ -31,9 +32,10 @@ test("three plans: registration, email activation, settled payment, seats and is
   const app = express(); app.use(express.json());
   app.use(selfServiceRoutes(pool, async i => { tokens.set(i.email, i.token); return { tokenHash: digest(i.token) }; }));
   app.use(createPlatformAdminApp(pool, "a".repeat(64)));
+  app.use(createApp(db));
   const server = app.listen(0, "127.0.0.1"); await once(server, "listening");
   const address = server.address(); assert.ok(address && typeof address !== "string");
-  const post = (path: string, body: unknown) => fetch(`http://127.0.0.1:${address.port}` + path, { method: "POST", headers: { Origin: "http://127.0.0.1:5173", "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const post = (path: string, body: unknown, cookie = "") => fetch(`http://127.0.0.1:${address.port}` + path, { method: "POST", headers: { Origin: "http://127.0.0.1:5173", "Content-Type": "application/json", ...(cookie ? { Cookie: cookie } : {}) }, body: JSON.stringify(body) });
   const resources = new Map<string, any>();
   const transport: StripeRequest = async (path, input) => {
     if (path === "/checkout/sessions" && input) {
@@ -58,6 +60,7 @@ test("three plans: registration, email activation, settled payment, seats and is
       assert.equal(JSON.stringify(await preview.json()).includes(email), false);
       const activation = await post("/admin-api/workshop-activation/complete", { token, password: randomBytes(24).toString("base64url") });
       assert.equal(activation.status, 200); assert.ok(activation.headers.get("set-cookie")?.includes("HttpOnly"));
+      const cookie = activation.headers.get("set-cookie")!.split(";")[0];
       assert.equal((await post("/admin-api/workshop-activation/complete", { token, password: "Fictitious-Replay-Only" })).status, 400);
       const owner = (await root.query("SELECT user_id FROM horse_power.memberships WHERE tenant_id=$1", [pending.tenant_id])).rows[0].user_id;
       assert.equal((await billing.summary(pending.tenant_id)).can_subscribe_during_trial, true);
@@ -106,8 +109,12 @@ test("three plans: registration, email activation, settled payment, seats and is
         const ctx: Context = { tenantId: pending.tenant_id, userId: owner, role: "owner", modules: await db.getTenantModuleAccess?.(pending.tenant_id) || { ...defaultWorkshopModules } };
         const cap = await userCapacity(db, ctx); assert.equal(cap.active, limit); assert.equal(cap.available, 0);
         await assert.rejects(createUserInvite(db, ctx, { email: `excess-${suffix}@testes.osdrive.com.br`, profile: "mechanic" }, "", async () => {}));
-        if (offices.length > 1) assert.equal((await db.prepare("SELECT * FROM tenants WHERE id=?").all(offices[0])).length, 0);
       });
+      if (offices.length > 1) {
+        assert.equal((await post('/api/tenant', { tenant_id: offices[0] }, cookie)).status, 403);
+        const identity = await fetch(`http://127.0.0.1:${address.port}/api/session`, { headers: { Cookie: cookie } });
+        assert.equal(identity.status, 200); assert.equal((await identity.json()).tenant.id, pending.tenant_id);
+      }
     }
   } finally {
     await new Promise<void>(resolve => server.close(() => resolve())); await db.close(); await pool.end();
