@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { invoiceSupplierPreview, ensureInvoiceSupplier } from "./suppliers.js";
 import { z } from "zod";
-import { transaction, type DB } from "../db/database.js";
+import { transaction, type DB } from "../db/transactions.js";
 import type { Context } from "../auth/session.js";
 import {
   parseStockInvoice,

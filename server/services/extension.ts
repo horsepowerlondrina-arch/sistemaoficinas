@@ -2,7 +2,7 @@ import { horsePowerExtensionEnabled } from "../../shared/horsePowerExtension.js"
 import { categoryKey, productLabel } from "../../shared/productIdentity.js";
 import { randomBytes, randomUUID } from "node:crypto";
 import { z } from "zod";
-import { type DB, transaction } from "../db/database.js";
+import { type DB, transaction } from "../db/transactions.js";
 import { digest, type Context } from "../auth/session.js";
 import { requireAdmin } from "./payments.js";
 import { audit, hydrateOrderItem, id, invalidateOrderShares, scoped } from "./workshop.js";

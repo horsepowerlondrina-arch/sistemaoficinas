@@ -1,4 +1,4 @@
-import type { DB } from "../db/database.js";
+import type { DB } from "../db/transactions.js";
 import type { Context } from "../auth/session.js";
 import {
   effectivePermissions,

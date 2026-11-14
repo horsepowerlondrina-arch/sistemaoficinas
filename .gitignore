@@ -25,3 +25,6 @@ supabase/.branches/
 HorsePower_Orcamento_v3_7_3/
 
 !.env.development.example
+
+.cloudflare/
+.dev.vars*

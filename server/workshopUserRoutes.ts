@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import type { DB } from "./db/database.js";
+import type { DB } from "./db/transactions.js";
 import { digest, tokenFrom } from "./auth/session.js";
 import { requirePermission } from "./services/userAccess.js";
 import {

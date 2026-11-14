@@ -1,3 +1,5 @@
+import { isCloudflareHomologation, isCloudflareDatabaseRole } from "./cloudflarePolicy.js";
+import { URL as NodeURL } from "node:url";
 import {
   integrationFailureRecorder,
   observeIntegration,
@@ -17,7 +19,7 @@ import {
 import { createPlatformAdminDataTransfer } from "./services/platformAdminDataTransfer.js";
 import { readFileSync } from "node:fs";
 import { selfServiceTestEmails } from "./services/selfServicePolicy.js";
-export async function createCloudRuntime() {
+export async function createCloudRuntime(options: { ca?: string; onStage?: (stage: string) => void } = {}) {
   const standaloneHorsePower = process.env.APP_ENV === "horse_power";
   if (standaloneHorsePower) assertHorsePowerIsolation(process.env);
   else assertDevelopmentIsolation(process.env);
@@ -27,19 +29,21 @@ export async function createCloudRuntime() {
   if (!process.env.PUBLIC_ORIGIN)
     process.env.PUBLIC_ORIGIN = process.env.APP_ORIGIN;
   if (!process.env.APP_ORIGIN) throw new Error("Configure APP_ORIGIN.");
-  const db = createPostgresDatabase();
+  options.onStage?.("operational_pool");
+  const db = createPostgresDatabase(process.env.DATABASE_URL, { ca: options.ca });
   let app: ReturnType<typeof createApp>;
   let adminPoolForClose: pg.Pool | undefined;
   try {
-    if (process.env.LOCAL_HOMOLOGATION === "true") {
+    if (process.env.LOCAL_HOMOLOGATION === "true" || isCloudflareHomologation(process.env)) {
+      options.onStage?.("operational_role");
       const role = await db
         .prepare(
-          "SELECT current_user AS name, rolsuper, rolbypassrls, rolcreaterole, rolcreatedb FROM pg_roles WHERE rolname=current_user",
+          "SELECT current_user AS name, rolsuper, rolbypassrls, rolcreaterole, rolcreatedb,pg_has_role(current_user,'horse_power_app','MEMBER') AS expected_group FROM pg_roles WHERE rolname=current_user",
         )
         .get();
       if (
         !role ||
-        role.name !== "horse_power_app" ||
+        !(isCloudflareHomologation(process.env) ? isCloudflareDatabaseRole(role.name,"horse_power_app") && role.expected_group : role.name === "horse_power_app") ||
         role.rolsuper ||
         role.rolbypassrls ||
         role.rolcreaterole ||
@@ -49,6 +53,7 @@ export async function createCloudRuntime() {
     }
     if (standaloneHorsePower) {
       // The definitive Horse Power site has no central administration or billing routes.
+      options.onStage?.("application");
       app = createApp(db);
     } else {
       const adminKey = process.env.PLATFORM_ADMIN_TOTP_ENCRYPTION_KEY || "";
@@ -61,6 +66,7 @@ export async function createCloudRuntime() {
         throw new Error(
           "A conexão isolada da administração central não está configurada.",
         );
+      options.onStage?.("administrative_pool");
       const adminPool = new pg.Pool({
         connectionString: adminUrl,
         max: 2,
@@ -69,13 +75,14 @@ export async function createCloudRuntime() {
         query_timeout: 15000,
         ssl: {
           rejectUnauthorized: true,
-          ca: readFileSync(
-            new URL("./db/certs/supabase-ca.crt", import.meta.url),
+          ca: options.ca ?? readFileSync(
+            new NodeURL("./db/certs/supabase-ca.crt", import.meta.url),
             "utf8",
           ),
         },
       });
       adminPoolForClose = adminPool;
+      options.onStage?.("administrative_role");
       await assertPlatformAdminDatabase(adminPool);
       const transfer = createPlatformAdminDataTransfer(db, adminPool);
       const recordFailure = integrationFailureRecorder(adminPool);
@@ -101,6 +108,7 @@ export async function createCloudRuntime() {
           : undefined;
       if (billing && !process.env.STRIPE_WEBHOOK_SECRET?.startsWith("whsec_"))
         throw new Error("Configure o webhook Stripe de teste.");
+      options.onStage?.("application");
       app = createApp(
         db,
         createPlatformAdminApp(adminPool, adminKey, transfer, billing),

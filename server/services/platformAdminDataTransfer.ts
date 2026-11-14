@@ -1,7 +1,7 @@
 import type { Pool } from "pg";
 import { randomUUID } from "node:crypto";
 import { transferFileSha256 } from "../../shared/transferPackage.js";
-import type { DB } from "../db/database.js";
+import type { DB } from "../db/transactions.js";
 import { createWorkshopTransfer } from "./dataTransferExport.js";
 import { getWorkshopTransferBackup, importWorkshopPackage, listWorkshopTransferBackups, previewWorkshopImport } from "./dataTransferImport.js";
 import type { WorkshopImportMode } from "./dataTransferImport.js";

@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import type { DB } from "../db/database.js";
+import type { DB } from "../db/transactions.js";
 import { createWorkshopTransfer } from "./dataTransferExport.js";
 import {
   openTransferPackage,
