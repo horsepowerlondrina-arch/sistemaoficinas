@@ -9,6 +9,7 @@ export default defineConfig({
     compatibilityDate: "2026-11-14",
     compatibilityFlags: ["nodejs_compat", "nodejs_compat_populate_process_env"],
     workersDev: true,
+    placement: { region: "aws:ca-central-1" },
     assets: { runWorkerFirst: true, htmlHandling: "none" },
     observability: { enabled: true, redactQueryString: true,
       logs: { enabled: true, invocationLogs: false }, traces: { enabled: true, headSamplingRate: 0 } },

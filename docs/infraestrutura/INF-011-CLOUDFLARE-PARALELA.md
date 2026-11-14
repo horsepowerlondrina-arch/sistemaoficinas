@@ -4,7 +4,7 @@ Data: 14/11/2026. Base: main `68dc006`. Repositório exclusivo: `horsepowerlondr
 
 ## Escopo e autorização
 
-O responsável autorizou implementar e validar uma homologação paralela, mantendo Supabase e Vercel para retorno. Não autorizou produção ou contratação de planos pagos. Autorizou reutilizar somente as duas conexões restritas e a chave MFA existentes no arquivo privado da INF-010. Não houve migração, criação de papéis, grants ou redefinição de credenciais.
+O responsável autorizou implementar e validar uma homologação paralela, mantendo Supabase e Vercel para retorno. Não autorizou produção ou contratação de planos pagos. Autorizou reutilizar somente as duas conexões restritas e a chave MFA existentes no arquivo privado da INF-010. Não houve migração de esquema/dados, criação de papéis, grants ou redefinição de credenciais. Houve somente o ajuste de limites de conexão explicitamente autorizado ao final desta seção.
 
 Conta Cloudflare: `398bbed171a2a062429f9e2efa6df1cc`. Worker: `sistema-oficinas-homologacao`. Endereço: https://sistema-oficinas-homologacao.osdrive-homologacao.workers.dev. Nenhuma zona DNS ou domínio comercial é alterado. O subdomínio workers.dev foi criado para este piloto.
 
@@ -78,4 +78,16 @@ O driver aceita somente os destinos Vercel e Cloudflare fixos em código, manté
 
 ### Capacidade de conexões
 
-As consultas somente leitura identificaram limites de conexão 4/3 nos papéis exclusivos de testes `osdrive_local_app`/`osdrive_local_admin`. O Hyperdrive aceita limite mínimo de 5 por configuração e retornou erro PostgreSQL `53300` em chamadas concorrentes. Não retirar guardas, MFA ou segregação para contornar isso. O ajuste persistente desses limites depende de autorização específica; registrar decisão e valores finais antes de declarar a jornada online validada.
+As consultas somente leitura identificaram limites de conexão 4/3 nos papéis exclusivos de testes `osdrive_local_app`/`osdrive_local_admin`. O Hyperdrive aceita limite mínimo de 5 por configuração e retornou erro PostgreSQL `53300` em chamadas concorrentes. Não retirar guardas, MFA ou segregação para contornar isso. O responsável autorizou explicitamente alterar somente esses dois limites para **10/10**. A configuração foi aplicada no Supabase de homologação, registrada como `20261114232746_cloudflare_fictitious_role_connection_limits`, e verificada por consulta: ambos continuam sem superuser/BYPASSRLS/CREATEROLE/CREATEDB. Antes do ajuste havia 23 conexões totais, para máximo 60. Não alterar esses valores em produção. Retorno aos limites anteriores, se autorizado e coordenado após desativar o piloto: `ALTER ROLE osdrive_local_app CONNECTION LIMIT 4; ALTER ROLE osdrive_local_admin CONNECTION LIMIT 3;`.
+
+## Resultado do piloto gratuito — 14/11/2026
+
+A interface foi publicada e o login Master fictício e a sessão chegaram a autenticar. A jornada completa do Básico passou (11 verificações, incluindo o bloqueio de estoque/Financeiro não contratados). Cliente, veículo, checklist, orçamento, OS, documento e recebimento simples foram efetivamente exercitados. As rodadas seguintes retornaram HTTP 503 e os logs oficiais registraram **Worker exceeded CPU time limit** na versão `2747f4ad-7845-4210-bc4d-95d81fd04f1b`. Logo, **o plano gratuito não está validado para operar o backend completo com confiabilidade**.
+
+A verificação de segurança conseguiu consultar um Master fictício e negar acessos cruzados, mas foi interrompida pela mesma indisponibilidade na verificação pós-logout. Não declarar os oito perfis nem a revogação pós-logout validados. Profissional/Premium e seus recebimentos/estoque continuam pendentes de jornada completa. Cadastro público, e-mails, checkout/webhook, cron, administração central, extensão e grandes transferências também não foram validados no piloto.
+
+Não houve contratação. Não reduzir scrypt, remover verificações ou aumentar o limite de CPU por configuração para contornar o plano gratuito. A próxima decisão é autorizar Workers Paid, cujo preço mínimo documentado é US$ 5/mês mais eventual consumo, ou rever a hospedagem do backend. A migração definitiva e a substituição da Vercel **não estão aprovadas por este piloto**.
+
+A versão de código e a versão online devem ser registradas separadamente no PR/relatório. O fluxo de CI sem banco remoto continua sendo a evidência de regressão; ele não elimina o impedimento de CPU da plataforma gratuita. Relatórios HTML/JSON e capturas fictícias ficam na pasta local de relatórios, fora da aplicação.
+
+Fontes: https://developers.cloudflare.com/workers/platform/limits/ e https://developers.cloudflare.com/workers/platform/pricing/

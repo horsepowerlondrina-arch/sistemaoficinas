@@ -6,6 +6,7 @@ import { HOMOLOGATION as VERCEL_HOMOLOGATION } from './isolated-sessions.mjs';
 
 const cloudflare = process.env.TEST_OPERATIONAL_TARGET === 'cloudflare';
 if (process.env.TEST_OPERATIONAL_TARGET && !['vercel','cloudflare'].includes(process.env.TEST_OPERATIONAL_TARGET)) throw Error('TARGET_REFUSED');
+const check = expect.configure({ timeout: cloudflare ? 20000 : 5000 });
 const HOMOLOGATION = cloudflare ? 'https://sistema-oficinas-homologacao.osdrive-homologacao.workers.dev' : VERCEL_HOMOLOGATION;
 // Writes are opt-in and restricted to the three fictitious, activated workshops.
 if (process.env.TEST_OPERATIONAL_WRITES !== 'fictitious-homologation-only') throw Error('EXPLICIT_FICTITIOUS_WRITES_REQUIRED');
@@ -79,7 +80,7 @@ try {
     const [r] = await Promise.all([page.waitForResponse(r=>r.url().endsWith('/api/customers-with-vehicle')&&r.request().method()==='POST'),page.getByRole('button',{name:'Salvar cadastro',exact:true}).click()]);
     if (!r.ok()) throw Error('CUSTOMER_UI_SAVE_FAILED');
     const created = await r.json(); s.ids.customer=created.id; s.ids.vehicle=created.vehicle_id; save();
-    await expect(page.getByRole('dialog')).toHaveCount(0); await shot('cliente');
+    await check(page.getByRole('dialog')).toHaveCount(0); await shot('cliente');
    });
    await step('cliente-veiculo-edicao-persistencia', async () => {
     let w=await workspace(); const customer=w.customers.find(c=>c.id===s.ids.customer), vehicle=w.vehicles.find(v=>v.id===s.ids.vehicle);
@@ -135,9 +136,9 @@ try {
     if(saved.total!==19000 || saved.items.length!==2 || saved.discount!==1000 || order.status!=='quote')throw Error('QUOTE_TOTAL_MISMATCH');
     await page.goto(HOMOLOGATION+`/ordens/${s.ids.order}/editar`);
     await page.getByRole('button',{name:'Adicionar produtos e serviços',exact:true}).click();
-    await expect(page.locator('.order-item')).toHaveCount(1);
+    await check(page.locator('.order-item')).toHaveCount(1);
     await page.getByRole('button',{name:'Serviços',exact:true}).click();
-    await expect(page.locator('.order-item')).toHaveCount(1);await shot('orcamento-itens');
+    await check(page.locator('.order-item')).toHaveCount(1);await shot('orcamento-itens');
    });
    await step('os-aprovacao-execucao-finalizacao-interface',async()=>{
     for(const [from,button,to] of [['quote','Aprovar OS','open'],['open','Iniciar execução','working'],['working','Marcar como pronta','ready'],['ready',modules.finance?'Finalizar OS e receber':'Finalizar OS','completed']]){
@@ -189,7 +190,7 @@ try {
     s.ids.expense ||= expenses.payables.find(p=>p.description===`Despesa Fictícia ${run}`)?.id || (await api('POST','/api/payables',{description:`Despesa Fictícia ${run}`,supplier:'Fornecedor Fictício',category:'Teste operacional',amount:2500,due_on:day,notes:'Sem cobrança externa real'})).id;save();
     expenses=await api('GET','/api/expenses');if(expenses.payables.find(p=>p.id===s.ids.expense).status!=='paid')await api('POST',`/api/payables/${s.ids.expense}/pay`,{paid_on:day,method:'Pix',account_id:s.ids.account});
     const cash=await api('GET','/api/cash-control');if(cash.accounts.find(a=>a.id===s.ids.account).balance!==16500)throw Error('CASH_EXPENSE_MISMATCH');
-    await page.goto(HOMOLOGATION+'/financeiro/caixa');await expect(page.getByText(`Caixa Fictício ${run}`,{exact:true}).first()).toBeVisible();await shot('caixa');
+    await page.goto(HOMOLOGATION+'/financeiro/caixa');await check(page.getByText(`Caixa Fictício ${run}`,{exact:true}).first()).toBeVisible();await shot('caixa');
    });
    await step('documentos-historico-travas',async()=>{
     const document=await api('GET',`/api/documents/order/${s.ids.order}?current=1`);if(!JSON.stringify(document).includes('Modelo Fictício Operacional'))throw Error('DOCUMENT_IDENTITY_MISSING');
