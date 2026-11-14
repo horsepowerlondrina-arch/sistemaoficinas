@@ -1,6 +1,6 @@
-import type { DB } from "../db/database";
-import type { Context } from "../auth/session";
-import { redactResponse } from "../auth/userAuthorization";
+import type { DB } from "../db/database.js";
+import type { Context } from "../auth/session.js";
+import { redactResponse } from "../auth/userAuthorization.js";
 export async function projectWorkspace(
   db: DB,
   ctx: Context,

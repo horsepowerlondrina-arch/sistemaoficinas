@@ -1,4 +1,4 @@
-import {requirePermission,assertOrderVisible,canDiscount} from './userAccess';
+import {requirePermission,assertOrderVisible,canDiscount} from './userAccess.js';
 import { productLabel } from "../../shared/productIdentity.js";
 import { basicOrderReceiptMethods, type BasicOrderReceiptMethod } from "../../shared/basicOrderReceipt.js";
 import { resolveService, identifyVehicleModel, confirmVehicleModel, catalogAccessState } from './repairCatalog.js';

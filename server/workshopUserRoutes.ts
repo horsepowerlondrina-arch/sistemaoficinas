@@ -1,12 +1,12 @@
 import { Router } from "express";
 import { z } from "zod";
-import type { DB } from "./db/database";
-import { digest, tokenFrom } from "./auth/session";
-import { requirePermission } from "./services/userAccess";
+import type { DB } from "./db/database.js";
+import { digest, tokenFrom } from "./auth/session.js";
+import { requirePermission } from "./services/userAccess.js";
 import {
   profileLabels,
   permissionDefinitions,
-} from "../shared/userPermissions";
+} from "../shared/userPermissions.js";
 import {
   userDirectory,
   userCapacity,
@@ -18,7 +18,7 @@ import {
   employeeInviteInfo,
   acceptEmployeeInvite,
   type InviteDelivery,
-} from "./services/workshopUsers";
+} from "./services/workshopUsers.js";
 import {
   staffDirectory,
   saveStaff,
@@ -27,7 +27,7 @@ import {
   requestDiscount,
   listDiscountRequests,
   decideDiscount,
-} from "./services/workshopOperationsAccess";
+} from "./services/workshopOperationsAccess.js";
 
 export function employeePublicRoutes(db: DB) {
   const router = Router();

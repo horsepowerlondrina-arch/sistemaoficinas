@@ -1,12 +1,12 @@
 import type { Request, Response, NextFunction } from "express";
-import type { DB } from "../db/database";
-import type { Context } from "./session";
+import type { DB } from "../db/database.js";
+import type { Context } from "./session.js";
 import {
   assertOrderVisible,
   requirePermission,
   accessDenied,
-} from "../services/userAccess";
-import type { Permission, PermissionMap } from "../../shared/userPermissions";
+} from "../services/userAccess.js";
+import type { Permission, PermissionMap } from "../../shared/userPermissions.js";
 
 export function permissionForRequest(
   path: string,

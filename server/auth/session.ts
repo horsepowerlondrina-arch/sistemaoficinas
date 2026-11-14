@@ -1,4 +1,4 @@
-import {readUserAccess} from '../services/userAccess';
+import {readUserAccess} from '../services/userAccess.js';
 import {
   randomBytes,
   scryptSync,
@@ -9,7 +9,7 @@ import type { DB } from "../db/database.js";
 import { tenantAccessDecision } from "./tenantAccess.js";
 import type { Request, Response, NextFunction } from "express";
 import { defaultWorkshopModules } from "../../shared/workshopModules.js";
-export type Context = { userId: string; tenantId: string; role: string; modules?: Record<string, boolean>; access?: import('../services/userAccess').UserAccess; action?: import('../../shared/userPermissions').Permission };
+export type Context = { userId: string; tenantId: string; role: string; modules?: Record<string, boolean>; access?: import('../services/userAccess.js').UserAccess; action?: import('../../shared/userPermissions.js').Permission };
 export function hashPassword(password: string) {
   const salt = randomBytes(16).toString("hex");
   return `${salt}:${scryptSync(password, salt, 64).toString("hex")}`;

@@ -1,12 +1,12 @@
-import type { DB } from "../db/database";
-import type { Context } from "../auth/session";
+import type { DB } from "../db/database.js";
+import type { Context } from "../auth/session.js";
 import {
   effectivePermissions,
   type Permission,
   type PermissionMap,
   type UserProfile,
   discountAllowed,
-} from "../../shared/userPermissions";
+} from "../../shared/userPermissions.js";
 import { createHash } from "node:crypto";
 
 export type UserAccess = {

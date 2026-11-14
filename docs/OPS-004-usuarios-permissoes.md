@@ -39,7 +39,7 @@ Os descontos de recebimentos mantêm os cálculos monetários existentes e passa
 
 Aplicar a migração remota somente após revisão dos testes e autorização específica. Aplicar o SQL aditivo antes de publicar o código dependente; a versão anterior não precisa consultar as novas tabelas. A reversão deve preservar as tabelas e históricos novos; não apagar usuários, memberships ou profissionais para fazer rollback. Depois de utilizar desativações ou permissões novas, não retornar a uma versão que ignore esses controles: uma correção de reversão precisa manter a autorização e a revogação dos acessos. Restaurar somente a interface antiga não pode reabilitar contas desativadas.
 
-A integração do PR e a migração persistente não estão autorizadas nesta tarefa. Não utilizar produção, credenciais reais ou sessões reais na validação. O PR deverá permanecer sem merge até autorização do responsável.
+A autorização inicial limitava a tarefa ao PR. Em 13/11/2026, o responsável autorizou explicitamente a migração no Supabase de homologação `vnclahdnirqlcbamodqy`, a integração do PR #168 e a publicação automática com validação por contas fictícias. Produção continua fora do escopo.
 
 ## Verificações
 
@@ -62,3 +62,13 @@ As capturas da OPS-004 usam o driver `ops004-interface` e o mesmo catálogo JSON
 A execução [CI PostgreSQL 43542134927](https://github.com/horsepowerlondrina-arch/sistemaoficinas/actions/runs/43542134927), revisão `2d98a2eed1091d17e6799ec83aca370d81b5005d`, aprovou build, 383 testes gerais, 44 testes PostgreSQL, reconstrução completa do esquema, regressões da extensão, navegador e integridade do índice. O teste concorrente específico passou tanto na etapa antecipada quanto na suíte completa. O commit final do PR repete o workflow após a inclusão das imagens.
 
 Mapeamento visual atualizado: **SIM**. Foram criadas 14 imagens reais da OPS-004 e renovadas 34 capturas existentes (32 arquivos PNG com bytes diferentes e duas revalidações). Módulos: acesso, orçamentos, OS, cadastros/serviços e configurações. Todas as 14 entradas OPS-004 possuem PNG, data e revisão de origem; nenhuma captura obrigatória desta tarefa está pendente. A biblioteca histórica ainda mantém suas próprias pendências catalogadas. As imagens foram produzidas na revisão `3f53da28177e3d9d5cca9811e7a403e008863a9a` com dados fictícios e revisadas antes de serem versionadas.
+
+## Liberação autorizada em homologação
+
+- Migração aplicada somente em `vnclahdnirqlcbamodqy`: versão remota `20261114024707`, nome `ops_004_workshop_users_20261113`; SQL fonte `20261113000100_workshop_users.sql`, SHA-256 `d219fa9ed0218a7c3a1fd79a1fa325441f73d0dc9a556e3126c8722f6509cd28`.
+- Verificação posterior: 5 usuários, 5 vínculos, 6 OS e 1 profissional preservados; IDs e perfis existentes inalterados. As oito tabelas novas têm RLS; funções sensíveis não concedem execução a PUBLIC.
+- [PR #168](https://github.com/horsepowerlondrina-arch/sistemaoficinas/pull/168) integrado por squash no commit `5c772253bd37a4c8ff36f0f3e6edc955f6505a97`, após aprovação do [CI](https://github.com/horsepowerlondrina-arch/sistemaoficinas/actions/runs/43543335812).
+- A primeira publicação automática ficou READY, mas a validação real de `/api/session` detectou `FUNCTION_INVOCATION_FAILED`: imports sem extensão não eram resolvidos no JavaScript emitido pelo Node da Vercel. READY não foi considerado evidência de funcionamento.
+- [PR #169](https://github.com/horsepowerlondrina-arch/sistemaoficinas/pull/169) corrige as referências ESM com `.js`, sem alterar regras, dados, migrações ou configuração da Vercel. `tests/vercelServerRuntime.test.ts` transpila o servidor e os módulos compartilhados e carrega a aplicação em Node sem resolvedor TypeScript. O teste falhou antes e passou após o ajuste. A integração e nova publicação automática dependem do CI obrigatório aprovado e da validação online.
+
+A validação autenticada em homologação depende de uma sessão fictícia disponível. Operações mutáveis, concorrência, convites e limites são exercitados em PostgreSQL 17 temporário no CI; não usar a homologação compartilhada para testes destrutivos nem registrar credenciais nos relatórios.
