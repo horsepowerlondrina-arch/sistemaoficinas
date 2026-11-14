@@ -188,6 +188,11 @@ try {
     const repeated=await raw('POST',modules.finance?`/api/installments/${(await workspace()).installments.find(i=>i.receivable_id===s.ids.receivable)?.id}/settle`:`/api/orders/${s.ids.order}/basic-receipt`,modules.finance?{account_id:s.ids.account}:{method:'Pix'});
     if(repeated.ok())throw Error('DUPLICATE_RECEIPT_ACCEPTED');
    });
+   const finalWorkspace=await workspace(),finalOrder=finalWorkspace.orders.find(o=>o.id===s.ids.order);
+   if(finalOrder?.status!=='completed'||finalOrder.payment_status!=='paid'||finalOrder.total!==19000)throw Error('FINAL_ORDER_MISMATCH');
+   if(modules.inventory&&finalWorkspace.catalog.find(p=>p.id===s.ids.product)?.stock!==8)throw Error('FINAL_STOCK_MISMATCH');
+   if(modules.finance){const cash=await api('GET','/api/cash-control');const account=cash.accounts.find(a=>a.id===s.ids.account);if(account?.balance!==16500||account.pending_receipts!==0)throw Error('FINAL_CASH_MISMATCH');result.cashBalanceCents=account.balance;}
+   result.orderNumber=finalOrder.number;
    await page.goto(HOMOLOGATION+`/ordens/${s.ids.order}`);await shot('resultado-desktop');
    await page.setViewportSize({width:390,height:844});await shot('resultado-mobile');
    if(uiErrors.length)throw Error('UI_RUNTIME_ERRORS');

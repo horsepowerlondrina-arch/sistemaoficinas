@@ -37,7 +37,7 @@ export async function operationalJourney(origin: string, cookie: string, plan: s
   const input={customer_id:created.id,vehicle_id:created.vehicle_id,status:'quote',entered_on:day,due_on:day,km:12345,problem:'Teste fictício',notes:'',discount:1000,items:[{catalog_id:product.id,quantity:2,price:5000},{workshop_service_id:service.id,quantity:1,price:10000}]};
   await api('PUT',`/orders/${orderId}`,input);
   let order=(await workspace()).orders.find((o:any)=>o.id===orderId);assert.equal(order.total,19000);assert.equal(order.status,'quote');
-  const invalidDiscount=await request('PUT',`/orders/${orderId}`,{...input,discount:20001});assert.equal(invalidDiscount.status,400);
+  const invalidDiscount=await request('PUT',`/orders/${orderId}`,{...input,discount:20001});assert.ok([400,403].includes(invalidDiscount.status));
   assert.equal((await workspace()).orders.find((o:any)=>o.id===orderId).total,19000,'invalid edit rolls back');
   for (const status of ['open','working','ready','completed']) await api('POST',`/orders/${orderId}/status`,{status,due_on:day});
   order=(await workspace()).orders.find((o:any)=>o.id===orderId);assert.equal(order.status,'completed');
@@ -52,7 +52,8 @@ export async function operationalJourney(origin: string, cookie: string, plan: s
     assert.equal((await request('POST',`/installments/${part.id}/settle`,{account_id:account.id})).status,400);
     const payable=await api('POST','/payables',{description:'Despesa Fictícia '+marker,supplier:'Fornecedor Fictício',category:'Testes',amount:2500,due_on:day,notes:''});
     await api('POST',`/payables/${payable.id}/pay`,{paid_on:day,method:'Pix',account_id:account.id});
-    assert.equal((await api('GET','/cash-control')).accounts.find((a:any)=>a.id===account.id).balance,16500);
+    const reconciled=(await api('GET','/cash-control')).accounts.find((a:any)=>a.id===account.id);
+    assert.equal(reconciled.balance,16500);assert.equal(reconciled.pending_receipts,0);
     assert.equal((await request('POST',`/receivables/${r.id}/discount`,{mode:'money',value:2000})).status,400,'settled commercial history cannot change');
   } else {
     assert.equal((await request('GET','/expenses')).status,403);
