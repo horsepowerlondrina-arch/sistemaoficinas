@@ -105,7 +105,8 @@ export function orderStateDigest(order: Record<string, any>): string {
         status: order.status,
         customer: order.customer_id,
         vehicle: order.vehicle_id,
-        discount: order.discount, payment_state:order.payment_state,
+        discount: order.discount,
+        payment_state: order.payment_state,
         items,
       }),
     )
@@ -130,4 +131,3 @@ export function canDiscount(
     ctx.role === "owner" && discountAllowed(subtotal, discount, 10000, null)
   );
 }
-

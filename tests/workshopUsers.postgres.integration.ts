@@ -206,6 +206,99 @@ test("OPS-004 PostgreSQL17: concurrent seats, invitations, reactivation, last Ma
       assert.equal(role!.rolsuper, false);
       assert.equal(role!.rolbypassrls, false);
     });
+    const scopedUser = randomUUID(),
+      professional = randomUUID(),
+      customer = randomUUID(),
+      vehicle = randomUUID(),
+      visible = randomUUID(),
+      hidden = randomUUID();
+    await admin.query(
+      "INSERT INTO horse_power.users(id,name,email,password_hash) VALUES($1,'Mecânico Fictício',$2,$3)",
+      [scopedUser, scopedUser + "@example.test", hashPassword(password)],
+    );
+    await admin.query(
+      "INSERT INTO horse_power.memberships(user_id,tenant_id,role) VALUES($1,$2,'operator')",
+      [scopedUser, t],
+    );
+    await admin.query(
+      "INSERT INTO horse_power.workshop_user_access(tenant_id,user_id,profile,order_scope) VALUES($1,$2,'mechanic','assigned')",
+      [t, scopedUser],
+    );
+    await admin.query(
+      "INSERT INTO horse_power.professionals(id,tenant_id,name,role) VALUES($1,$2,'Mecânico Fictício','Mecânico')",
+      [professional, t],
+    );
+    await admin.query(
+      "INSERT INTO horse_power.staff_accounts(tenant_id,professional_id,user_id) VALUES($1,$2,$3)",
+      [t, professional, scopedUser],
+    );
+    await admin.query(
+      "INSERT INTO horse_power.customers(id,tenant_id,name) VALUES($1,$2,'Cliente Fictício')",
+      [customer, t],
+    );
+    await admin.query(
+      "INSERT INTO horse_power.vehicles(id,tenant_id,customer_id,plate,brand,model,year) VALUES($1,$2,$3,'TST1A01','Fictícia','Fictício',2024)",
+      [vehicle, t, customer],
+    );
+    for (const [number, order] of [visible, hidden].entries()) {
+      await admin.query(
+        "INSERT INTO horse_power.orders(id,tenant_id,number,status,kind,customer_id,vehicle_id,entered_on,due_on) VALUES($1,$2,$3,'open','order',$4,$5,'2026-11-13','2026-11-14')",
+        [order, t, number + 1, customer, vehicle],
+      );
+      await admin.query(
+        "INSERT INTO horse_power.order_items(id,tenant_id,order_id,kind,name,quantity,price,cost) VALUES($1,$2,$3,'service','Serviço Fictício',1,10000,1000)",
+        [randomUUID(), t, order],
+      );
+    }
+    await admin.query(
+      "INSERT INTO horse_power.order_assignments(tenant_id,order_id,professional_id,assigned_by,assigned_at) VALUES($1,$2,$3,$4,$5)",
+      [t, visible, professional, owner, Date.now()],
+    );
+    await db.withRequestContext!(settings(scopedUser), async () => {
+      assert.deepEqual(
+        (
+          await db.prepare("SELECT id FROM orders WHERE tenant_id=?").all(t)
+        ).map((o) => o.id),
+        [visible],
+      );
+      assert.equal(
+        (
+          await db
+            .prepare(
+              "SELECT * FROM order_items WHERE tenant_id=? AND order_id=?",
+            )
+            .all(t, hidden)
+        ).length,
+        0,
+      );
+      assert.equal(
+        (
+          await db
+            .prepare("SELECT * FROM workshop_user_access WHERE tenant_id=?")
+            .all(t)
+        ).length,
+        1,
+      );
+      assert.equal(
+        (
+          await db
+            .prepare("SELECT * FROM workshop_user_invites WHERE tenant_id=?")
+            .all(t)
+        ).length,
+        0,
+      );
+    });
+    await admin.query(
+      "UPDATE horse_power.order_assignments SET removed_at=$1 WHERE tenant_id=$2 AND order_id=$3",
+      [Date.now(), t, visible],
+    );
+    await db.withRequestContext!(settings(scopedUser), async () =>
+      assert.equal(
+        (await db.prepare("SELECT id FROM orders WHERE tenant_id=?").all(t))
+          .length,
+        0,
+      ),
+    );
     const grants = await admin.query(
       "SELECT EXISTS(SELECT 1 FROM pg_proc p CROSS JOIN LATERAL aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) a WHERE p.oid='horse_power.accept_employee_invite(text,text,text,text)'::regprocedure AND a.grantee=0 AND a.privilege_type='EXECUTE') allowed",
     );

@@ -50,9 +50,11 @@ export function OrderAccessControls({ orderId }: { orderId: string }) {
   return (
     <section className="panel settings-card">
       <h2>Equipe e autorizações</h2>
-      <a className="button" href="/aprovacoes">
-        Central de aprovações
-      </a>
+      {permissions?.["orders.discount"] && (
+        <a className="button" href="/aprovacoes">
+          Central de aprovações
+        </a>
+      )}
       {permissions?.["orders.assign"] && (
         <>
           <h3>Responsáveis pela OS</h3>
@@ -62,7 +64,11 @@ export function OrderAccessControls({ orderId }: { orderId: string }) {
           </p>
           <div className="form-grid">
             {staff
-              .filter((s) => (s.active === 1 && s.productive === 1)||assigned.includes(s.id))
+              .filter(
+                (s) =>
+                  (s.active === 1 && s.productive === 1) ||
+                  assigned.includes(s.id),
+              )
               .map((s) => (
                 <label className="checkbox-row" key={s.id}>
                   <input
@@ -180,6 +186,7 @@ export function ApprovalCenter() {
     [reason, setReason] = useState(""),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
+  useUnsavedSettings(!!reason);
   const load = () =>
     api<Row[]>("/approvals")
       .then(setRows)

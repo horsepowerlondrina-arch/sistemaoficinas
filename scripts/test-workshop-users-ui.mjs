@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { spawn, execFileSync } from "node:child_process";
 import { readFileSync, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
@@ -17,7 +17,7 @@ const output = resolve(process.env.RUNNER_TEMP || "/tmp", "ops004-users-ui");
 mkdirSync(output, { recursive: true });
 const children = [
   spawn("node", ["--import", "tsx", "server/index.ts"], {
-    stdio: "ignore",
+    stdio: ["ignore","ignore","pipe"],
     env: { ...process.env, PORT: "3001" },
   }),
   spawn(
@@ -33,12 +33,15 @@ const children = [
     { stdio: "ignore" },
   ),
 ];
-let browser,page;
+let browser, page;
+const serverErrors=[];
+children[0].stderr.on("data",chunk=>{for(const line of String(chunk).split("\n"))if(/^(error|Error|TypeError|ReferenceError|SyntaxError|RangeError):/.test(line))serverErrors.push(line.replace(/[a-f0-9]{32,}/gi,"[omitido]"));});
 try {
   let ready = false;
   for (let i = 0; i < 90; i++) {
     try {
-      if ((await fetch(base)).ok) {
+      const apiReady=await fetch(base+"/api/session");
+      if ((await fetch(base)).ok && apiReady.status===401 && apiReady.headers.get("content-type")?.includes("application/json")) {
         ready = true;
         break;
       }
@@ -53,17 +56,26 @@ try {
   page.setDefaultTimeout(15000);
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
+  page.on("response",r=>{const path=new URL(r.url()).pathname;if(path.startsWith("/api/")&&r.status()>=500)console.log("OPS004 resposta",path,r.status());});
   page.on("dialog", (d) => d.accept());
   await page.goto(base + "/configuracoes?aba=usuarios");
   await page.getByLabel("E-mail", { exact: true }).fill(credential.email);
   await page.getByLabel("Senha", { exact: true }).fill(credential.password);
-  const [login]=await Promise.all([page.waitForResponse(r=>r.url().endsWith('/api/login')&&r.request().method()==='POST'),page.getByRole("button", { name: "Entrar na oficina" }).click()]);
-  if(login.status()!==200)throw Error('Login fictício falhou; valores de credenciais omitidos.');
-  await page.getByRole('heading',{name:'Por onde vamos começar?',exact:true}).waitFor({timeout:15000});
+  const [login] = await Promise.all([
+    page.waitForResponse(
+      (r) => r.url().endsWith("/api/login") && r.request().method() === "POST",
+    ),
+    page.getByRole("button", { name: "Entrar na oficina" }).click(),
+  ]);
+  if (login.status() !== 200)
+    throw Error("Login fictício falhou; valores de credenciais omitidos.");
+  await page
+    .getByRole("heading", { name: "Por onde vamos começar?", exact: true })
+    .waitFor({ timeout: 15000 });
   await page.goto(base + "/configuracoes?aba=usuarios");
   await expect(
     page.getByRole("heading", { name: "Usuários e permissões", exact: true }),
-  ).toBeVisible({timeout:15000});
+  ).toBeVisible({ timeout: 15000 });
   await page
     .getByRole("button", { name: "Novo funcionário", exact: true })
     .click();
@@ -77,10 +89,12 @@ try {
   await dialog.getByRole("button", { name: "Salvar funcionário" }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(
-    page.getByRole("cell", {
-      name: "OPS004 Funcionário Fictício",
-      exact: true,
-    }).first(),
+    page
+      .getByRole("cell", {
+        name: "OPS004 Funcionário Fictício",
+        exact: true,
+      })
+      .first(),
   ).toBeVisible();
   await page.getByRole("button", { name: "Convidar usuário" }).click();
   dialog = page.getByRole("dialog");
@@ -95,14 +109,12 @@ try {
   await expect(
     page.getByRole("cell", { name: "ops004-ui@example.test", exact: true }),
   ).toBeVisible();
-  const invitation = page
-    .getByRole("row")
-    .filter({
-      has: page.getByRole("cell", {
-        name: "ops004-ui@example.test",
-        exact: true,
-      }),
-    });
+  const invitation = page.getByRole("row").filter({
+    has: page.getByRole("cell", {
+      name: "ops004-ui@example.test",
+      exact: true,
+    }),
+  });
   await invitation
     .getByRole("button", { name: "Reenviar", exact: true })
     .click();
@@ -193,12 +205,69 @@ try {
       fullPage: true,
     });
   }
+  execFileSync(
+    process.execPath,
+    ["--import", "tsx", "scripts/ops004-ui-fixture.ts"],
+    { stdio: "pipe" },
+  );
+  const collaborator = JSON.parse(
+    readFileSync(
+      resolve(process.env.RUNNER_TEMP || "/tmp", "ops004-ui-identity.json"),
+      "utf8",
+    ),
+  );
+  await page.request.post(base + "/api/logout", { data: {} });
+  await page.goto(base + "/inicio");
+  await page.getByLabel("E-mail", { exact: true }).fill(collaborator.email);
+  await page.getByLabel("Senha", { exact: true }).fill(collaborator.password);
+  await page.getByRole("button", { name: "Entrar na oficina" }).click();
+  const officeDialog = page.getByRole("dialog", {
+    name: "Selecione a oficina",
+  });
+  await expect(officeDialog).toBeVisible();
+  await officeDialog
+    .getByRole("button", { name: "Oficina Fictícia A", exact: true })
+    .click();
+  await expect(officeDialog).toHaveCount(0);
+  await page.goto(base + "/inicio");
+  await expect(
+    page.getByRole("heading", { name: "Por onde vamos começar?", exact: true }),
+  ).toBeVisible();
+  const accountA = await (await page.request.get(base + "/api/session")).json();
+  expect(accountA.access.profile).toBe("finance");
+  expect(accountA.tenant.id).toBe("local-a");
+  const dataA = await (await page.request.get(base + "/api/workspace")).json();
+  for (const customer of dataA.customers)
+    for (const field of ["phone", "email", "address", "document", "birthday"])
+      expect(customer[field]).toBeUndefined();
+  expect((await page.request.get(base + "/api/users")).status()).toBe(403);
+  await page
+    .getByRole("combobox", { name: "Oficina ativa" })
+    .selectOption("local-b");
+  await expect
+    .poll(
+      async () =>
+        (await (await page.request.get(base + "/api/session")).json()).tenant
+          .id,
+    )
+    .toBe("local-b");
+  const accountB = await (await page.request.get(base + "/api/session")).json();
+  expect(accountB.access.profile).toBe("mechanic");
+  await expect(
+    page.getByRole("heading", { name: "Por onde vamos começar?", exact: true }),
+  ).toBeVisible();
+  const dataB = await (await page.request.get(base + "/api/workspace")).json();
+  expect(dataB.orders.every((o) => o.tenant_id === "local-b")).toBe(true);
   expect(errors).toEqual([]);
   console.log(
     "OPS004: navegação, funcionário sem login, convites, cancelamento, formulários, aprovações e três tamanhos validados com API e PostgreSQL fictícios.",
   );
-} catch(error){
-  if(page&&await page.locator('input[type=password]').count()===0)await page.screenshot({path:resolve(output,'failure.png'),fullPage:true}).catch(()=>{});
+} catch (error) {
+  for(const line of serverErrors.slice(-10))console.log("OPS004 servidor:",line);
+  if (page && (await page.locator("input[type=password]").count()) === 0)
+    await page
+      .screenshot({ path: resolve(output, "failure.png"), fullPage: true })
+      .catch(() => {});
   throw error;
 } finally {
   await browser?.close();

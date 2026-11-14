@@ -27,7 +27,7 @@ O mesmo painel permite pedir aprovação do desconto total, com justificativa. A
 
 Tabelas aditivas: `workshop_user_access`, `staff_accounts`, `workshop_user_invites`, `session_reauthentication`, `session_office_choices`, `order_assignments` e `discount_requests`. O PostgreSQL mantém também tentativas de autenticação limitadas em tabela privada.
 
-As funções privilegiadas ficam no schema privado `horse_power`, com `search_path` fixo, execução revogada de PUBLIC e grants apenas aos papéis restritos da aplicação. Diretório e capacidade exigem Master da oficina autenticada. Aceitação de convite exige token válido e autenticação da conta existente, quando houver. Nenhuma tabela nova é exposta via Data API.
+As funções privilegiadas ficam no schema privado `horse_power`, com `search_path` fixo, execução revogada de PUBLIC e grants apenas aos papéis restritos da aplicação. Diretório e capacidade exigem Master da oficina autenticada. Aceitação de convite exige token válido e autenticação da conta existente, quando houver. Nenhuma tabela nova é exposta via Data API. Políticas restritivas adicionais limitam as leituras SQL de OS, itens, recebimentos, checklists, evidências, documentos e solicitações às atribuições permitidas. O diretório de permissões é visível apenas ao próprio usuário ou ao Master; convites exigem Master.
 
 Disputas por vagas, aceitação, reativação e alterações de Masters usam a trava transacional da oficina. Triggers protegem o último Master e a contagem de vagas também em operações administrativas centrais. Desativação remove as sessões daquela oficina, preservando os vínculos e sessões das demais. Alterações de permissões são reavaliadas sem novo login; a interface atualiza o contexto periodicamente.
 
@@ -46,5 +46,5 @@ A integração do PR e a migração persistente não estão autorizadas nesta ta
 - `npm run build`, `npm test`, `npm run test:postgres`.
 - `tests/workshopUsers.test.ts`: APIs, convites, contas existentes, expiração, revogação, seleção de oficina, privacidade, atribuições e descontos.
 - `tests/workshopUsers.postgres.integration.ts`: disputas de vagas/reativação/Masters e RLS com papel restrito no PostgreSQL 17 temporário.
-- `scripts/test-workshop-users-ui.mjs`: API real local e PostgreSQL fictício, navegação, convites, funcionários, pedidos e layouts desktop/tablet/mobile. Evidências em artefato do CI.
+- `scripts/test-workshop-users-ui.mjs`: API real local e PostgreSQL fictício, navegação, convites, funcionários, pedidos, troca de oficina com perfis independentes, privacidade e layouts desktop/tablet/mobile. Evidências em artefato do CI.
 - Biblioteca visual privada em `docs/mapeamento-visual/`; nunca publicar imagens administrativas com a aplicação.

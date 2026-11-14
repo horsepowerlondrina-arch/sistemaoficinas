@@ -53,7 +53,19 @@ export function employeePublicRoutes(db: DB) {
 }
 export function workshopUserRoutes(db: DB, deliver?: InviteDelivery) {
   const router = Router();
-  router.use((req,res,next)=>{if(!res.locals.context?.access&&(/^\/(users|user-invites|staff|approvals)(?:\/|$)/.test(req.path)||/\/(assignments|discount-requests)$/.test(req.path))){res.status(503).json({error:'Gestão de usuários aguarda liberação da migração.'});return;}next();});
+  router.use((req, res, next) => {
+    if (
+      !res.locals.context?.access &&
+      (/^\/(users|user-invites|staff|approvals)(?:\/|$)/.test(req.path) ||
+        /\/(assignments|discount-requests)$/.test(req.path))
+    ) {
+      res
+        .status(503)
+        .json({ error: "Gestão de usuários aguarda liberação da migração." });
+      return;
+    }
+    next();
+  });
   router.post("/reauthenticate", async (req, res) => {
     await reauthenticate(
       db,

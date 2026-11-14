@@ -3,7 +3,8 @@ import type { Permission } from "../../shared/userPermissions";
 export const can = (session: Session, permission: Permission) =>
   session.access
     ? session.access.permissions[permission]
-    : session.role === "owner" || ["orders.view","orders.status","orders.notes"].includes(permission);
+    : session.role === "owner" ||
+      ["orders.view", "orders.status", "orders.notes"].includes(permission);
 export function canOpenPath(session: Session, path: string) {
   const p = path.split("?")[0];
   if (p === "/inicio" || p === "/suporte") return true;

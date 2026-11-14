@@ -1,4 +1,4 @@
-import {updateReceivableDiscount} from './payments';
+import { updateReceivableDiscount } from "./payments";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { transaction, type DB } from "../db/database";
@@ -47,9 +47,23 @@ export async function saveStaff(
         .get(ctx.tenantId, id))
     )
       throw new Error("Funcionário não encontrado.");
-    const linked=id?await db.prepare('SELECT user_id FROM staff_accounts WHERE tenant_id=? AND professional_id=?').get(ctx.tenantId,id):null;
-    if(input.user_id!==(linked?.user_id||null))requirePermission(ctx,'users.manage');
-    if(linked?.user_id&&input.user_id!==linked.user_id){for(const order of await db.prepare('SELECT order_id FROM order_assignments WHERE tenant_id=? AND professional_id=? AND removed_at IS NULL').all(ctx.tenantId,id))await invalidateOrderShares(db,ctx,order.order_id);}
+    const linked = id
+      ? await db
+          .prepare(
+            "SELECT user_id FROM staff_accounts WHERE tenant_id=? AND professional_id=?",
+          )
+          .get(ctx.tenantId, id)
+      : null;
+    if (input.user_id !== (linked?.user_id || null))
+      requirePermission(ctx, "users.manage");
+    if (linked?.user_id && input.user_id !== linked.user_id) {
+      for (const order of await db
+        .prepare(
+          "SELECT order_id FROM order_assignments WHERE tenant_id=? AND professional_id=? AND removed_at IS NULL",
+        )
+        .all(ctx.tenantId, id))
+        await invalidateOrderShares(db, ctx, order.order_id);
+    }
     if (
       input.user_id &&
       !(await db
@@ -102,17 +116,26 @@ export async function saveAssignments(
   return transaction(db, async () => {
     await db.lockTenantMutations?.(ctx.tenantId);
     await assertOrderVisible(db, ctx, order);
-    const previous = await db.prepare('SELECT professional_id FROM order_assignments WHERE tenant_id=? AND order_id=? AND removed_at IS NULL').all(ctx.tenantId,order);
+    const previous = await db
+      .prepare(
+        "SELECT professional_id FROM order_assignments WHERE tenant_id=? AND order_id=? AND removed_at IS NULL",
+      )
+      .all(ctx.tenantId, order);
     for (const id of ids)
-      if (!previous.some(p=>p.professional_id===id)&&(
+      if (
+        !previous.some((p) => p.professional_id === id) &&
         !(await db
           .prepare(
             "SELECT 1 FROM professionals p LEFT JOIN staff_accounts s ON s.tenant_id=p.tenant_id AND s.professional_id=p.id WHERE p.tenant_id=? AND p.id=? AND p.active=1 AND COALESCE(s.productive,1)=1",
           )
           .get(ctx.tenantId, id))
-      ))
+      )
         throw new Error("Atribua somente profissionais produtivos ativos.");
-    if(previous.length!==ids.length||previous.some(p=>!ids.includes(p.professional_id)))await invalidateOrderShares(db, ctx, order);
+    if (
+      previous.length !== ids.length ||
+      previous.some((p) => !ids.includes(p.professional_id))
+    )
+      await invalidateOrderShares(db, ctx, order);
     for (const prior of previous)
       if (!ids.includes(prior.professional_id)) {
         await db
@@ -142,22 +165,54 @@ export async function saveAssignments(
 async function discountState(db: DB, ctx: Context, id: string) {
   await assertOrderVisible(db, ctx, id);
   const order = (await listOrders(db, ctx.tenantId)).find((o) => o.id === id)!;
-  if (!["quote", "open", "working", "ready", "completed"].includes(order.status))
+  if (
+    !["quote", "open", "working", "ready", "completed"].includes(order.status)
+  )
     throw new Error("Esta situação da OS não permite solicitar desconto.");
   const subtotal = order.items.reduce(
     (sum: number, i: any) => sum + Number(i.price) * Number(i.quantity),
     0,
   );
-  let receivable:any=null,editable=true;
-  if(order.status==='completed'){
-    requirePermission(ctx,'finance.edit');
-    receivable=await db.prepare('SELECT * FROM receivables WHERE tenant_id=? AND order_id=?').get(ctx.tenantId,id);
-    const paid=receivable?await db.prepare("SELECT 1 FROM payment_installments WHERE tenant_id=? AND receivable_id=? AND status='paid' LIMIT 1").get(ctx.tenantId,receivable.id):null;
-    const cash=receivable?await db.prepare('SELECT 1 FROM cash_entries WHERE tenant_id=? AND receivable_id=? LIMIT 1').get(ctx.tenantId,receivable.id):null;
-    editable=!!receivable&&receivable.status!=='paid'&&!paid&&!cash;
-    order.payment_state=receivable?[receivable.id,receivable.status,receivable.amount,receivable.plan_configured,!!paid,!!cash]:null;
+  let receivable: any = null,
+    editable = true;
+  if (order.status === "completed") {
+    requirePermission(ctx, "finance.edit");
+    receivable = await db
+      .prepare("SELECT * FROM receivables WHERE tenant_id=? AND order_id=?")
+      .get(ctx.tenantId, id);
+    const paid = receivable
+      ? await db
+          .prepare(
+            "SELECT 1 FROM payment_installments WHERE tenant_id=? AND receivable_id=? AND status='paid' LIMIT 1",
+          )
+          .get(ctx.tenantId, receivable.id)
+      : null;
+    const cash = receivable
+      ? await db
+          .prepare(
+            "SELECT 1 FROM cash_entries WHERE tenant_id=? AND receivable_id=? LIMIT 1",
+          )
+          .get(ctx.tenantId, receivable.id)
+      : null;
+    editable = !!receivable && receivable.status !== "paid" && !paid && !cash;
+    order.payment_state = receivable
+      ? [
+          receivable.id,
+          receivable.status,
+          receivable.amount,
+          receivable.plan_configured,
+          !!paid,
+          !!cash,
+        ]
+      : null;
   }
-  return { order, subtotal, receivable,editable,digest: orderStateDigest(order) };
+  return {
+    order,
+    subtotal,
+    receivable,
+    editable,
+    digest: orderStateDigest(order),
+  };
 }
 export async function requestDiscount(
   db: DB,
@@ -177,7 +232,10 @@ export async function requestDiscount(
   return transaction(db, async () => {
     await db.lockTenantMutations?.(ctx.tenantId);
     const state = await discountState(db, ctx, id);
-    if(!state.editable)throw new Error('Não é possível solicitar desconto após recebimento confirmado.');
+    if (!state.editable)
+      throw new Error(
+        "Não é possível solicitar desconto após recebimento confirmado.",
+      );
     const discount = calculateDiscountAmount(
       state.subtotal,
       input.mode,
@@ -255,24 +313,32 @@ export async function decideDiscount(
     const state = await discountState(db, ctx, request.order_id);
     let status = input.approve ? "approved" : "rejected";
     if (
-      !state.editable || state.digest !== request.state_digest ||
+      !state.editable ||
+      state.digest !== request.state_digest ||
       state.subtotal !== Number(request.subtotal)
     )
       status = "invalidated";
     if (status === "approved") {
       if (!canDiscount(ctx, state.subtotal, Number(request.discount)))
         accessDenied("Seu limite não permite aprovar este desconto.");
-      if(state.receivable)await updateReceivableDiscount(db,{...ctx,action:"orders.discount"},state.receivable.id,{mode:"money",value:Number(request.discount)});
-      else await db
-        .prepare(
-          "UPDATE orders SET discount=?,total=? WHERE tenant_id=? AND id=?",
-        )
-        .run(
-          request.discount,
-          state.subtotal - Number(request.discount),
-          ctx.tenantId,
-          request.order_id,
+      if (state.receivable)
+        await updateReceivableDiscount(
+          db,
+          { ...ctx, action: "orders.discount" },
+          state.receivable.id,
+          { mode: "money", value: Number(request.discount) },
         );
+      else
+        await db
+          .prepare(
+            "UPDATE orders SET discount=?,total=? WHERE tenant_id=? AND id=?",
+          )
+          .run(
+            request.discount,
+            state.subtotal - Number(request.discount),
+            ctx.tenantId,
+            request.order_id,
+          );
       await invalidateOrderShares(db, ctx, request.order_id);
       await db
         .prepare(

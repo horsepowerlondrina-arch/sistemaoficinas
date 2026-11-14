@@ -144,7 +144,6 @@ export function OrderView() {
       >
         ← Voltar à lista
       </button>
-      <OrderAccessControls orderId={order.id}/>
       <div className="order-view-header">
         <PageHeading
           eyebrow="ORDEM DE SERVIÇO"
@@ -181,7 +180,7 @@ export function OrderView() {
               Editar atendimento
             </button>
           )}
-          {action && can(session,action[0]==="completed"?"orders.finalize":"orders.status") && (
+          {action && permittedStatusOptions.some(([value])=>value===action[0]) && (
             <button
               className="button primary"
               disabled={busy}
@@ -337,6 +336,7 @@ export function OrderView() {
         </button>
       )}
       </div>
+      <div className="no-print"><OrderAccessControls orderId={order.id}/></div>
       <IssuedDocumentPreview />
       {postReceiptOpen && <PostReceiptActions order={order} shopName={session.tenant.name} customerPhone={customer?.phone} onDone={finishReceipt} />}
       {receiptOpen && (
