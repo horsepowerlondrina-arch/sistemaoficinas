@@ -23,6 +23,14 @@ export function previousPeriod(period: Period): Period {
   return { from: key(end - (days - 1) * 86400000), to: key(end) };
 }
 
+export function monthPeriod(anchor: string): Period {
+  if (!validDay(anchor)) throw new Error("Data inválida.");
+  const d = new Date(utcDay(anchor));
+  const start = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
+  const end = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0));
+  return { from: key(start.getTime()), to: key(end.getTime()) };
+}
+
 export function cyclePeriod(anchor: string): Period {
   if (!validDay(anchor)) throw new Error("Data inválida.");
   const d = new Date(utcDay(anchor));
