@@ -175,7 +175,7 @@ try {
     }
     if (entry.id === "ops002-receipt-desktop") {
       await expect(page.locator('a[href="/resultados"]')).toHaveCount(0);
-      await expect(page.locator('a[href="/financeiro"]')).toBeVisible();
+      await expect(page.getByRole('link', { name: 'Financeiro', exact: true })).toBeVisible();
     }
     await captureCardMachines(page, entry);
     await captureSettings(page, entry);
