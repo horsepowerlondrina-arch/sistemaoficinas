@@ -24,7 +24,8 @@
     "test:postgres": "tsx --test --test-concurrency=1 tests/workshopUsers.postgres.integration.ts tests/platformSupport.postgres.integration.ts tests/localPostgres.integration.ts tests/platformAdmin.integration.ts tests/platformWorkshops.integration.ts tests/platformEntitlements.integration.ts tests/platformPlans.integration.ts tests/dataTransfer.postgres.integration.ts tests/workshopActivation.integration.ts tests/dataTransferVerification.postgres.integration.ts tests/catalogImportPipeline.integration.ts tests/extension.postgres.integration.ts tests/platformWorkshopManagement.integration.ts tests/cardMachines.postgres.integration.ts tests/profitTables.postgres.integration.ts tests/accountPlan.postgres.integration.ts tests/passwordReset.postgres.integration.ts tests/stripeBilling.postgres.integration.ts tests/selfService.postgres.integration.ts",
     "test:sessions": "node --test-isolation=none --test tests/isolated-sessions.test.mjs tests/activation-mail.test.mjs tests/stripe-checkout-automation.test.mjs",
     "test:homologation": "node scripts/e2e/run-security.mjs",
-    "test:onboarding": "node scripts/e2e/onboarding.mjs"
+    "test:onboarding": "node scripts/e2e/onboarding.mjs",
+    "test:operations": "node scripts/e2e/run-operations.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.6",
