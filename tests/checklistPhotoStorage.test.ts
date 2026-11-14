@@ -1,12 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createDatabase} from '../server/db/database.js';
-import {readPhotoData,storePhotoData,portablePhotoRow,assertPortablePhoto,migrateChecklistPhotos,type PhotoStore} from '../server/services/checklistPhotoStorage.js';
+import {readPhotoData,storePhotoData,portablePhotoRow,withPhotoStore,assertPortablePhoto,migrateChecklistPhotos,type PhotoStore} from '../server/services/checklistPhotoStorage.js';
 function fixture(){const files=new Map<string,Buffer>();const store:PhotoStore={async put(k,d){if(files.has(k))throw Error('overwrite');files.set(k,Buffer.from(d));},async get(k){const b=files.get(k);if(!b)throw Error('missing');return b;}};return {files,store};}
 const image=Buffer.alloc(200,42);
 test('private storage round trip; reference contains no image bytes; no cross-tenant reads',async()=>{
  const {store,files}=fixture();const value=await storePhotoData('tenant-a',image,'image/jpeg',store);
  assert.ok(value.startsWith('private-checklist:v1:'));assert.ok(!value.includes(image.toString('base64')));assert.equal(files.size,1);
+ const portable=await withPhotoStore(store,()=>portablePhotoRow('tenant-a',{id:'p',image_data:value}));assert.equal(portable.image_data,image.toString('base64'));
  assert.deepEqual(await readPhotoData('tenant-a',value,store),image);
  await assert.rejects(readPhotoData('tenant-b',value,store),/inválida/);
 });

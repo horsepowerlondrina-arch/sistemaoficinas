@@ -29,6 +29,13 @@ test('PostgreSQL 17: private photo migration checks integrity, rollback, repeat 
     assert.equal((await db.prepare('SELECT image_data FROM checklist_photos WHERE tenant_id=? AND id=?').get(tenant,result.id))?.image_data,data.toString('base64'));
     assert.equal((await migrateChecklistPhotos(db,tenant,10,true,store)).migrated,1);
     assert.equal((await migrateChecklistPhotos(db,tenant,10,true,store)).migrated,0);
+    const {createWorkshopTransfer}=await import('../server/services/dataTransferExport.js');
+    const {openTransferPackage}=await import('../shared/transferPackage.js');
+    const pkg=await withPhotoStore(store,()=>createWorkshopTransfer(db,tenant,'fictional-private-photo-passphrase'));
+    const payload=openTransferPackage(pkg,'fictional-private-photo-passphrase');
+    assert.equal(payload.records.checklist_photos?.[0].image_data,data.toString('base64'));
+    assert.ok(!JSON.stringify(payload).includes('private-checklist:v1:'));
+
     await assert.rejects(withPhotoStore(store,()=>getChecklistPhoto(db,{...ctx,tenantId:other},result.id)),/não encontrada/);
     assert.equal((await migrateChecklistPhotos(db,other,10,true,store)).inspected,0);
   });
