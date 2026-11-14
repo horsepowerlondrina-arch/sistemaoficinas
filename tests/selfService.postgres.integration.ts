@@ -112,7 +112,7 @@ test("three plans: registration, email activation, settled payment, seats and is
       });
       if (offices.length > 1) {
         assert.equal((await post('/api/tenant', { tenant_id: offices[0] }, cookie)).status, 403);
-        const identity = await fetch(`http://127.0.0.1:${address.port}/api/session`, { headers: { Cookie: cookie } });
+        const identity: Response = await fetch(`http://127.0.0.1:${address.port}/api/session`, { headers: { Cookie: cookie } });
         assert.equal(identity.status, 200); assert.equal((await identity.json()).tenant.id, pending.tenant_id);
       }
     }

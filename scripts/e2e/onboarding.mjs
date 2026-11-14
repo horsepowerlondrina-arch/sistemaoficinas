@@ -24,7 +24,7 @@ const stat = lstatSync(file);
 if (!stat.isFile() || stat.isSymbolicLink() || (stat.mode & 0o077) || stat.uid !== process.getuid()) throw Error("PRIVATE_MANIFEST_REQUIRED");
 const data = JSON.parse(readFileSync(file, "utf8"));
 if (data.schemaVersion !== 2 || data.baseURL !== HOMOLOGATION || data.offices.length !== 3) throw Error("MANIFEST_INVALID");
-if (!new Set(["register", "activate", "checkout", "invite", "accept", "verify", "export"]).has(command)) throw Error("COMMAND_INVALID");
+if (!new Set(["register", "activate", "checkout", "invite", "accept", "verify", "export", "fixtures"]).has(command)) throw Error("COMMAND_INVALID");
 for (const office of data.offices) {
   if (!['basic','professional','premium'].includes(office.plan) || !/Fictícia/.test(office.name) || office.members.length !== office.limit) throw Error('FICTITIOUS_MANIFEST_REQUIRED');
   for (const account of office.members) if (!/^[a-z0-9._-]+@testes\.osdrive\.com\.br$/.test(account.email) || account.password.length < 12 || !['master','mechanic','manager','advisor','finance'].includes(account.profile)) throw Error('FICTITIOUS_MANIFEST_REQUIRED');
@@ -119,8 +119,29 @@ try {
           for (const account of office.members.slice(1)) {
             if (account.registeredAt) continue;
             account.registeredAt = new Date().toISOString(); save(data);
-            await request(context, "POST", "/api/user-invites", { email: account.email, profile: account.profile, order_scope: account.profile === "mechanic" ? "assigned" : "all" });
+            if (account.profile === "mechanic" && !account.professionalId) {
+              const staff = await request(context, "POST", "/api/staff", { name: "Mecânico Fictício " + account.id, role: "Mecânico", active: true, productive: true, user_id: null });
+              account.professionalId = staff.id; save(data);
+            }
+            await request(context, "POST", "/api/user-invites", { email: account.email, profile: account.profile, order_scope: account.profile === "mechanic" ? "assigned" : "all", professional_id: account.professionalId || null });
           }
+        } else if (command === "fixtures") {
+          if (!office.paid || !office.members.every(a => a.activated)) throw Error("ACTIVATED_ACCOUNTS_REQUIRED");
+          if (!office.customerId) {
+            const linked = await request(context, "POST", "/api/customers-with-vehicle", {
+              customer: { name: "Cliente Fictício " + office.plan, phone: "00000000000", email: `cliente-${office.plan}-${data.run}@testes.osdrive.com.br`, address: "Endereço Fictício de Teste", document: "", notes: "Dados fictícios para validação" },
+              vehicle: { plate: ['TST0A01','TST0A02','TST0A03'][data.offices.indexOf(office)], brand: "Marca Fictícia", model: "Veículo Fictício", year: 2026, model_year: 2026, color: "Prata", km: 0, service_model_id: null, service_link_mode: "none" },
+            }); office.customerId = linked.id; office.vehicleId = linked.vehicle_id; save(data);
+          }
+          office.orderIds ||= [];
+          while (office.orderIds.length < 2) {
+            const day = new Date().toISOString().slice(0,10);
+            const order = await request(context, "POST", "/api/orders", { customer_id: office.customerId, vehicle_id: office.vehicleId, status: "open", entered_on: day, due_on: day, km: 0, problem: "Validação fictícia de permissões", notes: "Sem movimentação financeira operacional", discount: 0, items: [] });
+            office.orderIds.push(order.id); save(data);
+          }
+          await request(context, "PUT", `/api/orders/${office.orderIds[0]}/assignments`, { professional_ids: office.members.filter(a => a.profile === 'mechanic').map(a => a.professionalId) });
+          for (const account of office.members) account.visibleOrderIds = account.profile === 'mechanic' ? [office.orderIds[0]] : office.orderIds;
+          save(data);
         } else {
           const users = await request(context, "GET", "/api/users"), billing = await request(context, "GET", "/api/account/billing");
           if (users.capacity.active !== office.limit || users.capacity.available !== 0 || billing.account?.plan_code !== office.plan || !billing.payments.some(p => p.status === "paid")) throw Error("FINAL_STATE_MISMATCH");

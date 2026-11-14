@@ -23,6 +23,7 @@ Aplicação remota desta migração requer autorização específica após CI. R
 - `npm run test:onboarding -- checkout`: seleciona cada plano, usa exclusivamente cartão Stripe de teste e exige confirmação no backend. Não altera preços da plataforma e não insere pagamentos no banco.
 - `npm run test:onboarding -- invite`: convida colaboradores até o limite de cada plano pelo Master correspondente.
 - `TEST_MAIL_FILE=/caminho/privado.json npm run test:onboarding -- accept`: ativa as contas convidadas em contextos separados.
+- `npm run test:onboarding -- fixtures`: cadastra cliente/veículo fictícios e duas OS sem recebimentos operacionais, atribuindo uma delas aos Mecânicos.
 - `npm run test:onboarding -- verify`: exige pagamentos confirmados e capacidades preenchidas.
 - `npm run test:onboarding -- export`: prepara `data/test-accounts.json` privado para as verificações de acesso.
 - `TEST_ACCOUNTS_FILE=/caminho/privado.json npm run test:homologation`: verifica sessões, perfis, projeção de dados e tentativas cruzadas por contas fictícias. O transporte desta etapa permite apenas consultas, login/logout e seleção de oficina; não permite alterações operacionais.

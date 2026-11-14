@@ -98,6 +98,7 @@ export async function createSessionPool(baseURL, accounts, mode = "homologation"
       };
       const session = {
         account, context, blocked, request,
+        permitDocumentProbe(id) { if (!/^[a-zA-Z0-9_-]{1,120}$/.test(id)) fail('DOCUMENT_ID_REFUSED'); draftOrders.add(id); },
         async identity() {
           const response = await request("GET", "/api/session");
           if (response.status() !== 200) fail("SESSION_UNAVAILABLE");

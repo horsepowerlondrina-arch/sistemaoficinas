@@ -20,11 +20,18 @@ try {
     for (const order of forbiddenIds.slice(0, 10)) {
       const response = await session.request("GET", `/api/orders/${order}/assignments`);
       assert.ok([403, 404].includes(response.status()), "CROSS_OFFICE_ASSIGNMENTS_EXPOSED");
+      session.permitDocumentProbe(order);
+      const document = await session.request("GET", `/api/documents/order/${order}?current=1`);
+      assert.ok([403,404].includes(document.status()), "CROSS_OFFICE_DOCUMENT_EXPOSED");
     }
     for (const other of pool.sessions.values()) if (other.account.tenantId !== session.account.tenantId) {
       const response = await session.request("POST", "/api/tenant", { tenant_id: other.account.tenantId });
       assert.ok([403, 404].includes(response.status()), "CROSS_OFFICE_SWITCH_ALLOWED");
       await session.identity();
+    }
+    for (const [path, permission] of [["/api/users", "users.manage"], ["/api/staff", "staff.view"], ["/api/cash-control", "finance.view"]]) {
+      const response = await session.request("GET", path);
+      assert.equal(response.status(), identity.access.permissions[permission] ? 200 : 403, "ACTION_PERMISSION_MISMATCH");
     }
     if (session.account.profile === "mechanic") {
       assert.equal((await session.request("GET", "/api/users")).status(), 403, "MECHANIC_USERS_EXPOSED");
