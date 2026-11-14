@@ -20,7 +20,7 @@ export default {
       try {
         assertCloudflareConfiguration(process.env);
         stage = "bootstrap";
-        const runtime = await createCloudRuntime({ ca: env.SUPABASE_CA, onStage(value) { stage = value; } });
+        const runtime = await createCloudRuntime({ ca: env.SUPABASE_CA, hyperdrive: true, operationalUrl: env.DATABASE.connectionString, administrativeUrl: env.ADMIN_DATABASE.connectionString, onStage(value) { stage = value; } });
         stage = "dispatch";
         let finish!: () => void;
         const finished = new Promise<void>(resolve => { finish = resolve; });
@@ -50,7 +50,7 @@ export default {
       } catch (error) {
         const kind = error instanceof Error ? error.name : "UnknownError";
         const causeCode = error && typeof error === "object" && "code" in error && typeof error.code === "string" && /^[A-Z0-9_]{1,40}$/.test(error.code) ? error.code : undefined;
-        console.error(JSON.stringify({ code: "CLOUDFLARE_RUNTIME_UNAVAILABLE", stage, kind, causeCode, category: error instanceof Error ? (/certificate|SSL|TLS/i.test(error.message) ? "TLS" : /I\/O|socket|connect/i.test(error.message) ? "CONNECTION" : /papel|schema|RLS/i.test(error.message) ? "DATABASE_ROLE" : /not (implemented|supported)|unsupported/i.test(error.message) ? "RUNTIME_COMPATIBILITY" : "INTERNAL") : "UNKNOWN" }));
+        console.error(JSON.stringify({ code: "CLOUDFLARE_RUNTIME_UNAVAILABLE", stage, kind, causeCode, reference: error instanceof Error ? error.message.match(/^internal error; reference = ([a-z0-9]+)$/)?.[1] : undefined, category: error instanceof Error ? (/certificate|SSL|TLS/i.test(error.message) ? "TLS" : /I\/O|socket|connect/i.test(error.message) ? "CONNECTION" : /papel|schema|RLS/i.test(error.message) ? "DATABASE_ROLE" : /not (implemented|supported)|unsupported/i.test(error.message) ? "RUNTIME_COMPATIBILITY" : "INTERNAL") : "UNKNOWN" }));
         return Response.json({ error: "Homologação temporariamente indisponível." }, { status: 503, headers: { ...securityHeaders, "Cache-Control": "no-store" } });
       }
     }

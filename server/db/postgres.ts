@@ -85,7 +85,7 @@ export function postgresSql(input: string) {
   );
   return sql;
 }
-export function createPostgresDatabase(url = process.env.DATABASE_URL, options: { local?: boolean; ca?: string } = {}) {
+export function createPostgresDatabase(url = process.env.DATABASE_URL, options: { local?: boolean; ca?: string; hyperdrive?: boolean } = {}) {
   if (!url) throw new Error("Configure DATABASE_URL.");
   if (options.local) url = localDatabaseUrl(url);
   const pool = new pg.Pool({
@@ -93,7 +93,7 @@ export function createPostgresDatabase(url = process.env.DATABASE_URL, options: 
     max: 3,
     connectionTimeoutMillis: 10000,
     idleTimeoutMillis: 20000,
-    ssl: options.local ? false : {
+    ssl: options.hyperdrive ? undefined : options.local ? false : {
       rejectUnauthorized: true,
       ca: options.ca ?? readFileSync(
         new NodeURL("./certs/supabase-ca.crt", import.meta.url),

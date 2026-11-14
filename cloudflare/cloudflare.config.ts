@@ -14,6 +14,8 @@ export default defineConfig({
       logs: { enabled: true, invocationLogs: false }, traces: { enabled: true, headSamplingRate: 0 } },
     env: {
       ASSETS: bindings.assets(),
+      DATABASE: bindings.hyperdrive({ id: "5e060ca01a63467e9b7684f093c47a31" }),
+      ADMIN_DATABASE: bindings.hyperdrive({ id: "017953836b764a709e07d19b9154ac7c" }),
       APP_ENV: bindings.text("development"), NODE_ENV: bindings.text("production"),
       EXPECTED_DATABASE_PROJECT: bindings.text("vnclahdnirqlcbamodqy"),
       APP_ORIGIN: bindings.text("https://sistema-oficinas-homologacao.osdrive-homologacao.workers.dev"),

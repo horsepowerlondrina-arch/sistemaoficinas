@@ -11,11 +11,11 @@ Conta Cloudflare: `398bbed171a2a062429f9e2efa6df1cc`. Worker: `sistema-oficinas-
 ## Arquitetura
 
 - React/Vite 6 e seus comandos atuais permanecem intactos. `npm run build:cloudflare` primeiro executa o build existente e depois o empacotador em `cloudflare/`.
-- O subprojeto usa `cf` e Cloudflare Vite plugin 2 beta, com seu próprio Vite 7 corrigido e lockfile. Não atualiza o Vite da aplicação nem cria configuração Wrangler.
-- `cloudflare/cloudflare.config.ts` contém somente configuração pública, certificado CA público, Assets e declarações de segredos. Não tem domínios customizados, cron, Hyperdrive ou recursos pagos. `cf deploy --prebuilt --no-provision` não cria recursos auxiliares.
-- PostgreSQL permanece no Supabase `vnclahdnirqlcbamodqy`, via TLS verificado. Pools são criados por requisição e encerrados após a resposta; não há sockets/pools/identidade compartilhados entre requisições Workers. Express usa o adaptador oficial `cloudflare:node`.
+- O subprojeto usa `cf` e Cloudflare Vite plugin 2 beta, com seu próprio Vite 7 corrigido e lockfile. Não atualiza o Vite ou pg da aplicação Vercel nem cria configuração Wrangler. O pacote Worker usa pg 8.23.1 isolado pelo alias do Vite; a aplicação existente mantém pg 8.16.3.
+- `cloudflare/cloudflare.config.ts` contém somente configuração pública, certificado CA público, Assets e declarações de segredos. Não tem domínios customizados, cron ou recursos pagos. Declara dois bindings Hyperdrive previamente criados na capacidade gratuita. `cf deploy --prebuilt --no-provision` não cria recursos auxiliares.
+- PostgreSQL permanece no Supabase `vnclahdnirqlcbamodqy`, usando o endpoint direto `db.vnclahdnirqlcbamodqy.supabase.co:5432` (sem pooler duplo), via Hyperdrive com TLS `verify-full` e CA Supabase pública registrada. Ambos os bindings mantêm cache desativado e máximo de cinco conexões de origem (mínimo aceito pela Cloudflare). O trecho Worker–Hyperdrive usa o transporte privado do binding; a conexão de origem mantém TLS verificado. Pools são criados por requisição e encerrados após a resposta; não há sockets/pools/identidade compartilhados entre requisições Workers. Express usa o adaptador oficial `cloudflare:node`.
 - O código transacional e os tipos de DB foram separados de `node:sqlite`. SQLite permanece disponível para os testes existentes; não integra o bundle Workers.
-- Os três segredos são provisionados privadamente pelo CLI oficial: `DATABASE_URL`, `PLATFORM_ADMIN_DATABASE_URL`, `PLATFORM_ADMIN_TOTP_ENCRYPTION_KEY`. Nunca incluir valores no Git, logs, artifacts ou relatório. Arquivos privados em `data/` continuam ignorados.
+- As duas conexões também foram configuradas privadamente nos bindings Hyperdrive. Os três segredos são provisionados privadamente pelo CLI oficial: `DATABASE_URL`, `PLATFORM_ADMIN_DATABASE_URL`, `PLATFORM_ADMIN_TOTP_ENCRYPTION_KEY`. Nunca incluir valores no Git, logs, artifacts ou relatório. Arquivos privados em `data/` continuam ignorados.
 - As conexões disponíveis usam `osdrive_local_app` e `osdrive_local_admin`. Consultas somente leitura confirmaram associação aos papéis base correspondentes, ausência de superuser/BYPASSRLS/CREATEROLE/CREATEDB e separação de schemas. O runtime verifica novamente essas condições. Os nomes base continuam aceitos; aliases só são reconhecidos no destino Cloudflare exato.
 - A origem Cloudflare é admitida explicitamente na proteção de homologação. Não há wildcard workers.dev, CORS aberto, simulação de Vercel nem alteração na proteção de produção.
 - Cookies continuam HttpOnly, Secure e SameSite. O IP de limitação usa CF-Connecting-IP fornecido pela borda, sem confiar em X-Forwarded-For arbitrário. A sessão do responsável no navegador não é utilizada.
@@ -56,3 +56,26 @@ Testes de unidade cobrem origens exatas, banco/roles não privilegiados, rejeiç
 Validação remota deve usar contextos distintos das contas fictícias, confirmar identidade/plano, oficinas cruzadas negadas, dados pessoais/financeiros conforme perfil, clientes, veículos, checklist, orçamento, OS, estoque e financeiro. Registrar módulos realmente exercitados; CI aprovado não comprova jornada online. Não usar produção ou alterar oficinas externas aos IDs reservados.
 
 MAP-001: não houve mudança de interface, identidade visual ou biblioteca pública. A pasta privada de capturas existente é preservada.
+
+## Recursos do piloto
+
+- Hyperdrive operacional: `5e060ca01a63467e9b7684f093c47a31`.
+- Hyperdrive administrativo: `017953836b764a709e07d19b9154ac7c`.
+- CA pública de homologação: `dcc22bc0-267e-4a6f-9112-d1a96e4c1e54`.
+- Limite gratuito Hyperdrive documentado: 100.000 consultas/dia; exceder bloqueia operações, não autoriza upgrade. Confirmar limites atuais antes de ampliar o uso.
+- Referência de conexão direta: https://developers.cloudflare.com/hyperdrive/examples/connect-to-postgres/postgres-database-providers/supabase/
+
+### Jornada operacional com checkpoint privado
+
+```sh
+TEST_OPERATIONAL_TARGET=cloudflare \
+TEST_OPERATIONAL_WRITES=fictitious-homologation-only \
+TEST_ONBOARDING_FILE=/caminho/privado/test-onboarding.json \
+node scripts/e2e/run-operations.mjs
+```
+
+O driver aceita somente os destinos Vercel e Cloudflare fixos em código, mantém as verificações do manifesto original de três oficinas e cria uma rodada `cf-operacional-20261114`, com placas fictícias próprias. Checkpoints ficam em `data/`; capturas e relatório ficam fora da aplicação. Nunca usar um manifesto de usuários reais. `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` permite escolher um Chrome instalado sem reutilizar seu perfil pessoal.
+
+### Capacidade de conexões
+
+As consultas somente leitura identificaram limites de conexão 4/3 nos papéis exclusivos de testes `osdrive_local_app`/`osdrive_local_admin`. O Hyperdrive aceita limite mínimo de 5 por configuração e retornou erro PostgreSQL `53300` em chamadas concorrentes. Não retirar guardas, MFA ou segregação para contornar isso. O ajuste persistente desses limites depende de autorização específica; registrar decisão e valores finais antes de declarar a jornada online validada.

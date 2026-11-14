@@ -2,8 +2,11 @@ import { chromium, expect } from '@playwright/test';
 import { readFileSync, writeFileSync, mkdirSync, lstatSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { HOMOLOGATION } from './isolated-sessions.mjs';
+import { HOMOLOGATION as VERCEL_HOMOLOGATION } from './isolated-sessions.mjs';
 
+const cloudflare = process.env.TEST_OPERATIONAL_TARGET === 'cloudflare';
+if (process.env.TEST_OPERATIONAL_TARGET && !['vercel','cloudflare'].includes(process.env.TEST_OPERATIONAL_TARGET)) throw Error('TARGET_REFUSED');
+const HOMOLOGATION = cloudflare ? 'https://sistema-oficinas-homologacao.osdrive-homologacao.workers.dev' : VERCEL_HOMOLOGATION;
 // Writes are opt-in and restricted to the three fictitious, activated workshops.
 if (process.env.TEST_OPERATIONAL_WRITES !== 'fictitious-homologation-only') throw Error('EXPLICIT_FICTITIOUS_WRITES_REQUIRED');
 const manifestPath = resolve(process.env.TEST_ONBOARDING_FILE || 'data/test-onboarding.json');
@@ -11,11 +14,11 @@ const stat = lstatSync(manifestPath);
 if (!stat.isFile() || stat.isSymbolicLink() || (stat.mode & 0o077) || stat.uid !== process.getuid()) throw Error('PRIVATE_MANIFEST_REQUIRED');
 const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
 const expectedTenants = { basic: '26bb4fc1-276d-411c-b903-1c84c0b77299', professional: '1f866f8e-d6e0-475f-a270-1dae4b2279b1', premium: 'd0a82163-8b22-4ec6-98d4-f5495c386ee2' };
-if (manifest.baseURL !== HOMOLOGATION || manifest.run !== '20261114-autonomo' || manifest.offices.length !== 3) throw Error('FICTITIOUS_MANIFEST_REQUIRED');
+if (manifest.baseURL !== VERCEL_HOMOLOGATION || manifest.run !== '20261114-autonomo' || manifest.offices.length !== 3) throw Error('FICTITIOUS_MANIFEST_REQUIRED');
 for (const office of manifest.offices) if (office.tenantId !== expectedTenants[office.plan] || !office.name.startsWith('Oficina Fictícia Automação ') || office.members[0].profile !== 'master' || !office.members[0].email.endsWith('@testes.osdrive.com.br')) throw Error('FICTITIOUS_MANIFEST_REQUIRED');
-const run = process.env.TEST_OPERATIONAL_RUN || 'operacional-20261114';
+const run = process.env.TEST_OPERATIONAL_RUN || (cloudflare ? 'cf-operacional-20261114' : 'operacional-20261114');
 if (!/^[a-z0-9-]{8,35}$/.test(run)) throw Error('RUN_INVALID');
-const output = resolve(process.env.TEST_OPERATIONAL_OUTPUT || '../relatorios/operacionais-2026-11-14');
+const output = resolve(process.env.TEST_OPERATIONAL_OUTPUT || (cloudflare ? '../relatorios/cloudflare-2026-11-14' : '../relatorios/operacionais-2026-11-14'));
 mkdirSync(output, { recursive: true, mode: 0o700 });
 const statePath = resolve('data', run + '.json');
 let state;
@@ -24,7 +27,7 @@ if (state.run !== run) throw Error('CHECKPOINT_MISMATCH');
 const save = () => writeFileSync(statePath, JSON.stringify(state, null, 2), { mode: 0o600 });
 const report = { environment: HOMOLOGATION, run, startedAt: new Date().toISOString(), offices: [], productionModified: false };
 const day = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
-const browser = await chromium.launch();
+const browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH });
 try {
  for (const office of manifest.offices) {
   const result = { plan: office.plan, checks: [], errors: [], evidence: [] }; report.offices.push(result);
@@ -68,7 +71,7 @@ try {
     await page.getByLabel('Telefone / celular',{exact:true}).fill('00000000000');
     await page.getByLabel('E-mail',{exact:true}).fill(`${office.plan}-${run}@testes.osdrive.com.br`);
     await page.getByLabel('Cadastrar um veículo junto').check();
-    await page.getByPlaceholder('ABC1D23',{exact:true}).fill(['QAT1A11','QAT1A12','QAT1A13'][manifest.offices.indexOf(office)]);
+    await page.getByPlaceholder('ABC1D23',{exact:true}).fill((cloudflare ? ['CFQ1A11','CFQ1A12','CFQ1A13'] : ['QAT1A11','QAT1A12','QAT1A13'])[manifest.offices.indexOf(office)]);
     await page.getByLabel('Marca *',{exact:true}).fill('Marca Fictícia');
     await page.getByLabel('Modelo *',{exact:true}).fill('Modelo Fictício Operacional');
     await page.getByLabel('Ano de fabricação *',{exact:true}).fill('2025');

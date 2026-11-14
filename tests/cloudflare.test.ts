@@ -38,3 +38,8 @@ test('document assets remain isolated across concurrent requests',async()=>{
   const results=await Promise.all(['office-a','office-b'].map(value=>withDocumentLogo(async()=>Buffer.from(value),async()=>{await new Promise(resolve=>setTimeout(resolve,5));return(await documentLogoBytes()).toString();})));
   assert.deepEqual(results,['office-a','office-b']);assert.ok((await documentLogoBytes()).length>0);
 });
+
+test('Hyperdrive runtime cannot override databases outside the exact parallel environment',async()=>{
+  const {createCloudRuntime}=await import('../server/cloudRuntime.js');
+  await assert.rejects(()=>createCloudRuntime({hyperdrive:true,operationalUrl:'postgresql://fake:fake@127.0.0.1/test',administrativeUrl:'postgresql://fake:fake@127.0.0.1/test'}),/Hyperdrive exige/);
+});

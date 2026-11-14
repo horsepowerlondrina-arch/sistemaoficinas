@@ -19,7 +19,8 @@ import {
 import { createPlatformAdminDataTransfer } from "./services/platformAdminDataTransfer.js";
 import { readFileSync } from "node:fs";
 import { selfServiceTestEmails } from "./services/selfServicePolicy.js";
-export async function createCloudRuntime(options: { ca?: string; onStage?: (stage: string) => void } = {}) {
+export async function createCloudRuntime(options: { ca?: string; operationalUrl?: string; administrativeUrl?: string; hyperdrive?: boolean; onStage?: (stage: string) => void } = {}) {
+  if (options.hyperdrive && (!isCloudflareHomologation(process.env) || !options.operationalUrl || !options.administrativeUrl)) throw new Error("Hyperdrive exige os dois bindings da homologação paralela.");
   const standaloneHorsePower = process.env.APP_ENV === "horse_power";
   if (standaloneHorsePower) assertHorsePowerIsolation(process.env);
   else assertDevelopmentIsolation(process.env);
@@ -30,7 +31,7 @@ export async function createCloudRuntime(options: { ca?: string; onStage?: (stag
     process.env.PUBLIC_ORIGIN = process.env.APP_ORIGIN;
   if (!process.env.APP_ORIGIN) throw new Error("Configure APP_ORIGIN.");
   options.onStage?.("operational_pool");
-  const db = createPostgresDatabase(process.env.DATABASE_URL, { ca: options.ca });
+  const db = createPostgresDatabase(options.operationalUrl || process.env.DATABASE_URL, { ca: options.ca, hyperdrive: options.hyperdrive });
   let app: ReturnType<typeof createApp>;
   let adminPoolForClose: pg.Pool | undefined;
   try {
@@ -68,12 +69,12 @@ export async function createCloudRuntime(options: { ca?: string; onStage?: (stag
         );
       options.onStage?.("administrative_pool");
       const adminPool = new pg.Pool({
-        connectionString: adminUrl,
+        connectionString: options.administrativeUrl || adminUrl,
         max: 2,
         connectionTimeoutMillis: 10000,
         idleTimeoutMillis: 20000,
         query_timeout: 15000,
-        ssl: {
+        ssl: options.hyperdrive ? undefined : {
           rejectUnauthorized: true,
           ca: options.ca ?? readFileSync(
             new NodeURL("./db/certs/supabase-ca.crt", import.meta.url),
