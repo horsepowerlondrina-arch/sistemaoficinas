@@ -19,6 +19,7 @@ test("billing action follows the actual checkout and payment states", () => {
     { kind: "choose", label: "Regularizar pagamento" });
   assert.deepEqual(workshopBillingAction({ ...base, account: { ...account, method: "card", recurring: true } }, false, today), { kind: "success" });
   assert.equal(workshopBillingAction(base, true, today).kind, "unavailable");
+  assert.equal(workshopBillingAction({ ...base, can_subscribe_during_trial: true }, true, today).kind, "choose");
 });
 
 test("pending and invoice links take priority and reject other destinations", () => {

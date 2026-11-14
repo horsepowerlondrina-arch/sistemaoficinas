@@ -45,7 +45,7 @@ export function WorkshopBilling({tenantId}:{tenantId:string}){
  const today=billingDate(new Date());
  const periodPaid=!!account?.paid_until&&account.paid_until>today;
  const action=data?.enabled?workshopBillingAction(data,trialActive,today):null;
- const status=data?.read_only?"Somente leitura":data?.pending?"Pagamento pendente":trialActive?"Em teste":account?.managed?"Em dia":plan?.status?statusLabels[plan.status]??plan.status:"Sem assinatura";
+ const status=data?.read_only?"Somente leitura":data?.pending?"Pagamento pendente":account?.managed?"Em dia":trialActive?"Em teste":plan?.status?statusLabels[plan.status]??plan.status:"Sem assinatura";
  const actionReady=!syncing&&!syncError;
  return <div className="billing-workshop" aria-label="Assinatura e pagamentos">
   {data?.test_mode&&<p className="billing-test-note">Ambiente de teste · pagamentos fictícios</p>}
@@ -81,6 +81,7 @@ export function WorkshopBilling({tenantId}:{tenantId:string}){
        {data.prices.map(p=><option key={p.id} value={p.id}>{billingPlanNames[p.plan_code]} — {money(p.amount_cents)} / mês</option>)}
       </select></label>
       <label>Forma de pagamento<select value={method} disabled={busy} onChange={e=>{setMethod(e.target.value as "card"|"pix");setConfirmed(false);}}><option value="card">Cartão — renovação mensal automática</option><option value="pix">Pix — confirmar pagamento todo mês</option></select></label>
+      {trialActive&&data.can_subscribe_during_trial&&<p>A contratação começa agora, com cobrança imediata do valor exibido. O teste gratuito não será reiniciado.</p>}
       <label className="billing-check"><input type="checkbox" checked={confirmed} onChange={e=>setConfirmed(e.target.checked)}/> Li os valores e autorizo {method==="card"?"a renovação mensal no cartão":"a criação das mensalidades Pix, que pagarei a cada mês"}.</label>
       <button type="button" className="button" disabled={busy||!confirmed||!data.prices.some(p=>p.id===priceId)} onClick={()=>void act(async()=>{
        const result=await send("/account/billing/checkout",{price_id:priceId,method}) as {url:string};

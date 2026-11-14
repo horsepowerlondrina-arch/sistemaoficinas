@@ -18,6 +18,7 @@ import { workshopRegistrationSchema, workshopStatuses } from "./services/platfor
 import { newWorkshopActivationId, newWorkshopActivationToken, sendWorkshopActivationEmail, workshopActivationTtlHours, workshopActivationUrl } from "./services/workshopActivation.js";
 import { createPlatformAdminDataTransferRoutes } from "./platformAdminDataTransferRoutes.js";
 import { applyWorkshopAccess } from "./services/workshopPlanAccess.js";
+import { selfServiceRoutes } from "./selfServiceRoutes.js";
 import type { PlatformAdminDataTransfer } from "./services/platformAdminDataTransfer.js";
 
 const sessionCookie = "hp_platform_session";
@@ -214,6 +215,7 @@ export function createPlatformAdminApp(pool: Pool, encryptionKey: string, transf
     next();
   };
 
+  app.use(selfServiceRoutes(pool));
   app.use(stripeAdminRoutes(billing,requireSession,requirePermission));
   app.use(createPlatformAdminDataTransferRoutes(pool, transfer, requireSession, requirePermission));
 
