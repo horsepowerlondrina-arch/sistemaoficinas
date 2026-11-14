@@ -1,3 +1,5 @@
+import {OrderAccessControls} from '../components/OrderAccessControls';
+import {can} from '../lib/userAccess';
 import { VehiclePlate } from "../components/VehiclePlate";
 import { basicOrderReceiptMethods, type BasicOrderReceiptMethod } from "../../shared/basicOrderReceipt";
 import { IssuedDocumentActions, IssuedDocumentPreview, IssuedDocumentProvider, PostReceiptActions } from "../components/IssuedDocument";
@@ -17,7 +19,7 @@ export function OrderView() {
   const location = useLocation();
   const [postReceiptOpen, setPostReceiptOpen] = useState(Boolean(location.state?.postReceipt));
   const order = data.orders.find((o) => o.id === id);
-  const admin = session.role === "owner";
+  const admin = can(session,"orders.prices");
   const financeEnabled = session.modules?.finance !== false;
   const receiptAccounts = data.receipt_accounts || [];
   const [confirm, setConfirm] = useState(""),
@@ -46,6 +48,13 @@ export function OrderView() {
       : "Finalizar a OS e baixar estoque. O recebimento pode ser registrado depois."],
     ["cancelled", "Cancelada", "Cancelar o atendimento mantendo o histórico."],
   ] as const;
+  const permittedStatusOptions = statusOptions.filter(([value]) => {
+    if (value === order.status) return false;
+    if (!session.access && session.role !== "owner")
+      return ["open", "working", "ready"].includes(order.status) && ["working", "ready"].includes(value);
+    if (order.status === "quote" && !["quote", "cancelled"].includes(value) && !can(session, "orders.edit")) return false;
+    return can(session, value === "cancelled" ? "orders.admin" : value === "completed" ? "orders.finalize" : (order.status === "completed" || value === "quote") ? "orders.reopen" : "orders.status");
+  });
   const next: Record<string, [string, string]> = {
     quote: ["open", "Aprovar OS"],
     open: ["working", "Iniciar execução"],
@@ -157,13 +166,13 @@ export function OrderView() {
               customerPhone={customer?.phone}
             />
           )}
-          {admin && (
+          {permittedStatusOptions.length > 0 && (
             <button className="button" onClick={() => setStatusPicker(true)}>
               Alterar status
             </button>
           )}
           <IssuedDocumentActions includeShare={false} />
-          {admin && editable && (
+          {can(session,"orders.edit") && editable && (
             <button
               className="button"
               onClick={() => navigate(`/ordens/${id}/editar`)}
@@ -171,7 +180,7 @@ export function OrderView() {
               Editar atendimento
             </button>
           )}
-          {action && (admin || ["working", "ready"].includes(action[0])) && (
+          {action && permittedStatusOptions.some(([value])=>value===action[0]) && (
             <button
               className="button primary"
               disabled={busy}
@@ -180,7 +189,7 @@ export function OrderView() {
               {action[1]}
             </button>
           )}
-          {admin && financeEnabled && order.status === "completed" && order.receivable_id && (
+          {can(session,"finance.receive") && financeEnabled && order.status === "completed" && order.receivable_id && (
             <button
               className="button primary"
               onClick={() => navigate(`/ordens/${id}/receber`)}
@@ -188,7 +197,7 @@ export function OrderView() {
               {order.payment_status === "paid" ? "Ver recebimento" : "Receber OS"}
             </button>
           )}
-          {admin && !financeEnabled && order.status === "completed" && Number(order.total) > 0 && order.payment_status === "open" && (
+          {can(session,"orders.basic_receive") && !financeEnabled && order.status === "completed" && Number(order.total) > 0 && order.payment_status === "open" && (
             <button className="button primary" disabled={busy} onClick={() => {
               setReceiptMethod("Pix");
               setReceiptAccountId(receiptAccounts[0]?.id || "");
@@ -245,7 +254,7 @@ export function OrderView() {
         <div className="work-order-summary-item">
           <span>Status</span><strong><Badge status={displayStatus(order)} /></strong>
         </div>
-        {admin && !financeEnabled && order.status === "completed" && Number(order.total) > 0 && (
+        {can(session,"orders.basic_receive") && !financeEnabled && order.status === "completed" && Number(order.total) > 0 && (
           <div className="work-order-summary-item">
             <span>Recebimento</span>
             <strong>{order.payment_status === "paid"
@@ -302,7 +311,7 @@ export function OrderView() {
       <section className="panel work-order-section">
         <div className="section-heading">
           <h2>Observações para a equipe</h2>
-          {order.status !== "quote" && editable && (
+          {can(session,"orders.notes") && order.status !== "quote" && editable && (
             <button
               className="text-button no-print"
               onClick={() => {
@@ -318,7 +327,7 @@ export function OrderView() {
           {order.notes || "Nenhuma observação adicional."}
         </p>
       </section>
-      {admin && editable && (
+      {can(session,"orders.admin") && editable && (
         <button
           className="text-button danger"
           onClick={() => setConfirm("cancelled")}
@@ -327,6 +336,7 @@ export function OrderView() {
         </button>
       )}
       </div>
+      <div className="no-print"><OrderAccessControls orderId={order.id}/></div>
       <IssuedDocumentPreview />
       {postReceiptOpen && <PostReceiptActions order={order} shopName={session.tenant.name} customerPhone={customer?.phone} onDone={finishReceipt} />}
       {receiptOpen && (
@@ -366,8 +376,7 @@ export function OrderView() {
           onClose={() => setStatusPicker(false)}
         >
           <div className="modal-body status-choice-list">
-            {statusOptions
-              .filter(([value]) => value !== order.status)
+            {permittedStatusOptions
               .map(([value, label, description]) => (
                 <button
                   type="button"

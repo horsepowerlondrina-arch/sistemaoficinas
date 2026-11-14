@@ -14,6 +14,38 @@ Tela inicial de autenticação, sem usuário ou senha preenchidos.
 
 Estado: capturada · mobile · captura 2026-10-22 · commit de origem: não registrado · [arquivo completo](./capturas/01-login-acesso/login-oficina.png)
 
+### Seleção da oficina ativa
+
+Conta fictícia com dois vínculos e perfis independentes.
+
+[![Seleção da oficina ativa](./capturas/01-login-acesso/ops004-office-desktop.png)](./capturas/01-login-acesso/ops004-office-desktop.png)
+
+Estado: capturada · desktop · captura 2026-11-14 · commit de origem: 3f53da28177e3d9d5cca9811e7a403e008863a9a · [arquivo completo](./capturas/01-login-acesso/ops004-office-desktop.png)
+
+### Ativação de colaborador
+
+Convite seguro de colaborador; senha e token não aparecem na captura.
+
+[![Ativação de colaborador](./capturas/01-login-acesso/ops004-invite-desktop.png)](./capturas/01-login-acesso/ops004-invite-desktop.png)
+
+Estado: capturada · desktop · captura 2026-11-14 · commit de origem: 3f53da28177e3d9d5cca9811e7a403e008863a9a · [arquivo completo](./capturas/01-login-acesso/ops004-invite-desktop.png)
+
+### Seleção da oficina ativa
+
+Conta fictícia com dois vínculos e perfis independentes.
+
+[![Seleção da oficina ativa](./capturas/01-login-acesso/ops004-office-mobile.png)](./capturas/01-login-acesso/ops004-office-mobile.png)
+
+Estado: capturada · mobile · captura 2026-11-14 · commit de origem: 3f53da28177e3d9d5cca9811e7a403e008863a9a · [arquivo completo](./capturas/01-login-acesso/ops004-office-mobile.png)
+
+### Ativação de colaborador
+
+Convite seguro de colaborador; senha e token não aparecem na captura.
+
+[![Ativação de colaborador](./capturas/01-login-acesso/ops004-invite-mobile.png)](./capturas/01-login-acesso/ops004-invite-mobile.png)
+
+Estado: capturada · mobile · captura 2026-11-14 · commit de origem: 3f53da28177e3d9d5cca9811e7a403e008863a9a · [arquivo completo](./capturas/01-login-acesso/ops004-invite-mobile.png)
+
 ## 02 — Dashboard
 
 Início, visão geral, indicadores e atalhos.
@@ -224,7 +256,7 @@ Orçamento no fluxo de ordem de serviço, antes de salvar.
 
 [![Novo orçamento](./capturas/06-orcamentos/novo-orcamento.png)](./capturas/06-orcamentos/novo-orcamento.png)
 
-Estado: capturada · mobile · captura 2026-10-22 · commit de origem: não registrado · [arquivo completo](./capturas/06-orcamentos/novo-orcamento.png)
+Estado: capturada · mobile · captura 2026-11-14 · commit de origem: 3f53da28177e3d9d5cca9811e7a403e008863a9a · [arquivo completo](./capturas/06-orcamentos/novo-orcamento.png)
 
 ### CAD-005 — Veículo na abertura do atendimento (desktop)
 
@@ -232,7 +264,7 @@ Formulário real com dados fictícios; identificação FIPE independente da asso
 
 [![CAD-005 — Veículo na abertura do atendimento (desktop)](./capturas/06-orcamentos/cad005-order-desktop.png)](./capturas/06-orcamentos/cad005-order-desktop.png)
 
-Estado: capturada · desktop · captura 2026-10-30 · commit de origem: f6e2a4cb13517dc8f57dc1703586ce27268d004c · [arquivo completo](./capturas/06-orcamentos/cad005-order-desktop.png)
+Estado: capturada · desktop · captura 2026-11-14 · commit de origem: 3f53da28177e3d9d5cca9811e7a403e008863a9a · [arquivo completo](./capturas/06-orcamentos/cad005-order-desktop.png)
 
 ### CAD-005 — Veículo na abertura do atendimento (mobile)
 
@@ -240,7 +272,7 @@ Formulário real com dados fictícios; identificação FIPE independente da asso
 
 [![CAD-005 — Veículo na abertura do atendimento (mobile)](./capturas/06-orcamentos/cad005-order-mobile.png)](./capturas/06-orcamentos/cad005-order-mobile.png)
 
-Estado: capturada · mobile · captura 2026-10-30 · commit de origem: f6e2a4cb13517dc8f57dc1703586ce27268d004c · [arquivo completo](./capturas/06-orcamentos/cad005-order-mobile.png)
+Estado: capturada · mobile · captura 2026-11-14 · commit de origem: 3f53da28177e3d9d5cca9811e7a403e008863a9a · [arquivo completo](./capturas/06-orcamentos/cad005-order-mobile.png)
 
 ## 07 — Ordens de serviço
 
@@ -252,7 +284,7 @@ Lista vazia na base de demonstração.
 
 [![Ordens de serviço da Oficina Fictícia A](./capturas/07-ordens-servico/lista-os-oficina-a.png)](./capturas/07-ordens-servico/lista-os-oficina-a.png)
 
-Estado: capturada · mobile · captura 2026-10-22 · commit de origem: não registrado · [arquivo completo](./capturas/07-ordens-servico/lista-os-oficina-a.png)
+Estado: capturada · mobile · captura 2026-11-14 · commit de origem: 3f53da28177e3d9d5cca9811e7a403e008863a9a · [arquivo completo](./capturas/07-ordens-servico/lista-os-oficina-a.png)
 
 ### Ordens de serviço da Oficina Fictícia B
 
@@ -268,7 +300,7 @@ Formulário inicial; nenhum atendimento foi salvo.
 
 [![Nova ordem de serviço](./capturas/07-ordens-servico/nova-os.png)](./capturas/07-ordens-servico/nova-os.png)
 
-Estado: capturada · mobile · captura 2026-11-08 · commit de origem: dca9c029e9b6ad77cb847ed9c46d42c52ef4a23e · [arquivo completo](./capturas/07-ordens-servico/nova-os.png)
+Estado: capturada · mobile · captura 2026-11-14 · commit de origem: 3f53da28177e3d9d5cca9811e7a403e008863a9a · [arquivo completo](./capturas/07-ordens-servico/nova-os.png)
 
 ### Nova ordem de serviço
 
@@ -276,7 +308,7 @@ Formulário inicial; nenhum atendimento foi salvo.
 
 [![Nova ordem de serviço](./capturas/07-ordens-servico/nova-os-desktop.png)](./capturas/07-ordens-servico/nova-os-desktop.png)
 
-Estado: capturada · desktop · captura 2026-11-08 · commit de origem: dca9c029e9b6ad77cb847ed9c46d42c52ef4a23e · [arquivo completo](./capturas/07-ordens-servico/nova-os-desktop.png)
+Estado: capturada · desktop · captura 2026-11-14 · commit de origem: 3f53da28177e3d9d5cca9811e7a403e008863a9a · [arquivo completo](./capturas/07-ordens-servico/nova-os-desktop.png)
 
 ### Serviços próprios na OS
 
@@ -284,7 +316,7 @@ Cadastro rápido, pesquisa e edição de serviço fictício em orçamento não s
 
 [![Serviços próprios na OS](./capturas/07-ordens-servico/est009-os-private-desktop.png)](./capturas/07-ordens-servico/est009-os-private-desktop.png)
 
-Estado: capturada · desktop · captura 2026-10-30 · commit de origem: f53519d7d874817dd129414e68789368cef5f170 · [arquivo completo](./capturas/07-ordens-servico/est009-os-private-desktop.png)
+Estado: capturada · desktop · captura 2026-11-14 · commit de origem: 3f53da28177e3d9d5cca9811e7a403e008863a9a · [arquivo completo](./capturas/07-ordens-servico/est009-os-private-desktop.png)
 
 ### Serviços próprios na OS (celular)
 
@@ -292,7 +324,7 @@ Pesquisa e inclusão de serviço fictício em orçamento não salvo.
 
 [![Serviços próprios na OS (celular)](./capturas/07-ordens-servico/est009-os-private-mobile.png)](./capturas/07-ordens-servico/est009-os-private-mobile.png)
 
-Estado: capturada · mobile · captura 2026-10-30 · commit de origem: f53519d7d874817dd129414e68789368cef5f170 · [arquivo completo](./capturas/07-ordens-servico/est009-os-private-mobile.png)
+Estado: capturada · mobile · captura 2026-11-14 · commit de origem: 3f53da28177e3d9d5cca9811e7a403e008863a9a · [arquivo completo](./capturas/07-ordens-servico/est009-os-private-mobile.png)
 
 ### CAD-005 — Troca de veículo no atendimento (desktop)
 
@@ -300,7 +332,7 @@ Formulário real com dados fictícios; identificação FIPE independente da asso
 
 [![CAD-005 — Troca de veículo no atendimento (desktop)](./capturas/07-ordens-servico/cad005-switch-desktop.png)](./capturas/07-ordens-servico/cad005-switch-desktop.png)
 
-Estado: capturada · desktop · captura 2026-10-30 · commit de origem: f6e2a4cb13517dc8f57dc1703586ce27268d004c · [arquivo completo](./capturas/07-ordens-servico/cad005-switch-desktop.png)
+Estado: capturada · desktop · captura 2026-11-14 · commit de origem: 3f53da28177e3d9d5cca9811e7a403e008863a9a · [arquivo completo](./capturas/07-ordens-servico/cad005-switch-desktop.png)
 
 ### CAD-005 — Troca de veículo no atendimento (mobile)
 
@@ -308,7 +340,23 @@ Formulário real com dados fictícios; identificação FIPE independente da asso
 
 [![CAD-005 — Troca de veículo no atendimento (mobile)](./capturas/07-ordens-servico/cad005-switch-mobile.png)](./capturas/07-ordens-servico/cad005-switch-mobile.png)
 
-Estado: capturada · mobile · captura 2026-10-30 · commit de origem: f6e2a4cb13517dc8f57dc1703586ce27268d004c · [arquivo completo](./capturas/07-ordens-servico/cad005-switch-mobile.png)
+Estado: capturada · mobile · captura 2026-11-14 · commit de origem: 3f53da28177e3d9d5cca9811e7a403e008863a9a · [arquivo completo](./capturas/07-ordens-servico/cad005-switch-mobile.png)
+
+### Equipe e autorizações da OS
+
+Atribuição por OS a funcionário sem login e pedido de aprovação de desconto.
+
+[![Equipe e autorizações da OS](./capturas/07-ordens-servico/ops004-order-access-desktop.png)](./capturas/07-ordens-servico/ops004-order-access-desktop.png)
+
+Estado: capturada · desktop · captura 2026-11-14 · commit de origem: 3f53da28177e3d9d5cca9811e7a403e008863a9a · [arquivo completo](./capturas/07-ordens-servico/ops004-order-access-desktop.png)
+
+### Equipe e autorizações da OS
+
+Atribuição por OS a funcionário sem login e pedido de aprovação de desconto.
+
+[![Equipe e autorizações da OS](./capturas/07-ordens-servico/ops004-order-access-mobile.png)](./capturas/07-ordens-servico/ops004-order-access-mobile.png)
+
+Estado: capturada · mobile · captura 2026-11-14 · commit de origem: 3f53da28177e3d9d5cca9811e7a403e008863a9a · [arquivo completo](./capturas/07-ordens-servico/ops004-order-access-mobile.png)
 
 ## 08 — Financeiro
 
@@ -388,7 +436,7 @@ Tela de produtos sem rótulo redundante acima do título.
 
 [![Produtos](./capturas/09-cadastros-servicos/produtos.png)](./capturas/09-cadastros-servicos/produtos.png)
 
-Estado: capturada · mobile · captura 2026-11-02 · commit de origem: b2ca47dda74859162d1c81866caab8c774c8a689 · [arquivo completo](./capturas/09-cadastros-servicos/produtos.png)
+Estado: capturada · mobile · captura 2026-11-14 · commit de origem: 3f53da28177e3d9d5cca9811e7a403e008863a9a · [arquivo completo](./capturas/09-cadastros-servicos/produtos.png)
 
 ### Catálogo de tempos
 
@@ -396,7 +444,7 @@ Modelo e serviço fictícios disponíveis para consulta.
 
 [![Catálogo de tempos](./capturas/09-cadastros-servicos/catalogo-tempos.png)](./capturas/09-cadastros-servicos/catalogo-tempos.png)
 
-Estado: capturada · mobile · captura 2026-10-30 · commit de origem: 3792b567510404220727ed26137e813eb84bc96e · [arquivo completo](./capturas/09-cadastros-servicos/catalogo-tempos.png)
+Estado: capturada · mobile · captura 2026-11-14 · commit de origem: 3f53da28177e3d9d5cca9811e7a403e008863a9a · [arquivo completo](./capturas/09-cadastros-servicos/catalogo-tempos.png)
 
 ### Serviços do modelo fictício
 
@@ -404,7 +452,7 @@ Serviço de demonstração e duração de referência.
 
 [![Serviços do modelo fictício](./capturas/09-cadastros-servicos/servicos-modelo-ficticio.png)](./capturas/09-cadastros-servicos/servicos-modelo-ficticio.png)
 
-Estado: capturada · mobile · captura 2026-10-30 · commit de origem: 3792b567510404220727ed26137e813eb84bc96e · [arquivo completo](./capturas/09-cadastros-servicos/servicos-modelo-ficticio.png)
+Estado: capturada · mobile · captura 2026-11-14 · commit de origem: 3f53da28177e3d9d5cca9811e7a403e008863a9a · [arquivo completo](./capturas/09-cadastros-servicos/servicos-modelo-ficticio.png)
 
 ### Serviços particulares
 
@@ -412,7 +460,7 @@ Lista sem serviços próprios cadastrados.
 
 [![Serviços particulares](./capturas/09-cadastros-servicos/servicos-oficina.png)](./capturas/09-cadastros-servicos/servicos-oficina.png)
 
-Estado: capturada · mobile · captura 2026-10-30 · commit de origem: 3792b567510404220727ed26137e813eb84bc96e · [arquivo completo](./capturas/09-cadastros-servicos/servicos-oficina.png)
+Estado: capturada · mobile · captura 2026-11-14 · commit de origem: 3f53da28177e3d9d5cca9811e7a403e008863a9a · [arquivo completo](./capturas/09-cadastros-servicos/servicos-oficina.png)
 
 ### Profissionais
 
@@ -420,7 +468,7 @@ Tela de profissionais sem rótulo redundante acima do título.
 
 [![Profissionais](./capturas/09-cadastros-servicos/profissionais.png)](./capturas/09-cadastros-servicos/profissionais.png)
 
-Estado: capturada · mobile · captura 2026-11-02 · commit de origem: b2ca47dda74859162d1c81866caab8c774c8a689 · [arquivo completo](./capturas/09-cadastros-servicos/profissionais.png)
+Estado: capturada · mobile · captura 2026-11-14 · commit de origem: 3f53da28177e3d9d5cca9811e7a403e008863a9a · [arquivo completo](./capturas/09-cadastros-servicos/profissionais.png)
 
 ### Produtos
 
@@ -428,7 +476,7 @@ Tela de produtos sem rótulo redundante acima do título.
 
 [![Produtos](./capturas/09-cadastros-servicos/produtos-desktop.png)](./capturas/09-cadastros-servicos/produtos-desktop.png)
 
-Estado: capturada · desktop · captura 2026-11-02 · commit de origem: b2ca47dda74859162d1c81866caab8c774c8a689 · [arquivo completo](./capturas/09-cadastros-servicos/produtos-desktop.png)
+Estado: capturada · desktop · captura 2026-11-14 · commit de origem: 3f53da28177e3d9d5cca9811e7a403e008863a9a · [arquivo completo](./capturas/09-cadastros-servicos/produtos-desktop.png)
 
 ### Catálogo de tempos
 
@@ -436,7 +484,7 @@ Modelo e serviço fictícios disponíveis para consulta.
 
 [![Catálogo de tempos](./capturas/09-cadastros-servicos/catalogo-tempos-desktop.png)](./capturas/09-cadastros-servicos/catalogo-tempos-desktop.png)
 
-Estado: capturada · desktop · captura 2026-10-30 · commit de origem: 3792b567510404220727ed26137e813eb84bc96e · [arquivo completo](./capturas/09-cadastros-servicos/catalogo-tempos-desktop.png)
+Estado: capturada · desktop · captura 2026-11-14 · commit de origem: 3f53da28177e3d9d5cca9811e7a403e008863a9a · [arquivo completo](./capturas/09-cadastros-servicos/catalogo-tempos-desktop.png)
 
 ### Serviços do modelo fictício
 
@@ -444,7 +492,7 @@ Serviço de demonstração e duração de referência.
 
 [![Serviços do modelo fictício](./capturas/09-cadastros-servicos/servicos-modelo-ficticio-desktop.png)](./capturas/09-cadastros-servicos/servicos-modelo-ficticio-desktop.png)
 
-Estado: capturada · desktop · captura 2026-10-30 · commit de origem: 3792b567510404220727ed26137e813eb84bc96e · [arquivo completo](./capturas/09-cadastros-servicos/servicos-modelo-ficticio-desktop.png)
+Estado: capturada · desktop · captura 2026-11-14 · commit de origem: 3f53da28177e3d9d5cca9811e7a403e008863a9a · [arquivo completo](./capturas/09-cadastros-servicos/servicos-modelo-ficticio-desktop.png)
 
 ### Serviços particulares
 
@@ -452,7 +500,7 @@ Lista sem serviços próprios cadastrados.
 
 [![Serviços particulares](./capturas/09-cadastros-servicos/servicos-oficina-desktop.png)](./capturas/09-cadastros-servicos/servicos-oficina-desktop.png)
 
-Estado: capturada · desktop · captura 2026-10-30 · commit de origem: 3792b567510404220727ed26137e813eb84bc96e · [arquivo completo](./capturas/09-cadastros-servicos/servicos-oficina-desktop.png)
+Estado: capturada · desktop · captura 2026-11-14 · commit de origem: 3f53da28177e3d9d5cca9811e7a403e008863a9a · [arquivo completo](./capturas/09-cadastros-servicos/servicos-oficina-desktop.png)
 
 ### Catálogo de Tempos em Serviços
 
@@ -460,7 +508,7 @@ Consulta técnica por marca, modelo e serviço.
 
 [![Catálogo de Tempos em Serviços](./capturas/09-cadastros-servicos/catalogo-tempos-servicos-desktop.png)](./capturas/09-cadastros-servicos/catalogo-tempos-servicos-desktop.png)
 
-Estado: capturada · desktop · captura 2026-10-30 · commit de origem: 3792b567510404220727ed26137e813eb84bc96e · [arquivo completo](./capturas/09-cadastros-servicos/catalogo-tempos-servicos-desktop.png)
+Estado: capturada · desktop · captura 2026-11-14 · commit de origem: 3f53da28177e3d9d5cca9811e7a403e008863a9a · [arquivo completo](./capturas/09-cadastros-servicos/catalogo-tempos-servicos-desktop.png)
 
 ### Catálogo de Tempos em Serviços
 
@@ -468,7 +516,7 @@ Consulta técnica por marca, modelo e serviço.
 
 [![Catálogo de Tempos em Serviços](./capturas/09-cadastros-servicos/catalogo-tempos-servicos-mobile.png)](./capturas/09-cadastros-servicos/catalogo-tempos-servicos-mobile.png)
 
-Estado: capturada · mobile · captura 2026-10-30 · commit de origem: 3792b567510404220727ed26137e813eb84bc96e · [arquivo completo](./capturas/09-cadastros-servicos/catalogo-tempos-servicos-mobile.png)
+Estado: capturada · mobile · captura 2026-11-14 · commit de origem: 3f53da28177e3d9d5cca9811e7a403e008863a9a · [arquivo completo](./capturas/09-cadastros-servicos/catalogo-tempos-servicos-mobile.png)
 
 ### Profissionais
 
@@ -476,7 +524,7 @@ Tela de profissionais sem rótulo redundante acima do título.
 
 [![Profissionais](./capturas/09-cadastros-servicos/profissionais-desktop.png)](./capturas/09-cadastros-servicos/profissionais-desktop.png)
 
-Estado: capturada · desktop · captura 2026-11-02 · commit de origem: b2ca47dda74859162d1c81866caab8c774c8a689 · [arquivo completo](./capturas/09-cadastros-servicos/profissionais-desktop.png)
+Estado: capturada · desktop · captura 2026-11-14 · commit de origem: 3f53da28177e3d9d5cca9811e7a403e008863a9a · [arquivo completo](./capturas/09-cadastros-servicos/profissionais-desktop.png)
 
 ## 10 — Estoque
 
@@ -556,7 +604,7 @@ Identificação, endereço efetivo, navegação por seções e prévia de docume
 
 [![Dados da Oficina Fictícia A](./capturas/14-configuracoes/dados-oficina-a.png)](./capturas/14-configuracoes/dados-oficina-a.png)
 
-Estado: capturada · mobile · captura 2026-11-01 · commit de origem: 56b226764ee6420a52bdff3a41bd459113618460 · [arquivo completo](./capturas/14-configuracoes/dados-oficina-a.png)
+Estado: capturada · mobile · captura 2026-11-14 · commit de origem: 3f53da28177e3d9d5cca9811e7a403e008863a9a · [arquivo completo](./capturas/14-configuracoes/dados-oficina-a.png)
 
 ### Taxas e parcelamento
 
@@ -564,7 +612,7 @@ Máquinas independentes, padrão da oficina e juros de parcelamento.
 
 [![Taxas e parcelamento](./capturas/14-configuracoes/geral-e-taxas.png)](./capturas/14-configuracoes/geral-e-taxas.png)
 
-Estado: capturada · mobile · captura 2026-11-01 · commit de origem: 26770cc4da2ccbf9de3620882b0a87066fdce927 · [arquivo completo](./capturas/14-configuracoes/geral-e-taxas.png)
+Estado: capturada · mobile · captura 2026-11-14 · commit de origem: 3f53da28177e3d9d5cca9811e7a403e008863a9a · [arquivo completo](./capturas/14-configuracoes/geral-e-taxas.png)
 
 ### Mão de obra por porte
 
@@ -572,7 +620,7 @@ Valores de referência sem alteração.
 
 [![Mão de obra por porte](./capturas/14-configuracoes/mao-de-obra.png)](./capturas/14-configuracoes/mao-de-obra.png)
 
-Estado: capturada · mobile · captura 2026-11-01 · commit de origem: 56b226764ee6420a52bdff3a41bd459113618460 · [arquivo completo](./capturas/14-configuracoes/mao-de-obra.png)
+Estado: capturada · mobile · captura 2026-11-14 · commit de origem: 3f53da28177e3d9d5cca9811e7a403e008863a9a · [arquivo completo](./capturas/14-configuracoes/mao-de-obra.png)
 
 ### Lucro de peças e terceiros
 
@@ -580,7 +628,7 @@ Faixas editáveis de peças e terceiros com simuladores que mostram o preço sug
 
 [![Lucro de peças e terceiros](./capturas/14-configuracoes/lucro-pecas-terceiros.png)](./capturas/14-configuracoes/lucro-pecas-terceiros.png)
 
-Estado: capturada · mobile · captura 2026-11-03 · commit de origem: b8d27c0f97305c128c7a4a8ed9047aad4c061261 · [arquivo completo](./capturas/14-configuracoes/lucro-pecas-terceiros.png)
+Estado: capturada · mobile · captura 2026-11-14 · commit de origem: 3f53da28177e3d9d5cca9811e7a403e008863a9a · [arquivo completo](./capturas/14-configuracoes/lucro-pecas-terceiros.png)
 
 ### Dados da Oficina Fictícia A
 
@@ -588,7 +636,7 @@ Identificação, endereço efetivo, navegação por seções e prévia de docume
 
 [![Dados da Oficina Fictícia A](./capturas/14-configuracoes/dados-oficina-a-desktop.png)](./capturas/14-configuracoes/dados-oficina-a-desktop.png)
 
-Estado: capturada · desktop · captura 2026-11-01 · commit de origem: 56b226764ee6420a52bdff3a41bd459113618460 · [arquivo completo](./capturas/14-configuracoes/dados-oficina-a-desktop.png)
+Estado: capturada · desktop · captura 2026-11-14 · commit de origem: 3f53da28177e3d9d5cca9811e7a403e008863a9a · [arquivo completo](./capturas/14-configuracoes/dados-oficina-a-desktop.png)
 
 ### Taxas e parcelamento
 
@@ -596,7 +644,7 @@ Máquinas independentes, padrão da oficina e juros de parcelamento.
 
 [![Taxas e parcelamento](./capturas/14-configuracoes/geral-e-taxas-desktop.png)](./capturas/14-configuracoes/geral-e-taxas-desktop.png)
 
-Estado: capturada · desktop · captura 2026-11-01 · commit de origem: 26770cc4da2ccbf9de3620882b0a87066fdce927 · [arquivo completo](./capturas/14-configuracoes/geral-e-taxas-desktop.png)
+Estado: capturada · desktop · captura 2026-11-14 · commit de origem: 3f53da28177e3d9d5cca9811e7a403e008863a9a · [arquivo completo](./capturas/14-configuracoes/geral-e-taxas-desktop.png)
 
 ### Mão de obra por porte
 
@@ -604,7 +652,7 @@ Valores de referência sem alteração.
 
 [![Mão de obra por porte](./capturas/14-configuracoes/mao-de-obra-desktop.png)](./capturas/14-configuracoes/mao-de-obra-desktop.png)
 
-Estado: capturada · desktop · captura 2026-11-01 · commit de origem: 56b226764ee6420a52bdff3a41bd459113618460 · [arquivo completo](./capturas/14-configuracoes/mao-de-obra-desktop.png)
+Estado: capturada · desktop · captura 2026-11-14 · commit de origem: 3f53da28177e3d9d5cca9811e7a403e008863a9a · [arquivo completo](./capturas/14-configuracoes/mao-de-obra-desktop.png)
 
 ### Lucro de peças e terceiros
 
@@ -612,7 +660,7 @@ Faixas editáveis de peças e terceiros com simuladores que mostram o preço sug
 
 [![Lucro de peças e terceiros](./capturas/14-configuracoes/lucro-pecas-terceiros-desktop.png)](./capturas/14-configuracoes/lucro-pecas-terceiros-desktop.png)
 
-Estado: capturada · desktop · captura 2026-11-03 · commit de origem: b8d27c0f97305c128c7a4a8ed9047aad4c061261 · [arquivo completo](./capturas/14-configuracoes/lucro-pecas-terceiros-desktop.png)
+Estado: capturada · desktop · captura 2026-11-14 · commit de origem: 3f53da28177e3d9d5cca9811e7a403e008863a9a · [arquivo completo](./capturas/14-configuracoes/lucro-pecas-terceiros-desktop.png)
 
 ### Conta da oficina
 
@@ -620,7 +668,7 @@ Administrador, alteração de senha por e-mail, plano contratado e ações de as
 
 [![Conta da oficina](./capturas/14-configuracoes/config-conta-integracoes-desktop.png)](./capturas/14-configuracoes/config-conta-integracoes-desktop.png)
 
-Estado: capturada · desktop · captura 2026-11-03 · commit de origem: f02307752aaf81e1b2d86b9974e444c660c44f3f · [arquivo completo](./capturas/14-configuracoes/config-conta-integracoes-desktop.png)
+Estado: capturada · desktop · captura 2026-11-14 · commit de origem: 3f53da28177e3d9d5cca9811e7a403e008863a9a · [arquivo completo](./capturas/14-configuracoes/config-conta-integracoes-desktop.png)
 
 ### Conta da oficina
 
@@ -628,7 +676,7 @@ Administrador, alteração de senha por e-mail, plano contratado e ações de as
 
 [![Conta da oficina](./capturas/14-configuracoes/config-conta-integracoes-mobile.png)](./capturas/14-configuracoes/config-conta-integracoes-mobile.png)
 
-Estado: capturada · mobile · captura 2026-11-03 · commit de origem: f02307752aaf81e1b2d86b9974e444c660c44f3f · [arquivo completo](./capturas/14-configuracoes/config-conta-integracoes-mobile.png)
+Estado: capturada · mobile · captura 2026-11-14 · commit de origem: 3f53da28177e3d9d5cca9811e7a403e008863a9a · [arquivo completo](./capturas/14-configuracoes/config-conta-integracoes-mobile.png)
 
 ### Máquina e taxas por parcela
 
@@ -636,7 +684,7 @@ Cadastro e edição de máquinas fictícias, taxa por modalidade/parcela e limit
 
 [![Máquina e taxas por parcela](./capturas/14-configuracoes/ops002-machine-editor-desktop.png)](./capturas/14-configuracoes/ops002-machine-editor-desktop.png)
 
-Estado: capturada · desktop · captura 2026-11-01 · commit de origem: 26770cc4da2ccbf9de3620882b0a87066fdce927 · [arquivo completo](./capturas/14-configuracoes/ops002-machine-editor-desktop.png)
+Estado: capturada · desktop · captura 2026-11-14 · commit de origem: 3f53da28177e3d9d5cca9811e7a403e008863a9a · [arquivo completo](./capturas/14-configuracoes/ops002-machine-editor-desktop.png)
 
 ### Máquina e taxas por parcela
 
@@ -644,7 +692,7 @@ Cadastro e edição de máquinas fictícias, taxa por modalidade/parcela e limit
 
 [![Máquina e taxas por parcela](./capturas/14-configuracoes/ops002-machine-editor-mobile.png)](./capturas/14-configuracoes/ops002-machine-editor-mobile.png)
 
-Estado: capturada · mobile · captura 2026-11-01 · commit de origem: 26770cc4da2ccbf9de3620882b0a87066fdce927 · [arquivo completo](./capturas/14-configuracoes/ops002-machine-editor-mobile.png)
+Estado: capturada · mobile · captura 2026-11-14 · commit de origem: 3f53da28177e3d9d5cca9811e7a403e008863a9a · [arquivo completo](./capturas/14-configuracoes/ops002-machine-editor-mobile.png)
 
 ### Assinatura e pagamentos da oficina
 
@@ -661,6 +709,70 @@ Componente real em Chromium com API e pagamentos fictícios; não comprova entre
 [![Assinatura e pagamentos da oficina](./capturas/14-configuracoes/stripe-oficina-mobile.png)](./capturas/14-configuracoes/stripe-oficina-mobile.png)
 
 Estado: capturada · mobile · captura 2026-11-05 · commit de origem: ffa6ae17881c2848a19a373d48599d99fc35ef4f · [arquivo completo](./capturas/14-configuracoes/stripe-oficina-mobile.png)
+
+### Usuários, funcionários e vagas
+
+Gestão de acessos e autorizações com dados fictícios em PostgreSQL descartável.
+
+[![Usuários, funcionários e vagas](./capturas/14-configuracoes/ops004-users-desktop.png)](./capturas/14-configuracoes/ops004-users-desktop.png)
+
+Estado: capturada · desktop · captura 2026-11-14 · commit de origem: 3f53da28177e3d9d5cca9811e7a403e008863a9a · [arquivo completo](./capturas/14-configuracoes/ops004-users-desktop.png)
+
+### Perfil e permissões individuais
+
+Gestão de acessos e autorizações com dados fictícios em PostgreSQL descartável.
+
+[![Perfil e permissões individuais](./capturas/14-configuracoes/ops004-permissions-desktop.png)](./capturas/14-configuracoes/ops004-permissions-desktop.png)
+
+Estado: capturada · desktop · captura 2026-11-14 · commit de origem: 3f53da28177e3d9d5cca9811e7a403e008863a9a · [arquivo completo](./capturas/14-configuracoes/ops004-permissions-desktop.png)
+
+### Funcionário sem login e vínculo opcional
+
+Gestão de acessos e autorizações com dados fictícios em PostgreSQL descartável.
+
+[![Funcionário sem login e vínculo opcional](./capturas/14-configuracoes/ops004-staff-desktop.png)](./capturas/14-configuracoes/ops004-staff-desktop.png)
+
+Estado: capturada · desktop · captura 2026-11-14 · commit de origem: 3f53da28177e3d9d5cca9811e7a403e008863a9a · [arquivo completo](./capturas/14-configuracoes/ops004-staff-desktop.png)
+
+### Central interna de aprovações
+
+Gestão de acessos e autorizações com dados fictícios em PostgreSQL descartável.
+
+[![Central interna de aprovações](./capturas/14-configuracoes/ops004-approvals-desktop.png)](./capturas/14-configuracoes/ops004-approvals-desktop.png)
+
+Estado: capturada · desktop · captura 2026-11-14 · commit de origem: 3f53da28177e3d9d5cca9811e7a403e008863a9a · [arquivo completo](./capturas/14-configuracoes/ops004-approvals-desktop.png)
+
+### Usuários, funcionários e vagas
+
+Gestão de acessos e autorizações com dados fictícios em PostgreSQL descartável.
+
+[![Usuários, funcionários e vagas](./capturas/14-configuracoes/ops004-users-mobile.png)](./capturas/14-configuracoes/ops004-users-mobile.png)
+
+Estado: capturada · mobile · captura 2026-11-14 · commit de origem: 3f53da28177e3d9d5cca9811e7a403e008863a9a · [arquivo completo](./capturas/14-configuracoes/ops004-users-mobile.png)
+
+### Perfil e permissões individuais
+
+Gestão de acessos e autorizações com dados fictícios em PostgreSQL descartável.
+
+[![Perfil e permissões individuais](./capturas/14-configuracoes/ops004-permissions-mobile.png)](./capturas/14-configuracoes/ops004-permissions-mobile.png)
+
+Estado: capturada · mobile · captura 2026-11-14 · commit de origem: 3f53da28177e3d9d5cca9811e7a403e008863a9a · [arquivo completo](./capturas/14-configuracoes/ops004-permissions-mobile.png)
+
+### Funcionário sem login e vínculo opcional
+
+Gestão de acessos e autorizações com dados fictícios em PostgreSQL descartável.
+
+[![Funcionário sem login e vínculo opcional](./capturas/14-configuracoes/ops004-staff-mobile.png)](./capturas/14-configuracoes/ops004-staff-mobile.png)
+
+Estado: capturada · mobile · captura 2026-11-14 · commit de origem: 3f53da28177e3d9d5cca9811e7a403e008863a9a · [arquivo completo](./capturas/14-configuracoes/ops004-staff-mobile.png)
+
+### Central interna de aprovações
+
+Gestão de acessos e autorizações com dados fictícios em PostgreSQL descartável.
+
+[![Central interna de aprovações](./capturas/14-configuracoes/ops004-approvals-mobile.png)](./capturas/14-configuracoes/ops004-approvals-mobile.png)
+
+Estado: capturada · mobile · captura 2026-11-14 · commit de origem: 3f53da28177e3d9d5cca9811e7a403e008863a9a · [arquivo completo](./capturas/14-configuracoes/ops004-approvals-mobile.png)
 
 ## 15 — Integrações e extensão Chrome
 
@@ -867,5 +979,19 @@ Editar taxas, selecionar máquina, simular repasse, salvar e reabrir plano fict�
 
 1. Máquina e taxas por parcela (capturada) — [imagem](./capturas/14-configuracoes/ops002-machine-editor-desktop.png)
 2. Recebimento com máquina e repasse (capturada) — [imagem](./capturas/08-financeiro/ops002-receipt-desktop.png)
+
+Estado: capturada
+
+### FL-OPS004 — Usuários → permissões → funcionários → aprovações
+
+Gestão de acessos e autorizações internas da oficina fictícia.
+
+1. Usuários, funcionários e vagas (capturada) — [imagem](./capturas/14-configuracoes/ops004-users-desktop.png)
+2. Perfil e permissões individuais (capturada) — [imagem](./capturas/14-configuracoes/ops004-permissions-desktop.png)
+3. Funcionário sem login e vínculo opcional (capturada) — [imagem](./capturas/14-configuracoes/ops004-staff-desktop.png)
+4. Equipe e autorizações da OS (capturada) — [imagem](./capturas/07-ordens-servico/ops004-order-access-desktop.png)
+5. Central interna de aprovações (capturada) — [imagem](./capturas/14-configuracoes/ops004-approvals-desktop.png)
+6. Seleção da oficina ativa (capturada) — [imagem](./capturas/01-login-acesso/ops004-office-desktop.png)
+7. Ativação de colaborador (capturada) — [imagem](./capturas/01-login-acesso/ops004-invite-desktop.png)
 
 Estado: capturada

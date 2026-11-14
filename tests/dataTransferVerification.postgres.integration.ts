@@ -1,3 +1,4 @@
+// OPS-004: identity fixtures keep their last Master until the disposable CI database is destroyed.
 import assert from "node:assert/strict";
 import { createHash, randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
@@ -161,10 +162,16 @@ test("PostgreSQL local: transferência fictícia completa preserva IDs, relaçõ
       assert.equal(changedPayment.entities.cash_entries.divergent, 1);
       await db.prepare("UPDATE cash_entries SET amount=? WHERE tenant_id=? AND id=?").run(4000, tenantId, cashEntryId);
 
+      // Preserve a Master while verifying that an operator cannot import data.
+      const reserveUserId=userId+'-reserve';
+      await admin.query("INSERT INTO horse_power.users(id,name,email,password_hash) VALUES($1,'Master Reserva Fictício',$2,'fixture-hash')",[reserveUserId,`reserve-${userId}@example.test`]);
+      await admin.query("INSERT INTO horse_power.memberships(user_id,tenant_id,role) VALUES($1,$2,'owner')",[reserveUserId,tenantId]);
       await admin.query("UPDATE horse_power.memberships SET role='operator' WHERE tenant_id=$1 AND user_id=$2", [tenantId, userId]);
       await assert.rejects(verifyWorkshopImport(db, tenantId, file, phrase, userId, "merge"),
         error=>error instanceof TransferVerificationError && error.code==="authorization");
       await admin.query("UPDATE horse_power.memberships SET role='owner' WHERE tenant_id=$1 AND user_id=$2", [tenantId, userId]);
+      await admin.query("DELETE FROM horse_power.memberships WHERE tenant_id=$1 AND user_id=$2",[tenantId,reserveUserId]);
+      await admin.query("DELETE FROM horse_power.users WHERE id=$1",[reserveUserId]);
       const rows = await db.prepare(`SELECT c.id AS customer_id,v.customer_id AS vehicle_customer,o.vehicle_id,i.price,r.issued_by,r.payload
         FROM customers c JOIN vehicles v ON v.tenant_id=c.tenant_id AND v.customer_id=c.id
         JOIN orders o ON o.tenant_id=v.tenant_id AND o.vehicle_id=v.id
@@ -263,11 +270,7 @@ test("PostgreSQL local: transferência fictícia completa preserva IDs, relaçõ
       await admin.query("DELETE FROM horse_power.data_transfer_backups WHERE tenant_id=$1", [tenantId]).catch(() => {});
       await admin.query("DELETE FROM horse_power.data_transfer_records WHERE tenant_id=$1", [tenantId]).catch(() => {});
       await admin.query("DELETE FROM horse_power.customers WHERE tenant_id=$1", [tenantId]);
-      await admin.query("DELETE FROM horse_power.memberships WHERE tenant_id=$1", [tenantId]);
-      await admin.query("DELETE FROM horse_power.users WHERE id=$1", [userId]);
-      await admin.query("DELETE FROM horse_power.tenants WHERE id=$1", [tenantId]);
       await admin.query("DELETE FROM horse_power.customers WHERE tenant_id=$1", [otherTenantId]);
-      await admin.query("DELETE FROM horse_power.tenants WHERE id=$1", [otherTenantId]);
     }
     await admin.end();
   }
@@ -310,9 +313,6 @@ test("PostgreSQL local: importações concorrentes revalidam sob bloqueio e não
       await admin.query("DELETE FROM horse_power.audit_events WHERE tenant_id=$1", [tenantId]);
       await admin.query("DELETE FROM horse_power.data_transfer_records WHERE tenant_id=$1", [tenantId]).catch(() => {});
       await admin.query("DELETE FROM horse_power.customers WHERE tenant_id=$1", [tenantId]);
-      await admin.query("DELETE FROM horse_power.memberships WHERE tenant_id=$1", [tenantId]);
-      await admin.query("DELETE FROM horse_power.users WHERE id=$1", [userId]);
-      await admin.query("DELETE FROM horse_power.tenants WHERE id=$1", [tenantId]);
     }
     await admin.end();
   }
@@ -398,9 +398,6 @@ test("PostgreSQL local: admin transfer uses scoped RLS context and verifies a wo
       await admin.query("DELETE FROM horse_power.data_transfer_records WHERE tenant_id=ANY($1::text[])", [tenantIds]).catch(() => {});
       await admin.query("DELETE FROM horse_power.data_transfer_archived_documents WHERE tenant_id=ANY($1::text[])", [tenantIds]).catch(() => {});
       await admin.query("DELETE FROM horse_power.customers WHERE tenant_id=ANY($1::text[])", [tenantIds]);
-      await admin.query("DELETE FROM horse_power.memberships WHERE tenant_id=ANY($1::text[])", [tenantIds]);
-      await admin.query("DELETE FROM horse_power.users WHERE id=ANY($1::text[])", [[ownerUserId, otherUserId]]);
-      await admin.query("DELETE FROM horse_power.tenants WHERE id=ANY($1::text[])", [tenantIds]);
     }
     await admin.end();
   }
@@ -452,9 +449,6 @@ test("PostgreSQL local: exportação administrativa criptografada em partes pres
   } finally {
     await db.close();
     await admin.query("DELETE FROM horse_power.data_transfer_backups WHERE tenant_id=ANY($1::text[])",[[tenantId,otherTenantId]]).catch(()=>{});
-    await admin.query("DELETE FROM horse_power.memberships WHERE tenant_id=ANY($1::text[])",[[tenantId,otherTenantId]]).catch(()=>{});
-    await admin.query("DELETE FROM horse_power.users WHERE id=ANY($1::text[])",[[userId,otherUserId]]).catch(()=>{});
-    await admin.query("DELETE FROM horse_power.tenants WHERE id=ANY($1::text[])",[[tenantId,otherTenantId]]).catch(()=>{});
     await admin.end();
   }
 });

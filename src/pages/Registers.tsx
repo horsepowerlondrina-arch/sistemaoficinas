@@ -1,3 +1,4 @@
+import {can} from '../lib/userAccess';
 import { VehiclePlate } from "../components/VehiclePlate";
 import { productLabel, productDetails, matchesSearch } from "../../shared/productIdentity";
 import { needsReplenishment } from "../../shared/stockThreshold";
@@ -431,7 +432,7 @@ export function RegisterModal({
   onSaved?: (id: string, values: Record<string, any>) => void;
   additionalFields?: ReactNode;
 }) {
-  const { data, refresh, notify } = useApp();
+  const { data, session,refresh, notify } = useApp();
   const navigate = useNavigate();
   const defaults: Record<Kind, Record<string, any>> = {
     customers: {
@@ -640,7 +641,7 @@ export function RegisterModal({
       setBusy(false);
     }
   };
-  const history = record
+  const history = record && can(session,"personal.history")
     ? data.orders.filter((o) =>
         kind === "customers"
           ? o.customer_id === record.id

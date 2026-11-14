@@ -1,3 +1,4 @@
+import {readUserAccess} from '../services/userAccess';
 import {
   randomBytes,
   scryptSync,
@@ -8,12 +9,13 @@ import type { DB } from "../db/database.js";
 import { tenantAccessDecision } from "./tenantAccess.js";
 import type { Request, Response, NextFunction } from "express";
 import { defaultWorkshopModules } from "../../shared/workshopModules.js";
-export type Context = { userId: string; tenantId: string; role: string; modules?: Record<string, boolean> };
+export type Context = { userId: string; tenantId: string; role: string; modules?: Record<string, boolean>; access?: import('../services/userAccess').UserAccess; action?: import('../../shared/userPermissions').Permission };
 export function hashPassword(password: string) {
   const salt = randomBytes(16).toString("hex");
   return `${salt}:${scryptSync(password, salt, 64).toString("hex")}`;
 }
 export function verifyPassword(password: string, hash: string) {
+  if(!/^[a-f0-9]{32}:[a-f0-9]{128}$/i.test(hash))return false;
   const [salt, key] = hash.split(":");
   return timingSafeEqual(
     Buffer.from(key, "hex"),
@@ -41,6 +43,9 @@ export async function startSession(
   await db
     .prepare("INSERT INTO sessions VALUES(?,?,?,?)")
     .run(digest(token), userId, tenantId, Date.now() + 86400000);
+  const enabled=!db.hasUserAccessSchema||await db.hasUserAccessSchema();
+  const count=enabled?await db.prepare('SELECT count(*) n FROM memberships m LEFT JOIN workshop_user_access a ON a.tenant_id=m.tenant_id AND a.user_id=m.user_id WHERE m.user_id=? AND COALESCE(a.active,1)=1').get(userId):null;
+  if(Number(count?.n)>1){const save=async()=>{await db.prepare('INSERT INTO session_office_choices(token_hash) VALUES(?)').run(digest(token));};if(db.withRequestContext)await db.withRequestContext({'app.session_hash':digest(token)},save);else await save();}
   res.cookie("hp_session", token, {
     httpOnly: true,
     sameSite: "strict",
@@ -79,7 +84,12 @@ export function auth(db: DB) {
       return;
     }
     const modules = await db.getTenantModuleAccess?.(String(session.tenantId)) || { ...defaultWorkshopModules };
-    res.locals.context = { ...session, role: membership.role, modules };
+    const ctx:Context = { userId:String(session.userId),tenantId:String(session.tenantId), role: membership.role, modules };
+    if(!db.hasUserAccessSchema||await db.hasUserAccessSchema())ctx.access=await readUserAccess(db,ctx);
+    if(ctx.access&&!ctx.access.active){res.status(401).json({error:"Acesso desativado nesta oficina."});return;}
+    const choice=ctx.access?await db.prepare('SELECT confirmed FROM session_office_choices WHERE token_hash=?').get(digest(tokenFrom(req))):null;
+    if(choice?.confirmed===0&&!['/session','/workspace','/tenant','/logout'].includes(req.path)){res.status(409).json({error:'Selecione a oficina ativa antes de continuar.'});return;}
+    res.locals.context = ctx;
     next();
   };
 }

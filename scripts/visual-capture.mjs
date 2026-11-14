@@ -24,6 +24,9 @@ const outputDir = outputArg ? resolve(outputArg) : "";
 if (noWrite && !outputDir) throw new Error("--no-write exige --output-dir para manter os arquivos fora da biblioteca versionada.");
 
 const moduleByChangedPath = (path) => {
+  if (/src\/components\/WorkshopUsers/.test(path)) return '14-configuracoes';
+  if (/src\/components\/OrderAccessControls/.test(path)) return ['14-configuracoes','06-orcamentos','07-ordens-servico'];
+  if (/AcceptEmployeeInvite/.test(path)) return '01-login-acesso';
   if (/^(src\/App\.tsx|src\/styles\.css|server\/app\.ts|shared\/workshopModules\.ts|src\/components\/|src\/lib\/)/i.test(path)) return "*";
   if (/src\/pages\/(Home|Dashboard)\.tsx/i.test(path)) return "02-dashboard";
   if (/PeopleRegisters/i.test(path)) return ["03-clientes", "04-veiculos"];
@@ -52,7 +55,7 @@ if (args.includes("--affected")) {
 }
 if (moduleFilter && !catalog.modules.some((module) => module.id === moduleFilter)) throw new Error(`Módulo desconhecido: ${moduleFilter}`);
 
-const candidates = catalog.entries.filter((entry) => entry.driver !== "admin-interface" && entry.image && entry.route.startsWith("/") && (!selectedModules || selectedModules.has(entry.module)) && entry.id !== "login-painel-central");
+const candidates = catalog.entries.filter((entry) => entry.driver !== "admin-interface" && entry.driver !== "ops004-interface" && entry.image && entry.route.startsWith("/") && (!selectedModules || selectedModules.has(entry.module)) && entry.id !== "login-painel-central");
 if (!selectedModules || selectedModules.has("14-configuracoes")) {
   for (const viewport of ["desktop","mobile"]) {
     for (const [id,title,description,route] of [

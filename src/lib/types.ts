@@ -42,6 +42,8 @@ export interface Workspace {
   plate_lookup_enabled?: boolean;
 }
 export interface Session {
+  must_select_office?:boolean;
+  access?: import('../../server/services/userAccess').UserAccess;
   user: { id: string; name: string; email: string };
   tenant: Entity;
   tenants: Entity[];

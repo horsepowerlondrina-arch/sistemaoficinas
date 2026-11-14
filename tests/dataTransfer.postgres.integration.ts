@@ -1,3 +1,4 @@
+// OPS-004: identity fixtures keep their last Master until the disposable CI database is destroyed.
 import assert from "node:assert/strict";
 import { createHash, randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
@@ -197,9 +198,6 @@ test("PostgreSQL local: transferência fictícia completa preserva IDs, relaçõ
       await admin.query("DELETE FROM horse_power.workshop_services WHERE tenant_id=$1", [tenantId]);
       await admin.query("DELETE FROM horse_power.workshop_service_categories WHERE tenant_id=$1", [tenantId]);
       await admin.query("DELETE FROM horse_power.customers WHERE tenant_id=$1", [tenantId]);
-      await admin.query("DELETE FROM horse_power.memberships WHERE tenant_id=$1", [tenantId]);
-      await admin.query("DELETE FROM horse_power.users WHERE id=$1", [userId]);
-      await admin.query("DELETE FROM horse_power.tenants WHERE id=$1", [tenantId]);
     }
     await admin.end();
   }
@@ -242,9 +240,6 @@ test("PostgreSQL local: importações concorrentes revalidam sob bloqueio e não
       await admin.query("DELETE FROM horse_power.audit_events WHERE tenant_id=$1", [tenantId]);
       await admin.query("DELETE FROM horse_power.data_transfer_records WHERE tenant_id=$1", [tenantId]).catch(() => {});
       await admin.query("DELETE FROM horse_power.customers WHERE tenant_id=$1", [tenantId]);
-      await admin.query("DELETE FROM horse_power.memberships WHERE tenant_id=$1", [tenantId]);
-      await admin.query("DELETE FROM horse_power.users WHERE id=$1", [userId]);
-      await admin.query("DELETE FROM horse_power.tenants WHERE id=$1", [tenantId]);
     }
     await admin.end();
   }
@@ -372,10 +367,7 @@ test("PostgreSQL local: import repetido em outra oficina remapeia IDs globais se
       }
       for (const id of tenantIds) {
         await admin.query("DELETE FROM horse_power.sessions WHERE tenant_id=$1",[id]).catch(()=>{});
-        await admin.query("DELETE FROM horse_power.memberships WHERE tenant_id=$1",[id]).catch(()=>{});
       }
-      for (const id of [userOne,userTwo]) await admin.query("DELETE FROM horse_power.users WHERE id=$1",[id]).catch(()=>{});
-      for (const id of tenantIds) await admin.query("DELETE FROM horse_power.tenants WHERE id=$1",[id]).catch(()=>{});
     }
     await admin.end();
   }
