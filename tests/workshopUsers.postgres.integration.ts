@@ -11,6 +11,7 @@ import {
   saveUserAccess,
 } from "../server/services/workshopUsers";
 import { readUserAccess } from "../server/services/userAccess";
+import { listOrders } from "../server/services/workshop.js";
 import { defaultWorkshopModules } from "../shared/workshopModules";
 
 test("OPS-004 PostgreSQL17: concurrent seats, invitations, reactivation, last Master and restricted RLS", async () => {
@@ -243,7 +244,7 @@ test("OPS-004 PostgreSQL17: concurrent seats, invitations, reactivation, last Ma
       [customer, t],
     );
     await admin.query(
-      "INSERT INTO horse_power.vehicles(id,tenant_id,customer_id,plate,brand,model,year) VALUES($1,$2,$3,'TST1A01','Fictícia','Fictício',2024)",
+      "INSERT INTO horse_power.vehicles(id,tenant_id,customer_id,plate,brand,model,year,model_year) VALUES($1,$2,$3,'TST1A01','Fictícia','Fictício',2024,2025)",
       [vehicle, t, customer],
     );
     for (const [number, order] of [visible, hidden].entries()) {
@@ -261,6 +262,10 @@ test("OPS-004 PostgreSQL17: concurrent seats, invitations, reactivation, last Ma
       [t, visible, professional, owner, Date.now()],
     );
     await db.withRequestContext!(settings(scopedUser), async () => {
+      const scopedOrders = await listOrders(db, t);
+      assert.deepEqual(scopedOrders.map((order) => order.id), [visible]);
+      assert.equal(scopedOrders[0].vehicle_year, 2024);
+      assert.equal(scopedOrders[0].vehicle_model_year, 2025);
       assert.deepEqual(
         (
           await db.prepare("SELECT id FROM orders WHERE tenant_id=?").all(t)

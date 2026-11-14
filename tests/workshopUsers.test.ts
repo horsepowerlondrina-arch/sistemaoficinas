@@ -327,6 +327,7 @@ test("discount requests enforce total limits, reject self-approval and invalidat
 });
 test("HTTP assigned OS scope, privacy, live permissions, account revocation and office selection", async () => {
   const db = fixture();
+  db.prepare("UPDATE vehicles SET model_year=2025 WHERE id='v' AND tenant_id='a'").run();
   const master = await ctx(db, "master");
   const professional = await saveStaff(db, master, null, {
     name: "Mecânico Fictício",
@@ -360,6 +361,10 @@ test("HTTP assigned OS scope, privacy, live permissions, account revocation and 
       ["o1"],
     );
     assert.equal(workspace.orders[0].total, undefined);
+    assert.equal(workspace.orders[0].vehicle_year, 2024);
+    assert.equal(workspace.orders[0].vehicle_model_year, 2025);
+    assert.deepEqual(workspace.vehicles, []);
+    assert.deepEqual(workspace.customers, []);
     assert.equal(workspace.orders[0].items[0].cost, undefined);
     assert.equal(
       JSON.stringify(workspace).includes("client@example.test"),
