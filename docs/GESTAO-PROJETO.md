@@ -93,3 +93,9 @@ Implementação em revisão no PR #82, branch `feat/ops-002-maquinas-cartao`. Ca
 ## OPS-003 — Tabelas de lucro (01/11/2026)
 
 Edição independente de faixas para peças/produtos e terceiros, preservando modos de cálculo, permissões e preços históricos. Sem migração de banco. Implementação na branch `feat/ops-003-tabelas-lucro`; integração depende da aprovação específica solicitada nesta tarefa. Regras e testes: [OPS-003](OPS-003-tabelas-lucro.md).
+
+## OPS-004 — Usuários, funcionários e permissões (13/11/2026)
+
+Estado: **Em revisão** no [PR #168](https://github.com/horsepowerlondrina-arch/sistemaoficinas/pull/168), branch `feat/ops-004-usuarios-permissoes`. Implementação sobre a main `408f3891c154227ecc5ee25b104a03e5427c0a92`, com auditoria prévia, perfis individuais, convites de colaboradores, vagas, funcionários independentes, múltiplas oficinas, atribuição de OS e aprovações de descontos. O identificador foi solicitado pelo responsável; o registro histórico de Conta/Plano/Senha não é renomeado nem substituído.
+
+[Auditoria](OPS-004-usuarios-permissoes-auditoria.md) e [implementação, segurança e liberação](OPS-004-usuarios-permissoes.md). Testes e capturas usam somente PostgreSQL 17 temporário e dados fictícios. Por autorização específica desta tarefa, integração, migração remota e publicação na homologação aguardam nova autorização do responsável. Produção permanece fora do escopo.

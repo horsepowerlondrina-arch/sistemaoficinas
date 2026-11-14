@@ -16,6 +16,7 @@ Consulte esta pasta no repositório privado do GitHub. O índice mostra as minia
 - visual:capture -- --module 08-financeiro — limita a execução a um módulo.
 - visual:capture -- --affected — seleciona módulos conforme os arquivos alterados em relação a origin/main.
 - node scripts/test-admin-interface.mjs — valida as interações administrativas em loopback com API fictícia e gera capturas no diretório temporário do runner; artifacts do CI permitem revisão antes da inclusão no catálogo.
+- node scripts/test-workshop-users-ui.mjs — valida usuários, convites, ativação, atribuição e aprovações com API e PostgreSQL 17 descartável no CI; o artefato ops004-users-interface fornece as imagens do driver ops004-interface para revisão e inclusão nesta pasta. Não usar em banco persistente.
 - visual:check — confere PNGs, metadados, caminhos, estados e índices.
 - visual:index — regenera este índice e o checklist a partir do catálogo JSON.
 

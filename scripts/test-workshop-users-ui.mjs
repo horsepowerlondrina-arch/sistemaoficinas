@@ -76,7 +76,12 @@ try {
   });
   page.setDefaultTimeout(15000);
   const capture = async (options) => {
-    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.evaluate(() => {
+      window.scrollTo(0, 0);
+      document.querySelectorAll(".table-scroll").forEach((el) => {
+        el.scrollLeft = 0;
+      });
+    });
     await page.screenshot({ ...options, animations: "disabled" });
   };
   const errors = [];

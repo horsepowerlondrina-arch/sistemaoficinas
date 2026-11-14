@@ -48,3 +48,11 @@ A integração do PR e a migração persistente não estão autorizadas nesta ta
 - `tests/workshopUsers.postgres.integration.ts`: disputas de vagas/reativação/Masters e RLS com papel restrito no PostgreSQL 17 temporário.
 - `scripts/test-workshop-users-ui.mjs`: API real local e PostgreSQL fictício, navegação, convites, funcionários, pedidos, troca de oficina com perfis independentes, privacidade e layouts desktop/tablet/mobile. Evidências em artefato do CI.
 - Biblioteca visual privada em `docs/mapeamento-visual/`; nunca publicar imagens administrativas com a aplicação.
+
+## Execução dos testes e limitações
+
+O teste de interface cria oficinas exclusivas da OPS-004, sem modificar as oficinas-base dos demais testes. A limpeza dos testes de transferência preserva as identidades fictícias com seu último Master até o descarte do PostgreSQL do job; nenhuma proteção é desabilitada. Os cenários originais de importação, rollback, concorrência e isolamento continuam executados.
+
+O envio de convite no CI usa uma entrega fictícia; não aciona e-mails reais, Stripe ou serviços pagos. A entrega real pelo Resend e os fluxos na homologação somente poderão ser validados após a liberação autorizada. As evidências de navegador verificam a aplicação verdadeira com API e PostgreSQL, incluindo ativação, seleção de oficina, rascunhos, atribuição por OS e consulta técnica sem tarifas.
+
+As capturas da OPS-004 usam o driver `ops004-interface` e o mesmo catálogo JSON da biblioteca privada. O workflow executa `node scripts/test-workshop-users-ui.mjs`; o artefato `ops004-users-interface` contém PNGs desktop/mobile/tablet para revisão. Após revisar os PNGs, incluir os arquivos nas posições do catálogo, registrar a revisão de origem, executar `npm run visual:index` e `npm run visual:check`. Não publicar a biblioteca com a aplicação.
