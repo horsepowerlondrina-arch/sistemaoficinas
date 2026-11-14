@@ -16,6 +16,7 @@ import { readUserAccess } from "../server/services/userAccess.js";
 import { defaultWorkshopModules } from "../shared/workshopModules.js";
 import type { Context } from "../server/auth/session.js";
 import { digest } from "../server/auth/session.js";
+import { operationalJourney } from './helpers/operationalJourney.js';
 
 test("three plans: registration, email activation, settled payment, seats and isolated user access on PostgreSQL17", async () => {
   const root = adminClient(); await root.connect();
@@ -47,6 +48,7 @@ test("three plans: registration, email activation, settled payment, seats and is
   };
   const billing = stripeBillingService(pool, transport, "http://127.0.0.1:5173", [], emails);
   const offices: string[] = [];
+  let previousOperationalOrder: string | undefined;
   try {
     for (let i = 0; i < plans.length; i++) {
       const plan = plans[i], email = emails[i];
@@ -115,6 +117,7 @@ test("three plans: registration, email activation, settled payment, seats and is
         const identity: Response = await fetch(`http://127.0.0.1:${address.port}/api/session`, { headers: { Cookie: cookie } });
         assert.equal(identity.status, 200); assert.equal((await identity.json()).tenant.id, pending.tenant_id);
       }
+      previousOperationalOrder = await operationalJourney(`http://127.0.0.1:${address.port}`, cookie, plan, previousOperationalOrder);
     }
   } finally {
     await new Promise<void>(resolve => server.close(() => resolve())); await db.close(); await pool.end();
