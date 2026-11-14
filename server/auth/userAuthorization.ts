@@ -139,9 +139,10 @@ export function redactResponse(value: any, p: PermissionMap): any {
       /^(document|customer_document|birthday|signature_data)$/.test(key)
     )
       continue;
+    if (!p["orders.prices"] && /(^|_)price(_|$)/.test(key)) continue;
     if (
       !p["orders.prices"] &&
-      /^(price|total|discount|amount|gross|net|fee|balance|paid|payment_summary|payment_status|receivable_id|subtotal|unit_price|sale_price|receivable|receivables|installments|cash|cash_accounts|card_rates|payment_settings|parts_pricing)$/.test(
+      /^(price|total|discount|amount|gross|net|fee|balance|paid|payment_summary|payment_status|receivable_id|subtotal|unit_price|sale_price|calculated_price|fixed_price|charged_price|workshop_price|receivable|receivables|installments|cash|cash_accounts|card_rates|payment_settings|parts_pricing)$/.test(
         key,
       )
     )
@@ -149,12 +150,14 @@ export function redactResponse(value: any, p: PermissionMap): any {
     if (
       !p["finance.costs"] &&
       !p["catalog.prices"] &&
-      /cost|margin|profit|freight|gain/.test(key)
+      /cost|margin|profit|markup|freight|gain|^(service_rules|product_rules)$/.test(
+        key,
+      )
     )
       continue;
     if (
       (!p["finance.costs"] || !p["orders.prices"]) &&
-      /^(service_snapshot|service_details|payload|metadata)$/.test(key)
+      /^(service_snapshot|payload|metadata)$/.test(key)
     )
       continue;
     result[key] = redactResponse(child, p);

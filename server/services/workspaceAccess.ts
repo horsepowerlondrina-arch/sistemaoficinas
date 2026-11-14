@@ -22,6 +22,8 @@ export async function projectWorkspace(
     orders = orders.filter((o: any) => allowed.has(o.id));
   }
   result.orders = orders;
+  if (!p["settings.manage"] && !p["catalog.prices"] && !p["finance.costs"])
+    delete result.parts_pricing;
   const orderIds = new Set(orders.map((o: any) => o.id));
   const customerIds = new Set(orders.map((o: any) => o.customer_id));
   const vehicleIds = new Set(orders.map((o: any) => o.vehicle_id));

@@ -118,3 +118,22 @@ test("navigation respects financial margins and separates technical consultation
     assert.equal(canOpenPath(consult, path), false, path);
   assert.equal(canOpenPath(consult, "/financeiro"), true);
 });
+
+test("operational service details survive redaction while financial rates and snapshots remain protected", async () => {
+  const { redactResponse } = await import("../server/auth/userAuthorization");
+  const value = redactResponse(
+    {
+      service_details: {
+        minutes: 30,
+        calculated_price: 10000,
+        cost: 1000,
+        labor_rate: 12000,
+      },
+      service_snapshot: '{"cost":1000}',
+      service_markup_bps: 3000,
+      service_rules: [{ rate_bps: 1000 }],
+    },
+    effectivePermissions("mechanic"),
+  );
+  assert.deepEqual(value, { service_details: { minutes: 30 } });
+});
