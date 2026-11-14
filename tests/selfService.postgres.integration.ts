@@ -137,7 +137,7 @@ test("three plans: registration, email activation, settled payment, seats and is
         const opening=new Date(financialDay+'T12:00:00Z');opening.setUTCDate(opening.getUTCDate()-7);
         return (await financeAPI('POST','/cash-accounts',{name:'Fictício '+key+' '+suffix,kind:'bank',opening_balance:0,opening_on:opening.toISOString().slice(0,10),active:1,request_id:randomUUID()})).id;
       }},financialState,()=>{});
-      assert.equal(financialResults.length,plan==='basic'?2:11);
+      assert.equal(financialResults.length,plan==='basic'?2:13);
     }
   } finally {
     await new Promise<void>(resolve => server.close(() => resolve())); await db.close(); await pool.end();

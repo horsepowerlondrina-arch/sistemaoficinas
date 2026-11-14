@@ -62,6 +62,16 @@ jobs:
       - name: Operational financial reports desktop and mobile
         run: node scripts/test-operational-reports-ui.mjs
         timeout-minutes: 3
+      - name: Mixed payment surcharge and interest snapshots
+        run: node scripts/test-financial-ui.mjs
+        timeout-minutes: 3
+      - name: Store mixed payment evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: financial-ui
+          path: ${{ runner.temp }}/financial-ui
+          retention-days: 14
       - name: Store operational financial reports
         if: always()
         uses: actions/upload-artifact@v4

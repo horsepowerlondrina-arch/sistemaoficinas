@@ -58,7 +58,7 @@ try{
     s.accounts[key]=current.accounts.find((a:any)=>a.name===name)?.id || (await api('POST','/cash-accounts',{name,kind:'bank',opening_balance:0,opening_on:opening.toISOString().slice(0,10),active:1,request_id:randomUUID()})).id;save();return s.accounts[key];
    };
    const configure=async(key:string,order:string,input:any)=>{
-    if(!['credit-pass','mixed-pix-first'].includes(key))return false;
+    if(!['credit-pass','mixed-pix-first','mixed-pass','mixed-pass-interest'].includes(key))return false;
     await page.goto(origin+`/ordens/${order}/receber`);
     if(key==='credit-pass'){
      await page.getByRole('combobox',{name:/Forma de pagamento/}).selectOption('Cartão de crédito');
@@ -76,12 +76,14 @@ try{
      await card.getByLabel('Valor da OS nesta forma (R$)',{exact:true}).fill('60.00');
      await card.getByRole('combobox',{name:/Máquina de cartão/}).selectOption(s.ids.machine);
      await card.getByLabel('Parcelas',{exact:true}).fill('3');
+     if(input.payments[1].pass_card_fee)await card.getByRole('checkbox',{name:'Repassar a taxa deste cartão ao cliente',exact:true}).check();
+     if(input.payments[1].interest_bps)await card.getByLabel('Juros totais do parcelamento (%)',{exact:true}).fill(String(input.payments[1].interest_bps/100));
      const [r]=await Promise.all([page.waitForResponse(r=>r.url().endsWith('/plan')&&r.request().method()==='POST'),page.getByRole('button',{name:'Salvar divisão do pagamento',exact:true}).click()]);if(!r.ok())throw Error('MIXED_UI_PLAN_FAILED');
     }
     return true;
    };
    const settleCredit=async(key:string,order:string,accountId:string)=>{
-    if(!['credit-pass','mixed-pix-first'].includes(key))return false;
+    if(!['credit-pass','mixed-pix-first','mixed-pass','mixed-pass-interest'].includes(key))return false;
     await page.goto(origin+`/ordens/${order}/receber`);
     await page.getByRole('button',{name:/^Receber total do cartão/}).click();
     await page.getByRole('combobox',{name:/Conta que recebe o valor líquido/}).selectOption(accountId);
@@ -89,15 +91,20 @@ try{
    };
    const capture=async(key:string,order:string)=>{
     console.log(JSON.stringify({plan:office.plan,scenario:key,status:'passed'}));
-    if(!['basic-reversal','credit-three','credit-pass','mixed-pix-first','boleto-three'].includes(key))return;
+    if(!['basic-reversal','credit-three','credit-pass','mixed-pix-first','mixed-pass','mixed-pass-interest','boleto-three'].includes(key))return;
     await page.goto(origin+`/ordens/${order}`+(office.plan==='basic'?'':'/receber'));await page.getByRole('main').waitFor();
+    if(key==='mixed-pass'||key==='mixed-pass-interest'){
+     const summary=page.locator('.receipt-financial-summary');
+     await expect(summary.locator(':scope > div').filter({hasText:'Taxa repassada'})).toContainText(new RegExp('R\\$\\s*'+(key==='mixed-pass'?'2,18':'2,39')));
+     await expect(summary.locator(':scope > div').filter({hasText:'Juros do parcelamento'})).toContainText(new RegExp('R\\$\\s*'+(key==='mixed-pass'?'0,00':'6,00')));
+    }
     for(const [name,width,height]of [['desktop',1440,1000],['mobile',390,844]] as const){await page.setViewportSize({width,height});const filename=`${office.plan}-${key}-${name}.png`;await page.screenshot({path:resolve(output,filename),fullPage:true,animations:'disabled'});result.evidence.push(filename);}
     await page.setViewportSize({width:1440,height:1000});
    };
    result.scenarios=await financialJourney(call,{plan:office.plan,marker:'FIN-ADV-20261114-'+office.plan,day,nextBankingDay:day==='2026-11-14'?'2026-11-16':nextBankingDay(day),customer:old.customer,vehicle:old.vehicle,product:s.ids.product,service:old.service,machine:s.ids.machine,account},s.cases,save,{configure,settleCredit,capture});
    if(office.plan!=='basic'){
     const end=await api('GET','/workspace');const stock=end.catalog.find((p:any)=>p.id===s.ids.product).stock;
-    if(stock!==10)throw Error('FINAL_ADVANCED_STOCK_MISMATCH');result.finalStock=stock;
+    if(stock!==8)throw Error('FINAL_ADVANCED_STOCK_MISMATCH');result.finalStock=stock;
    }
    result.status='passed';
   }catch(error:any){result.status='failed';result.errors.push(String(error.message).slice(0,1000));process.exitCode=1;}
