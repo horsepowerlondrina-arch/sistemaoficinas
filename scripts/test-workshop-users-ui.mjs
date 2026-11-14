@@ -59,7 +59,7 @@ try {
   await page.getByLabel("Senha", { exact: true }).fill(credential.password);
   const [login]=await Promise.all([page.waitForResponse(r=>r.url().endsWith('/api/login')&&r.request().method()==='POST'),page.getByRole("button", { name: "Entrar na oficina" }).click()]);
   if(login.status()!==200)throw Error('Login fictício falhou; valores de credenciais omitidos.');
-  await page.getByRole('heading',{name:'Início',exact:true}).waitFor({timeout:15000});
+  await page.getByRole('heading',{name:'Por onde vamos começar?',exact:true}).waitFor({timeout:15000});
   await page.goto(base + "/configuracoes?aba=usuarios");
   await expect(
     page.getByRole("heading", { name: "Usuários e permissões", exact: true }),

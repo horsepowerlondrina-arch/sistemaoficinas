@@ -250,7 +250,7 @@ export function App() {
       ["open", "working", "ready"].includes(o.status) && o.due_on <= today(),
   );
   const birthday = data.customers.filter(
-    (c) => c.active && c.birthday.slice(5) === today().slice(5),
+    (c) => c.active && c.birthday?.slice(5) === today().slice(5),
   );
   const alertCount =
     low.length + overdue.length + deliveries.length + birthday.length;

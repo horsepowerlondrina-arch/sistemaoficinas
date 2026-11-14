@@ -312,7 +312,7 @@ export function OrderView() {
       <section className="panel work-order-section">
         <div className="section-heading">
           <h2>Observações para a equipe</h2>
-          {order.status !== "quote" && editable && (
+          {can(session,"orders.notes") && order.status !== "quote" && editable && (
             <button
               className="text-button no-print"
               onClick={() => {
@@ -328,7 +328,7 @@ export function OrderView() {
           {order.notes || "Nenhuma observação adicional."}
         </p>
       </section>
-      {can(session,"orders.edit") && editable && (
+      {can(session,"orders.admin") && editable && (
         <button
           className="text-button danger"
           onClick={() => setConfirm("cancelled")}

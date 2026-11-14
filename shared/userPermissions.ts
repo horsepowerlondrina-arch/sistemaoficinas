@@ -127,6 +127,8 @@ const profiles: Record<UserProfile, Permission[]> = {
   ],
 };
 export const dependencies: Partial<Record<Permission, Permission[]>> = {
+  "orders.admin": ["orders.view"],
+  "orders.basic_receive": ["orders.view", "orders.prices"],
   "orders.notes": ["orders.view"],
   "orders.edit": ["orders.view"],
   "orders.items": ["orders.edit", "orders.prices"],
