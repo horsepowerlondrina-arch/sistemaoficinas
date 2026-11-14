@@ -18,7 +18,7 @@ test('PostgreSQL 17: private photo migration checks integrity, rollback, repeat 
   const {withPhotoStore}=await import('../server/services/checklistPhotoStorage.js');
   const ctx={tenantId:tenant,userId:user,role:'owner'};
   await db.withRequestContext!({'app.tenant_id':tenant,'app.user_id':user},async()=>{
-    const created=await createChecklist(db,ctx,{plate:'ABC1D23',vehicle_data:{brand:'Honda',model:'Civic',year:2020,color:'Prata'},inspector:'Teste Foto'});
+    const created=await createChecklist(db,ctx,{plate:'ABC1D23',customer_name:'Cliente fictício',vehicle_data:{brand:'Honda',model:'Civic',year:2020,color:'Prata'},inspector:'Teste Foto'});
     const result=await withPhotoStore(store,()=>addChecklistPhoto(db,ctx,created.id,'front','image/jpeg',data));
     const saved=await db.prepare('SELECT image_data FROM checklist_photos WHERE tenant_id=? AND id=?').get(tenant,result.id);assert.match(String(saved?.image_data),/^private-checklist:v1:/);
     const loaded=await withPhotoStore(store,()=>getChecklistPhoto(db,ctx,result.id));assert.deepEqual(Buffer.from(loaded.image_data,'base64'),data);
