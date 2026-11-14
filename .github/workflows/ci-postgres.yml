@@ -43,6 +43,8 @@ jobs:
         run: npm run db:local:migrate
       - name: Seed fictitious local workshops
         run: npm run db:local:seed
+      - name: OPS-004 concurrent access and RLS regression
+        run: npx tsx --test tests/workshopUsers.postgres.integration.ts
       - run: npx tsc --noEmit
       - run: npm run build
       - run: npm test

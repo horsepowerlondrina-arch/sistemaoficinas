@@ -48,6 +48,13 @@ export function OrderView() {
       : "Finalizar a OS e baixar estoque. O recebimento pode ser registrado depois."],
     ["cancelled", "Cancelada", "Cancelar o atendimento mantendo o histórico."],
   ] as const;
+  const permittedStatusOptions = statusOptions.filter(([value]) => {
+    if (value === order.status) return false;
+    if (!session.access && session.role !== "owner")
+      return ["open", "working", "ready"].includes(order.status) && ["working", "ready"].includes(value);
+    if (order.status === "quote" && !["quote", "cancelled"].includes(value) && !can(session, "orders.edit")) return false;
+    return can(session, value === "cancelled" ? "orders.admin" : value === "completed" ? "orders.finalize" : order.status === "completed" ? "orders.reopen" : "orders.status");
+  });
   const next: Record<string, [string, string]> = {
     quote: ["open", "Aprovar OS"],
     open: ["working", "Iniciar execução"],
@@ -160,7 +167,7 @@ export function OrderView() {
               customerPhone={customer?.phone}
             />
           )}
-          {can(session,"orders.status") && (
+          {permittedStatusOptions.length > 0 && (
             <button className="button" onClick={() => setStatusPicker(true)}>
               Alterar status
             </button>
@@ -369,8 +376,7 @@ export function OrderView() {
           onClose={() => setStatusPicker(false)}
         >
           <div className="modal-body status-choice-list">
-            {statusOptions
-              .filter(([value]) => value !== order.status)
+            {permittedStatusOptions
               .map(([value, label, description]) => (
                 <button
                   type="button"
