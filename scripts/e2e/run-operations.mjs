@@ -50,7 +50,7 @@ try {
   const shot = async name => {
    await page.getByRole('main').first().waitFor({state:'visible'});
    await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
-   const file = `${office.plan}-${name}.png`; await page.screenshot({ path: resolve(output,file), fullPage: true }); result.evidence.push(file);
+   const file = `${office.plan}-${name}.png`; await page.screenshot({ path: resolve(output,file), fullPage: true, animations: 'disabled' }); result.evidence.push(file);
   };
   const workspace = () => api('GET','/api/workspace');
   try {
@@ -178,6 +178,7 @@ try {
      }
     }
     w=await workspace();if(w.orders.find(o=>o.id===s.ids.order).payment_status!=='paid')throw Error('RECEIPT_NOT_PERSISTED');
+    await page.goto(HOMOLOGATION+`/ordens/${s.ids.order}`);
     await shot('recebimento-confirmado');
    });
    if(modules.finance)await step('despesa-pagamento-caixa',async()=>{
