@@ -127,6 +127,10 @@ try {
           }
         } else if (command === "fixtures") {
           if (!office.paid || !office.members.every(a => a.activated)) throw Error("ACTIVATED_ACCOUNTS_REQUIRED");
+          await request(context, "PUT", "/api/workshop-profile", { tenant_id: office.tenantId, legal_name: "Empresa Fictícia de Testes " + office.plan, quote_validity_days: 21 });
+          const settings = await request(context, "GET", "/api/workshop-profile");
+          if (settings.legal_name !== "Empresa Fictícia de Testes " + office.plan || settings.quote_validity_days !== 21) throw Error("MASTER_SETTINGS_NOT_PERSISTED");
+          office.masterSettingsValidated = true; save(data);
           if (!office.customerId) {
             const linked = await request(context, "POST", "/api/customers-with-vehicle", {
               customer: { name: "Cliente Fictício " + office.plan, phone: "00000000000", email: `cliente-${office.plan}-${data.run}@testes.osdrive.com.br`, address: "Endereço Fictício de Teste", document: "", notes: "Dados fictícios para validação" },
@@ -145,7 +149,7 @@ try {
         } else {
           const users = await request(context, "GET", "/api/users"), billing = await request(context, "GET", "/api/account/billing");
           if (users.capacity.active !== office.limit || users.capacity.available !== 0 || billing.account?.plan_code !== office.plan || !billing.payments.some(p => p.status === "paid")) throw Error("FINAL_STATE_MISMATCH");
-          report.checks.push({ plan: office.plan, activeUsers: users.capacity.active, paid: true });
+          report.checks.push({ plan: office.plan, activeUsers: users.capacity.active, paid: true, masterSettingsValidated: office.masterSettingsValidated === true });
         }
       }
     } catch (error) { report.errors.push({ plan: office.plan, code: /^[A-Z_0-9]+$/.test(error.message) ? error.message : "UI_VALIDATION_FAILED" }); process.exitCode = 1; }

@@ -54,7 +54,7 @@ export function permitsRequest(policy, method, address, draftOrders = new Set())
   if (method === "POST") return ["/api/login", "/api/logout", "/api/tenant"].includes(path) && !url.search;
   if (!["GET", "HEAD"].includes(method)) return false;
   if (!path.startsWith("/api/")) return !/^\/(admin|p)(\/|$)/.test(path);
-  if (/^\/api\/(session|workspace|users|users\/history|staff|approvals|cash-control)$/.test(path)) return !url.search;
+  if (/^\/api\/(session|workspace|users|users\/history|staff|approvals|cash-control|repair-services\/brands)$/.test(path)) return !url.search;
   if (/^\/api\/orders\/[a-zA-Z0-9_-]+\/assignments$/.test(path)) return !url.search;
   const document = path.match(/^\/api\/documents\/order\/([a-zA-Z0-9_-]+)$/);
   return !!document && draftOrders.has(document[1]) && (!url.search || url.search === "?current=1");
