@@ -452,11 +452,19 @@ Estado: capturada · mobile · captura 2026-10-22 · commit de origem: não regi
 
 ### Lucro dos serviços
 
-Relatório sem vendas no período demonstrado.
+Componentes reais com dados fictícios: desconto proporcional e custo registrado de serviço próprio. Fixture de interface isolada; backend validado no PostgreSQL 17.
 
 [![Lucro dos serviços](./capturas/08-financeiro/lucro-servicos.png)](./capturas/08-financeiro/lucro-servicos.png)
 
-Estado: capturada · mobile · captura 2026-10-22 · commit de origem: não registrado · [arquivo completo](./capturas/08-financeiro/lucro-servicos.png)
+Estado: capturada · mobile · captura 2026-11-14 · commit de origem: cf37d9c82b3212de34dce0b576f8bc3176e5c7be · [arquivo completo](./capturas/08-financeiro/lucro-servicos.png)
+
+### Lucro dos serviços
+
+Componentes reais com dados fictícios: desconto proporcional e custo registrado de serviço próprio. Fixture de interface isolada; backend validado no PostgreSQL 17.
+
+[![Lucro dos serviços](./capturas/08-financeiro/lucro-servicos-desktop.png)](./capturas/08-financeiro/lucro-servicos-desktop.png)
+
+Estado: capturada · desktop · captura 2026-11-14 · commit de origem: cf37d9c82b3212de34dce0b576f8bc3176e5c7be · [arquivo completo](./capturas/08-financeiro/lucro-servicos-desktop.png)
 
 ### Recebimento com máquina e repasse
 
@@ -473,6 +481,22 @@ Plano fictício salvo e reaberto: seleção da máquina, repasse e líquido pres
 [![Recebimento com máquina e repasse](./capturas/08-financeiro/ops002-receipt-mobile.png)](./capturas/08-financeiro/ops002-receipt-mobile.png)
 
 Estado: capturada · mobile · captura 2026-11-01 · commit de origem: 26770cc4da2ccbf9de3620882b0a87066fdce927 · [arquivo completo](./capturas/08-financeiro/ops002-receipt-mobile.png)
+
+### Ganhos por período
+
+Componentes reais com dados fictícios: desconto proporcional e custo registrado de serviço próprio. Fixture de interface isolada; backend validado no PostgreSQL 17.
+
+[![Ganhos por período](./capturas/08-financeiro/financeiro-ganhos-desktop.png)](./capturas/08-financeiro/financeiro-ganhos-desktop.png)
+
+Estado: capturada · desktop · captura 2026-11-14 · commit de origem: cf37d9c82b3212de34dce0b576f8bc3176e5c7be · [arquivo completo](./capturas/08-financeiro/financeiro-ganhos-desktop.png)
+
+### Ganhos por período
+
+Componentes reais com dados fictícios: desconto proporcional e custo registrado de serviço próprio. Fixture de interface isolada; backend validado no PostgreSQL 17.
+
+[![Ganhos por período](./capturas/08-financeiro/financeiro-ganhos-mobile.png)](./capturas/08-financeiro/financeiro-ganhos-mobile.png)
+
+Estado: capturada · mobile · captura 2026-11-14 · commit de origem: cf37d9c82b3212de34dce0b576f8bc3176e5c7be · [arquivo completo](./capturas/08-financeiro/financeiro-ganhos-mobile.png)
 
 ## 09 — Cadastros e serviços
 

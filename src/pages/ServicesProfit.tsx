@@ -23,7 +23,7 @@ export function ServicesProfit() {
       <FinanceNav />
       <PageHeading
         title="Lucro dos serviços"
-        description="Serviços das OS finalizadas, com desconto proporcional e custos de terceiros registrados no atendimento."
+        description="Serviços das OS finalizadas, com desconto proporcional e custos dos serviços registrados no atendimento."
       />
       <div className="stats-grid three">
         <Stat
@@ -34,7 +34,7 @@ export function ServicesProfit() {
         />
         <Stat
           detail="OS finalizadas no período"
-          label="Custo de terceiros"
+          label="Custos dos serviços"
           value={money(totals.serviceCost)}
           icon={<Wallet />}
         />
@@ -64,7 +64,7 @@ export function ServicesProfit() {
           </Field>
         </div>
         <p className="muted">
-          Serviços próprios têm custo zero neste relatório. Serviços de terceiros usam o custo registrado na OS. Lucro bruto antes de taxas de cartão, mão de obra interna e despesas fixas; inclui vendas ainda a receber.
+          O relatório usa o custo registrado na OS, inclusive de serviços próprios quando informado. Não inclui taxas de cartão, mão de obra interna sem custo registrado ou despesas fixas; inclui vendas ainda a receber.
         </p>
         {orders.length ? (
           <div className="table-scroll">
@@ -73,7 +73,7 @@ export function ServicesProfit() {
                 <tr>
                   <th>OS / serviço</th>
                   <th>Quantidade</th>
-                  <th>Custo unitário de terceiros</th>
+                  <th>Custo unitário registrado</th>
                   <th>Venda unitária</th>
                   <th>Receita de serviços / OS</th>
                   <th>Lucro bruto / OS</th>

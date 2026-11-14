@@ -45,7 +45,7 @@ jobs:
         run: npm run db:local:seed
       - name: OPS-004 concurrent access and RLS regression
         run: npx tsx --test tests/workshopUsers.postgres.integration.ts
-      - name: Self-service three-plan PostgreSQL regression
+      - name: Three-plan onboarding and operational journey on PostgreSQL 17
         run: npx tsx --test tests/selfService.postgres.integration.ts
       - run: npx tsc --noEmit
       - run: npm run build
@@ -59,6 +59,16 @@ jobs:
       - name: Self-service registration responsive UI
         run: node scripts/test-self-service-ui.mjs
         timeout-minutes: 3
+      - name: Operational financial reports desktop and mobile
+        run: node scripts/test-operational-reports-ui.mjs
+        timeout-minutes: 3
+      - name: Store operational financial reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: operational-reports-ui
+          path: ${{ runner.temp }}/operational-reports-ui
+          retention-days: 14
       - name: Store self-service interface evidence
         if: always()
         uses: actions/upload-artifact@v4
