@@ -67,8 +67,8 @@ export function OrderView() {
     const value = values.find((item) => item !== undefined && item !== null && String(item).trim() !== "");
     return value === undefined ? "Não informado" : String(value);
   };
-  const manufactureYear = displayValue(vehicle?.year, vehicle?.manufacture_year, vehicle?.year_manufacture, order.manufacture_year, order.year_manufacture);
-  const modelYear = displayValue(vehicle?.model_year, vehicle?.year_model, vehicle?.year, order.model_year, order.year_model, order.year);
+  const manufactureYear = displayValue(vehicle?.year, vehicle?.manufacture_year, vehicle?.year_manufacture, order.vehicle_year, order.manufacture_year, order.year_manufacture);
+  const modelYear = displayValue(vehicle?.model_year, vehicle?.year_model, order.vehicle_model_year, vehicle?.year, order.model_year, order.year_model, order.year, order.vehicle_year);
   const mileage = Number(order.km || 0) || Number(vehicle?.km || 0);
   const mileageLabel = mileage > 0 ? mileage.toLocaleString("pt-BR") + " km" : "Não informado";
   const engineVersion = displayValue(vehicle?.engine, vehicle?.motorization, vehicle?.motor, vehicle?.version, vehicle?.trim, order.engine, order.motorization, order.version);

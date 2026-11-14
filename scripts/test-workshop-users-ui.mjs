@@ -116,6 +116,7 @@ try {
     .getByRole("heading", { name: "Por onde vamos começar?", exact: true })
     .waitFor({ timeout: 15000 });
   await page.goto(base + "/configuracoes?aba=usuarios");
+  await expect(page.locator(".user-card").getByText("Master", { exact: true })).toHaveCount(1);
   await expect(
     page.getByRole("heading", { name: "Usuários e permissões", exact: true }),
   ).toBeVisible({ timeout: 15000 });
@@ -316,6 +317,7 @@ try {
   ).toBeVisible();
   const accountA = await (await page.request.get(base + "/api/session")).json();
   expect(accountA.access.profile).toBe("finance");
+  await expect(page.locator(".user-card").getByText("Financeiro", { exact: true })).toHaveCount(1);
   expect(accountA.tenant.id).toBe(collaborator.tenantA);
   const dataA = await (await page.request.get(base + "/api/workspace")).json();
   for (const customer of dataA.customers)
@@ -350,6 +352,7 @@ try {
     .toBe(collaborator.tenantB);
   const accountB = await (await page.request.get(base + "/api/session")).json();
   expect(accountB.access.profile).toBe("mechanic");
+  await expect(page.locator(".user-card").getByText("Mecânico", { exact: true })).toHaveCount(1);
   await expect(
     page.getByRole("heading", { name: "Por onde vamos começar?", exact: true }),
   ).toBeVisible();
@@ -402,6 +405,45 @@ try {
   expect(activated.tenant.id).toBe(collaborator.tenantA);
   expect(activated.access.profile).toBe("mechanic");
   expect(activated.must_select_office).toBe(false);
+  expect(activated.access.orderScope).toBe("assigned");
+  const ownerContext = await browser.newContext();
+  try {
+    const login = await ownerContext.request.post(base + "/api/login", {
+      data: { email: collaborator.ownerEmail, password: collaborator.ownerPassword },
+    });
+    expect(login.status()).toBe(200);
+    const staffResponse = await ownerContext.request.post(base + "/api/staff", {
+      data: { name: "OPS004 Mecânico Ativado Fictício", role: "Mecânico", active: true, productive: true, user_id: activated.user.id },
+    });
+    expect(staffResponse.ok()).toBe(true);
+    const staff = await staffResponse.json();
+    const assignment = await ownerContext.request.put(base + `/api/orders/${order.id}/assignments`, {
+      data: { professional_ids: [staff.id] },
+    });
+    expect(assignment.ok()).toBe(true);
+  } finally {
+    await ownerContext.close();
+  }
+  await page.goto(base + "/ordens/" + order.id);
+  await expect(page.getByRole("heading", { name: "Detalhes da OS", exact: true })).toBeVisible();
+  const technicalWorkspace = await (await page.request.get(base + "/api/workspace")).json();
+  expect(technicalWorkspace.orders.map(o => o.id)).toEqual([order.id]);
+  expect(technicalWorkspace.vehicles).toEqual([]);
+  expect(technicalWorkspace.customers).toEqual([]);
+  expect(technicalWorkspace.orders[0].vehicle_year).toBe(2024);
+  expect(technicalWorkspace.orders[0].vehicle_model_year).toBe(2025);
+  expect(technicalWorkspace.orders[0].total).toBeUndefined();
+  for (const [viewport, size] of [
+    ["desktop", { width: 1440, height: 1000 }],
+    ["mobile", { width: 390, height: 844 }],
+  ]) {
+    await page.setViewportSize(size);
+    await expect(page.getByText("2024 / 2025", { exact: true })).toBeVisible();
+    await expect(page.locator(".user-card").getByText("Mecânico", { exact: true })).toHaveCount(1);
+    await expect(page.locator(".user-card").getByText("Administrador", { exact: true })).toHaveCount(0);
+    await capture({ path: resolve(output, `ops004-mechanic-order-${viewport}.png`), fullPage: true });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 2)).toBe(false);
+  }
   await page.goto(base + "/servicos");
   await expect(
     page.getByRole("tab", { name: "Catálogo de Tempos", exact: true }),

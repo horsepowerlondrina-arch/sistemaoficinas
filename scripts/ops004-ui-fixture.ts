@@ -89,7 +89,7 @@ try {
     [customer, tenantA],
   );
   await db.query(
-    "INSERT INTO horse_power.vehicles(id,tenant_id,customer_id,plate,brand,model,year) VALUES($1,$2,$3,'OPS0A04','Marca Fictícia','Modelo Fictício',2024)",
+    "INSERT INTO horse_power.vehicles(id,tenant_id,customer_id,plate,brand,model,year,model_year) VALUES($1,$2,$3,'OPS0A04','Marca Fictícia','Modelo Fictício',2024,2025)",
     [vehicle, tenantA, customer],
   );
   await db.query(
@@ -119,7 +119,7 @@ try {
             role: "owner",
             modules: { ...defaultWorkshopModules },
           },
-          { email: activationEmail, profile: "mechanic" },
+          { email: activationEmail, profile: "mechanic", order_scope: "assigned" },
           "",
           async (i) => {
             inviteToken = i.token;

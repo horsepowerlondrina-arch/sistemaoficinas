@@ -1,4 +1,5 @@
 import {can,canOpenPath} from './lib/userAccess';
+import { profileLabels } from "../shared/userPermissions";
 import {ApprovalCenter} from './components/OrderAccessControls';
 import { platformTitle } from "../shared/platformIdentity";
 import { clearOrderFilterSession } from "./lib/orderFilterSession";
@@ -389,7 +390,7 @@ export function App() {
               <span className="user-avatar">{initials(session.user.name)}</span>
               <div>
                 <strong>{session.user.name}</strong>
-                <span>{admin ? "Administrador" : "Mecânico"}</span>
+                <span>{session.access ? profileLabels[session.access.profile] : session.role === "owner" ? "Administrador" : "Mecânico"}</span>
               </div>
               <button
                 className="icon-button"

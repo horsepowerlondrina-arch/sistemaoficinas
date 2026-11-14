@@ -1,5 +1,13 @@
 # OPS-004 — Usuários, funcionários e permissões
 
+## Correções após a validação autenticada
+
+O cartão do usuário usa o nome do perfil efetivo (Master, Gerente, Consultor de Serviços, Mecânico ou Financeiro), em vez da condição genérica de navegação administrativa. Sessões legadas sem perfil continuam com os rótulos anteriores.
+
+A consulta de OS inclui somente dois campos técnicos adicionais: `vehicle_year` e `vehicle_model_year`, obtidos pelo vínculo do veículo na mesma oficina. A tela usa esses campos quando o cadastro completo não está disponível ao usuário; ano-modelo ausente mantém o fallback anterior para o ano de fabricação. Isso não concede consulta a clientes, veículos, contatos, preços ou dados de outra oficina, nem altera o histórico de documentos. Não exige migração ou mudança em dados persistentes.
+
+As regressões HTTP e PostgreSQL verificam os anos no escopo atribuído; o teste Playwright confere os perfis Master/Financeiro/Mecânico, a separação entre fabricação/modelo e a OS do Mecânico em desktop e mobile, mantendo clientes/veículos completos e valores comerciais ocultos. A biblioteca visual acompanha as capturas reais do mesmo fluxo isolado. Nesta correção foram criadas duas capturas da OS restrita do Mecânico (desktop/mobile), substituídos nove PNGs afetados pelos perfis e revalidadas cinco imagens sem alteração de bytes. Metadados e índices usam a revisão `10ab46c5db3eca34b8947849ab96439d55f650b5`, validada pelo [CI 43553052711](https://github.com/horsepowerlondrina-arch/sistemaoficinas/actions/runs/43553052711). Não há captura pendente desta correção; a biblioteca conserva as pendências históricas catalogadas.
+
 Esta tarefa amplia as contas globais, memberships, profissionais e autorização existentes. A auditoria inicial está em `OPS-004-usuarios-permissoes-auditoria.md`. O registro histórico OPS-004 de Conta/Plano/Senha permanece independente deste documento.
 
 ## Uso

@@ -24,4 +24,4 @@ Capturas que criem, editem ou finalizem registros só podem usar base PostgreSQL
 
 ## Coleta atual
 
-O acervo inclui 101 PNGs de telas reais. Consulte a data e o commit de cada entrada: as capturas originais de 22/10/2026 não registraram o commit e continuam sinalizadas. Capturas ADM-002.1 usam Chromium com respostas de API fictícias e não comprovam o backend; a integração PostgreSQL é testada separadamente no CI. Nenhuma credencial, token ou dado real deve aparecer nas imagens.
+O acervo inclui 103 PNGs de telas reais. Consulte a data e o commit de cada entrada: as capturas originais de 22/10/2026 não registraram o commit e continuam sinalizadas. Capturas ADM-002.1 usam Chromium com respostas de API fictícias e não comprovam o backend; a integração PostgreSQL é testada separadamente no CI. Nenhuma credencial, token ou dado real deve aparecer nas imagens.
