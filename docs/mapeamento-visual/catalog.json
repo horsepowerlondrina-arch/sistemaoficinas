@@ -110,7 +110,7 @@
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/18-resultados/gestao-resultados-periodo.png",
       "updatedAt": "2026-11-14",
-      "commit": "8a0b4c697ff46ce2f5b6251df99cde849b2fdad6",
+      "commit": "2616723bbcd976b25f013fe7850f14c76d8e03d1",
       "reason": null
     },
     {
@@ -2127,7 +2127,7 @@
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/14-configuracoes/ops004-users-desktop.png",
       "updatedAt": "2026-11-14",
-      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
+      "commit": "10ab46c5db3eca34b8947849ab96439d55f650b5",
       "freshness": "atual",
       "reason": null,
       "driver": "ops004-interface"
@@ -2143,7 +2143,7 @@
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/14-configuracoes/ops004-permissions-desktop.png",
       "updatedAt": "2026-11-14",
-      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
+      "commit": "10ab46c5db3eca34b8947849ab96439d55f650b5",
       "freshness": "atual",
       "reason": null,
       "driver": "ops004-interface"
@@ -2159,7 +2159,7 @@
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/14-configuracoes/ops004-staff-desktop.png",
       "updatedAt": "2026-11-14",
-      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
+      "commit": "10ab46c5db3eca34b8947849ab96439d55f650b5",
       "freshness": "atual",
       "reason": null,
       "driver": "ops004-interface"
@@ -2175,7 +2175,7 @@
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/14-configuracoes/ops004-approvals-desktop.png",
       "updatedAt": "2026-11-14",
-      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
+      "commit": "10ab46c5db3eca34b8947849ab96439d55f650b5",
       "freshness": "atual",
       "reason": null,
       "driver": "ops004-interface"
@@ -2191,7 +2191,7 @@
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/14-configuracoes/ops004-users-mobile.png",
       "updatedAt": "2026-11-14",
-      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
+      "commit": "10ab46c5db3eca34b8947849ab96439d55f650b5",
       "freshness": "atual",
       "reason": null,
       "driver": "ops004-interface"
@@ -2207,7 +2207,7 @@
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/14-configuracoes/ops004-permissions-mobile.png",
       "updatedAt": "2026-11-14",
-      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
+      "commit": "10ab46c5db3eca34b8947849ab96439d55f650b5",
       "freshness": "atual",
       "reason": null,
       "driver": "ops004-interface"
@@ -2223,7 +2223,7 @@
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/14-configuracoes/ops004-staff-mobile.png",
       "updatedAt": "2026-11-14",
-      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
+      "commit": "10ab46c5db3eca34b8947849ab96439d55f650b5",
       "freshness": "atual",
       "reason": null,
       "driver": "ops004-interface"
@@ -2239,7 +2239,7 @@
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/14-configuracoes/ops004-approvals-mobile.png",
       "updatedAt": "2026-11-14",
-      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
+      "commit": "10ab46c5db3eca34b8947849ab96439d55f650b5",
       "freshness": "atual",
       "reason": null,
       "driver": "ops004-interface"
@@ -2255,7 +2255,7 @@
       "image": "docs/mapeamento-visual/capturas/01-login-acesso/ops004-office-desktop.png",
       "status": "capturada",
       "updatedAt": "2026-11-14",
-      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
+      "commit": "10ab46c5db3eca34b8947849ab96439d55f650b5",
       "reason": null,
       "driver": "ops004-interface",
       "freshness": "atual"
@@ -2271,7 +2271,7 @@
       "image": "docs/mapeamento-visual/capturas/01-login-acesso/ops004-invite-desktop.png",
       "status": "capturada",
       "updatedAt": "2026-11-14",
-      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
+      "commit": "10ab46c5db3eca34b8947849ab96439d55f650b5",
       "reason": null,
       "driver": "ops004-interface",
       "freshness": "atual"
@@ -2287,7 +2287,7 @@
       "image": "docs/mapeamento-visual/capturas/01-login-acesso/ops004-office-mobile.png",
       "status": "capturada",
       "updatedAt": "2026-11-14",
-      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
+      "commit": "10ab46c5db3eca34b8947849ab96439d55f650b5",
       "reason": null,
       "driver": "ops004-interface",
       "freshness": "atual"
@@ -2303,7 +2303,7 @@
       "image": "docs/mapeamento-visual/capturas/01-login-acesso/ops004-invite-mobile.png",
       "status": "capturada",
       "updatedAt": "2026-11-14",
-      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
+      "commit": "10ab46c5db3eca34b8947849ab96439d55f650b5",
       "reason": null,
       "driver": "ops004-interface",
       "freshness": "atual"
@@ -2319,7 +2319,7 @@
       "image": "docs/mapeamento-visual/capturas/07-ordens-servico/ops004-order-access-desktop.png",
       "status": "capturada",
       "updatedAt": "2026-11-14",
-      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
+      "commit": "10ab46c5db3eca34b8947849ab96439d55f650b5",
       "reason": null,
       "driver": "ops004-interface",
       "freshness": "atual"
@@ -2335,7 +2335,39 @@
       "image": "docs/mapeamento-visual/capturas/07-ordens-servico/ops004-order-access-mobile.png",
       "status": "capturada",
       "updatedAt": "2026-11-14",
-      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
+      "commit": "10ab46c5db3eca34b8947849ab96439d55f650b5",
+      "reason": null,
+      "driver": "ops004-interface",
+      "freshness": "atual"
+    },
+    {
+      "id": "ops004-mechanic-order-desktop",
+      "module": "07-ordens-servico",
+      "title": "OS atribuída — perfil Mecânico",
+      "description": "Identificação do Mecânico e anos de fabricação/modelo distintos; sem cadastro completo, contatos ou valores comerciais.",
+      "route": "/ordens/:id",
+      "kind": "Operação",
+      "viewport": "desktop",
+      "image": "docs/mapeamento-visual/capturas/07-ordens-servico/ops004-mechanic-order-desktop.png",
+      "status": "capturada",
+      "updatedAt": "2026-11-14",
+      "commit": "10ab46c5db3eca34b8947849ab96439d55f650b5",
+      "reason": null,
+      "driver": "ops004-interface",
+      "freshness": "atual"
+    },
+    {
+      "id": "ops004-mechanic-order-mobile",
+      "module": "07-ordens-servico",
+      "title": "OS atribuída — perfil Mecânico",
+      "description": "Identificação do Mecânico e anos de fabricação/modelo distintos; sem cadastro completo, contatos ou valores comerciais.",
+      "route": "/ordens/:id",
+      "kind": "Operação",
+      "viewport": "mobile",
+      "image": "docs/mapeamento-visual/capturas/07-ordens-servico/ops004-mechanic-order-mobile.png",
+      "status": "capturada",
+      "updatedAt": "2026-11-14",
+      "commit": "10ab46c5db3eca34b8947849ab96439d55f650b5",
       "reason": null,
       "driver": "ops004-interface",
       "freshness": "atual"
@@ -2450,7 +2482,9 @@
         "ops004-order-access-desktop",
         "ops004-approvals-desktop",
         "ops004-office-desktop",
-        "ops004-invite-desktop"
+        "ops004-invite-desktop",
+        "ops004-mechanic-order-desktop",
+        "ops004-mechanic-order-mobile"
       ],
       "reason": null
     }
