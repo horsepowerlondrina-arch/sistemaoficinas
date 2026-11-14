@@ -1,3 +1,6 @@
+import {employeePublicRoutes,workshopUserRoutes} from './workshopUserRoutes';
+import {userAuthorization,redactResponse} from './auth/userAuthorization';
+import {projectWorkspace} from './services/workspaceAccess';
 import { stripeWorkshopRoutes } from "./stripeBillingRoutes.js";
 import type { StripeBilling } from "./services/stripeBilling.js";
 import {thirdPartySalePrice} from "../shared/pricing.js";
@@ -282,8 +285,15 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
     }
     next();
   });
+  app.use('/api',async(req,res,next)=>{
+    if(!['/employee-invites/accept','/reauthenticate'].includes(req.path)){next();return;}
+    const key=digest((req.ip||'local')+':'+req.path+':'+(req.path==='/reauthenticate'?digest(tokenFrom(req)):digest(String(req.body?.token||''))));
+    const now=Date.now();
+    const allowed=db.recordAccessAttempt?await db.recordAccessAttempt(key):Number((await db.prepare('INSERT INTO login_attempts(key,count,until_at) VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET count=CASE WHEN login_attempts.until_at<? THEN 1 ELSE login_attempts.count+1 END,until_at=CASE WHEN login_attempts.until_at<? THEN excluded.until_at ELSE login_attempts.until_at END RETURNING count').get(key,now+300000,now,now))?.count)<=10;
+    if(!allowed){res.status(429).json({error:'Aguarde alguns minutos antes de tentar novamente.'});return;}next();
+  });
   app.use("/api", (req, res, next) => {
-    if (!db.withRequestContext || req.path.startsWith("/admin-api") || req.path.startsWith("/password-reset/")) {
+    if (!db.withRequestContext || req.path.startsWith("/admin-api") || req.path.startsWith("/password-reset/") || req.path.startsWith("/employee-invites/")) {
       next();
       return;
     }
@@ -388,7 +398,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
       .run(key, now);
     const membership = await db
       .prepare(
-        "SELECT tenant_id FROM memberships WHERE user_id=? ORDER BY tenant_id LIMIT 1",
+        "SELECT m.tenant_id FROM memberships m LEFT JOIN workshop_user_access a ON a.tenant_id=m.tenant_id AND a.user_id=m.user_id WHERE m.user_id=? AND COALESCE(a.active,1)=1 ORDER BY m.tenant_id LIMIT 1",
       )
       .get(user.id);
     if (!membership) {
@@ -430,6 +440,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
       ),
     );
   });
+  app.use("/api",employeePublicRoutes(db));
   const workshopAuth = auth(db);
   app.use("/api", (req, res, next) => {
     if (req.path === "/admin-api" || req.path.startsWith("/admin-api/")) {
@@ -460,10 +471,12 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
         .get(ctx.tenantId),
       tenants: await db
         .prepare(
-          "SELECT t.* FROM tenants t JOIN memberships m ON m.tenant_id=t.id WHERE m.user_id=? ORDER BY t.name",
+          "SELECT t.* FROM tenants t JOIN memberships m ON m.tenant_id=t.id LEFT JOIN workshop_user_access a ON a.tenant_id=m.tenant_id AND a.user_id=m.user_id WHERE m.user_id=? AND COALESCE(a.active,1)=1 ORDER BY t.name",
         )
         .all(ctx.userId),
       role: ctx.role,
+      access: ctx.access,
+      must_select_office:(await db.prepare('SELECT confirmed FROM session_office_choices WHERE token_hash=?').get(digest(tokenFrom(_req))))?.confirmed===0,
       support_available: !!db.withRequestContext && process.env.APP_ENV !== "horse_power",
       modules: ctx.modules || defaultWorkshopModules,
     });
@@ -497,7 +510,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
   }
   app.get("/api/account/plan", async (_req, res) => {
     const ctx: Context = res.locals.context;
-    res.json({plan: await db.getTenantPlanSummary?.(ctx.tenantId) ?? null});
+    res.json({plan: ctx.role==="owner"?await db.getTenantPlanSummary?.(ctx.tenantId) ?? null:null});
   });
   app.post("/api/logout", async (req, res) => {
     await db
@@ -510,7 +523,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
     const tenant = z.string().parse(req.body.tenant_id);
     if (
       !(await db
-        .prepare("SELECT 1 FROM memberships WHERE user_id=? AND tenant_id=?")
+        .prepare("SELECT 1 FROM memberships m LEFT JOIN workshop_user_access a ON a.tenant_id=m.tenant_id AND a.user_id=m.user_id WHERE m.user_id=? AND m.tenant_id=? AND COALESCE(a.active,1)=1")
         .get(ctx.userId, tenant))
     ) {
       res.status(403).json({ error: "Você não tem acesso a esta oficina." });
@@ -520,25 +533,11 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
     await db
       .prepare("UPDATE sessions SET tenant_id=? WHERE token_hash=?")
       .run(tenant, digest(tokenFrom(req)));
+    await db.prepare('UPDATE session_office_choices SET confirmed=1 WHERE token_hash=?').run(digest(tokenFrom(req)));
     res.json({ ok: true });
   });
-  app.use("/api", (req, res, next) => {
-    if (req.path === "/admin-api" || req.path.startsWith("/admin-api/")) {
-      next();
-      return;
-    }
-    if (
-      res.locals.context.role === "owner" ||
-      (/^\/documents\/order\/[^/]+$/.test(req.path) && ["GET","POST"].includes(req.method)) ||
-      (req.method === "GET" && req.path === "/workspace") ||
-      (req.method === "POST" && /^\/orders\/[^/]+\/status$/.test(req.path)) ||
-      (req.method === "PATCH" && /^\/orders\/[^/]+\/notes$/.test(req.path))
-    ) {
-      next();
-      return;
-    }
-    res.status(403).json({ error: "Esta área é exclusiva do administrador." });
-  });
+  app.use("/api",userAuthorization(db));
+  app.use("/api",workshopUserRoutes(db));
   app.use("/api", (req, res, next) => {
     if (req.path === "/admin-api" || req.path.startsWith("/admin-api/")) { next(); return; }
     const required = moduleForApiRequest(req.path, req.method);
@@ -555,7 +554,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
     const context: Context = res.locals.context;
     const tenant = context.tenantId;
     const modules = context.modules || defaultWorkshopModules;
-    if (context.role !== "owner") {
+    if (context.role !== "owner" && !context.access) {
       const workspace = await mechanicWorkspace(db, tenant);
       res.json({ ...workspaceForModules(workspace as Record<string, unknown>, modules), modules });
       return;
@@ -589,8 +588,8 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
           "SELECT v.*,c.name customer_name FROM vehicles v JOIN customers c ON c.id=v.customer_id AND c.tenant_id=v.tenant_id WHERE v.tenant_id=? ORDER BY v.plate",
         )
         .all(tenant),
-      suppliers: await listSuppliers(db, res.locals.context),
-      product_categories: await listProductCategories(db, res.locals.context),
+      suppliers: !context.access||context.access.permissions["catalog.view"]?await listSuppliers(db, {...context,action:"catalog.view"}):[],
+      product_categories: !context.access||context.access.permissions["catalog.view"]?await listProductCategories(db, {...context,action:"catalog.view"}):[],
       catalog: await db
         .prepare(
           "SELECT c.*,(SELECT group_concat(a.alias,' ') FROM service_aliases a WHERE a.tenant_id=c.tenant_id AND a.catalog_id=c.id) search_aliases FROM catalog c WHERE c.tenant_id=? AND c.merged_into IS NULL AND c.archived_at IS NULL ORDER BY c.name",
@@ -624,7 +623,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
         )
         .all(tenant),
     };
-    res.json({ ...workspaceForModules(workspace, modules), modules });
+    res.json(await projectWorkspace(db,context,{ ...workspaceForModules(workspace, modules), modules }));
   });
   app.get("/api/checklists", async (_req, res) => {
     res.json(await listChecklists(db, res.locals.context));

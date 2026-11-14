@@ -1,3 +1,4 @@
+import {can} from '../lib/userAccess';
 import { VehiclePlate } from "../components/VehiclePlate";
 import { horsePowerExtensionEnabled } from "../../shared/horsePowerExtension";
 import { NumericInput } from "../components/NumericInput";
@@ -72,7 +73,7 @@ export function OrderEditor() {
 }
 function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
   const { data, session, refresh, notify } = useApp();
-  const admin = session.role === "owner";
+  const admin = can(session,"orders.edit");
   const financeEnabled = session.modules?.finance !== false;
   const navigate = useNavigate();
   const [form, setForm] = useState({

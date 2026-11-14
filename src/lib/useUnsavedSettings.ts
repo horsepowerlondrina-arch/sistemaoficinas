@@ -1,10 +1,12 @@
 import { useContext, useEffect } from "react";
 import { UNSAFE_NavigationContext } from "react-router-dom";
 
+let dirtySettingsCount=0;
 export function useUnsavedSettings(dirty: boolean) {
   const { navigator } = useContext(UNSAFE_NavigationContext);
   useEffect(() => {
     if (!dirty) return;
+    dirtySettingsCount++;document.documentElement.dataset.unsavedSettings=String(dirtySettingsCount);
     const confirmLeave = () => window.confirm("Há alterações não salvas. Deseja sair e descartá-las?");
     const beforeUnload = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
     const push = navigator.push, replace = navigator.replace, go = navigator.go;
@@ -25,6 +27,7 @@ export function useUnsavedSettings(dirty: boolean) {
     window.addEventListener("beforeunload", beforeUnload);
     window.addEventListener("popstate", pop, true);
     return () => {
+      dirtySettingsCount--;document.documentElement.dataset.unsavedSettings=String(dirtySettingsCount);
       navigator.push = push; navigator.replace = replace; navigator.go = go;
       window.removeEventListener("beforeunload", beforeUnload);
       window.removeEventListener("popstate", pop, true);

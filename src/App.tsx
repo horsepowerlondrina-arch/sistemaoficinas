@@ -1,3 +1,5 @@
+import {can,canOpenPath} from './lib/userAccess';
+import {ApprovalCenter} from './components/OrderAccessControls';
 import { platformTitle } from "../shared/platformIdentity";
 import { clearOrderFilterSession } from "./lib/orderFilterSession";
 import { workshopTheme } from "../shared/workshopTheme";
@@ -135,6 +137,9 @@ export function App() {
     return () => document.removeEventListener("keydown", advanceOnEnter);
   }, [session]);
   useEffect(() => { document.title = platformTitle(session?.tenant.name); }, [session?.tenant.id, session?.tenant.name]);
+  useEffect(()=>{if(!session)return;const timer=window.setInterval(()=>{void api<Session>('/session').then(async next=>{if(JSON.stringify(next.access)!==JSON.stringify(session.access)||next.tenant.id!==session.tenant.id){setSession(next);await refresh();}}).catch(()=>{setSession(null);setData(null);});},15000);return ()=>window.clearInterval(timer);},[session?.tenant.id,JSON.stringify(session?.access)]);
+  useEffect(()=>{const changed=(event:Event)=>{const target=event.target as HTMLElement;const form=target.closest('main form');if(form)form.setAttribute('data-dirty','true');};document.addEventListener('input',changed);document.addEventListener('change',changed);return()=>{document.removeEventListener('input',changed);document.removeEventListener('change',changed);};},[]);
+
   if (loading)
     return (
       <div className="loading-screen" role="status" aria-live="polite">
@@ -195,8 +200,9 @@ export function App() {
       ],
     },
   ];
-  const admin = session.role === "owner";
+  const admin = session.role === "owner" || !!session.access;
   const available = (path: string) => {
+    if(!canOpenPath(session,path))return false;
     if (path === "/resultados" && session.modules?.orders === false) return false;
     const module = uiModuleForPath(path);
     return !module || session.modules?.[module] !== false;
@@ -210,6 +216,7 @@ export function App() {
         },
       ];
   const blockedModule = uiModuleForPath(location.pathname);
+  if(!canOpenPath(session,location.pathname))return <Navigate to="/inicio" replace/>;
   if (blockedModule && session.modules?.[blockedModule] === false)
     return <Navigate to="/inicio" replace />;
   const current =
@@ -248,6 +255,7 @@ export function App() {
   const alertCount =
     low.length + overdue.length + deliveries.length + birthday.length;
   const switchTenant = async (tenant: string) => {
+    if((document.querySelector("form[data-dirty=true]")||Number(document.documentElement.dataset.unsavedSettings)>0)&&!window.confirm("Há alterações não salvas. Deseja descartá-las para trocar de oficina?"))return;
     setSwitching(true);
     try {
       await send("/tenant", { tenant_id: tenant });
@@ -300,6 +308,7 @@ export function App() {
   return (
     <AppContext.Provider value={{ data, session, refresh, refreshSession: async () => setSession(await api<Session>("/session")), notify: setToast }}>
       <div className="app-shell" style={workshopTheme(session.tenant) as CSSProperties}>
+        {session.must_select_office&&<Modal title="Selecione a oficina" onClose={()=>{}}><div className="modal-body"><p>Escolha a oficina em que deseja trabalhar nesta sessão.</p>{session.tenants.map(t=><button key={t.id} className="button" disabled={switching} onClick={()=>void switchTenant(t.id)}>{t.name}</button>)}</div></Modal>}
         {mobile && (
           <button
             aria-label="Fechar menu"
@@ -321,6 +330,7 @@ export function App() {
             </span>
             <ArrowRight size={16} aria-hidden="true" />
           </NavLink>
+          {session.tenants.length>1&&<label className="field"><span>Oficina ativa</span><select aria-label="Oficina ativa" value={session.tenant.id} disabled={switching} onChange={e=>void switchTenant(e.target.value)}>{session.tenants.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label>}
           <nav>
             {visibleGroups.map((group) => (
               <div className="nav-group" key={group.title}>
@@ -429,6 +439,7 @@ export function App() {
               <Navigate to="/ordens" replace />
             ) : (
               <Routes>
+                <Route path="/aprovacoes" element={<ApprovalCenter/>}/>
                 <Route path="/inicio" element={<Home />} />
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/ordens" element={<Orders />} />

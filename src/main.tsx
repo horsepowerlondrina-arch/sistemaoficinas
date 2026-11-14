@@ -1,3 +1,4 @@
+import {AcceptEmployeeInvite} from './pages/AcceptEmployeeInvite';
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
@@ -22,6 +23,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <BrowserRouter>
       <Routes>
+        <Route path="/aceitar-convite" element={<AcceptEmployeeInvite/>} />
         <Route path="/ativar" element={<Activate />} />
         <Route path="/ativar-oficina" element={<ActivateWorkshop />} />
         <Route path="/recuperar-senha" element={<PasswordReset />} />

@@ -1,3 +1,4 @@
+import {assertOrderVisible} from './userAccess';
 import { z } from "zod";
 import { vehicleDisplayModel } from "../../shared/vehicleIdentity.js";
 import type { Context } from "../auth/session.js";
@@ -127,10 +128,10 @@ export async function listChecklists(db: DB, ctx: Context) {
                WHERE p.tenant_id=k.tenant_id AND p.checklist_id=k.id) photo_count
        FROM checklists k
        LEFT JOIN orders o ON o.id=k.order_id AND o.tenant_id=k.tenant_id
-       WHERE k.tenant_id=?
+       WHERE k.tenant_id=? AND (?=0 OR EXISTS(SELECT 1 FROM order_assignments a JOIN staff_accounts s ON s.tenant_id=a.tenant_id AND s.professional_id=a.professional_id WHERE a.tenant_id=k.tenant_id AND a.order_id=k.order_id AND a.removed_at IS NULL AND s.user_id=?))
        ORDER BY k.created_at DESC`,
     )
-    .all(ctx.tenantId);
+    .all(ctx.tenantId,ctx.access?.orderScope==='assigned'?1:0,ctx.userId);
 }
 
 export async function getChecklist(
@@ -140,6 +141,7 @@ export async function getChecklist(
 ): Promise<Record<string, any>> {
   requireAdmin(ctx);
   const value = await row(db, ctx, checklistId);
+  if(ctx.access?.orderScope==='assigned'){if(!value.order_id)throw Object.assign(new Error('Checklist indisponível.'),{status:404});await assertOrderVisible(db,ctx,String(value.order_id));}
   return {
     ...value,
     conditions: parseJson<Record<string, string>>(value.conditions_json, {}),

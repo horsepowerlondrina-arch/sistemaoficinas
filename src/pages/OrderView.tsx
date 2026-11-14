@@ -1,3 +1,5 @@
+import {OrderAccessControls} from '../components/OrderAccessControls';
+import {can} from '../lib/userAccess';
 import { VehiclePlate } from "../components/VehiclePlate";
 import { basicOrderReceiptMethods, type BasicOrderReceiptMethod } from "../../shared/basicOrderReceipt";
 import { IssuedDocumentActions, IssuedDocumentPreview, IssuedDocumentProvider, PostReceiptActions } from "../components/IssuedDocument";
@@ -17,7 +19,7 @@ export function OrderView() {
   const location = useLocation();
   const [postReceiptOpen, setPostReceiptOpen] = useState(Boolean(location.state?.postReceipt));
   const order = data.orders.find((o) => o.id === id);
-  const admin = session.role === "owner";
+  const admin = can(session,"orders.prices");
   const financeEnabled = session.modules?.finance !== false;
   const receiptAccounts = data.receipt_accounts || [];
   const [confirm, setConfirm] = useState(""),
@@ -135,6 +137,7 @@ export function OrderView() {
       >
         ← Voltar à lista
       </button>
+      <OrderAccessControls orderId={order.id}/>
       <div className="order-view-header">
         <PageHeading
           eyebrow="ORDEM DE SERVIÇO"
@@ -157,13 +160,13 @@ export function OrderView() {
               customerPhone={customer?.phone}
             />
           )}
-          {admin && (
+          {can(session,"orders.status") && (
             <button className="button" onClick={() => setStatusPicker(true)}>
               Alterar status
             </button>
           )}
           <IssuedDocumentActions includeShare={false} />
-          {admin && editable && (
+          {can(session,"orders.edit") && editable && (
             <button
               className="button"
               onClick={() => navigate(`/ordens/${id}/editar`)}
@@ -171,7 +174,7 @@ export function OrderView() {
               Editar atendimento
             </button>
           )}
-          {action && (admin || ["working", "ready"].includes(action[0])) && (
+          {action && can(session,action[0]==="completed"?"orders.finalize":"orders.status") && (
             <button
               className="button primary"
               disabled={busy}
@@ -180,7 +183,7 @@ export function OrderView() {
               {action[1]}
             </button>
           )}
-          {admin && financeEnabled && order.status === "completed" && order.receivable_id && (
+          {can(session,"finance.receive") && financeEnabled && order.status === "completed" && order.receivable_id && (
             <button
               className="button primary"
               onClick={() => navigate(`/ordens/${id}/receber`)}
@@ -318,7 +321,7 @@ export function OrderView() {
           {order.notes || "Nenhuma observação adicional."}
         </p>
       </section>
-      {admin && editable && (
+      {can(session,"orders.edit") && editable && (
         <button
           className="text-button danger"
           onClick={() => setConfirm("cancelled")}

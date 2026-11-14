@@ -1,3 +1,4 @@
+import {requirePermission,canDiscount} from './userAccess';
 import { resolveCardPayments } from "./cardMachines.js";
 import { basicOrderReceiptMethods, type BasicOrderReceiptMethod } from "../../shared/basicOrderReceipt.js";
 import { transaction, type DB } from "../db/database.js";
@@ -8,6 +9,7 @@ import { id, scoped, audit, invalidateOrderShares } from "./workshop.js";
 import { cashAccount, cashToday, recordCash } from "./cashControl.js";
 import { nextBankingDay } from "../../shared/bankingDays.js";
 export function requireAdmin(ctx: Context) {
+  if (ctx.access) { if(ctx.access.profile!=="master"){if(!ctx.action)throw Object.assign(new Error("Permissão insuficiente."),{status:403});requirePermission(ctx,ctx.action);} return; }
   if (ctx.role !== "owner")
     throw Object.assign(new Error("Esta ação é exclusiva do administrador."), {
       status: 403,
@@ -32,6 +34,7 @@ async function receiptDiscountState(
   if (!Number.isSafeInteger(subtotal) || subtotal !== Number(order.total) + Number(order.discount || 0))
     throw new Error("Os itens e o total da OS estão inconsistentes. Revise o atendimento antes de aplicar o desconto.");
   const discount = calculateDiscountAmount(subtotal, input.mode, input.value);
+  if(ctx.access&&discount!==Number(order.discount||0)&&!canDiscount(ctx,subtotal,discount))throw Object.assign(new Error("Desconto acima do limite. Solicite aprovação antes de finalizar a OS."),{status:403});
   return {
     receivable,
     order,

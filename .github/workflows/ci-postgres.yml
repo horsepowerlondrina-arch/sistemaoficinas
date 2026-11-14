@@ -80,6 +80,16 @@ jobs:
           name: adm-002-1-interface
           path: ${{ runner.temp }}/adm0021-ui
           retention-days: 14
+      - name: OPS-004 users permissions and approvals UI
+        run: node scripts/test-workshop-users-ui.mjs
+        timeout-minutes: 5
+      - name: Store OPS-004 interface evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ops004-users-interface
+          path: ${{ runner.temp }}/ops004-users-ui
+          retention-days: 14
       - name: Capture visual screens in isolated environment
         run: npm run visual:capture -- --start --no-write --output-dir "${{ runner.temp }}/map-001-captures"
         env:

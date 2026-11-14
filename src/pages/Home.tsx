@@ -1,3 +1,4 @@
+import {canOpenPath} from '../lib/userAccess';
 import { Link } from "react-router-dom";
 import {
   ArrowUpRight,
@@ -101,7 +102,7 @@ const sections = [
 ];
 export function Home() {
   const { session } = useApp();
-  const admin = session.role === "owner";
+  const admin = session.role === "owner" || !!session.access;
   return (
     <div className="module-home">
       <header className="module-home-heading">
@@ -111,6 +112,7 @@ export function Home() {
       </header>
       {sections.map((section) => {
         const items = section.items.filter((item) => {
+          if(!canOpenPath(session,item.to))return false;
           if (!admin && item.to !== "/ordens") return false;
           const module = uiModuleForPath(item.to);
           return !module || session.modules?.[module] !== false;

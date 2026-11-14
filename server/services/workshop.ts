@@ -1,3 +1,4 @@
+import {requirePermission,assertOrderVisible,canDiscount} from './userAccess';
 import { productLabel } from "../../shared/productIdentity.js";
 import { basicOrderReceiptMethods, type BasicOrderReceiptMethod } from "../../shared/basicOrderReceipt.js";
 import { resolveService, identifyVehicleModel, confirmVehicleModel, catalogAccessState } from './repairCatalog.js';
@@ -290,9 +291,10 @@ export async function saveOrder(
   input: Row,
   record?: string,
 ) {
-  requireAdmin(ctx);
+  if(ctx.access)requirePermission(ctx,"orders.edit");else requireAdmin(ctx);
   return await transaction(db, async () => {
     await db.lockTenantMutations?.(ctx.tenantId);
+    if(record&&ctx.access)await assertOrderVisible(db,ctx,record);
     const old = record
       ? await scoped(db, "orders", ctx.tenantId, record)
       : null;
@@ -300,6 +302,8 @@ export async function saveOrder(
       throw new Error(
         "Ordens finalizadas ou canceladas não podem ser editadas.",
       );
+    if(ctx.access&&(input.new_customer||input.new_vehicle))requirePermission(ctx,"customers.create");
+    if(ctx.access&&old&&(input.customer_id!==old.customer_id||input.vehicle_id!==old.vehicle_id))requirePermission(ctx,"customers.view");
     const status = old?.status || input.status || "quote";
     // Legacy database discriminator is derived from status, never used for business rules.
     const kind = status === "quote" ? "quote" : "order";
@@ -422,6 +426,14 @@ export async function saveOrder(
         };
       }),
     );
+    const subtotal=items.reduce((sum,item)=>sum+item.price*item.quantity,0);
+    if(ctx.access){
+      const prior=old?await db.prepare("SELECT * FROM order_items WHERE tenant_id=? AND order_id=?").all(ctx.tenantId,record):[];
+      const sameItems=JSON.stringify(prior.map(i=>[i.catalog_id,i.quantity,i.price]).sort())===JSON.stringify(items.map(i=>[i.catalog_id,i.quantity,i.price]).sort());
+      if(!sameItems)requirePermission(ctx,"orders.items");
+      if(Number(input.discount)!==Number(old?.discount||0)&&!canDiscount(ctx,subtotal,Number(input.discount)))throw Object.assign(new Error("Desconto acima do seu limite. Solicite aprovação."),{status:403});
+      if(old&&Number(old.discount||0)>0&&subtotal!==Number(old.total)+Number(old.discount)&&!canDiscount(ctx,subtotal,Number(input.discount)))throw Object.assign(new Error("O desconto deve ser revalidado após alterar os itens."),{status:403});
+    }
     const total = totalOf(items, input.discount);
     const orderId = record || id();
     const changed =
@@ -514,7 +526,7 @@ export async function saveOrder(
           item.cost,
           item.service_snapshot || '',
         );
-    if (changed) await invalidateOrderShares(db, ctx, orderId);
+    if (changed){await invalidateOrderShares(db, ctx, orderId);await db.prepare("UPDATE discount_requests SET status='invalidated' WHERE tenant_id=? AND order_id=? AND status='pending'").run(ctx.tenantId,orderId);}
     if (changingVehicle) {
       const archived = await audit(db, ctx, `order.vehicle_changed:${String(old.vehicle_id || "")}:${String(vehicleId || "")}:items_removed:${previous.length}`, orderId,
         { previous_order: old, previous_items: previous, vehicle_id: vehicleId });
@@ -619,7 +631,8 @@ export async function transitionOrder(
     const order = await scoped(db, "orders", ctx.tenantId, record);
     if (order.status === status)
       throw new Error("O atendimento já está nesta situação.");
-    if (ctx.role !== "owner") {
+    if(ctx.access){await assertOrderVisible(db,ctx,record);requirePermission(ctx,status==="cancelled"?"orders.admin":status==="completed"?"orders.finalize":order.status==="completed"?"orders.reopen":"orders.status");if(order.status==="quote"&&status==="open")requirePermission(ctx,"orders.edit");}
+    else if (ctx.role !== "owner") {
       if (
         !["working", "ready"].includes(status) ||
         !["open", "working", "ready"].includes(order.status)

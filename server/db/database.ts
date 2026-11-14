@@ -21,6 +21,7 @@ export function createDatabase(
 export type Row = Record<string, any>;
 export type MaybePromise<T> = T | Promise<T>;
 export interface DB {
+  recordAccessAttempt?(key:string):Promise<boolean>;
   setRequestIdentity?(tenantId: string | null, userId?: string | null, publicShareHash?: string | null): Promise<void>;
   withRequestContext?<T>(
     settings: Record<string, string>,

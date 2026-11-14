@@ -49,6 +49,6 @@ Este documento registra a auditoria anterior à implementação. Não comprova e
 
 ## Coordenação e estado da tarefa
 
-O PR #121 (`feat/admin-billing-mercadopago`) permanece aberto como draft e altera `server/auth/session.ts`, `server/app.ts`, `server/db/database.ts` e `server/db/postgres.ts`. A main atual já possui integração Stripe. É necessário esclarecer se o trabalho Mercado Pago continua ativo ou foi substituído antes de alterar os mesmos componentes de autenticação. A regra de coordenação do AGENTS.md exige sequência para autenticação e permissões compartilhadas.
+O PR #121 (`feat/admin-billing-mercadopago`) permanece aberto como draft e altera `server/auth/session.ts`, `server/app.ts`, `server/db/database.ts` e `server/db/postgres.ts`. A main atual já possui integração Stripe. O responsável confirmou que esse PR foi substituído pela integração Stripe; a implementação segue exclusivamente a main atual. A dependência de coordenação está resolvida.
 
-Branch exclusiva criada na main auditada. Até este registro, somente a auditoria foi adicionada; nenhuma funcionalidade foi implementada, nenhum banco remoto foi consultado ou modificado e nenhum deployment foi solicitado. A autorização desta tarefa termina no PR: integração e migrações remotas aguardam autorização específica do responsável.
+Branch exclusiva criada na main auditada. A auditoria foi concluída antes das alterações. A implementação e a validação seguem na mesma branch; os resultados são registrados no PR. Nenhum banco remoto foi consultado ou modificado e nenhum deployment foi solicitado. A autorização desta tarefa termina no PR: integração e migrações remotas aguardam autorização específica do responsável.
