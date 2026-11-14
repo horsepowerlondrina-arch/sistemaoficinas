@@ -47,7 +47,11 @@ try {
    if (!resumed) { await fn(); s.steps[name] = true; save(); }
    result.checks.push({ name, status: 'passed', resumed });
   };
-  const shot = async name => { const file = `${office.plan}-${name}.png`; await page.screenshot({ path: resolve(output,file), fullPage: true }); result.evidence.push(file); };
+  const shot = async name => {
+   await page.getByRole('main').first().waitFor({state:'visible'});
+   await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+   const file = `${office.plan}-${name}.png`; await page.screenshot({ path: resolve(output,file), fullPage: true }); result.evidence.push(file);
+  };
   const workspace = () => api('GET','/api/workspace');
   try {
    await api('POST','/api/login',{ email: office.members[0].email, password: office.members[0].password });
@@ -187,6 +191,16 @@ try {
     const document=await api('GET',`/api/documents/order/${s.ids.order}?current=1`);if(!JSON.stringify(document).includes('Modelo Fictício Operacional'))throw Error('DOCUMENT_IDENTITY_MISSING');
     const repeated=await raw('POST',modules.finance?`/api/installments/${(await workspace()).installments.find(i=>i.receivable_id===s.ids.receivable)?.id}/settle`:`/api/orders/${s.ids.order}/basic-receipt`,modules.finance?{account_id:s.ids.account}:{method:'Pix'});
     if(repeated.ok())throw Error('DUPLICATE_RECEIPT_ACCEPTED');
+   });
+   await step('negativas-estoque-historico-financeiro',async()=>{
+    if(modules.inventory){
+     const denied=await raw('POST',`/api/stock/${s.ids.product}`,{quantity:-9,reason:'Tentativa fictícia de saldo negativo'});
+     if(denied.status()!==400||(await workspace()).catalog.find(p=>p.id===s.ids.product)?.stock!==8)throw Error('NEGATIVE_STOCK_NOT_PREVENTED');
+    }
+    if(modules.finance){
+     const denied=await raw('POST',`/api/receivables/${s.ids.receivable}/discount`,{mode:'money',value:2000});
+     if(denied.status()!==400)throw Error('SETTLED_DISCOUNT_NOT_PREVENTED');
+    }
    });
    const finalWorkspace=await workspace(),finalOrder=finalWorkspace.orders.find(o=>o.id===s.ids.order);
    if(finalOrder?.status!=='completed'||finalOrder.payment_status!=='paid'||finalOrder.total!==19000)throw Error('FINAL_ORDER_MISMATCH');

@@ -45,7 +45,7 @@ jobs:
         run: npm run db:local:seed
       - name: OPS-004 concurrent access and RLS regression
         run: npx tsx --test tests/workshopUsers.postgres.integration.ts
-      - name: Self-service three-plan PostgreSQL regression
+      - name: Three-plan onboarding and operational journey on PostgreSQL 17
         run: npx tsx --test tests/selfService.postgres.integration.ts
       - run: npx tsc --noEmit
       - run: npm run build
