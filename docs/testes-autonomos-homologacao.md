@@ -41,3 +41,7 @@ Esta execução pode ser orquestrada pelo Codex usando o conector Resend, sem in
 GitHub Actions usa somente PostgreSQL 17 descartável, credenciais aleatórias e dados fictícios. A integração dos três planos exercita cadastro, e-mail interceptado para teste, ativação, liquidação com provedor simulado, idempotência, contagem de vagas, convites, ativação dos colaboradores e RLS. O teste de interface captura a interface verdadeira com API fictícia e verifica desktop/mobile. Esses testes não substituem a confirmação do checkout Stripe e do recebimento Resend reais em modo de teste na homologação.
 
 A auditoria de segurança é limitada às APIs, cenários e políticas exercitados; não garante ausência de vulnerabilidades. Não executar força bruta, carga, varreduras indiscriminadas, alterações de permissões ou consultas a dados reais.
+
+## Retomada e verificações do provedor
+
+Checkouts pendentes são retomados sem criar outra assinatura. O navegador aguarda o campo de cartão em um quadro oficial da Stripe, sem aguardar silêncio de conexões de telemetria. Checkouts live e destinos externos são recusados antes de preencher o cartão. A ausência do formulário gera `PROVIDER_FORM_UNAVAILABLE`; desafios e proteções do provedor não são contornados, e pagamentos nunca são marcados artificialmente como confirmados. A disponibilidade da conexão Stripe deve ser verificada separadamente: sugerir sua instalação não equivale a conectá-la.
