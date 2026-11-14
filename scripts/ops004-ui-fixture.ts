@@ -2,6 +2,9 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { adminClient } from "./local-admin";
+import { createLocalDatabase } from "../server/db/local";
+import { createUserInvite } from "../server/services/workshopUsers";
+import { defaultWorkshopModules } from "../shared/workshopModules";
 import { hashPassword } from "../server/auth/session";
 
 // adminClient refuses remote hosts and production; this identity exists only in
@@ -39,13 +42,41 @@ try {
       ],
     );
   }
+  await db.query("COMMIT");
+  let inviteToken = "";
+  const app = await createLocalDatabase();
+  try {
+    await app.withRequestContext!(
+      { "app.tenant_id": "local-a", "app.user_id": "local-owner-a" },
+      async () => {
+        await createUserInvite(
+          app,
+          {
+            tenantId: "local-a",
+            userId: "local-owner-a",
+            role: "owner",
+            modules: { ...defaultWorkshopModules },
+          },
+          {
+            email: `ops004-activation-${id}@example.test`,
+            profile: "mechanic",
+          },
+          "",
+          async (i) => {
+            inviteToken = i.token;
+          },
+        );
+      },
+    );
+  } finally {
+    await app.close();
+  }
   // Keep credentials outside every uploaded screenshot directory and repository.
   writeFileSync(
     resolve(process.env.RUNNER_TEMP || "/tmp", "ops004-ui-identity.json"),
-    JSON.stringify({ email, password }),
+    JSON.stringify({ email, password, inviteToken }),
     { mode: 0o600 },
   );
-  await db.query("COMMIT");
 } catch (error) {
   await db.query("ROLLBACK");
   throw error;

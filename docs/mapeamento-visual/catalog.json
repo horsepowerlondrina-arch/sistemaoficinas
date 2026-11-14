@@ -2129,7 +2129,8 @@
       "updatedAt": null,
       "commit": null,
       "freshness": "pendente",
-      "reason": "Aguardando coleta real da interface na CI isolada."
+      "reason": "Aguardando coleta real da interface na CI isolada.",
+      "driver": "ops004-interface"
     },
     {
       "id": "ops004-permissions-desktop",
@@ -2144,7 +2145,8 @@
       "updatedAt": null,
       "commit": null,
       "freshness": "pendente",
-      "reason": "Aguardando coleta real da interface na CI isolada."
+      "reason": "Aguardando coleta real da interface na CI isolada.",
+      "driver": "ops004-interface"
     },
     {
       "id": "ops004-staff-desktop",
@@ -2159,7 +2161,8 @@
       "updatedAt": null,
       "commit": null,
       "freshness": "pendente",
-      "reason": "Aguardando coleta real da interface na CI isolada."
+      "reason": "Aguardando coleta real da interface na CI isolada.",
+      "driver": "ops004-interface"
     },
     {
       "id": "ops004-approvals-desktop",
@@ -2174,7 +2177,8 @@
       "updatedAt": null,
       "commit": null,
       "freshness": "pendente",
-      "reason": "Aguardando coleta real da interface na CI isolada."
+      "reason": "Aguardando coleta real da interface na CI isolada.",
+      "driver": "ops004-interface"
     },
     {
       "id": "ops004-users-mobile",
@@ -2189,7 +2193,8 @@
       "updatedAt": null,
       "commit": null,
       "freshness": "pendente",
-      "reason": "Aguardando coleta real da interface na CI isolada."
+      "reason": "Aguardando coleta real da interface na CI isolada.",
+      "driver": "ops004-interface"
     },
     {
       "id": "ops004-permissions-mobile",
@@ -2204,7 +2209,8 @@
       "updatedAt": null,
       "commit": null,
       "freshness": "pendente",
-      "reason": "Aguardando coleta real da interface na CI isolada."
+      "reason": "Aguardando coleta real da interface na CI isolada.",
+      "driver": "ops004-interface"
     },
     {
       "id": "ops004-staff-mobile",
@@ -2219,7 +2225,8 @@
       "updatedAt": null,
       "commit": null,
       "freshness": "pendente",
-      "reason": "Aguardando coleta real da interface na CI isolada."
+      "reason": "Aguardando coleta real da interface na CI isolada.",
+      "driver": "ops004-interface"
     },
     {
       "id": "ops004-approvals-mobile",
@@ -2234,7 +2241,68 @@
       "updatedAt": null,
       "commit": null,
       "freshness": "pendente",
-      "reason": "Aguardando coleta real da interface na CI isolada."
+      "reason": "Aguardando coleta real da interface na CI isolada.",
+      "driver": "ops004-interface"
+    },
+    {
+      "id": "ops004-office-desktop",
+      "module": "01-login-acesso",
+      "title": "Seleção da oficina ativa",
+      "description": "Conta fictícia com dois vínculos e perfis independentes.",
+      "route": "/inicio",
+      "kind": "Acesso",
+      "viewport": "desktop",
+      "image": "docs/mapeamento-visual/capturas/01-login-acesso/ops004-office-desktop.png",
+      "status": "pendente",
+      "updatedAt": null,
+      "commit": null,
+      "reason": "Aguardando coleta real no CI isolado da OPS-004.",
+      "driver": "ops004-interface"
+    },
+    {
+      "id": "ops004-invite-desktop",
+      "module": "01-login-acesso",
+      "title": "Ativação de colaborador",
+      "description": "Convite seguro de colaborador; senha e token não aparecem na captura.",
+      "route": "/aceitar-convite",
+      "kind": "Acesso",
+      "viewport": "desktop",
+      "image": "docs/mapeamento-visual/capturas/01-login-acesso/ops004-invite-desktop.png",
+      "status": "pendente",
+      "updatedAt": null,
+      "commit": null,
+      "reason": "Aguardando coleta real no CI isolado da OPS-004.",
+      "driver": "ops004-interface"
+    },
+    {
+      "id": "ops004-office-mobile",
+      "module": "01-login-acesso",
+      "title": "Seleção da oficina ativa",
+      "description": "Conta fictícia com dois vínculos e perfis independentes.",
+      "route": "/inicio",
+      "kind": "Acesso",
+      "viewport": "mobile",
+      "image": "docs/mapeamento-visual/capturas/01-login-acesso/ops004-office-mobile.png",
+      "status": "pendente",
+      "updatedAt": null,
+      "commit": null,
+      "reason": "Aguardando coleta real no CI isolado da OPS-004.",
+      "driver": "ops004-interface"
+    },
+    {
+      "id": "ops004-invite-mobile",
+      "module": "01-login-acesso",
+      "title": "Ativação de colaborador",
+      "description": "Convite seguro de colaborador; senha e token não aparecem na captura.",
+      "route": "/aceitar-convite",
+      "kind": "Acesso",
+      "viewport": "mobile",
+      "image": "docs/mapeamento-visual/capturas/01-login-acesso/ops004-invite-mobile.png",
+      "status": "pendente",
+      "updatedAt": null,
+      "commit": null,
+      "reason": "Aguardando coleta real no CI isolado da OPS-004.",
+      "driver": "ops004-interface"
     }
   ],
   "flows": [

@@ -55,7 +55,7 @@ if (args.includes("--affected")) {
 }
 if (moduleFilter && !catalog.modules.some((module) => module.id === moduleFilter)) throw new Error(`Módulo desconhecido: ${moduleFilter}`);
 
-const candidates = catalog.entries.filter((entry) => entry.driver !== "admin-interface" && entry.image && entry.route.startsWith("/") && (!selectedModules || selectedModules.has(entry.module)) && entry.id !== "login-painel-central");
+const candidates = catalog.entries.filter((entry) => entry.driver !== "admin-interface" && entry.driver !== "ops004-interface" && entry.image && entry.route.startsWith("/") && (!selectedModules || selectedModules.has(entry.module)) && entry.id !== "login-painel-central");
 if (!selectedModules || selectedModules.has("14-configuracoes")) {
   for (const viewport of ["desktop","mobile"]) {
     for (const [id,title,description,route] of [

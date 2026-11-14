@@ -17,7 +17,7 @@ const output = resolve(process.env.RUNNER_TEMP || "/tmp", "ops004-users-ui");
 mkdirSync(output, { recursive: true });
 const children = [
   spawn("node", ["--import", "tsx", "server/index.ts"], {
-    stdio: ["ignore","ignore","pipe"],
+    stdio: ["ignore", "ignore", "pipe"],
     env: { ...process.env, PORT: "3001" },
   }),
   spawn(
@@ -34,14 +34,26 @@ const children = [
   ),
 ];
 let browser, page;
-const serverErrors=[];
-children[0].stderr.on("data",chunk=>{for(const line of String(chunk).split("\n"))if(/^(error|Error|TypeError|ReferenceError|SyntaxError|RangeError):/.test(line))serverErrors.push(line.replace(/[a-f0-9]{32,}/gi,"[omitido]"));});
+const serverErrors = [];
+children[0].stderr.on("data", (chunk) => {
+  for (const line of String(chunk).split("\n"))
+    if (
+      /^(error|Error|TypeError|ReferenceError|SyntaxError|RangeError):/.test(
+        line,
+      )
+    )
+      serverErrors.push(line.replace(/[a-f0-9]{32,}/gi, "[omitido]"));
+});
 try {
   let ready = false;
   for (let i = 0; i < 90; i++) {
     try {
-      const apiReady=await fetch(base+"/api/session");
-      if ((await fetch(base)).ok && apiReady.status===401 && apiReady.headers.get("content-type")?.includes("application/json")) {
+      const apiReady = await fetch(base + "/api/session");
+      if (
+        (await fetch(base)).ok &&
+        apiReady.status === 401 &&
+        apiReady.headers.get("content-type")?.includes("application/json")
+      ) {
         ready = true;
         break;
       }
@@ -56,7 +68,11 @@ try {
   page.setDefaultTimeout(15000);
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
-  page.on("response",r=>{const path=new URL(r.url()).pathname;if(path.startsWith("/api/")&&r.status()>=500)console.log("OPS004 resposta",path,r.status());});
+  page.on("response", (r) => {
+    const path = new URL(r.url()).pathname;
+    if (path.startsWith("/api/") && r.status() >= 500)
+      console.log("OPS004 resposta", path, r.status());
+  });
   page.on("dialog", (d) => d.accept());
   await page.goto(base + "/configuracoes?aba=usuarios");
   await page.getByLabel("E-mail", { exact: true }).fill(credential.email);
@@ -107,14 +123,22 @@ try {
   await dialog.getByRole("button", { name: "Salvar acesso" }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(
-    page.getByRole("cell", { name: "ops004-ui@example.test", exact: true }),
+    page
+      .getByRole("cell", { name: "ops004-ui@example.test", exact: true })
+      .first(),
   ).toBeVisible();
-  const invitation = page.getByRole("row").filter({
-    has: page.getByRole("cell", {
-      name: "ops004-ui@example.test",
-      exact: true,
-    }),
-  });
+  const invitation = page
+    .getByRole("table")
+    .filter({
+      has: page.getByRole("columnheader", { name: "E-mail", exact: true }),
+    })
+    .getByRole("row")
+    .filter({
+      has: page.getByRole("cell", {
+        name: "ops004-ui@example.test",
+        exact: true,
+      }),
+    });
   await invitation
     .getByRole("button", { name: "Reenviar", exact: true })
     .click();
@@ -225,6 +249,17 @@ try {
     name: "Selecione a oficina",
   });
   await expect(officeDialog).toBeVisible();
+  for (const [viewport, size] of [
+    ["desktop", { width: 1440, height: 1000 }],
+    ["mobile", { width: 390, height: 844 }],
+  ]) {
+    await page.setViewportSize(size);
+    await page.screenshot({
+      path: resolve(output, `ops004-office-${viewport}.png`),
+      fullPage: true,
+    });
+  }
+
   await officeDialog
     .getByRole("button", { name: "Oficina Fictícia A", exact: true })
     .click();
@@ -258,12 +293,40 @@ try {
   ).toBeVisible();
   const dataB = await (await page.request.get(base + "/api/workspace")).json();
   expect(dataB.orders.every((o) => o.tenant_id === "local-b")).toBe(true);
+  await page.goto(base + "/aceitar-convite#" + collaborator.inviteToken);
+  await expect(page.getByLabel("Seu nome", { exact: true })).toBeVisible();
+  await expect.poll(() => new URL(page.url()).hash).toBe("");
+  for (const [viewport, size] of [
+    ["desktop", { width: 1440, height: 1000 }],
+    ["mobile", { width: 390, height: 844 }],
+  ]) {
+    await page.setViewportSize(size);
+    await page.screenshot({
+      path: resolve(output, `ops004-invite-${viewport}.png`),
+      fullPage: true,
+    });
+  }
+  await page
+    .getByLabel("Seu nome", { exact: true })
+    .fill("Colaborador Ativado Fictício");
+  await page
+    .getByLabel("Crie sua senha (mínimo de 12 caracteres)", { exact: true })
+    .fill(collaborator.password);
+  await page
+    .getByRole("button", { name: "Aceitar convite", exact: true })
+    .click();
+  await expect(
+    page.getByText("Convite aceito. A conta está vinculada à oficina.", {
+      exact: true,
+    }),
+  ).toBeVisible();
   expect(errors).toEqual([]);
   console.log(
     "OPS004: navegação, funcionário sem login, convites, cancelamento, formulários, aprovações e três tamanhos validados com API e PostgreSQL fictícios.",
   );
 } catch (error) {
-  for(const line of serverErrors.slice(-10))console.log("OPS004 servidor:",line);
+  for (const line of serverErrors.slice(-10))
+    console.log("OPS004 servidor:", line);
   if (page && (await page.locator("input[type=password]").count()) === 0)
     await page
       .screenshot({ path: resolve(output, "failure.png"), fullPage: true })
