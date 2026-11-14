@@ -46,10 +46,10 @@ import { cancelPasswordReset, completePasswordReset, issuePasswordReset, newPass
 import { z } from "zod";
 import { normalizeVehicleModelLink, serviceModelIdSchema } from "./services/vehicleModelLink.js";
 import { resolve } from "node:path";
-import type { DB } from "./db/database.js";
+import type { DB } from "./db/transactions.js";
 import { defaultWorkshopModules, moduleForApiRequest, workspaceForModules } from "../shared/workshopModules.js";
 import { basicOrderReceiptMethods } from "../shared/basicOrderReceipt.js";
-import { transaction } from "./db/database.js";
+import { transaction } from "./db/transactions.js";
 import {
   auth,
   digest,

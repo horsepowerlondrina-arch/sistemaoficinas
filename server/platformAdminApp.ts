@@ -1,3 +1,4 @@
+import { isCloudflareHomologation, isCloudflareDatabaseRole } from "./cloudflarePolicy.js";
 import { isStripeBillingPreview } from "./developmentIsolation.js";
 import { stripeAdminRoutes } from "./stripeBillingRoutes.js";
 import type { StripeBilling } from "./services/stripeBilling.js";
@@ -735,11 +736,12 @@ export async function assertPlatformAdminDatabase(pool: Pool) {
     rolsuper,rolcreaterole,rolcreatedb,rolbypassrls,
     has_schema_privilege(current_user,'platform_admin','USAGE') AS admin_schema,
     has_schema_privilege(current_user,'horse_power','USAGE') AS workshop_schema,
-    has_schema_privilege(current_user,'service_catalog','USAGE') AS catalog_schema
+    has_schema_privilege(current_user,'service_catalog','USAGE') AS catalog_schema,
+    pg_has_role(current_user,'hp_platform_admin_app','MEMBER') AS expected_group
     FROM pg_roles WHERE rolname=current_user`);
   const role = result.rows[0];
   const expectedRole = isStripeBillingPreview(process.env) ? "hp_stripe_preview_admin" : "hp_platform_admin_app";
-  if (!role || role.role !== expectedRole || role.rolsuper || role.rolcreaterole || role.rolcreatedb || role.rolbypassrls || !role.admin_schema || role.workshop_schema || role.catalog_schema)
+  if (!role || !(isCloudflareHomologation(process.env) ? isCloudflareDatabaseRole(role.role, expectedRole) && role.expected_group : role.role === expectedRole) || role.rolsuper || role.rolcreaterole || role.rolcreatedb || role.rolbypassrls || !role.admin_schema || role.workshop_schema || role.catalog_schema)
     throw new Error("O painel central exige papel restrito ao schema administrativo local.");
   return role;
 }

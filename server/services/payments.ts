@@ -1,7 +1,7 @@
 import {requirePermission,canDiscount} from './userAccess.js';
 import { resolveCardPayments } from "./cardMachines.js";
 import { basicOrderReceiptMethods, type BasicOrderReceiptMethod } from "../../shared/basicOrderReceipt.js";
-import { transaction, type DB } from "../db/database.js";
+import { transaction, type DB } from "../db/transactions.js";
 import type { Context } from "../auth/session.js";
 import { calculatePaymentPlan, type PaymentInput, type MixedPaymentInput } from "../domain/payments.js";
 import { calculateDiscountAmount } from "../domain/orders.js";

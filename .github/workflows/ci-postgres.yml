@@ -184,3 +184,21 @@ jobs:
         run: node scripts/ci-hp-restore-sql.mjs
         env:
           CI_PG_ADMIN_URL: postgres://postgres:ci-temporary-only@127.0.0.1:5432/postgres
+
+  cloudflare-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            cloudflare/package-lock.json
+      - run: npm ci
+      - run: npm ci --prefix cloudflare
+      - run: npm run build:cloudflare
+      - run: npx tsc --project cloudflare/tsconfig.json
+      - run: npm run test:cloudflare

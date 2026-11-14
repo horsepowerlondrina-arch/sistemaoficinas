@@ -1,8 +1,9 @@
+import { URL as NodeURL } from "node:url";
 import { localDatabaseUrl } from "../localConfig.js";
 import { AsyncLocalStorage } from "node:async_hooks";
 import pg from "pg";
 import { readFileSync } from "node:fs";
-import type { DB } from "./database.js";
+import type { DB } from "./transactions.js";
 import { defaultWorkshopModules } from "../../shared/workshopModules.js";
 
 // Timestamps are text in the legacy contract; bigint aggregates stay exact JS integers.
@@ -84,7 +85,7 @@ export function postgresSql(input: string) {
   );
   return sql;
 }
-export function createPostgresDatabase(url = process.env.DATABASE_URL, options: { local?: boolean } = {}) {
+export function createPostgresDatabase(url = process.env.DATABASE_URL, options: { local?: boolean; ca?: string; hyperdrive?: boolean } = {}) {
   if (!url) throw new Error("Configure DATABASE_URL.");
   if (options.local) url = localDatabaseUrl(url);
   const pool = new pg.Pool({
@@ -92,10 +93,10 @@ export function createPostgresDatabase(url = process.env.DATABASE_URL, options: 
     max: 3,
     connectionTimeoutMillis: 10000,
     idleTimeoutMillis: 20000,
-    ssl: options.local ? false : {
+    ssl: options.hyperdrive ? undefined : options.local ? false : {
       rejectUnauthorized: true,
-      ca: readFileSync(
-        new URL("./certs/supabase-ca.crt", import.meta.url),
+      ca: options.ca ?? readFileSync(
+        new NodeURL("./certs/supabase-ca.crt", import.meta.url),
         "utf8",
       ),
     },

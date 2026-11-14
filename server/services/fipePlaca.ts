@@ -105,7 +105,8 @@ export async function lookupFipePlaca(
   }
   if (!response.ok) {
     const body = await response.json().catch(() => null);
-    const code = body?.erro?.codigo;
+    const error = body && typeof body === "object" && "erro" in body ? body.erro : null;
+    const code = error && typeof error === "object" && "codigo" in error ? error.codigo : undefined;
     if (response.status === 404 && code === "PLACA_NAO_ENCONTRADA")
       return {
         source: "not_found",
@@ -127,7 +128,7 @@ export async function lookupFipePlaca(
     };
     throw Object.assign(
       new Error(
-        messages[code] ||
+        (typeof code === "string" ? messages[code] : undefined) ||
           "Consulta FipePlaca indisponível. Tente novamente ou preencha os dados manualmente.",
       ),
       { status: 502 },

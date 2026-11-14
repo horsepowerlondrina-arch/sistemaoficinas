@@ -8,7 +8,7 @@ import {
   validNewCustomerPhone,
 } from "../../shared/customerIdentity.js";
 import { randomUUID } from "node:crypto";
-import { transaction, type DB } from "../db/database.js";
+import { transaction, type DB } from "../db/transactions.js";
 import type { Context } from "../auth/session.js";
 import { assertTransition, totalOf, type Status } from "../domain/orders.js";
 import {

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { salePrice, normalizePricingRules } from "../../shared/pricing.js";
-import { transaction, type DB } from "../db/database.js";
+import { transaction, type DB } from "../db/transactions.js";
 import type { Context } from "../auth/session.js";
 import { requireAdmin } from "./payments.js";
 import { audit } from "./workshop.js";

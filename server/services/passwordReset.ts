@@ -1,6 +1,6 @@
 import { randomBytes, randomUUID } from "node:crypto";
-import type { DB } from "../db/database.js";
-import { transaction } from "../db/database.js";
+import type { DB } from "../db/transactions.js";
+import { transaction } from "../db/transactions.js";
 import { digest, hashPassword } from "../auth/session.js";
 
 export const passwordResetTtlMinutes = 30;
