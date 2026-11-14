@@ -13,7 +13,7 @@ function GainContent({ report, company }: { report: ReturnType<typeof gainReport
   return <div className="os-result-content gain-report-content">
     <h1>Lucro bruto por período</h1>
     <p>{company} · {kindLabel[report.filters.kind]} · Finalização: {reportDate(report.filters.from)} a {reportDate(report.filters.to)}</p>
-    <p className="report-explanation">Venda após desconto proporcional menos custo de peças e serviços de terceiros registrados na OS. Não inclui taxas de cartão, mão de obra interna, impostos ou despesas gerais. OS com custo de peça ausente não entram no total de lucro e custo.</p>
+    <p className="report-explanation">Venda após desconto proporcional menos custo de peças e serviços de terceiros registrados na OS. Não inclui taxas de cartão, mão de obra interna, impostos ou despesas gerais. OS com custo de peça ausente e sem custo consolidado não entram no total de lucro e custo.</p>
     {report.totals.missingCostOrders > 0 && <p role="status">{report.totals.missingCostOrders} OS com custo de peça não informado. A venda permanece no total, mas o lucro dessas OS não foi calculado.</p>}
     <div className="report-summary">
       <span>OS no relatório <b>{report.rows.length}</b></span>

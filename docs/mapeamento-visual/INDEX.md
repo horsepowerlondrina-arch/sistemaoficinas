@@ -710,6 +710,18 @@ Componente real em Chromium com API e pagamentos fictícios; não comprova entre
 
 Estado: capturada · desktop · captura 2026-11-05 · commit de origem: ffa6ae17881c2848a19a373d48599d99fc35ef4f · [arquivo completo](./capturas/17-painel-admin-central/stripe-admin-desktop.png)
 
+## 18 — Resultados da oficina
+
+Produção, resultado estimado, caixa, metas e comparação com filtro de datas.
+
+### Resultados por intervalo
+
+Filtro livre de datas, indicadores, metas e relatório PDF com dados fictícios da oficina.
+
+[![Resultados por intervalo](./capturas/18-resultados/gestao-resultados-periodo.png)](./capturas/18-resultados/gestao-resultados-periodo.png)
+
+Estado: capturada · desktop · captura 2026-11-13 · commit de origem: a2989d0cf5f75f3cab1673504899d9b37d9a2a72 · [arquivo completo](./capturas/18-resultados/gestao-resultados-periodo.png)
+
 ## 99 — Fluxos completos
 
 Sequências de navegação entre áreas.
