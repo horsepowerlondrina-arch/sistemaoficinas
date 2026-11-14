@@ -15,6 +15,7 @@ const profile = z.enum(["master", "manager", "advisor", "mechanic", "finance"]);
 export const accessInput = z
   .object({
     profile,
+    confirm_master: z.boolean().default(false),
     active: z.boolean().default(true),
     permissions: z.record(z.string(), z.boolean()).default({}),
     order_scope: z.enum(["all", "assigned"]).default("all"),
@@ -132,8 +133,11 @@ export async function saveUserAccess(
       throw Object.assign(new Error("Usuário não encontrado nesta oficina."), {
         status: 404,
       });
-    if (old.role === "owner" || input.profile === "master")
+    if (old.role === "owner" || input.profile === "master") {
       await recentAuthentication(db, ctx, sessionHash);
+      if (!input.confirm_master)
+        accessDenied("Confirme a alteração envolvendo Master.");
+    }
     if (
       old.role === "owner" &&
       target === ctx.userId &&
@@ -285,8 +289,10 @@ export async function createUserInvite(
     discount_bps: valid.discount_bps,
     discount_cents: valid.discount_cents,
   });
-  if (input.profile === "master")
+  if (input.profile === "master") {
     await recentAuthentication(db, ctx, sessionHash);
+    if (!input.confirm_master) accessDenied("Confirme o convite Master.");
+  }
   const token = randomBytes(32).toString("hex"),
     id = replacing || randomUUID();
   const prepared = await transaction(db, async () => {
@@ -391,15 +397,18 @@ export async function cancelUserInvite(
   ctx: Context,
   id: string,
   sessionHash = "",
+  confirmed = false,
 ) {
+  requirePermission(ctx, "users.manage");
   const row = await db
     .prepare(
       "SELECT profile FROM workshop_user_invites WHERE tenant_id=? AND id=?",
     )
     .get(ctx.tenantId, id);
-  if (row?.profile === "master")
+  if (row?.profile === "master") {
     await recentAuthentication(db, ctx, sessionHash);
-  requirePermission(ctx, "users.manage");
+    if (!confirmed) accessDenied("Confirme o cancelamento do convite Master.");
+  }
   await db
     .prepare(
       "UPDATE workshop_user_invites SET revoked_at=? WHERE tenant_id=? AND id=? AND accepted_at IS NULL",

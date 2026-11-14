@@ -165,7 +165,7 @@ test("OPS-004 PostgreSQL17: concurrent seats, invitations, reactivation, last Ma
             database,
             await context(database, [owner, newA][i]),
             [newA, owner][i],
-            { profile: "mechanic", active: true },
+            { profile: "mechanic", active: true, confirm_master: true },
             digest([owner, newA][i]),
           ),
         ),

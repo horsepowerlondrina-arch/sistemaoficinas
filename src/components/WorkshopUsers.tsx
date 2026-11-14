@@ -99,6 +99,7 @@ export function WorkshopUsers() {
       }
       const body = {
         profile: editor!.profile,
+        confirm_master: !!confirmed,
         active: editor!.active,
         permissions: editor!.permissions,
         order_scope: editor!.order_scope,
@@ -654,7 +655,7 @@ export function WorkshopUsers() {
                 setPassword("");
                 const result = await send(
                   `/user-invites/${pendingAction.id}/${pendingAction.action}`,
-                  {},
+                  { confirm_master: true },
                 );
                 setNotice(
                   result.delivered === false

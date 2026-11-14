@@ -186,6 +186,7 @@ test("Master protection requires recent authentication, denies self-demotion and
   try {
     const master = await ctx(db, "master");
     const down = {
+      confirm_master: true,
       profile: "mechanic",
       active: false,
       permissions: {},
@@ -198,6 +199,16 @@ test("Master protection requires recent authentication, denies self-demotion and
       /senha novamente/,
     );
     await reauthenticate(db, master, digest("master"), password);
+    await assert.rejects(
+      saveUserAccess(
+        db,
+        master,
+        "second",
+        { ...down, confirm_master: false },
+        digest("master"),
+      ),
+      /Confirme/,
+    );
     await assert.rejects(
       saveUserAccess(db, master, "master", down, digest("master")),
       /próprio acesso Master/,

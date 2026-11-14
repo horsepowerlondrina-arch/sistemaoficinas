@@ -6,7 +6,7 @@ Esta tarefa amplia as contas globais, memberships, profissionais e autorização
 
 O Master administra usuários e funcionários em **Configurações → Usuários e funcionários**. A tela reúne vagas, acessos ativos/inativos, convites, personalizações, funcionários e histórico administrativo. Funcionários operacionais reutilizam os IDs de `professionals`; só contas ativas e convites válidos reservam vagas.
 
-Os perfis são modelos individuais. Trocar o perfil substitui as personalizações após confirmação; restaurar o padrão remove os overrides do usuário editado. Masters mantêm o mesmo nível administrativo. Os módulos contratados continuam sendo o teto das permissões efetivas. Responsabilidade contratual e administração central não são transferidas por mudanças de perfil.
+Os perfis são modelos individuais. Trocar o perfil substitui as personalizações após confirmação; restaurar o padrão remove os overrides do usuário editado. Masters mantêm o mesmo nível administrativo. Alterações envolvendo Masters exigem confirmação explícita e autenticação recente também no servidor. Os módulos contratados continuam sendo o teto das permissões efetivas. Responsabilidade contratual e administração central não são transferidas por mudanças de perfil.
 
 A conta com vários vínculos ativos escolhe a oficina ao iniciar a sessão e pode trocar pela seleção **Oficina ativa**. Formulários com alterações pendentes exigem confirmação antes da troca. O servidor revalida o vínculo e o estado ativo em cada requisição.
 
@@ -37,7 +37,7 @@ Os descontos de recebimentos mantêm os cálculos monetários existentes e passa
 
 `local-postgres/038-workshop-users.sql` e seu espelho em `supabase/migrations/20261113000100_workshop_users.sql` são aditivos. A migração SQLite `033-workshop-users.sql` mantém a infraestrutura de testes legada. Vínculos existentes são mapeados para Master/Mecânico sem mudar IDs; novas memberships legadas continuam com fallback compatível.
 
-Aplicar a migração remota somente após revisão dos testes e autorização específica. Aplicar o SQL aditivo antes de publicar o código dependente; a versão anterior não precisa consultar as novas tabelas. A reversão de aplicação deve preservar as tabelas e históricos novos; não apagar usuários, memberships ou profissionais para fazer rollback.
+Aplicar a migração remota somente após revisão dos testes e autorização específica. Aplicar o SQL aditivo antes de publicar o código dependente; a versão anterior não precisa consultar as novas tabelas. A reversão deve preservar as tabelas e históricos novos; não apagar usuários, memberships ou profissionais para fazer rollback. Depois de utilizar desativações ou permissões novas, não retornar a uma versão que ignore esses controles: uma correção de reversão precisa manter a autorização e a revogação dos acessos. Restaurar somente a interface antiga não pode reabilitar contas desativadas.
 
 A integração do PR e a migração persistente não estão autorizadas nesta tarefa. Não utilizar produção, credenciais reais ou sessões reais na validação. O PR deverá permanecer sem merge até autorização do responsável.
 
