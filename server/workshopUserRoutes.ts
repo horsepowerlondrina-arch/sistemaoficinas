@@ -117,7 +117,7 @@ export function workshopUserRoutes(db: DB, deliver?: InviteDelivery) {
       .get(ctx.tenantId, String(req.params.id));
     if (!old) throw new Error("Convite não encontrado.");
     const input = {
-      confirm_master: req.body.confirm_master === true,
+      confirm_master: req.body?.confirm_master === true,
       email: old.email,
       profile: old.profile,
       permissions: JSON.parse(old.permissions),
@@ -145,7 +145,7 @@ export function workshopUserRoutes(db: DB, deliver?: InviteDelivery) {
         res.locals.context,
         String(req.params.id),
         digest(tokenFrom(req)),
-        req.body.confirm_master === true,
+        req.body?.confirm_master === true,
       ),
     ),
   );

@@ -400,22 +400,30 @@ export async function cancelUserInvite(
   confirmed = false,
 ) {
   requirePermission(ctx, "users.manage");
-  const row = await db
-    .prepare(
-      "SELECT profile FROM workshop_user_invites WHERE tenant_id=? AND id=?",
-    )
-    .get(ctx.tenantId, id);
-  if (row?.profile === "master") {
-    await recentAuthentication(db, ctx, sessionHash);
-    if (!confirmed) accessDenied("Confirme o cancelamento do convite Master.");
-  }
-  await db
-    .prepare(
-      "UPDATE workshop_user_invites SET revoked_at=? WHERE tenant_id=? AND id=? AND accepted_at IS NULL",
-    )
-    .run(Date.now(), ctx.tenantId, id);
-  await audit(db, ctx, "users.invite_cancelled", id);
-  return { ok: true };
+  return transaction(db, async () => {
+    await lock(db, ctx);
+    const row = await db
+      .prepare(
+        "SELECT profile,accepted_at,revoked_at FROM workshop_user_invites WHERE tenant_id=? AND id=?",
+      )
+      .get(ctx.tenantId, id);
+    if (!row || row.accepted_at !== null || row.revoked_at !== null)
+      throw Object.assign(new Error("O convite não está mais pendente."), {
+        status: 409,
+      });
+    if (row.profile === "master") {
+      await recentAuthentication(db, ctx, sessionHash);
+      if (!confirmed)
+        accessDenied("Confirme o cancelamento do convite Master.");
+    }
+    await db
+      .prepare(
+        "UPDATE workshop_user_invites SET revoked_at=? WHERE tenant_id=? AND id=? AND accepted_at IS NULL AND revoked_at IS NULL",
+      )
+      .run(Date.now(), ctx.tenantId, id);
+    await audit(db, ctx, "users.invite_cancelled", id);
+    return { ok: true };
+  });
 }
 
 export async function employeeInviteInfo(db: DB, token: string) {

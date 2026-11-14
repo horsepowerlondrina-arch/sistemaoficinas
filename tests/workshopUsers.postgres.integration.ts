@@ -306,6 +306,44 @@ test("OPS-004 PostgreSQL17: concurrent seats, invitations, reactivation, last Ma
         }),
       ),
     );
+    const currentMaster =
+      (
+        await admin.query(
+          "SELECT m.user_id FROM horse_power.memberships m JOIN horse_power.workshop_user_access a ON a.tenant_id=m.tenant_id AND a.user_id=m.user_id WHERE m.tenant_id=$1 AND m.role='owner' AND a.active=1",
+          [t],
+        )
+      ).rows[0]?.user_id || owner;
+    let raceToken = "";
+    const raceInvite = await db.withRequestContext!(
+      settings(currentMaster),
+      async () =>
+        createUserInvite(
+          db,
+          await context(db, currentMaster),
+          { email: `race-${t}@example.test`, profile: "mechanic" },
+          digest(currentMaster),
+          async (i) => {
+            raceToken = i.token;
+          },
+        ),
+    );
+    const { cancelUserInvite } =
+      await import("../server/services/workshopUsers");
+    const race = await Promise.allSettled([
+      db.withRequestContext!(settings(currentMaster), async () =>
+        cancelUserInvite(db, await context(db, currentMaster), raceInvite.id),
+      ),
+      acceptEmployeeInvite(parallel, raceToken, "", {
+        name: "Convidado Concorrente Fictício",
+        password,
+      }),
+    ]);
+    assert.equal(race.filter((r) => r.status === "fulfilled").length, 1);
+    const capacity = await db.withRequestContext!(
+      settings(currentMaster),
+      async () => userCapacity(db, await context(db, currentMaster)),
+    );
+    assert.ok(capacity.active + capacity.pending <= capacity.limit);
     const grants = await admin.query(
       "SELECT EXISTS(SELECT 1 FROM pg_proc p CROSS JOIN LATERAL aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) a WHERE p.oid='horse_power.accept_employee_invite(text,text,text,text)'::regprocedure AND a.grantee=0 AND a.privilege_type='EXECUTE') allowed",
     );
