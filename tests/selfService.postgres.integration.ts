@@ -74,7 +74,7 @@ test("three plans: registration, email activation, settled payment, seats and is
       assert.match(checkout.url, /^https:\/\/checkout.stripe.com\//);
       const cs = [...resources.values()].find(v => v.url === checkout.url);
       assert.equal((await billing.summary(pending.tenant_id)).payments.length, 0);
-      const pi = "pi_" + cs.id;
+      const pi = "pi_" + cs.id.replaceAll("_", "");
       Object.assign(cs, { status: "complete", payment_status: "paid", payment_intent: pi });
       resources.set(`/payment_intents/${pi}?expand[]=latest_charge`, { id: pi, livemode: false, customer: cs.customer, status: "succeeded", amount_received: amount, currency: "brl", latest_charge: { amount_refunded: 0, disputed: false } });
       await billing.syncSession(cs.id); await billing.syncSession(cs.id);
@@ -88,14 +88,20 @@ test("three plans: registration, email activation, settled payment, seats and is
       let invite = "";
       for (let slot = 1; slot < limit; slot++) {
         await db.withRequestContext!(settings, async () => {
-          const ctx: Context = { tenantId: pending.tenant_id, userId: owner, role: "owner", modules: { ...defaultWorkshopModules } };
+          const ctx: Context = { tenantId: pending.tenant_id, userId: owner, role: "owner", modules: await db.getTenantModuleAccess?.(pending.tenant_id) || { ...defaultWorkshopModules } };
           ctx.access = await readUserAccess(db, ctx);
           await createUserInvite(db, ctx, { email: `${plan}-${suffix}-${slot}@testes.osdrive.com.br`, profile: "mechanic", order_scope: "assigned" }, "", async v => { invite = v.token; });
         });
         await acceptEmployeeInvite(db, invite, "", { name: "Mecânico Fictício", password: randomBytes(24).toString("base64url") });
+        const user = (await root.query("SELECT id FROM horse_power.users WHERE email=$1", [`${plan}-${suffix}-${slot}@testes.osdrive.com.br`])).rows[0].id;
+        await db.withRequestContext!({ "app.tenant_id": pending.tenant_id, "app.user_id": user }, async () => {
+          const access = await readUserAccess(db, { tenantId: pending.tenant_id, userId: user, role: "operator", modules: await db.getTenantModuleAccess?.(pending.tenant_id) || { ...defaultWorkshopModules } });
+          assert.equal(access.profile, "mechanic"); assert.equal(access.orderScope, "assigned");
+          for (const permission of ["users.manage","orders.prices","personal.email","personal.contact","finance.view"] as const) assert.equal(access.permissions[permission], false);
+        });
       }
       await db.withRequestContext!(settings, async () => {
-        const ctx: Context = { tenantId: pending.tenant_id, userId: owner, role: "owner", modules: { ...defaultWorkshopModules } };
+        const ctx: Context = { tenantId: pending.tenant_id, userId: owner, role: "owner", modules: await db.getTenantModuleAccess?.(pending.tenant_id) || { ...defaultWorkshopModules } };
         const cap = await userCapacity(db, ctx); assert.equal(cap.active, limit); assert.equal(cap.available, 0);
         await assert.rejects(createUserInvite(db, ctx, { email: `excess-${suffix}@testes.osdrive.com.br`, profile: "mechanic" }, "", async () => {}));
         if (offices.length > 1) assert.equal((await db.prepare("SELECT * FROM tenants WHERE id=?").all(offices[0])).length, 0);
