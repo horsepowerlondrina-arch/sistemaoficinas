@@ -5,6 +5,7 @@ import { platformTitle } from "../shared/platformIdentity";
 import { clearOrderFilterSession } from "./lib/orderFilterSession";
 import { workshopTheme } from "../shared/workshopTheme";
 import { uiModuleForPath } from "../shared/workshopModules";
+import { visibleWorkshopNavigation, workshopNavGroups } from "./lib/workshopNavigation";
 import { PlatformBrand } from "./components/PlatformBrand";
 import { WorkshopBrand } from "./components/WorkshopBrand";
 import { advanceOnEnter } from "./lib/enterNavigation";
@@ -29,17 +30,12 @@ import {
   Navigate,
 } from "react-router-dom";
 import {
-  LayoutDashboard,
   LayoutGrid,
-  ClipboardList,
-  ClipboardCheck,
   FileText,
   Users,
   CarFront,
   Package,
-  Wrench,
   Wallet,
-  Settings,
   Search,
   Bell,
   ChevronDown,
@@ -50,7 +46,6 @@ import {
   Command,
   CheckCircle2,
   LoaderCircle,
-  MessageCircle,
   ArrowRight,
   CalendarDays,
   TriangleAlert,
@@ -189,58 +184,16 @@ export function App() {
       />
     );
   if (!data) return null;
-  const groups: {
-    title: string;
-    items: [string, string, typeof LayoutDashboard][];
-  }[] = [
-    {
-      title: "PRINCIPAL",
-      items: [
-        ["/dashboard", "Visão geral", LayoutDashboard],
-        ["/ordens", "Ordens de Serviço", ClipboardList],
-        ["/checklists", "Checklists de entrada", ClipboardCheck],
-      ],
-    },
-    {
-      title: "CADASTROS",
-      items: [
-        ["/cadastros", "Clientes e veículos", Users],
-        ["/catalogo", "Produtos", Package],
-        ["/servicos", "Serviços", Wrench],
-        ["/profissionais", "Profissionais", Wrench],
-        ["/fornecedores", "Fornecedores", Package],
-      ],
-    },
-    {
-      title: "GESTÃO",
-      items: [
-        ["/estoque", "Estoque", Package],
-        ["/financeiro", "Financeiro", Wallet],
-      ],
-    },
-  ];
   const admin = session.role === "owner" || !!session.access;
-  const available = (path: string) => {
-    if(!canOpenPath(session,path))return false;
-    const module = path === "/servicos" && !can(session,"catalog.view") && can(session,"technical.view") ? "technical_catalog" : uiModuleForPath(path);
-    return !module || session.modules?.[module] !== false;
-  };
-  const visibleGroups = admin
-    ? groups.map((group) => ({ ...group, items: group.items.filter(([path]) => available(path)) })).filter((group) => group.items.length)
-    : [
-        {
-          title: "OPERAÇÃO",
-          items: groups[0].items.filter(([path]) => path === "/ordens" && available(path)),
-        },
-      ];
+  const { groups: visibleGroups, footer: visibleFooter } = visibleWorkshopNavigation(session);
   const blockedModule = ["/servicos","/tempos"].includes(location.pathname) && !can(session,"catalog.view") && can(session,"technical.view") ? "technical_catalog" : uiModuleForPath(location.pathname);
   if(!canOpenPath(session,location.pathname))return <Navigate to="/inicio" replace/>;
   if (blockedModule && session.modules?.[blockedModule] === false)
     return <Navigate to="/inicio" replace />;
   const current =
-    groups
+    workshopNavGroups
       .flatMap((g) => g.items)
-      .find(([path]) => location.pathname.startsWith(path))?.[1] ||
+      .find((item) => location.pathname.startsWith(item.path))?.label ||
     (location.pathname === "/inicio"
       ? "Início"
       : location.pathname === "/suporte"
@@ -353,7 +306,7 @@ export function App() {
             {visibleGroups.map((group) => (
               <div className="nav-group" key={group.title}>
                 <h2>{group.title}</h2>
-                {group.items.map(([path, label, Icon]) => (
+                {group.items.map(({ path, label, Icon }) => (
                   <NavLink
                     key={path}
                     to={path}
@@ -370,18 +323,18 @@ export function App() {
             ))}
           </nav>
           <div className="sidebar-bottom">
-            {session.support_available && <NavLink to="/suporte" className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}><MessageCircle size={19} aria-hidden="true" style={{ flexShrink: 0 }}/><span>Suporte</span></NavLink>}
-            {admin && available("/configuracoes") && (
+            {visibleFooter.map(({ path, label, Icon }) => (
               <NavLink
-                to="/configuracoes"
+                key={path}
+                to={path}
                 className={({ isActive }) =>
                   `nav-item ${isActive ? "active" : ""}`
                 }
               >
-                <Settings size={19} aria-hidden="true" style={{ flexShrink: 0 }} />
-                <span>Configurações</span>
+                <Icon size={19} aria-hidden="true" style={{ flexShrink: 0 }} />
+                <span>{label}</span>
               </NavLink>
-            )}
+            ))}
             <div className="user-card">
               <span className="user-avatar">{initials(session.user.name)}</span>
               <div>
