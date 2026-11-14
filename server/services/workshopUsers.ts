@@ -4,7 +4,7 @@ import type { DB } from "../db/database";
 import { transaction } from "../db/database";
 import type { Context } from "../auth/session";
 import { digest, verifyPassword, hashPassword } from "../auth/session";
-import { audit } from "./workshop";
+import { audit, invalidateOrderShares } from "./workshop";
 import { requirePermission, accessDenied } from "./userAccess";
 import {
   effectivePermissions,
@@ -22,12 +22,10 @@ export const accessInput = z
     discount_cents: z.number().int().min(0).nullable().default(null),
   })
   .strict();
-export const inviteInput = accessInput
-  .omit({ active: true })
-  .extend({
-    email: z.email().transform((s) => s.trim().toLowerCase()),
-    professional_id: z.string().min(1).nullable().default(null),
-  });
+export const inviteInput = accessInput.omit({ active: true }).extend({
+  email: z.email().transform((s) => s.trim().toLowerCase()),
+  professional_id: z.string().min(1).nullable().default(null),
+});
 function validated(raw: unknown) {
   const input = accessInput.parse(raw);
   if (
@@ -190,6 +188,22 @@ export async function saveUserAccess(
         await db
           .prepare("DELETE FROM sessions WHERE tenant_id=? AND user_id=?")
           .run(ctx.tenantId, target);
+    }
+    // A permission reduction must not leave this user's previously issued bearer
+    // links as an alternate path to the same OS. Other workshops are untouched.
+    if (
+      !input.active ||
+      input.profile !== old.profile ||
+      input.order_scope !== old.order_scope ||
+      JSON.stringify(input.permissions) !== old.permissions
+    ) {
+      const shared = await db
+        .prepare(
+          "SELECT DISTINCT entity_id FROM audit_events WHERE tenant_id=? AND user_id=? AND action='order.shared'",
+        )
+        .all(ctx.tenantId, target);
+      for (const order of shared)
+        await invalidateOrderShares(db, ctx, order.entity_id);
     }
     await audit(db, ctx, "users.access_changed", target, {
       before: old,

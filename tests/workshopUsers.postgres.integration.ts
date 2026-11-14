@@ -242,11 +242,11 @@ test("OPS-004 PostgreSQL17: concurrent seats, invitations, reactivation, last Ma
     );
     for (const [number, order] of [visible, hidden].entries()) {
       await admin.query(
-        "INSERT INTO horse_power.orders(id,tenant_id,number,status,kind,customer_id,vehicle_id,entered_on,due_on) VALUES($1,$2,$3,'open','order',$4,$5,'2026-11-13','2026-11-14')",
+        "INSERT INTO horse_power.orders(id,tenant_id,number,status,kind,customer_id,vehicle_id,entered_on,due_on,km) VALUES($1,$2,$3,'open','order',$4,$5,'2026-11-13','2026-11-14',0)",
         [order, t, number + 1, customer, vehicle],
       );
       await admin.query(
-        "INSERT INTO horse_power.order_items(id,tenant_id,order_id,kind,name,quantity,price,cost) VALUES($1,$2,$3,'service','Serviço Fictício',1,10000,1000)",
+        "INSERT INTO horse_power.order_items(id,tenant_id,order_id,kind,name,quantity,price,cost,service_snapshot) VALUES($1,$2,$3,'service','Serviço Fictício',1,10000,1000,'{}')",
         [randomUUID(), t, order],
       );
     }
@@ -297,6 +297,13 @@ test("OPS-004 PostgreSQL17: concurrent seats, invitations, reactivation, last Ma
         (await db.prepare("SELECT id FROM orders WHERE tenant_id=?").all(t))
           .length,
         0,
+      ),
+    );
+    await Promise.all(
+      Array.from({ length: 3 }, () =>
+        db.withRequestContext!(settings(scopedUser), async () => {
+          assert.equal(await db.hasUserAccessSchema!(), true);
+        }),
       ),
     );
     const grants = await admin.query(

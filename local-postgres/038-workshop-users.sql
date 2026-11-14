@@ -265,7 +265,7 @@ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog AS $$
 DECLARE uid text; scope text; active_state bigint; member_role text;
 BEGIN
  uid:=nullif(current_setting('app.user_id',true),'');
- IF uid IS NULL THEN RETURN true; END IF;
+ IF uid IS NULL OR uid='public' THEN RETURN true; END IF;
  SELECT m.role,coalesce(a.order_scope,'all'),coalesce(a.active,1) INTO member_role,scope,active_state
  FROM horse_power.memberships m LEFT JOIN horse_power.workshop_user_access a ON a.tenant_id=m.tenant_id AND a.user_id=m.user_id WHERE m.tenant_id=p_tenant AND m.user_id=uid;
  IF NOT FOUND OR active_state<>1 THEN RETURN false; END IF;
