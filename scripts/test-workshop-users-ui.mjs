@@ -320,6 +320,24 @@ try {
       exact: true,
     }),
   ).toBeVisible();
+  await page
+    .getByRole("link", { name: "Entrar no sistema", exact: true })
+    .click();
+  await page
+    .getByLabel("E-mail", { exact: true })
+    .fill(collaborator.activationEmail);
+  await page.getByLabel("Senha", { exact: true }).fill(collaborator.password);
+  await page.getByRole("button", { name: "Entrar na oficina" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Por onde vamos começar?", exact: true }),
+  ).toBeVisible();
+  const activated = await (
+    await page.request.get(base + "/api/session")
+  ).json();
+  expect(activated.user.email).toBe(collaborator.activationEmail);
+  expect(activated.tenant.id).toBe("local-a");
+  expect(activated.access.profile).toBe("mechanic");
+  expect(activated.must_select_office).toBe(false);
   expect(errors).toEqual([]);
   console.log(
     "OPS004: navegação, funcionário sem login, convites, cancelamento, formulários, aprovações e três tamanhos validados com API e PostgreSQL fictícios.",

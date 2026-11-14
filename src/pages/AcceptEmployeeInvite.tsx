@@ -28,7 +28,15 @@ export function AcceptEmployeeInvite() {
         {done ? (
           <>
             <p>Convite aceito. A conta está vinculada à oficina.</p>
-            <a className="button primary" href="/inicio">
+            <a
+              className="button primary"
+              href="/inicio"
+              onClick={async (e) => {
+                e.preventDefault();
+                await send("/logout", {}).catch(() => {});
+                window.location.assign("/inicio");
+              }}
+            >
               Entrar no sistema
             </a>
           </>

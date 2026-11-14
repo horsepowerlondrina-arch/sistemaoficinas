@@ -14,7 +14,8 @@ await db.connect();
 try {
   const id = randomUUID(),
     password = randomBytes(24).toString("base64url");
-  const email = `ops004-ui-${id}@example.test`;
+  const email = `ops004-ui-${id}@example.test`,
+    activationEmail = `ops004-activation-${id}@example.test`;
   await db.query("BEGIN");
   await db.query(
     "INSERT INTO horse_power.users(id,name,email,password_hash) VALUES($1,'Colaborador Fictício OPS004',$2,$3)",
@@ -58,7 +59,7 @@ try {
             modules: { ...defaultWorkshopModules },
           },
           {
-            email: `ops004-activation-${id}@example.test`,
+            email: activationEmail,
             profile: "mechanic",
           },
           "",
@@ -74,7 +75,7 @@ try {
   // Keep credentials outside every uploaded screenshot directory and repository.
   writeFileSync(
     resolve(process.env.RUNNER_TEMP || "/tmp", "ops004-ui-identity.json"),
-    JSON.stringify({ email, password, inviteToken }),
+    JSON.stringify({ email, password, inviteToken, activationEmail }),
     { mode: 0o600 },
   );
 } catch (error) {

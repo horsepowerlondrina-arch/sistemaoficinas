@@ -137,7 +137,7 @@ export function App() {
     return () => document.removeEventListener("keydown", advanceOnEnter);
   }, [session]);
   useEffect(() => { document.title = platformTitle(session?.tenant.name); }, [session?.tenant.id, session?.tenant.name]);
-  useEffect(()=>{if(!session)return;const timer=window.setInterval(()=>{void api<Session>('/session').then(async next=>{if(JSON.stringify(next.access)!==JSON.stringify(session.access)||next.tenant.id!==session.tenant.id){setSession(next);await refresh();}}).catch(()=>{setSession(null);setData(null);});},15000);return ()=>window.clearInterval(timer);},[session?.tenant.id,JSON.stringify(session?.access)]);
+  useEffect(()=>{if(!session)return;const timer=window.setInterval(()=>{void api<Session>('/session').then(async next=>{if(JSON.stringify(next.access)!==JSON.stringify(session.access)||next.tenant.id!==session.tenant.id){setSession(next);await refresh();}else if(next.access?.orderScope==="assigned")await refresh();}).catch(()=>{setSession(null);setData(null);});},15000);return ()=>window.clearInterval(timer);},[session?.tenant.id,JSON.stringify(session?.access)]);
   useEffect(()=>{const changed=(event:Event)=>{const target=event.target as HTMLElement;const form=target.closest('main form');if(form)form.setAttribute('data-dirty','true');};document.addEventListener('input',changed);document.addEventListener('change',changed);return()=>{document.removeEventListener('input',changed);document.removeEventListener('change',changed);};},[]);
 
   if (loading)
