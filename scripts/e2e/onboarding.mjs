@@ -4,6 +4,7 @@ import { dirname, resolve } from "node:path";
 import { chromium, expect } from "@playwright/test";
 import { HOMOLOGATION } from "./isolated-sessions.mjs";
 import { checkoutStep, stripeCardForm } from "./stripe-checkout.mjs";
+import { withFreshActivation } from "./isolated-activation.mjs";
 import { activationLink } from "./activation-mail.mjs";
 
 const command = process.argv[2], file = resolve(process.env.TEST_ONBOARDING_FILE || "data/test-onboarding.json");
@@ -71,6 +72,8 @@ try {
           if (account.activated) continue;
           const matching = messages.filter(m => (Array.isArray(m.to) ? m.to : [m.to]).includes(account.email));
           if (matching.length !== 1) throw Error("ACTIVATION_MAIL_REQUIRED");
+          await withFreshActivation(browser, async (page, activationContext) => {
+          try {
           await page.goto(activationLink(matching[0], { email: account.email, after: account.registeredAt, path: command === "activate" ? "/ativar-oficina" : "/aceitar-convite" }));
           if (command === "activate") {
             await expect(page.getByText(office.name, { exact: true })).toBeVisible();
@@ -78,7 +81,8 @@ try {
             await page.getByLabel("Confirme a senha").fill(account.password);
             const [r] = await Promise.all([page.waitForResponse(r => r.url().endsWith("/workshop-activation/complete")), page.getByRole("button", { name: "Confirmar e ativar oficina" }).click()]);
             if (!r.ok()) throw Error("ACTIVATION_FAILED"); office.tenantId = (await r.json()).tenant_id;
-            await login(context, account, office.tenantId);
+            const activatedIdentity = await request(activationContext, 'GET', '/api/session');
+            if (activatedIdentity.user.email !== account.email || activatedIdentity.tenant.id !== office.tenantId) throw Error('IDENTITY_MISMATCH');
           } else {
             await expect(page.getByLabel("E-mail convidado")).toHaveValue(account.email);
             await page.getByLabel("Seu nome", { exact: true }).fill("Usuário Fictício Automação");
@@ -87,6 +91,8 @@ try {
             await expect(page.getByText("Convite aceito. A conta está vinculada à oficina.")).toBeVisible();
           }
           account.activated = true; save(data);
+          } finally { await activationContext.request.post(HOMOLOGATION + '/api/logout', { data: {}, headers: { Origin: HOMOLOGATION } }).catch(() => {}); }
+          });
         }
       } else {
         if (!office.tenantId || !master.activated) throw Error("MASTER_ACTIVATION_REQUIRED");

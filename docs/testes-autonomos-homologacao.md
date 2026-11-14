@@ -45,3 +45,5 @@ A auditoria de segurança é limitada às APIs, cenários e políticas exercitad
 ## Retomada e verificações do provedor
 
 Checkouts pendentes são retomados sem criar outra assinatura. O navegador aguarda o campo de cartão em um quadro oficial da Stripe, sem aguardar silêncio de conexões de telemetria. Checkouts live e destinos externos são recusados antes de preencher o cartão. A ausência do formulário gera `PROVIDER_FORM_UNAVAILABLE`; desafios e proteções do provedor não são contornados, e pagamentos nunca são marcados artificialmente como confirmados. A disponibilidade da conexão Stripe deve ser verificada separadamente: sugerir sua instalação não equivale a conectá-la.
+
+Cada convite é ativado em um contexto de navegador recém-criado, encerrado ao terminar. Reutilizar a mesma página para dois fragmentos de ativação pode manter o token anterior no estado React; o teste de interface cobre dois convites consecutivos e verifica que os cookies de outro contexto permanecem intactos.

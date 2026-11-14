@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
+import { withFreshActivation } from "./e2e/isolated-activation.mjs";
 import { chromium, expect } from "@playwright/test";
 if (process.env.VERCEL || process.env.NODE_ENV === "production") throw Error("ISOLATED_ONLY");
 const output = resolve(process.env.RUNNER_TEMP || "/tmp", "self-service-ui"); mkdirSync(output, { recursive: true });
@@ -35,5 +36,25 @@ try {
   await expect(page.getByRole("status")).toContainText("ativação");
   if (sent !== 1 || errors.length) throw Error("SUBMISSION_OR_RUNTIME_FAILURE");
   await page.screenshot({ path: resolve(output, "signup-confirmation-mobile.png"), fullPage: true });
-  console.log("Self-service form, submission and responsive layout passed; API fixture only, PostgreSQL tested separately.");
+  await page.context().addCookies([{name:'test_owner_sentinel',value:'unchanged',url:'http://127.0.0.1:5184'}]);
+  let accepted = 0;
+  for (const n of [1,2]) await withFreshActivation(browser, async (activation, context) => {
+    if ((await context.cookies()).length) throw Error('ACTIVATION_REUSED_COOKIES');
+    const token = String(n).repeat(64), email = `collaborator-${n}@testes.osdrive.com.br`;
+    await context.route('**/api/employee-invites/**', async route => {
+      const body = route.request().postDataJSON();
+      if (body.token !== token) throw Error('PREVIOUS_INVITE_TOKEN_REUSED');
+      if (route.request().url().endsWith('/info')) return route.fulfill({json:{workshop_name:'Oficina Fictícia',email,account_exists:false}});
+      if (!body.password || body.name !== 'Colaborador Fictício') throw Error('ACTIVATION_PAYLOAD_MISMATCH');
+      accepted++;return route.fulfill({json:{ok:true}});
+    });
+    await activation.goto('http://127.0.0.1:5184/aceitar-convite#'+token);
+    await expect(activation.getByLabel('E-mail convidado')).toHaveValue(email);
+    await activation.getByLabel('Seu nome',{exact:true}).fill('Colaborador Fictício');
+    await activation.getByLabel('Crie sua senha (mínimo de 12 caracteres)').fill('Synthetic-Invite-Password-Only');
+    await activation.getByRole('button',{name:'Aceitar convite',exact:true}).click();
+    await expect(activation.getByText('Convite aceito. A conta está vinculada à oficina.')).toBeVisible();
+  });
+  if (accepted !== 2 || !(await page.context().cookies()).some(c=>c.name==='test_owner_sentinel'&&c.value==='unchanged')) throw Error('ACTIVATION_ISOLATION_FAILED');
+  console.log("Self-service desktop/mobile and two independent activations passed; API fixture only, PostgreSQL tested separately.");
 } finally { await browser?.close(); child.kill("SIGTERM"); }
