@@ -277,6 +277,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
               "http://localhost:5173",
               "http://127.0.0.1:3001",
               "http://localhost:3001",
+              ...(process.env.LOCAL_HOMOLOGATION === "true" ? (process.env.APP_ORIGINS || "").split(",") : []),
             ].includes(origin.origin));
       if (!valid) {
         res.status(403).json({ error: "Origem não autorizada." });

@@ -16,7 +16,12 @@
       "includeFiles": "server/db/certs/**"
     }
   },
-  "crons": [{"path": "/api/billing/stripe/renew", "schedule": "0 9 * * *"}],
+  "crons": [
+    {
+      "path": "/api/billing/stripe/renew",
+      "schedule": "0 9 * * *"
+    }
+  ],
   "rewrites": [
     {
       "source": "/admin-api",
@@ -98,5 +103,9 @@
       "destination": "/contato",
       "permanent": true
     }
-  ]
+  ],
+  "git": {
+    "deploymentEnabled": false
+  },
+  "ignoreCommand": "node scripts/vercel-ignore-docs.mjs"
 }

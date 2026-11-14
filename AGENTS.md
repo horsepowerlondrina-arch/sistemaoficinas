@@ -104,3 +104,10 @@ Consulte e mantenha coerência com:
 - `docs/fluxo-desenvolvimento.md` — CI e fluxo de PR.
 
 Esses documentos podem conter registros históricos ou estado desatualizado. Verifique datas e referências antes de usá-los como evidência atual. Não altere sua auditoria ou inventário ao atualizar estas instruções, salvo se a tarefa também autorizar essa documentação.
+
+## INF-010 — Desenvolvimento local e publicação consolidada
+
+- É permitido usar `npm run dev:homologation` no Linux com o Supabase `vnclahdnirqlcbamodqy`, quando as conexões restritas e a chave MFA existente estiverem configuradas com segurança. PostgreSQL local continua opcional; CI permanece no PostgreSQL 17 descartável e nunca recebe credenciais remotas. Consulte `docs/infraestrutura/INF-010-DESENVOLVIMENTO-LOCAL.md`.
+- Preserve RLS, pools separados e MFA. Não recupere segredos por endpoints/dumps, não troque chaves existentes para contornar acesso indisponível e não registre segredos. Use somente oficinas fictícias reservadas, com prefixo de execução e perfis de navegador distintos por Codex. Migrações e manutenção remotas permanecem coordenadas e sequenciais.
+- Durante publicação consolidada, `vercel.json` pausa eventos Git. Continue implementando, testando e integrando PRs aprovados sem exigir deploy Vercel. Registre separadamente SHA integrado e SHA publicado. Publicação manual do commit consolidado e retorno ao automático seguem o manual; nunca alterar a Horse Power definitiva incidentalmente.
+- Captura com fixtures MAP-001 usa banco descartável. Para aplicação local ligada ao Supabase compartilhado, use captura somente leitura ou roteiro específico autorizado, sem executar seeds/limpezas do CI no banco remoto.

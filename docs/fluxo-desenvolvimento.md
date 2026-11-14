@@ -20,3 +20,9 @@ O serviço PostgreSQL do workflow é isolado por execução e descartado pelo Gi
 - Inclua imagens reais geradas, metadados e índices no mesmo PR da interface. Depois rode npm run visual:index e npm run visual:check. O workflow captura as telas atuais em artefato temporário; ele não faz commit automático e não cria loops de CI.
 - Consulte a biblioteca somente na pasta privada docs/mapeamento-visual/ do GitHub. Ela não integra a aplicação da oficina e não deve ser publicada.
 - Registre no relatório final se o mapeamento foi atualizado, os módulos, imagens criadas/substituídas, capturas ainda pendentes e resultado dos testes visuais.
+
+## INF-010 — Modalidade local e integração sem publicação imediata (14/11/2026)
+
+O desenvolvimento Linux pode usar o Supabase de homologação com conexões restritas e MFA existentes, sem instalar PostgreSQL. GitHub Actions continua no PostgreSQL 17 temporário, sem banco remoto. Duas execuções usam branches, diretórios, portas, perfis de navegador e oficinas fictícias independentes; manutenção remota é sequencial.
+
+Durante o regime consolidado, eventos Git da Vercel ficam pausados por configuração versionada. CI aprovado permite integração na `main` sem publicação imediata; não declarar o commit publicado até conferir o deployment correspondente. A publicação manual consolidada e a retomada do automático são reversíveis e seguem o [manual INF-010](infraestrutura/INF-010-DESENVOLVIMENTO-LOCAL.md). Preservam-se todas as exigências de autorização, segurança e produção; a Horse Power definitiva não é alterada.
