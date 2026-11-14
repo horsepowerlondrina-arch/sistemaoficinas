@@ -162,10 +162,16 @@ test("PostgreSQL local: transferência fictícia completa preserva IDs, relaçõ
       assert.equal(changedPayment.entities.cash_entries.divergent, 1);
       await db.prepare("UPDATE cash_entries SET amount=? WHERE tenant_id=? AND id=?").run(4000, tenantId, cashEntryId);
 
+      // Preserve a Master while verifying that an operator cannot import data.
+      const reserveUserId=userId+'-reserve';
+      await admin.query("INSERT INTO horse_power.users(id,name,email,password_hash) VALUES($1,'Master Reserva Fictício',$2,'fixture-hash')",[reserveUserId,`reserve-${userId}@example.test`]);
+      await admin.query("INSERT INTO horse_power.memberships(user_id,tenant_id,role) VALUES($1,$2,'owner')",[reserveUserId,tenantId]);
       await admin.query("UPDATE horse_power.memberships SET role='operator' WHERE tenant_id=$1 AND user_id=$2", [tenantId, userId]);
       await assert.rejects(verifyWorkshopImport(db, tenantId, file, phrase, userId, "merge"),
         error=>error instanceof TransferVerificationError && error.code==="authorization");
       await admin.query("UPDATE horse_power.memberships SET role='owner' WHERE tenant_id=$1 AND user_id=$2", [tenantId, userId]);
+      await admin.query("DELETE FROM horse_power.memberships WHERE tenant_id=$1 AND user_id=$2",[tenantId,reserveUserId]);
+      await admin.query("DELETE FROM horse_power.users WHERE id=$1",[reserveUserId]);
       const rows = await db.prepare(`SELECT c.id AS customer_id,v.customer_id AS vehicle_customer,o.vehicle_id,i.price,r.issued_by,r.payload
         FROM customers c JOIN vehicles v ON v.tenant_id=c.tenant_id AND v.customer_id=c.id
         JOIN orders o ON o.tenant_id=v.tenant_id AND o.vehicle_id=v.id
