@@ -14,8 +14,8 @@ await db.connect();
 try {
   const id = randomUUID(),
     password = randomBytes(24).toString("base64url");
-  const email = `ops004-ui-${id}@example.test`,
-    activationEmail = `ops004-activation-${id}@example.test`;
+  const email = "ops004-colaborador-ui@example.test",
+    activationEmail = "ops004-ativacao-ui@example.test";
   await db.query("BEGIN");
   await db.query(
     "INSERT INTO horse_power.users(id,name,email,password_hash) VALUES($1,'Colaborador Fictício OPS004',$2,$3)",
@@ -43,6 +43,20 @@ try {
       ],
     );
   }
+  const product = randomUUID(),
+    order = randomUUID();
+  await db.query(
+    "INSERT INTO horse_power.catalog(id,tenant_id,kind,name,sku,cost,price,stock) VALUES($1,'local-a','product','Peça Fictícia OPS004','OPS004-UI',1000,10000,10)",
+    [product],
+  );
+  await db.query(
+    "INSERT INTO horse_power.orders(id,tenant_id,number,status,kind,customer_id,vehicle_id,entered_on,due_on,km,total) VALUES($1,'local-a',(SELECT coalesce(max(number),0)+1 FROM horse_power.orders WHERE tenant_id='local-a'),'open','order','local-a-customer','local-a-vehicle','2026-11-13','2026-11-14',0,10000)",
+    [order],
+  );
+  await db.query(
+    "INSERT INTO horse_power.order_items(id,tenant_id,order_id,catalog_id,kind,name,quantity,price,cost) VALUES($1,'local-a',$2,$3,'product','Peça Fictícia OPS004',1,10000,1000)",
+    [randomUUID(), order, product],
+  );
   await db.query("COMMIT");
   let inviteToken = "";
   const app = await createLocalDatabase();

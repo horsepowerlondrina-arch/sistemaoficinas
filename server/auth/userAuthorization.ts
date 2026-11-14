@@ -78,7 +78,12 @@ export function permissionForRequest(
         ? "technical.rates"
         : "technical.view";
   if (p.startsWith("/stock")) return read ? "stock.view" : "stock.manage";
-  if (p.startsWith("/suppliers")) return read ? "catalog.view" : "catalog.edit";
+  if (p.startsWith("/suppliers"))
+    return read
+      ? "catalog.view"
+      : method === "POST"
+        ? "catalog.create"
+        : "catalog.edit";
   if (/^\/(expenses|payables|expense-templates)/.test(p))
     return read ? "finance.view" : "finance.expenses";
   if (p.startsWith("/management-results")) return "finance.profit";
@@ -207,7 +212,7 @@ export function userAuthorization(db: DB) {
       if (ctx.access && req.body?.active === 0) {
         if (/^\/(customers|vehicles)/.test(req.path))
           requirePermission(ctx, "customers.remove");
-        if (/^\/(catalog|workshop-services)/.test(req.path))
+        if (/^\/(catalog|workshop-services|suppliers)/.test(req.path))
           requirePermission(ctx, "catalog.remove");
       }
       if (

@@ -66,3 +66,27 @@ test("discount limits apply to the entire discount and both monetary ceilings", 
     true,
   );
 });
+
+test("route permissions distinguish creation, administrative OS actions and financial policies", async () => {
+  const { permissionForRequest } =
+    await import("../server/auth/userAuthorization");
+  assert.equal(permissionForRequest("/suppliers", "POST"), "catalog.create");
+  assert.equal(permissionForRequest("/suppliers/id", "PUT"), "catalog.edit");
+  assert.equal(
+    permissionForRequest("/orders/id/status", "POST", { status: "cancelled" }),
+    "orders.admin",
+  );
+  assert.equal(
+    permissionForRequest("/orders/id/status", "POST", { status: "completed" }),
+    "orders.finalize",
+  );
+  assert.equal(
+    permissionForRequest("/card-machines", "GET"),
+    "finance.receive",
+  );
+  assert.equal(
+    permissionForRequest("/card-machines", "POST"),
+    "finance.policies",
+  );
+  assert.equal(permissionForRequest("/unknown", "POST"), null);
+});

@@ -61,6 +61,17 @@ try {
     await delay(500);
   }
   if (!ready) throw Error("Aplicação isolada não iniciou.");
+  execFileSync(
+    process.execPath,
+    ["--import", "tsx", "scripts/ops004-ui-fixture.ts"],
+    { stdio: "pipe" },
+  );
+  const collaborator = JSON.parse(
+    readFileSync(
+      resolve(process.env.RUNNER_TEMP || "/tmp", "ops004-ui-identity.json"),
+      "utf8",
+    ),
+  );
   browser = await chromium.launch();
   page = await browser.newPage({
     viewport: { width: 1440, height: 1000 },
@@ -229,17 +240,6 @@ try {
       fullPage: true,
     });
   }
-  execFileSync(
-    process.execPath,
-    ["--import", "tsx", "scripts/ops004-ui-fixture.ts"],
-    { stdio: "pipe" },
-  );
-  const collaborator = JSON.parse(
-    readFileSync(
-      resolve(process.env.RUNNER_TEMP || "/tmp", "ops004-ui-identity.json"),
-      "utf8",
-    ),
-  );
   await page.request.post(base + "/api/logout", { data: {} });
   await page.goto(base + "/inicio");
   await page.getByLabel("E-mail", { exact: true }).fill(collaborator.email);
