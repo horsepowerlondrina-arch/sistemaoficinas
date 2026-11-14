@@ -17,6 +17,8 @@ import { defaultWorkshopModules } from "../shared/workshopModules.js";
 import type { Context } from "../server/auth/session.js";
 import { digest } from "../server/auth/session.js";
 import { operationalJourney } from './helpers/operationalJourney.js';
+import { financialJourney, type FinancialCall } from './helpers/financialJourney.js';
+import { nextBankingDay } from '../shared/bankingDays.js';
 
 test("three plans: registration, email activation, settled payment, seats and isolated user access on PostgreSQL17", async () => {
   const root = adminClient(); await root.connect();
@@ -118,6 +120,24 @@ test("three plans: registration, email activation, settled payment, seats and is
         assert.equal(identity.status, 200); assert.equal((await identity.json()).tenant.id, pending.tenant_id);
       }
       previousOperationalOrder = await operationalJourney(`http://127.0.0.1:${address.port}`, cookie, plan, previousOperationalOrder);
+      const financialCall: FinancialCall = async (method,path,body) => {
+        const r=await fetch(`http://127.0.0.1:${address.port}/api`+path,{method,headers:{Cookie:cookie,Origin:'http://127.0.0.1:5173','Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)});
+        return {status:r.status,ok:r.ok,body:await r.json()};
+      };
+      const financeAPI=async(method:string,path:string,body?:any)=>{const r=await financialCall(method,path,body);assert.ok(r.ok,`${method} ${path}: ${r.status}`);return r.body;};
+      const current=await financeAPI('GET','/workspace'),operational=current.orders.find((o:any)=>o.id===previousOperationalOrder);
+      const financialState:any={},financialDay=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+      let product:string|undefined,machine:string|undefined;
+      if(plan!=='basic'){
+        product=(await financeAPI('POST','/catalog',{kind:'product',name:'Peça Fictícia Financeira',sku:'FIN-'+suffix,category:'',cost:1000,price:10001,stock:0,minimum_stock:0})).id;
+        await financeAPI('POST',`/stock/${product}`,{quantity:20,reason:'Entrada fictícia para testes financeiros',request_id:randomUUID()});
+        machine=(await financeAPI('POST','/card-machines',{name:'Máquina Fictícia Financeira',operator:'Operadora Fictícia',active:true,is_default:true,max_installments:3,rates:[{method:'Cartão de débito',installments:1,fee_bps:150},{method:'Cartão de crédito',installments:1,fee_bps:250},{method:'Cartão de crédito',installments:3,fee_bps:350}]})).id;
+      }
+      const financialResults=await financialJourney(financialCall,{plan,marker:'FIN-CI-'+suffix,day:financialDay,nextBankingDay:nextBankingDay(financialDay),customer:operational.customer_id,vehicle:operational.vehicle_id,product,service:operational.items.find((v:any)=>v.kind==='service').service_snapshot?JSON.parse(operational.items.find((v:any)=>v.kind==='service').service_snapshot).workshop_service_id:'',machine,account:async(key)=>{
+        const opening=new Date(financialDay+'T12:00:00Z');opening.setUTCDate(opening.getUTCDate()-7);
+        return (await financeAPI('POST','/cash-accounts',{name:'Fictício '+key+' '+suffix,kind:'bank',opening_balance:0,opening_on:opening.toISOString().slice(0,10),active:1,request_id:randomUUID()})).id;
+      }},financialState,()=>{});
+      assert.equal(financialResults.length,plan==='basic'?2:13);
     }
   } finally {
     await new Promise<void>(resolve => server.close(() => resolve())); await db.close(); await pool.end();

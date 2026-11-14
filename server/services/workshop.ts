@@ -554,7 +554,7 @@ async function reverseCompletedOrder(db: DB, ctx: Context, order: Row, reversalR
     if (receivable.status === "paid" || paidInstallment || cashEntry) {
       const basic = ctx.role === "owner" && ctx.modules?.orders !== false && ctx.modules?.finance === false;
       if (!basic) throw new Error(
-        "Esta OS já possui recebimento confirmado. Corrija ou estorne o financeiro antes de reabrir a OS.",
+        "Esta OS já possui recebimento confirmado. O estorno desses recebimentos ainda não está disponível no Financeiro. A reabertura foi bloqueada e o histórico foi preservado.",
       );
       const reason = reversalReason?.trim() || "";
       if (reason.length < 10 || reason.length > 500)

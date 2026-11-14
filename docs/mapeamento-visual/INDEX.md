@@ -498,6 +498,38 @@ Componentes reais com dados fictícios: desconto proporcional e custo registrado
 
 Estado: capturada · mobile · captura 2026-11-14 · commit de origem: cf37d9c82b3212de34dce0b576f8bc3176e5c7be · [arquivo completo](./capturas/08-financeiro/financeiro-ganhos-mobile.png)
 
+### Repasse de taxa no pagamento misto
+
+Componente real de recebimento com dados fictícios e snapshots salvos. Taxa repassada e juros são separados; a fixture de interface isolada não comprova o backend, validado separadamente em PostgreSQL 17.
+
+[![Repasse de taxa no pagamento misto](./capturas/08-financeiro/financeiro-misto-pass-desktop.png)](./capturas/08-financeiro/financeiro-misto-pass-desktop.png)
+
+Estado: capturada · desktop · captura 2026-11-14 · commit de origem: 28bfbfc5bcdaf0b21768a2f025de5b2f23430424 · [arquivo completo](./capturas/08-financeiro/financeiro-misto-pass-desktop.png)
+
+### Repasse de taxa no pagamento misto
+
+Componente real de recebimento com dados fictícios e snapshots salvos. Taxa repassada e juros são separados; a fixture de interface isolada não comprova o backend, validado separadamente em PostgreSQL 17.
+
+[![Repasse de taxa no pagamento misto](./capturas/08-financeiro/financeiro-misto-pass-mobile.png)](./capturas/08-financeiro/financeiro-misto-pass-mobile.png)
+
+Estado: capturada · mobile · captura 2026-11-14 · commit de origem: 28bfbfc5bcdaf0b21768a2f025de5b2f23430424 · [arquivo completo](./capturas/08-financeiro/financeiro-misto-pass-mobile.png)
+
+### Repasse e juros no pagamento misto
+
+Componente real de recebimento com dados fictícios e snapshots salvos. Taxa repassada e juros são separados; a fixture de interface isolada não comprova o backend, validado separadamente em PostgreSQL 17.
+
+[![Repasse e juros no pagamento misto](./capturas/08-financeiro/financeiro-misto-pass-interest-desktop.png)](./capturas/08-financeiro/financeiro-misto-pass-interest-desktop.png)
+
+Estado: capturada · desktop · captura 2026-11-14 · commit de origem: 28bfbfc5bcdaf0b21768a2f025de5b2f23430424 · [arquivo completo](./capturas/08-financeiro/financeiro-misto-pass-interest-desktop.png)
+
+### Repasse e juros no pagamento misto
+
+Componente real de recebimento com dados fictícios e snapshots salvos. Taxa repassada e juros são separados; a fixture de interface isolada não comprova o backend, validado separadamente em PostgreSQL 17.
+
+[![Repasse e juros no pagamento misto](./capturas/08-financeiro/financeiro-misto-pass-interest-mobile.png)](./capturas/08-financeiro/financeiro-misto-pass-interest-mobile.png)
+
+Estado: capturada · mobile · captura 2026-11-14 · commit de origem: 28bfbfc5bcdaf0b21768a2f025de5b2f23430424 · [arquivo completo](./capturas/08-financeiro/financeiro-misto-pass-interest-mobile.png)
+
 ## 09 — Cadastros e serviços
 
 Produtos, serviços, profissionais e tempos.

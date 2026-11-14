@@ -18,6 +18,7 @@ Consulte esta pasta no repositório privado do GitHub. O índice mostra as minia
 - node scripts/test-admin-interface.mjs — valida as interações administrativas em loopback com API fictícia e gera capturas no diretório temporário do runner; artifacts do CI permitem revisão antes da inclusão no catálogo.
 - node scripts/test-workshop-users-ui.mjs — valida usuários, convites, ativação, atribuição e aprovações com API e PostgreSQL 17 descartável no CI; o artefato ops004-users-interface fornece as imagens do driver ops004-interface para revisão e inclusão nesta pasta. Não usar em banco persistente.
 - node scripts/test-operational-reports-ui.mjs — valida e captura os relatórios de serviços e ganhos em desktop/mobile com contexto fictício isolado; o artefato operational-reports-ui fornece as imagens do driver operational-reports-interface.
+- node scripts/test-financial-ui.mjs — valida e captura o recebimento misto com repasse e juros em desktop/mobile, com contexto fictício isolado; o artefato financial-ui fornece as imagens do driver financial-interface.
 - visual:check — confere PNGs, metadados, caminhos, estados e índices.
 - visual:index — regenera este índice e o checklist a partir do catálogo JSON.
 
@@ -25,4 +26,4 @@ Capturas que criem, editem ou finalizem registros só podem usar base PostgreSQL
 
 ## Coleta atual
 
-O acervo inclui 111 PNGs de telas reais. Consulte a data e o commit de cada entrada: as capturas originais de 22/10/2026 não registraram o commit e continuam sinalizadas. Capturas ADM-002.1 usam Chromium com respostas de API fictícias e não comprovam o backend; a integração PostgreSQL é testada separadamente no CI. Nenhuma credencial, token ou dado real deve aparecer nas imagens.
+O acervo inclui 115 PNGs de telas reais. Consulte a data e o commit de cada entrada: as capturas originais de 22/10/2026 não registraram o commit e continuam sinalizadas. Capturas ADM-002.1 usam Chromium com respostas de API fictícias e não comprovam o backend; a integração PostgreSQL é testada separadamente no CI. Nenhuma credencial, token ou dado real deve aparecer nas imagens.
