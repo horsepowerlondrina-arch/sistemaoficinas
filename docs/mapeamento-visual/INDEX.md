@@ -872,7 +872,7 @@ Filtro livre de datas, indicadores, metas e relatório PDF com dados fictícios 
 
 [![Resultados por intervalo](./capturas/18-resultados/gestao-resultados-periodo.png)](./capturas/18-resultados/gestao-resultados-periodo.png)
 
-Estado: capturada · desktop · captura 2026-11-14 · commit de origem: 8a0b4c697ff46ce2f5b6251df99cde849b2fdad6 · [arquivo completo](./capturas/18-resultados/gestao-resultados-periodo.png)
+Estado: capturada · desktop · captura 2026-11-14 · commit de origem: 2616723bbcd976b25f013fe7850f14c76d8e03d1 · [arquivo completo](./capturas/18-resultados/gestao-resultados-periodo.png)
 
 ## 19 — Suporte da oficina
 
