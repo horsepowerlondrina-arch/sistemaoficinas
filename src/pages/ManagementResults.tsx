@@ -6,7 +6,7 @@ import { api, send } from "../lib/api";
 import { useApp } from "../lib/context";
 import { money } from "../lib/types";
 import { workshopDate } from "../lib/workflow";
-import { compareManagementPeriods, cyclePeriod, weekPeriod, type ManagementPeriod } from "../lib/managementResults";
+import { compareManagementPeriods, monthPeriod, weekPeriod, type ManagementPeriod } from "../lib/managementResults";
 import { defaultManagementResultsSettings, type ManagementResultsSettings } from "../../shared/managementResultsSettings";
 import { Field, PageHeading, Stat } from "../components/ui";
 import "./managementResults.css";
@@ -131,6 +131,12 @@ export function ManagementResults() {
     try { compareManagementPeriods(data, draft, settings); setPeriod(draft); setError(""); }
     catch (e) { setError((e as Error).message); }
   };
+  const selectCurrentPeriod = (shortcut: typeof weekPeriod) => {
+    const selected = shortcut(workshopDate(new Date().toISOString()));
+    setDraft(selected);
+    setPeriod(selected);
+    setError("");
+  };
   const saveSettings = async (event: FormEvent) => {
     event.preventDefault(); setBusy(true); setError("");
     try {
@@ -151,8 +157,8 @@ export function ManagementResults() {
         </div>
         <div className="report-actions">
           <button className="button primary" type="submit">Aplicar período</button>
-          <button className="button" type="button" onClick={() => setDraft(weekPeriod(todayKey))}>Semana</button>
-          <button className="button" type="button" onClick={() => setDraft(cyclePeriod(todayKey))}>Ciclo 15→14</button>
+          <button className="button" type="button" title="Aplicar a semana atual, de segunda a domingo" onClick={() => selectCurrentPeriod(weekPeriod)}>Semana</button>
+          <button className="button" type="button" title="Aplicar o mês atual, do primeiro ao último dia" onClick={() => selectCurrentPeriod(monthPeriod)}>Mês</button>
           <button className="button" type="button" onClick={() => setPrintOpen(true)}>Relatório / PDF</button>
         </div>
       </form>
