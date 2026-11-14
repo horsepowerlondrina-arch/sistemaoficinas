@@ -1,4 +1,4 @@
-import type { WorkshopModuleKey } from "./workshopModules";
+import type { WorkshopModuleKey } from "./workshopModules.js";
 
 export const permissionDefinitions = {
   "checklists.view": ["checklists", "Visualizar checklists"],

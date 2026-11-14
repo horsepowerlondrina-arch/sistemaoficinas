@@ -1,4 +1,4 @@
-import {requirePermission,canDiscount} from './userAccess';
+import {requirePermission,canDiscount} from './userAccess.js';
 import { resolveCardPayments } from "./cardMachines.js";
 import { basicOrderReceiptMethods, type BasicOrderReceiptMethod } from "../../shared/basicOrderReceipt.js";
 import { transaction, type DB } from "../db/database.js";

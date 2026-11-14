@@ -1,17 +1,17 @@
-import { updateReceivableDiscount } from "./payments";
+import { updateReceivableDiscount } from "./payments.js";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { transaction, type DB } from "../db/database";
-import type { Context } from "../auth/session";
-import { audit, invalidateOrderShares, listOrders } from "./workshop";
+import { transaction, type DB } from "../db/database.js";
+import type { Context } from "../auth/session.js";
+import { audit, invalidateOrderShares, listOrders } from "./workshop.js";
 import {
   assertOrderVisible,
   requirePermission,
   canDiscount,
   orderStateDigest,
   accessDenied,
-} from "./userAccess";
-import { calculateDiscountAmount } from "../domain/orders";
+} from "./userAccess.js";
+import { calculateDiscountAmount } from "../domain/orders.js";
 
 export async function staffDirectory(db: DB, ctx: Context) {
   requirePermission(ctx, "staff.view");

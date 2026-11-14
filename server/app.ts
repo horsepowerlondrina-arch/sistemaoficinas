@@ -1,7 +1,7 @@
-import {readUserAccess} from './services/userAccess';
-import {employeePublicRoutes,workshopUserRoutes} from './workshopUserRoutes';
-import {userAuthorization,redactResponse} from './auth/userAuthorization';
-import {projectWorkspace} from './services/workspaceAccess';
+import {readUserAccess} from './services/userAccess.js';
+import {employeePublicRoutes,workshopUserRoutes} from './workshopUserRoutes.js';
+import {userAuthorization,redactResponse} from './auth/userAuthorization.js';
+import {projectWorkspace} from './services/workspaceAccess.js';
 import { stripeWorkshopRoutes } from "./stripeBillingRoutes.js";
 import type { StripeBilling } from "./services/stripeBilling.js";
 import {thirdPartySalePrice} from "../shared/pricing.js";

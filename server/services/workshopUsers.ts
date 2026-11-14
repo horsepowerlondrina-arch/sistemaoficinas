@@ -1,15 +1,15 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { z } from "zod";
-import type { DB } from "../db/database";
-import { transaction } from "../db/database";
-import type { Context } from "../auth/session";
-import { digest, verifyPassword, hashPassword } from "../auth/session";
-import { audit, invalidateOrderShares } from "./workshop";
-import { requirePermission, accessDenied } from "./userAccess";
+import type { DB } from "../db/database.js";
+import { transaction } from "../db/database.js";
+import type { Context } from "../auth/session.js";
+import { digest, verifyPassword, hashPassword } from "../auth/session.js";
+import { audit, invalidateOrderShares } from "./workshop.js";
+import { requirePermission, accessDenied } from "./userAccess.js";
 import {
   effectivePermissions,
   permissionKeys,
-} from "../../shared/userPermissions";
+} from "../../shared/userPermissions.js";
 
 const profile = z.enum(["master", "manager", "advisor", "mechanic", "finance"]);
 export const accessInput = z

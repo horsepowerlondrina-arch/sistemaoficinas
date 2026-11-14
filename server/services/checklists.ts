@@ -1,4 +1,4 @@
-import {assertOrderVisible} from './userAccess';
+import {assertOrderVisible} from './userAccess.js';
 import { z } from "zod";
 import { vehicleDisplayModel } from "../../shared/vehicleIdentity.js";
 import type { Context } from "../auth/session.js";
