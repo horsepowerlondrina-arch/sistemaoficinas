@@ -84,7 +84,16 @@ try {
     if (path.startsWith("/api/") && r.status() >= 500)
       console.log("OPS004 resposta", path, r.status());
   });
-  page.on("dialog", (d) => d.accept());
+  let rejectNextDialog = false,
+    guardPrompts = 0;
+  page.on("dialog", (d) => {
+    guardPrompts++;
+    if (rejectNextDialog) {
+      rejectNextDialog = false;
+      return d.dismiss();
+    }
+    return d.accept();
+  });
   await page.goto(base + "/configuracoes?aba=usuarios");
   await page.getByLabel("E-mail", { exact: true }).fill(credential.email);
   await page.getByLabel("Senha", { exact: true }).fill(credential.password);
@@ -276,6 +285,22 @@ try {
     for (const field of ["phone", "email", "address", "document", "birthday"])
       expect(customer[field]).toBeUndefined();
   expect((await page.request.get(base + "/api/users")).status()).toBe(403);
+  await page.goto(base + "/ordens/" + order.id);
+  const draftReason = page.getByRole("textbox", {
+    name: "Justificativa",
+    exact: true,
+  });
+  await draftReason.fill("Rascunho fictício ainda não enviado.");
+  const promptsBefore = guardPrompts;
+  rejectNextDialog = true;
+  await page
+    .getByRole("combobox", { name: "Oficina ativa" })
+    .selectOption("local-b");
+  await expect.poll(() => guardPrompts).toBe(promptsBefore + 1);
+  expect(
+    (await (await page.request.get(base + "/api/session")).json()).tenant.id,
+  ).toBe("local-a");
+  await expect(draftReason).toHaveValue("Rascunho fictício ainda não enviado.");
   await page
     .getByRole("combobox", { name: "Oficina ativa" })
     .selectOption("local-b");
