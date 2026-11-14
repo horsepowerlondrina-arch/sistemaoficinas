@@ -53,7 +53,7 @@ export function OrderView() {
     if (!session.access && session.role !== "owner")
       return ["open", "working", "ready"].includes(order.status) && ["working", "ready"].includes(value);
     if (order.status === "quote" && !["quote", "cancelled"].includes(value) && !can(session, "orders.edit")) return false;
-    return can(session, value === "cancelled" ? "orders.admin" : value === "completed" ? "orders.finalize" : order.status === "completed" ? "orders.reopen" : "orders.status");
+    return can(session, value === "cancelled" ? "orders.admin" : value === "completed" ? "orders.finalize" : (order.status === "completed" || value === "quote") ? "orders.reopen" : "orders.status");
   });
   const next: Record<string, [string, string]> = {
     quote: ["open", "Aprovar OS"],

@@ -625,7 +625,7 @@ export async function transitionOrder(
     const order = await scoped(db, "orders", ctx.tenantId, record);
     if (order.status === status)
       throw new Error("O atendimento já está nesta situação.");
-    if(ctx.access){await assertOrderVisible(db,ctx,record);requirePermission(ctx,status==="cancelled"?"orders.admin":status==="completed"?"orders.finalize":order.status==="completed"?"orders.reopen":"orders.status");if(order.status==="quote"&&status==="open")requirePermission(ctx,"orders.edit");}
+    if(ctx.access){await assertOrderVisible(db,ctx,record);requirePermission(ctx,status==="cancelled"?"orders.admin":status==="completed"?"orders.finalize":(order.status==="completed"||status==="quote")?"orders.reopen":"orders.status");if(order.status==="quote"&&!["quote","cancelled"].includes(status))requirePermission(ctx,"orders.edit");}
     else if (ctx.role !== "owner") {
       if (
         !["working", "ready"].includes(status) ||

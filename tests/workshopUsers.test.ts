@@ -374,6 +374,12 @@ test("HTTP assigned OS scope, privacy, live permissions, account revocation and 
       404,
     );
     assert.equal((await request("/users")).status, 403);
+    assert.equal((await request("/orders/o1/status","POST",{status:"quote"})).status,403);
+    await assert.rejects(transitionOrder(db,await ctx(db,"mechanic"),"o1","quote"),/permissão/);
+    db.prepare("UPDATE orders SET status='quote' WHERE id='o1'").run();
+    assert.equal((await request("/orders/o1/status","POST",{status:"working",due_on:"2026-11-14"})).status,403);
+    await assert.rejects(transitionOrder(db,await ctx(db,"mechanic"),"o1","working","2026-11-14"),/permissão/);
+    db.prepare("UPDATE orders SET status='open' WHERE id='o1'").run();
     await saveAssignments(db, master, "o1", []);
     workspace = await (await request("/workspace")).json();
     assert.equal(workspace.orders.length, 0);

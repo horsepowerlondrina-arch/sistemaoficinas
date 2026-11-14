@@ -250,7 +250,7 @@ export function userAuthorization(db: DB) {
         if (req.method === "POST" && req.path.endsWith("/status")) {
           if (order.status === "completed")
             requirePermission(ctx, "orders.reopen");
-          if (order.status === "quote" && req.body.status === "open")
+          if (order.status === "quote" && !["quote","cancelled"].includes(req.body.status))
             requirePermission(ctx, "orders.edit");
         }
       }

@@ -288,10 +288,10 @@
       "viewport": "mobile",
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/06-orcamentos/novo-orcamento.png",
-      "updatedAt": "2026-10-22",
-      "commit": null,
-      "freshness": "revisar",
-      "reason": "Captura real com dados fictícios feita em 22/10/2026. O commit de origem não foi registrado; recaptura Playwright e atualização do commit estão pendentes."
+      "updatedAt": "2026-11-14",
+      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
+      "freshness": "atual",
+      "reason": null
     },
     {
       "id": "os-lista-a",
@@ -303,10 +303,10 @@
       "viewport": "mobile",
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/07-ordens-servico/lista-os-oficina-a.png",
-      "updatedAt": "2026-10-22",
-      "commit": null,
-      "freshness": "revisar",
-      "reason": "Captura real com dados fictícios feita em 22/10/2026. O commit de origem não foi registrado; recaptura Playwright e atualização do commit estão pendentes."
+      "updatedAt": "2026-11-14",
+      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
+      "freshness": "atual",
+      "reason": null
     },
     {
       "id": "os-lista-b",
@@ -333,10 +333,10 @@
       "viewport": "mobile",
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/07-ordens-servico/nova-os.png",
-      "updatedAt": "2026-11-08",
-      "commit": "dca9c029e9b6ad77cb847ed9c46d42c52ef4a23e",
+      "updatedAt": "2026-11-14",
+      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
       "freshness": "atual",
-      "reason": "Captura Playwright do CI #676 com PostgreSQL 17 temporário e dados fictícios; placa editável compacta."
+      "reason": null
     },
     {
       "id": "financeiro-pagar",
@@ -438,8 +438,8 @@
       "viewport": "mobile",
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/09-cadastros-servicos/produtos.png",
-      "updatedAt": "2026-11-02",
-      "commit": "b2ca47dda74859162d1c81866caab8c774c8a689",
+      "updatedAt": "2026-11-14",
+      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
       "freshness": "atual",
       "reason": null
     },
@@ -453,8 +453,8 @@
       "viewport": "mobile",
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/09-cadastros-servicos/catalogo-tempos.png",
-      "updatedAt": "2026-10-30",
-      "commit": "3792b567510404220727ed26137e813eb84bc96e",
+      "updatedAt": "2026-11-14",
+      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
       "freshness": "atual",
       "reason": null
     },
@@ -468,8 +468,8 @@
       "viewport": "mobile",
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/09-cadastros-servicos/servicos-modelo-ficticio.png",
-      "updatedAt": "2026-10-30",
-      "commit": "3792b567510404220727ed26137e813eb84bc96e",
+      "updatedAt": "2026-11-14",
+      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
       "freshness": "atual",
       "reason": null
     },
@@ -483,8 +483,8 @@
       "viewport": "mobile",
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/09-cadastros-servicos/servicos-oficina.png",
-      "updatedAt": "2026-10-30",
-      "commit": "3792b567510404220727ed26137e813eb84bc96e",
+      "updatedAt": "2026-11-14",
+      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
       "freshness": "atual",
       "reason": null
     },
@@ -498,8 +498,8 @@
       "viewport": "mobile",
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/09-cadastros-servicos/profissionais.png",
-      "updatedAt": "2026-11-02",
-      "commit": "b2ca47dda74859162d1c81866caab8c774c8a689",
+      "updatedAt": "2026-11-14",
+      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
       "freshness": "atual",
       "reason": null
     },
@@ -558,8 +558,8 @@
       "viewport": "mobile",
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/14-configuracoes/dados-oficina-a.png",
-      "updatedAt": "2026-11-01",
-      "commit": "56b226764ee6420a52bdff3a41bd459113618460",
+      "updatedAt": "2026-11-14",
+      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
       "freshness": "atual",
       "reason": null
     },
@@ -573,8 +573,8 @@
       "viewport": "mobile",
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/14-configuracoes/geral-e-taxas.png",
-      "updatedAt": "2026-11-01",
-      "commit": "26770cc4da2ccbf9de3620882b0a87066fdce927",
+      "updatedAt": "2026-11-14",
+      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
       "freshness": "atual",
       "reason": null
     },
@@ -588,8 +588,8 @@
       "viewport": "mobile",
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/14-configuracoes/mao-de-obra.png",
-      "updatedAt": "2026-11-01",
-      "commit": "56b226764ee6420a52bdff3a41bd459113618460",
+      "updatedAt": "2026-11-14",
+      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
       "freshness": "atual",
       "reason": null
     },
@@ -603,8 +603,8 @@
       "viewport": "mobile",
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/14-configuracoes/lucro-pecas-terceiros.png",
-      "updatedAt": "2026-11-03",
-      "commit": "b8d27c0f97305c128c7a4a8ed9047aad4c061261",
+      "updatedAt": "2026-11-14",
+      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
       "freshness": "atual",
       "reason": null
     },
@@ -843,10 +843,10 @@
       "viewport": "desktop",
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/07-ordens-servico/nova-os-desktop.png",
-      "updatedAt": "2026-11-08",
-      "commit": "dca9c029e9b6ad77cb847ed9c46d42c52ef4a23e",
+      "updatedAt": "2026-11-14",
+      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
       "freshness": "atual",
-      "reason": "Captura Playwright do CI #676 com PostgreSQL 17 temporário e dados fictícios; placa editável compacta."
+      "reason": null
     },
     {
       "id": "financeiro-pagar-desktop",
@@ -948,8 +948,8 @@
       "viewport": "desktop",
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/09-cadastros-servicos/produtos-desktop.png",
-      "updatedAt": "2026-11-02",
-      "commit": "b2ca47dda74859162d1c81866caab8c774c8a689",
+      "updatedAt": "2026-11-14",
+      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
       "freshness": "atual",
       "reason": null
     },
@@ -963,8 +963,8 @@
       "viewport": "desktop",
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/09-cadastros-servicos/catalogo-tempos-desktop.png",
-      "updatedAt": "2026-10-30",
-      "commit": "3792b567510404220727ed26137e813eb84bc96e",
+      "updatedAt": "2026-11-14",
+      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
       "freshness": "atual",
       "reason": null
     },
@@ -978,8 +978,8 @@
       "viewport": "desktop",
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/09-cadastros-servicos/servicos-modelo-ficticio-desktop.png",
-      "updatedAt": "2026-10-30",
-      "commit": "3792b567510404220727ed26137e813eb84bc96e",
+      "updatedAt": "2026-11-14",
+      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
       "freshness": "atual",
       "reason": null
     },
@@ -993,8 +993,8 @@
       "viewport": "desktop",
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/09-cadastros-servicos/servicos-oficina-desktop.png",
-      "updatedAt": "2026-10-30",
-      "commit": "3792b567510404220727ed26137e813eb84bc96e",
+      "updatedAt": "2026-11-14",
+      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
       "freshness": "atual",
       "reason": null
     },
@@ -1008,8 +1008,8 @@
       "viewport": "desktop",
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/09-cadastros-servicos/catalogo-tempos-servicos-desktop.png",
-      "updatedAt": "2026-10-30",
-      "commit": "3792b567510404220727ed26137e813eb84bc96e",
+      "updatedAt": "2026-11-14",
+      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
       "freshness": "atual",
       "reason": null
     },
@@ -1023,8 +1023,8 @@
       "viewport": "mobile",
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/09-cadastros-servicos/catalogo-tempos-servicos-mobile.png",
-      "updatedAt": "2026-10-30",
-      "commit": "3792b567510404220727ed26137e813eb84bc96e",
+      "updatedAt": "2026-11-14",
+      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
       "freshness": "atual",
       "reason": null
     },
@@ -1038,8 +1038,8 @@
       "viewport": "desktop",
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/09-cadastros-servicos/profissionais-desktop.png",
-      "updatedAt": "2026-11-02",
-      "commit": "b2ca47dda74859162d1c81866caab8c774c8a689",
+      "updatedAt": "2026-11-14",
+      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
       "freshness": "atual",
       "reason": null
     },
@@ -1098,8 +1098,8 @@
       "viewport": "desktop",
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/14-configuracoes/dados-oficina-a-desktop.png",
-      "updatedAt": "2026-11-01",
-      "commit": "56b226764ee6420a52bdff3a41bd459113618460",
+      "updatedAt": "2026-11-14",
+      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
       "freshness": "atual",
       "reason": null
     },
@@ -1113,8 +1113,8 @@
       "viewport": "desktop",
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/14-configuracoes/geral-e-taxas-desktop.png",
-      "updatedAt": "2026-11-01",
-      "commit": "26770cc4da2ccbf9de3620882b0a87066fdce927",
+      "updatedAt": "2026-11-14",
+      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
       "freshness": "atual",
       "reason": null
     },
@@ -1128,8 +1128,8 @@
       "viewport": "desktop",
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/14-configuracoes/mao-de-obra-desktop.png",
-      "updatedAt": "2026-11-01",
-      "commit": "56b226764ee6420a52bdff3a41bd459113618460",
+      "updatedAt": "2026-11-14",
+      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
       "freshness": "atual",
       "reason": null
     },
@@ -1143,8 +1143,8 @@
       "viewport": "desktop",
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/14-configuracoes/lucro-pecas-terceiros-desktop.png",
-      "updatedAt": "2026-11-03",
-      "commit": "b8d27c0f97305c128c7a4a8ed9047aad4c061261",
+      "updatedAt": "2026-11-14",
+      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
       "freshness": "atual",
       "reason": null
     },
@@ -1592,8 +1592,8 @@
       "viewport": "desktop",
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/07-ordens-servico/est009-os-private-desktop.png",
-      "updatedAt": "2026-10-30",
-      "commit": "f53519d7d874817dd129414e68789368cef5f170",
+      "updatedAt": "2026-11-14",
+      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
       "freshness": "atual",
       "reason": null
     },
@@ -1607,8 +1607,8 @@
       "viewport": "mobile",
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/07-ordens-servico/est009-os-private-mobile.png",
-      "updatedAt": "2026-10-30",
-      "commit": "f53519d7d874817dd129414e68789368cef5f170",
+      "updatedAt": "2026-11-14",
+      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
       "freshness": "atual",
       "reason": null
     },
@@ -1712,8 +1712,8 @@
       "viewport": "desktop",
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/06-orcamentos/cad005-order-desktop.png",
-      "updatedAt": "2026-10-30",
-      "commit": "f6e2a4cb13517dc8f57dc1703586ce27268d004c",
+      "updatedAt": "2026-11-14",
+      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
       "freshness": "atual",
       "reason": null
     },
@@ -1727,8 +1727,8 @@
       "viewport": "mobile",
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/06-orcamentos/cad005-order-mobile.png",
-      "updatedAt": "2026-10-30",
-      "commit": "f6e2a4cb13517dc8f57dc1703586ce27268d004c",
+      "updatedAt": "2026-11-14",
+      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
       "freshness": "atual",
       "reason": null
     },
@@ -1742,8 +1742,8 @@
       "viewport": "desktop",
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/07-ordens-servico/cad005-switch-desktop.png",
-      "updatedAt": "2026-10-30",
-      "commit": "f6e2a4cb13517dc8f57dc1703586ce27268d004c",
+      "updatedAt": "2026-11-14",
+      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
       "freshness": "atual",
       "reason": null
     },
@@ -1757,8 +1757,8 @@
       "viewport": "mobile",
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/07-ordens-servico/cad005-switch-mobile.png",
-      "updatedAt": "2026-10-30",
-      "commit": "f6e2a4cb13517dc8f57dc1703586ce27268d004c",
+      "updatedAt": "2026-11-14",
+      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
       "freshness": "atual",
       "reason": null
     },
@@ -1900,8 +1900,8 @@
       "viewport": "desktop",
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/14-configuracoes/config-conta-integracoes-desktop.png",
-      "updatedAt": "2026-11-03",
-      "commit": "f02307752aaf81e1b2d86b9974e444c660c44f3f",
+      "updatedAt": "2026-11-14",
+      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
       "freshness": "atual",
       "reason": null
     },
@@ -1915,8 +1915,8 @@
       "viewport": "mobile",
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/14-configuracoes/config-conta-integracoes-mobile.png",
-      "updatedAt": "2026-11-03",
-      "commit": "f02307752aaf81e1b2d86b9974e444c660c44f3f",
+      "updatedAt": "2026-11-14",
+      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
       "freshness": "atual",
       "reason": null
     },
@@ -1930,8 +1930,8 @@
       "viewport": "desktop",
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/14-configuracoes/ops002-machine-editor-desktop.png",
-      "updatedAt": "2026-11-01",
-      "commit": "26770cc4da2ccbf9de3620882b0a87066fdce927",
+      "updatedAt": "2026-11-14",
+      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
       "freshness": "atual",
       "reason": null
     },
@@ -1960,8 +1960,8 @@
       "viewport": "mobile",
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/14-configuracoes/ops002-machine-editor-mobile.png",
-      "updatedAt": "2026-11-01",
-      "commit": "26770cc4da2ccbf9de3620882b0a87066fdce927",
+      "updatedAt": "2026-11-14",
+      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
       "freshness": "atual",
       "reason": null
     },
@@ -2124,12 +2124,12 @@
       "route": "/configuracoes?aba=usuarios",
       "kind": "Configuração",
       "viewport": "desktop",
-      "status": "pendente",
+      "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/14-configuracoes/ops004-users-desktop.png",
-      "updatedAt": null,
-      "commit": null,
-      "freshness": "pendente",
-      "reason": "Aguardando coleta real da interface na CI isolada.",
+      "updatedAt": "2026-11-14",
+      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
+      "freshness": "atual",
+      "reason": null,
       "driver": "ops004-interface"
     },
     {
@@ -2140,12 +2140,12 @@
       "route": "/configuracoes?aba=usuarios",
       "kind": "Modal",
       "viewport": "desktop",
-      "status": "pendente",
+      "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/14-configuracoes/ops004-permissions-desktop.png",
-      "updatedAt": null,
-      "commit": null,
-      "freshness": "pendente",
-      "reason": "Aguardando coleta real da interface na CI isolada.",
+      "updatedAt": "2026-11-14",
+      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
+      "freshness": "atual",
+      "reason": null,
       "driver": "ops004-interface"
     },
     {
@@ -2156,12 +2156,12 @@
       "route": "/configuracoes?aba=usuarios",
       "kind": "Formulário",
       "viewport": "desktop",
-      "status": "pendente",
+      "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/14-configuracoes/ops004-staff-desktop.png",
-      "updatedAt": null,
-      "commit": null,
-      "freshness": "pendente",
-      "reason": "Aguardando coleta real da interface na CI isolada.",
+      "updatedAt": "2026-11-14",
+      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
+      "freshness": "atual",
+      "reason": null,
       "driver": "ops004-interface"
     },
     {
@@ -2172,12 +2172,12 @@
       "route": "/aprovacoes",
       "kind": "Fluxo",
       "viewport": "desktop",
-      "status": "pendente",
+      "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/14-configuracoes/ops004-approvals-desktop.png",
-      "updatedAt": null,
-      "commit": null,
-      "freshness": "pendente",
-      "reason": "Aguardando coleta real da interface na CI isolada.",
+      "updatedAt": "2026-11-14",
+      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
+      "freshness": "atual",
+      "reason": null,
       "driver": "ops004-interface"
     },
     {
@@ -2188,12 +2188,12 @@
       "route": "/configuracoes?aba=usuarios",
       "kind": "Configuração",
       "viewport": "mobile",
-      "status": "pendente",
+      "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/14-configuracoes/ops004-users-mobile.png",
-      "updatedAt": null,
-      "commit": null,
-      "freshness": "pendente",
-      "reason": "Aguardando coleta real da interface na CI isolada.",
+      "updatedAt": "2026-11-14",
+      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
+      "freshness": "atual",
+      "reason": null,
       "driver": "ops004-interface"
     },
     {
@@ -2204,12 +2204,12 @@
       "route": "/configuracoes?aba=usuarios",
       "kind": "Modal",
       "viewport": "mobile",
-      "status": "pendente",
+      "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/14-configuracoes/ops004-permissions-mobile.png",
-      "updatedAt": null,
-      "commit": null,
-      "freshness": "pendente",
-      "reason": "Aguardando coleta real da interface na CI isolada.",
+      "updatedAt": "2026-11-14",
+      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
+      "freshness": "atual",
+      "reason": null,
       "driver": "ops004-interface"
     },
     {
@@ -2220,12 +2220,12 @@
       "route": "/configuracoes?aba=usuarios",
       "kind": "Formulário",
       "viewport": "mobile",
-      "status": "pendente",
+      "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/14-configuracoes/ops004-staff-mobile.png",
-      "updatedAt": null,
-      "commit": null,
-      "freshness": "pendente",
-      "reason": "Aguardando coleta real da interface na CI isolada.",
+      "updatedAt": "2026-11-14",
+      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
+      "freshness": "atual",
+      "reason": null,
       "driver": "ops004-interface"
     },
     {
@@ -2236,12 +2236,12 @@
       "route": "/aprovacoes",
       "kind": "Fluxo",
       "viewport": "mobile",
-      "status": "pendente",
+      "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/14-configuracoes/ops004-approvals-mobile.png",
-      "updatedAt": null,
-      "commit": null,
-      "freshness": "pendente",
-      "reason": "Aguardando coleta real da interface na CI isolada.",
+      "updatedAt": "2026-11-14",
+      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
+      "freshness": "atual",
+      "reason": null,
       "driver": "ops004-interface"
     },
     {
@@ -2253,11 +2253,12 @@
       "kind": "Acesso",
       "viewport": "desktop",
       "image": "docs/mapeamento-visual/capturas/01-login-acesso/ops004-office-desktop.png",
-      "status": "pendente",
-      "updatedAt": null,
-      "commit": null,
-      "reason": "Aguardando coleta real no CI isolado da OPS-004.",
-      "driver": "ops004-interface"
+      "status": "capturada",
+      "updatedAt": "2026-11-14",
+      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
+      "reason": null,
+      "driver": "ops004-interface",
+      "freshness": "atual"
     },
     {
       "id": "ops004-invite-desktop",
@@ -2268,11 +2269,12 @@
       "kind": "Acesso",
       "viewport": "desktop",
       "image": "docs/mapeamento-visual/capturas/01-login-acesso/ops004-invite-desktop.png",
-      "status": "pendente",
-      "updatedAt": null,
-      "commit": null,
-      "reason": "Aguardando coleta real no CI isolado da OPS-004.",
-      "driver": "ops004-interface"
+      "status": "capturada",
+      "updatedAt": "2026-11-14",
+      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
+      "reason": null,
+      "driver": "ops004-interface",
+      "freshness": "atual"
     },
     {
       "id": "ops004-office-mobile",
@@ -2283,11 +2285,12 @@
       "kind": "Acesso",
       "viewport": "mobile",
       "image": "docs/mapeamento-visual/capturas/01-login-acesso/ops004-office-mobile.png",
-      "status": "pendente",
-      "updatedAt": null,
-      "commit": null,
-      "reason": "Aguardando coleta real no CI isolado da OPS-004.",
-      "driver": "ops004-interface"
+      "status": "capturada",
+      "updatedAt": "2026-11-14",
+      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
+      "reason": null,
+      "driver": "ops004-interface",
+      "freshness": "atual"
     },
     {
       "id": "ops004-invite-mobile",
@@ -2298,11 +2301,12 @@
       "kind": "Acesso",
       "viewport": "mobile",
       "image": "docs/mapeamento-visual/capturas/01-login-acesso/ops004-invite-mobile.png",
-      "status": "pendente",
-      "updatedAt": null,
-      "commit": null,
-      "reason": "Aguardando coleta real no CI isolado da OPS-004.",
-      "driver": "ops004-interface"
+      "status": "capturada",
+      "updatedAt": "2026-11-14",
+      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
+      "reason": null,
+      "driver": "ops004-interface",
+      "freshness": "atual"
     },
     {
       "id": "ops004-order-access-desktop",
@@ -2313,11 +2317,12 @@
       "kind": "Operação",
       "viewport": "desktop",
       "image": "docs/mapeamento-visual/capturas/07-ordens-servico/ops004-order-access-desktop.png",
-      "status": "pendente",
-      "updatedAt": null,
-      "commit": null,
-      "reason": "Aguardando evidência real do teste isolado da OPS-004.",
-      "driver": "ops004-interface"
+      "status": "capturada",
+      "updatedAt": "2026-11-14",
+      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
+      "reason": null,
+      "driver": "ops004-interface",
+      "freshness": "atual"
     },
     {
       "id": "ops004-order-access-mobile",
@@ -2328,11 +2333,12 @@
       "kind": "Operação",
       "viewport": "mobile",
       "image": "docs/mapeamento-visual/capturas/07-ordens-servico/ops004-order-access-mobile.png",
-      "status": "pendente",
-      "updatedAt": null,
-      "commit": null,
-      "reason": "Aguardando evidência real do teste isolado da OPS-004.",
-      "driver": "ops004-interface"
+      "status": "capturada",
+      "updatedAt": "2026-11-14",
+      "commit": "3f53da28177e3d9d5cca9811e7a403e008863a9a",
+      "reason": null,
+      "driver": "ops004-interface",
+      "freshness": "atual"
     }
   ],
   "flows": [
@@ -2436,7 +2442,7 @@
       "id": "FL-OPS004",
       "name": "Usuários → permissões → funcionários → aprovações",
       "description": "Gestão de acessos e autorizações internas da oficina fictícia.",
-      "status": "pendente",
+      "status": "capturada",
       "entryIds": [
         "ops004-users-desktop",
         "ops004-permissions-desktop",
@@ -2446,7 +2452,7 @@
         "ops004-office-desktop",
         "ops004-invite-desktop"
       ],
-      "reason": "Aguardando coleta das novas interfaces na CI."
+      "reason": null
     }
   ]
 }
