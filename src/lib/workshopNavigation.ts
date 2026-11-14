@@ -1,5 +1,4 @@
 import {
-  BarChart3,
   ClipboardCheck,
   ClipboardList,
   LayoutDashboard,
@@ -49,7 +48,6 @@ export const workshopNavGroups: WorkshopNavGroup[] = [
   {
     title: "GESTÃO",
     items: [
-      { path: "/resultados", label: "Resultados", description: "Acompanhe os resultados da oficina.", Icon: BarChart3 },
       { path: "/estoque", label: "Estoque", description: "Controle saldos, entradas e saídas de peças.", Icon: Package },
       { path: "/financeiro", label: "Financeiro", description: "Acesse contas a pagar, a receber e caixa.", Icon: Wallet },
     ],
@@ -74,7 +72,6 @@ export function visibleWorkshopNavigation(session: Session) {
   const admin = session.role === "owner" || !!session.access;
   const available = (path: string) => {
     if (!canOpenPath(session, path)) return false;
-    if (path === "/resultados" && session.modules?.orders === false) return false;
     const module = path === "/servicos" && !can(session, "catalog.view") && can(session, "technical.view")
       ? "technical_catalog"
       : uiModuleForPath(path);
