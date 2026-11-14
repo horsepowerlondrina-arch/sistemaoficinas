@@ -1,3 +1,5 @@
+// Shared homologation is never a fixture/cleanup target, even behind a loopback proxy.
+if (process.env.LOCAL_HOMOLOGATION === "true") throw new Error("Use visual:local:readonly para homologação compartilhada; visual:capture exige PostgreSQL descartável.");
 import {captureCardMachines,capturedOrders,capturedProducts} from "./capture-card-machines.mjs";
 import { spawn, execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";

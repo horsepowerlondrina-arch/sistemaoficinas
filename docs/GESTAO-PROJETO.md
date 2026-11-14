@@ -99,3 +99,9 @@ Edição independente de faixas para peças/produtos e terceiros, preservando mo
 Estado: **Em revisão** no [PR #168](https://github.com/horsepowerlondrina-arch/sistemaoficinas/pull/168), branch `feat/ops-004-usuarios-permissoes`. Implementação sobre a main `408f3891c154227ecc5ee25b104a03e5427c0a92`, com auditoria prévia, perfis individuais, convites de colaboradores, vagas, funcionários independentes, múltiplas oficinas, atribuição de OS e aprovações de descontos. O identificador foi solicitado pelo responsável; o registro histórico de Conta/Plano/Senha não é renomeado nem substituído.
 
 [Auditoria](OPS-004-usuarios-permissoes-auditoria.md) e [implementação, segurança e liberação](OPS-004-usuarios-permissoes.md). Testes e capturas usam somente PostgreSQL 17 temporário e dados fictícios. Por autorização específica desta tarefa, integração, migração remota e publicação na homologação aguardam nova autorização do responsável. Produção permanece fora do escopo.
+
+## INF-010 — Modalidade local e integração sem publicação imediata (14/11/2026)
+
+O desenvolvimento Linux pode usar o Supabase de homologação com conexões restritas e MFA existentes, sem instalar PostgreSQL. GitHub Actions continua no PostgreSQL 17 temporário, sem banco remoto. Duas execuções usam branches, diretórios, portas, perfis de navegador e oficinas fictícias independentes; manutenção remota é sequencial.
+
+Durante o regime consolidado, eventos Git da Vercel ficam pausados por configuração versionada. CI aprovado permite integração na `main` sem publicação imediata; não declarar o commit publicado até conferir o deployment correspondente. A publicação manual consolidada e a retomada do automático são reversíveis e seguem o [manual INF-010](infraestrutura/INF-010-DESENVOLVIMENTO-LOCAL.md). Preservam-se todas as exigências de autorização, segurança e produção; a Horse Power definitiva não é alterada.

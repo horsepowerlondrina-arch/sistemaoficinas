@@ -1,3 +1,4 @@
+import { assertLocalHomologation } from "./localHomologationConfig.js";
 const productionProject = "cbdwgocofigrdigfgwkp";
 export function isStripeBillingPreview(env: Record<string, string | undefined>) {
   return env.VERCEL_ENV === "preview" &&
@@ -7,6 +8,7 @@ export function isStripeBillingPreview(env: Record<string, string | undefined>) 
 export function assertDevelopmentIsolation(
   env: Record<string, string | undefined>,
 ) {
+  if (env.LOCAL_HOMOLOGATION === "true") { assertLocalHomologation(env); return; }
   const expected = env.EXPECTED_DATABASE_PROJECT;
   if (
     env.APP_ENV !== "development" ||
