@@ -25,7 +25,8 @@
     "test:sessions": "node --test-isolation=none --test tests/isolated-sessions.test.mjs tests/activation-mail.test.mjs tests/stripe-checkout-automation.test.mjs",
     "test:homologation": "node scripts/e2e/run-security.mjs",
     "test:onboarding": "node scripts/e2e/onboarding.mjs",
-    "test:operations": "node scripts/e2e/run-operations.mjs"
+    "test:operations": "node scripts/e2e/run-operations.mjs",
+    "test:finance": "tsx scripts/e2e/run-financial.ts"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.6",

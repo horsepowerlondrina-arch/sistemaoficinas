@@ -142,7 +142,7 @@ test("estorno no Básico exige administrador da oficina e recebimento simples re
     await recordBasicOrderReceipt(db, basicOwner, orderId, "Pix");
     await assert.rejects(transitionOrder(db, { ...basicOwner, tenantId: "b" }, orderId, "open", undefined, "Pagamento lançado por engano"), /não encontrado/);
     await assert.rejects(transitionOrder(db, { ...basicOwner, role: "operator" }, orderId, "open", undefined, "Pagamento lançado por engano"), /mecânico/);
-    await assert.rejects(transitionOrder(db, { ...basicOwner, modules: { orders: true, finance: true } }, orderId, "open", undefined, "Pagamento lançado por engano"), /financeiro antes de reabrir/);
+    await assert.rejects(transitionOrder(db, { ...basicOwner, modules: { orders: true, finance: true } }, orderId, "open", undefined, "Pagamento lançado por engano"), /estorno desses recebimentos ainda não está disponível no Financeiro/);
     assert.equal(db.prepare("SELECT COUNT(*) n FROM cash_entries WHERE tenant_id='a'").get()!.n, 1);
 
     const otherOrder = await completedOrder(db);
