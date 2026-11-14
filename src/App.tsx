@@ -10,7 +10,6 @@ import { PeopleRegisters } from "./pages/PeopleRegisters";
 import { Suppliers } from "./pages/Suppliers";
 import { ServicesProfit } from "./pages/ServicesProfit";
 import { GainsReport } from "./pages/GainsReport";
-import { ManagementResults } from "./pages/ManagementResults";
 import { Services } from './pages/Services';
 import { timesRedirectTarget } from '../shared/serviceTabs';
 import { PartsProfit } from "./pages/PartsProfit";
@@ -51,7 +50,6 @@ import {
   ShieldCheck,
   ArrowRight,
   CalendarDays,
-  BarChart3,
   TriangleAlert,
 } from "lucide-react";
 import { api, send } from "./lib/api";
@@ -188,7 +186,6 @@ export function App({ homePath = "/inicio" }: { homePath?: "/" | "/inicio" } = {
     {
       title: "GESTÃO",
       items: [
-        ["/resultados", "Resultados", BarChart3],
         ["/estoque", "Estoque", Package],
         ["/financeiro", "Financeiro", Wallet],
       ],
@@ -196,7 +193,6 @@ export function App({ homePath = "/inicio" }: { homePath?: "/" | "/inicio" } = {
   ];
   const admin = session.role === "owner";
   const available = (path: string) => {
-    if (path === "/resultados" && session.modules?.orders === false) return false;
     const module = uiModuleForPath(path);
     return !module || session.modules?.[module] !== false;
   };
@@ -480,7 +476,6 @@ export function App({ homePath = "/inicio" }: { homePath?: "/" | "/inicio" } = {
                 <Route path="/financeiro/servicos" element={<ServicesProfit />} />
                 <Route path="/financeiro/ganhos" element={<GainsReport />} />
                 <Route path="/estoque" element={<Stock />} />
-                <Route path="/resultados" element={admin && session.modules?.orders !== false ? <ManagementResults /> : <Navigate to="/inicio" replace />} />
                 <Route path="/financeiro" element={<Expenses />} />
                 <Route
                   path="/financeiro/receber"
