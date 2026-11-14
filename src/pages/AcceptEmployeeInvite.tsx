@@ -16,12 +16,15 @@ export function AcceptEmployeeInvite() {
       .catch((e) => setError(e.message));
   }, [token]);
   return (
-    <main className="login-page">
-      <section className="login-card">
+    <main className="office-auth">
+      <section
+        className="office-auth-card"
+        aria-label="Ativação de colaborador"
+      >
         <PlatformBrand />
         <h1>Acesso à oficina</h1>
         {error && (
-          <p role="alert" className="error-box">
+          <p role="alert" className="office-auth-error">
             {error}
           </p>
         )}
@@ -43,6 +46,7 @@ export function AcceptEmployeeInvite() {
         ) : (
           info && (
             <form
+              className="office-auth-form"
               onSubmit={async (e) => {
                 e.preventDefault();
                 if (busy) return;
@@ -103,7 +107,7 @@ export function AcceptEmployeeInvite() {
                   onChange={(e) => setPassword(e.target.value)}
                 />
               </label>
-              <button className="button primary" disabled={busy}>
+              <button className="office-auth-submit" disabled={busy}>
                 {busy ? "Confirmando…" : "Aceitar convite"}
               </button>
             </form>
