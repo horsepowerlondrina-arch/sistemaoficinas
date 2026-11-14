@@ -139,7 +139,7 @@
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/02-dashboard/inicio-oficina.png",
       "updatedAt": "2026-11-14",
-      "commit": "ba196677c2a1e52f6c7b795b1a31cff1c39cf0f5",
+      "commit": "c5aebc1bb00a73ac99f6575c8b39f25434b82278",
       "freshness": "atual",
       "reason": "Captura Playwright no CI com oficina fictícia e PostgreSQL 17 temporário."
     },
@@ -650,7 +650,7 @@
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/02-dashboard/inicio-oficina-desktop.png",
       "updatedAt": "2026-11-14",
-      "commit": "ba196677c2a1e52f6c7b795b1a31cff1c39cf0f5",
+      "commit": "c5aebc1bb00a73ac99f6575c8b39f25434b82278",
       "freshness": "atual",
       "reason": "Captura Playwright no CI com oficina fictícia e PostgreSQL 17 temporário."
     },
