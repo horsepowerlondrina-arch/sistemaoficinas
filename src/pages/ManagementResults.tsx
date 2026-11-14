@@ -6,7 +6,7 @@ import { api, send } from "../lib/api";
 import { useApp } from "../lib/context";
 import { money } from "../lib/types";
 import { workshopDate } from "../lib/workflow";
-import { compareManagementPeriods, cyclePeriod, weekPeriod, type ManagementPeriod } from "../lib/managementResults";
+import { compareManagementPeriods, monthPeriod, weekPeriod, type ManagementPeriod } from "../lib/managementResults";
 import { defaultManagementResultsSettings, type ManagementResultsSettings } from "../../shared/managementResultsSettings";
 import { Field, PageHeading, Stat } from "../components/ui";
 import "./managementResults.css";
@@ -25,7 +25,7 @@ function ResultsContent({ report, company, configured }: { report: ReturnType<ty
       <p>De {date(current.period.from)} até {date(current.period.to)} · {current.period.days} dias inclusivos</p>
       <p className="muted">Valor das OS pela finalização; recebimentos pela data do pagamento. São bases de tempo diferentes.</p>
     </header>
-    {current.period.partial && <p className="management-results-notice" role="status">O intervalo ainda está em andamento. Os totais e o semáforo refletem apenas os lançamentos feitos até hoje.</p>}
+    {current.period.partial && <p className="management-results-notice" role="status">O intervalo ainda está em andamento. Os totais refletem apenas os lançamentos feitos até hoje.</p>}
     {!configured && <p className="management-results-notice" role="status">Valor da hora, capacidade e metas usam valores iniciais de referência. Ajuste a configuração para refletir esta oficina.</p>}
     {estimated.missingCostOrders > 0 && <p className="management-results-notice" role="status">{estimated.missingCostOrders} OS com custo de peça não informado ficaram fora do resultado e da margem. A venda permanece no total de OS.</p>}
     {estimated.inconsistentOrders > 0 && <p className="management-results-notice" role="status">{estimated.inconsistentOrders} OS com diferença entre itens, desconto e valor final. Confira o detalhamento antes de interpretar o resultado.</p>}
@@ -42,27 +42,24 @@ function ResultsContent({ report, company, configured }: { report: ReturnType<ty
     </section>
     <div className="management-results-grid">
       <section className="panel management-results-section">
-        <h3>Produção e mão de obra</h3>
+        <h3>Serviços</h3>
         <dl>
           <div><dt>Serviços vendidos</dt><dd>{money(production.servicesSale)}</dd></div>
           <div><dt>Custo de terceiros</dt><dd>{money(production.thirdCost)}</dd></div>
-          <div><dt>Horas equivalentes</dt><dd>{decimal(production.hours)} h</dd></div>
-          <div><dt>Capacidade no intervalo</dt><dd>{decimal(production.capacity)} h</dd></div>
+          <div><dt>Horas vendidas</dt><dd>{decimal(production.hours)} h</dd></div>
+          <div><dt>Capacidade de serviço no intervalo</dt><dd>{decimal(production.capacity)} h</dd></div>
           <div><dt>Ocupação</dt><dd>{percent(production.occupancy)}</dd></div>
-          <div><dt>Semáforo</dt><dd><span className={`management-light ${production.light}`}>{production.light}</span></dd></div>
         </dl>
-        <p className="muted">Horas = (serviços vendidos − custo de terceiros) ÷ valor da hora. Limites semanais proporcionais aos {current.period.days} dias; não dependem da duração cadastrada.</p>
       </section>
       <section className="panel management-results-section">
         <h3>Peças</h3>
         <dl>
-          <div><dt>Venda antes dos descontos</dt><dd>{money(parts.sale)}</dd></div>
+          <div><dt>Peças vendidas</dt><dd>{money(parts.sale)}</dd></div>
           <div><dt>Custo conhecido com frete</dt><dd>{money(parts.knownCost)}</dd></div>
           <div><dt>Margem conhecida</dt><dd>{money(parts.margin)} · {percent(parts.marginPct)}</dd></div>
           <div><dt>OS sem custo completo</dt><dd>{parts.missingCostOrders}</dd></div>
           <div><dt>OS com custo consolidado</dt><dd>{estimated.consolidatedCostOrders}</dd></div>
         </dl>
-        <p className="muted">Custo zero de peça significa custo não informado. Custo consolidado positivo da OS pode suprir itens antigos sem detalhe. Compra de estoque não é descontada novamente.</p>
       </section>
       <section className="panel management-results-section">
         <h3>Recebimentos e valores em aberto</h3>
@@ -74,7 +71,6 @@ function ResultsContent({ report, company, configured }: { report: ReturnType<ty
           <div><dt>Recebido líquido no intervalo</dt><dd>{money(cash.net)}</dd></div>
           <div><dt>Contas a receber agora</dt><dd>{money(receivables.openBalance)} · {receivables.openCount} contas</dd></div>
         </dl>
-        <p className="muted">Recebimento e taxas do caixa seguem a data efetiva do pagamento, mesmo quando a OS foi finalizada em outro período. Contas a receber são a posição atual.</p>
       </section>
       <section className="panel management-results-section">
         <h3>Metas e estoque</h3>
@@ -131,6 +127,12 @@ export function ManagementResults() {
     try { compareManagementPeriods(data, draft, settings); setPeriod(draft); setError(""); }
     catch (e) { setError((e as Error).message); }
   };
+  const selectCurrentPeriod = (shortcut: typeof weekPeriod) => {
+    const selected = shortcut(workshopDate(new Date().toISOString()));
+    setDraft(selected);
+    setPeriod(selected);
+    setError("");
+  };
   const saveSettings = async (event: FormEvent) => {
     event.preventDefault(); setBusy(true); setError("");
     try {
@@ -151,8 +153,8 @@ export function ManagementResults() {
         </div>
         <div className="report-actions">
           <button className="button primary" type="submit">Aplicar período</button>
-          <button className="button" type="button" onClick={() => setDraft(weekPeriod(todayKey))}>Semana</button>
-          <button className="button" type="button" onClick={() => setDraft(cyclePeriod(todayKey))}>Ciclo 15→14</button>
+          <button className="button" type="button" title="Aplicar a semana atual, de segunda a domingo" onClick={() => selectCurrentPeriod(weekPeriod)}>Semana</button>
+          <button className="button" type="button" title="Aplicar o mês atual, do primeiro ao último dia" onClick={() => selectCurrentPeriod(monthPeriod)}>Mês</button>
           <button className="button" type="button" onClick={() => setPrintOpen(true)}>Relatório / PDF</button>
         </div>
       </form>

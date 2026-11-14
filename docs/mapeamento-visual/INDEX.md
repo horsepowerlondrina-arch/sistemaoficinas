@@ -720,7 +720,7 @@ Filtro livre de datas, indicadores, metas e relatório PDF com dados fictícios 
 
 [![Resultados por intervalo](./capturas/18-resultados/gestao-resultados-periodo.png)](./capturas/18-resultados/gestao-resultados-periodo.png)
 
-Estado: capturada · desktop · captura 2026-11-13 · commit de origem: a2989d0cf5f75f3cab1673504899d9b37d9a2a72 · [arquivo completo](./capturas/18-resultados/gestao-resultados-periodo.png)
+Estado: capturada · desktop · captura 2026-11-14 · commit de origem: 2b10f1e64f91d3ca228c3fd8eefeadf6ce28e56b · [arquivo completo](./capturas/18-resultados/gestao-resultados-periodo.png)
 
 ## 99 — Fluxos completos
 
