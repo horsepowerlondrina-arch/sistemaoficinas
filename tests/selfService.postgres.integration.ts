@@ -20,6 +20,8 @@ test("three plans: registration, email activation, settled payment, seats and is
   const root = adminClient(); await root.connect();
   const pool = new pg.Pool({ connectionString: platformAdminDatabaseUrl(process.env.PLATFORM_ADMIN_DATABASE_URL), ssl: false });
   const db = await createLocalDatabase();
+  const actor = randomUUID();
+  await root.query("INSERT INTO platform_admin.administrators(id,email,display_name,role,permissions,password_hash,totp_secret_ciphertext,active,enrolled) VALUES($1,$2,'Synthetic price fixture','principal','[]','fixture','fixture',true,true)", [actor, actor+'@example.test']);
   const suffix = randomBytes(6).toString("hex"), plans = ["basic", "professional", "premium"] as const;
   const emails = plans.map(p => `${p}-${suffix}@testes.osdrive.com.br`), tokens = new Map<string, string>();
   const previousPlans = (await root.query("SELECT * FROM platform_admin.plan_defaults")).rows;
@@ -60,7 +62,7 @@ test("three plans: registration, email activation, settled payment, seats and is
       const owner = (await root.query("SELECT user_id FROM horse_power.memberships WHERE tenant_id=$1", [pending.tenant_id])).rows[0].user_id;
       assert.equal((await billing.summary(pending.tenant_id)).can_subscribe_during_trial, true);
       const priceId = randomUUID(), amount = [9900, 19900, 29900][i];
-      await root.query("INSERT INTO platform_admin.stripe_prices(id,plan_code,amount_cents,active,reason) VALUES($1,$2,$3,false,'Isolated test fixture')", [priceId, plan, amount]);
+      await root.query("INSERT INTO platform_admin.stripe_prices(id,plan_code,amount_cents,active,reason,created_by) VALUES($1,$2,$3,false,'Isolated test fixture',$4)", [priceId, plan, amount, actor]);
       // Existing offers stay unchanged. This private synthetic offer is enabled only while selecting it.
       const old = (await root.query("SELECT id FROM platform_admin.stripe_prices WHERE plan_code=$1 AND active", [plan])).rows;
       await root.query("UPDATE platform_admin.stripe_prices SET active=false WHERE plan_code=$1 AND active", [plan]);
