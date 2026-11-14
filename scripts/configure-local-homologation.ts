@@ -1,7 +1,10 @@
 import { createInterface } from "node:readline/promises";
 import { Writable } from "node:stream";
 import { existsSync, writeFileSync, chmodSync } from "node:fs";
-import { configureLocalHomologation } from "../server/localHomologationConfig.js";
+import {
+  configureLocalHomologation,
+  localConnectionRoles,
+} from "../server/localHomologationConfig.js";
 if (!process.stdin.isTTY || !process.stdout.isTTY)
   throw new Error("Execute este assistente em um terminal privado interativo.");
 const path = process.env.DEV_ENV_FILE || ".env.development.local";
@@ -31,13 +34,22 @@ try {
   console.log(
     "Somente homologação vnclahdnirqlcbamodqy. Nada será enviado ao chat nem ao GitHub.",
   );
+  const mode = {
+    LOCAL_HOMOLOGATION: "true",
+    LOCAL_EXCLUSIVE_CREDENTIALS:
+      process.env.LOCAL_EXCLUSIVE_CREDENTIALS || "false",
+  };
+  const roles = localConnectionRoles(mode);
   const env: Record<string, string> = {
-    DATABASE_URL: await secret("Conexão do usuário horse_power_app"),
+    ...mode,
+    DATABASE_URL: await secret(`Conexão do usuário ${roles.operational}`),
     PLATFORM_ADMIN_DATABASE_URL: await secret(
-      "Conexão do usuário hp_platform_admin_app",
+      `Conexão do usuário ${roles.admin}`,
     ),
     PLATFORM_ADMIN_TOTP_ENCRYPTION_KEY: await secret(
-      "Chave MFA existente da homologação (64 caracteres hexadecimais)",
+      mode.LOCAL_EXCLUSIVE_CREDENTIALS === "true"
+        ? "Chave MFA exclusiva da conta fictícia local (não usar nas contas existentes)"
+        : "Chave MFA existente da homologação (64 caracteres hexadecimais)",
     ),
   };
   configureLocalHomologation(env);
@@ -45,6 +57,7 @@ try {
     [
       "# INF-010 — privado; não versionar",
       ...[
+        "LOCAL_EXCLUSIVE_CREDENTIALS",
         "DATABASE_URL",
         "PLATFORM_ADMIN_DATABASE_URL",
         "PLATFORM_ADMIN_TOTP_ENCRYPTION_KEY",

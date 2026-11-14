@@ -10,7 +10,7 @@ O GitHub e o CI continuam sendo a referência. Desenvolvimento local é uma opç
 - `npm run dev` e `dev:admin`: mantidos para o PostgreSQL local/descartável existente. Não apontar esses comandos antigos para Supabase.
 - GitHub Actions: PostgreSQL **17 temporário**, dados fictícios, build, testes gerais, operacionais, financeiros, permissões e interfaces. Nunca usa banco persistente ou credenciais da Vercel.
 
-Nenhuma migração remota é necessária para a INF-010. O modo local não aplica migrações nem cria oficinas automaticamente. RLS, identidade transacional, pools separados, autorização, limites de plano, permissões financeiras e MFA continuam os mesmos da aplicação publicada.
+O modo original da INF-010 não exige migração remota; o modo exclusivo autorizado posteriormente usa o ajuste restrito de Suporte descrito ao final. O modo local não aplica migrações nem cria oficinas automaticamente. RLS, identidade transacional, pools separados, autorização, limites de plano, permissões financeiras e MFA continuam os mesmos da aplicação publicada.
 
 ## Linux e configuração inicial
 
@@ -36,7 +36,7 @@ O assistente grava `.env.development.local` com permissão **0600**, ignorado pe
 
 Procure os valores no gerenciador de segredos original. A Vercel pode manter Secrets sem permitir recuperar seu conteúdo: listar variáveis, `get_project_env` e `vercel env pull` **não garantem** acesso a esses valores. Não tentar extraí-los de deployments, criar endpoints de diagnóstico, ler senhas do banco ou redefinir credenciais existentes para contornar isso.
 
-Nesta execução, os três valores da homologação foram identificados como `sensitive/secret`, e a consulta autorizada ao segredo MFA retornou somente metadados. Nenhum valor foi recuperado/copiado ou alterado. A execução contra Supabase permanece pendente até configuração segura pelo responsável ou outro mecanismo autorizado disponível. A existência de testes aprovados no banco descartável não comprova conexão local com Supabase.
+Na preparação inicial do PR #186, os três valores da homologação foram identificados como `sensitive/secret`, e a consulta autorizada ao segredo MFA retornou somente metadados. Nenhum valor foi recuperado/copiado ou alterado. Essa pendência inicial é atendida pelo modo exclusivo autorizado ao final deste documento, sem recuperar nem alterar os Secrets originais. A existência de testes aprovados no banco descartável não comprova conexão local com Supabase.
 
 ## Endereços, proxy e sessões
 
@@ -140,8 +140,8 @@ Documentação oficial: [controle de deployments Git](https://vercel.com/docs/pr
 ## Situação e problemas conhecidos
 
 - Build e suíte geral executados localmente; teste adicional de proxy confirmou login, sessão, logout, cookie inválido, origem não autorizada e roteamento administrativo; suíte PostgreSQL 17 e interfaces são conferidas no run do PR.
-- Nenhum esquema, segredo remoto, usuário ou dado persistente foi alterado pela preparação desta infraestrutura.
-- Conexão real da aplicação local com Supabase e roteiro autenticado completo pendentes: os Secrets da Vercel não retornam os três valores necessários pela integração disponível. Sem redefinir chaves existentes.
+- Na preparação inicial (PR #186), nenhum esquema, segredo remoto, usuário ou dado persistente foi alterado. A continuação autorizada cria apenas os dois logins e a conta fictícia novos, o ajuste restrito de Suporte e dados de validação da oficina INF-010.
+- Os Secrets originais da Vercel continuam irrecuperáveis pela integração. A conexão real ao Supabase e o login MFA já foram comprovados com os novos acessos exclusivos, sem redefinir as chaves existentes; resultados detalhados do roteiro constam no PR da continuação.
 - O ambiente do agente precisou de autorização para abrir portas locais nos testes; não é requisito de produção nem falha da aplicação.
 - Efeitos externos comerciais ficam bloqueados deliberadamente. Captura somente leitura não substitui validação funcional autenticada.
 - Capturas/validação no PostgreSQL descartável não comprovam disponibilidade de integrações remotas.
@@ -158,10 +158,12 @@ Quando os Secrets originais não estão disponíveis, o responsável autorizou c
 - A conta `inf010-admin@example.test` usa senha e MFA próprios; não é uma conta de e-mail real e nenhum convite externo é enviado. No modo exclusivo, tentativas de login de outros administradores são recusadas antes de acessar/alterar suas contas; inscrição MFA e alterações de administradores ficam bloqueadas.
 - A senha e o segredo MFA dessa conta ficam somente em `data/inf010-exclusive.json` (0600), ignorado pelo Git. São dados de teste privados: não anexar a relatórios ou artefatos. Não são credenciais da oficina.
 
-A preparação de papéis é explícita em `scripts/infra/inf010-create-local-roles.sql`, fora do conjunto de migrações automáticas. O SQL não contém senhas. Um auxiliar temporário, restrito a `postgres`, recebe somente verificadores SCRAM gerados no Linux para habilitar **apenas os dois nomes novos**. É removido depois da configuração. As senhas em texto não são enviadas por consultas SQL nem armazenadas no histórico de migrações.
+A preparação de papéis é explícita em `scripts/infra/inf010-create-local-roles.sql`, fora do conjunto de migrações automáticas. O SQL não contém senhas. Um auxiliar temporário, restrito a `postgres`, recebe somente verificadores SCRAM gerados no Linux para habilitar **apenas os dois nomes novos**. Sua remoção após a configuração pode exigir confirmação obrigatória da plataforma. Até a remoção, não pode redefinir os logins já habilitados. As senhas em texto não são enviadas por consultas SQL nem armazenadas no histórico de migrações.
 
 A migração `20261114222723_inf010_local_support_identity.sql` adiciona ao Suporte somente o login `osdrive_local_app` **com associação efetiva ao papel operacional**; tenant, usuário e vínculo continuam obrigatórios. Não altera tabelas ou registros de chamados. A cópia `local-postgres/040-inf010-local-support-identity.sql` permite validar essa regra no PostgreSQL 17 temporário, incluindo leitura autorizada e negativa entre oficinas.
 
 **Recuperação/revogação:** colocar os dois logins novos em NOLOGIN, revogar somente suas associações e desativar a conta `inf010-admin@example.test`, preservando a auditoria. Se necessário, restaurar `workshop_support_identity` usando a definição anterior da migração `20261111000100_admin_support.sql`. Nunca redefinir `horse_power_app`, `hp_platform_admin_app` ou o MFA dos administradores existentes. Não excluir oficinas de testes como forma de revogação.
 
 O modo original com os três Secrets existentes continua disponível. Usar a conta administrativa exclusiva para teste local; ela não substitui a conta real do responsável nem altera a autenticação publicada.
+
+Para reproduzir o assistente em outro Linux com os acessos exclusivos já provisionados, use `LOCAL_EXCLUSIVE_CREDENTIALS=true npm run dev:configure` e informe somente os três valores **locais exclusivos** guardados com segurança. Não executar o provisionamento novamente nem copiar credenciais comerciais. O assistente nunca sobrescreve arquivo existente.
