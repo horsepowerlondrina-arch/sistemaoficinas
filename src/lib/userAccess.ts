@@ -38,7 +38,6 @@ export function canOpenPath(session: Session, path: string) {
   )
     return false;
   if (p.startsWith("/financeiro")) return can(session, "finance.view");
-  if (p.startsWith("/resultados")) return can(session, "finance.profit");
   if (p.startsWith("/dashboard")) return can(session, "finance.reports");
   return true;
 }

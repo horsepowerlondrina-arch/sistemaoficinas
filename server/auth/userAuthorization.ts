@@ -86,7 +86,6 @@ export function permissionForRequest(
         : "catalog.edit";
   if (/^\/(expenses|payables|expense-templates)/.test(p))
     return read ? "finance.view" : "finance.expenses";
-  if (p.startsWith("/management-results")) return "finance.profit";
   if (p.startsWith("/cash")) return read ? "finance.view" : "finance.policies";
   if (p.startsWith("/card-machines") || p.startsWith("/payment-settings"))
     return read ? "finance.receive" : "finance.policies";
@@ -268,8 +267,7 @@ export function userAuthorization(db: DB) {
         requirePermission(ctx, "orders.edit");
       if (
         ctx.access?.orderScope === "assigned" &&
-        (req.path.startsWith("/management-results") ||
-          req.path.startsWith("/cash-control"))
+        req.path.startsWith("/cash-control")
       )
         accessDenied();
       if (

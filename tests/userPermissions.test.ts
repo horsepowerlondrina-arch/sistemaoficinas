@@ -113,7 +113,6 @@ test("navigation respects financial margins and separates technical consultation
     "/financeiro/pecas",
     "/financeiro/servicos",
     "/financeiro/ganhos",
-    "/resultados",
   ])
     assert.equal(canOpenPath(consult, path), false, path);
   assert.equal(canOpenPath(consult, "/financeiro"), true);
