@@ -133,10 +133,10 @@
       "viewport": "mobile",
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/02-dashboard/inicio-oficina.png",
-      "updatedAt": "2026-10-22",
-      "commit": null,
-      "freshness": "revisar",
-      "reason": "Captura real com dados fictícios feita em 22/10/2026. O commit de origem não foi registrado; recaptura Playwright e atualização do commit estão pendentes."
+      "updatedAt": "2026-11-14",
+      "commit": "6811e747400237f60659033e6a3ede88401b3556",
+      "freshness": "atual",
+      "reason": "Captura Playwright no CI com oficina fictícia e PostgreSQL 17 temporário."
     },
     {
       "id": "dashboard-oficina-a",
@@ -641,12 +641,12 @@
       "route": "/inicio",
       "kind": "Navegação",
       "viewport": "desktop",
-      "status": "pendente",
+      "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/02-dashboard/inicio-oficina-desktop.png",
-      "updatedAt": null,
-      "commit": null,
-      "freshness": "pendente",
-      "reason": "Variante desktop ainda não foi gerada. Execute a captura Playwright em ambiente local de teste."
+      "updatedAt": "2026-11-14",
+      "commit": "6811e747400237f60659033e6a3ede88401b3556",
+      "freshness": "atual",
+      "reason": "Captura Playwright no CI com oficina fictícia e PostgreSQL 17 temporário."
     },
     {
       "id": "dashboard-oficina-a-desktop",

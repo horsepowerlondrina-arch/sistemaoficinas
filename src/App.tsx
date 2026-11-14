@@ -2,6 +2,7 @@ import { platformTitle } from "../shared/platformIdentity";
 import { clearOrderFilterSession } from "./lib/orderFilterSession";
 import { workshopTheme } from "../shared/workshopTheme";
 import { uiModuleForPath } from "../shared/workshopModules";
+import { visibleWorkshopNavigation, workshopNavGroups } from "./lib/workshopNavigation";
 import { PlatformBrand } from "./components/PlatformBrand";
 import { WorkshopBrand } from "./components/WorkshopBrand";
 import { advanceOnEnter } from "./lib/enterNavigation";
@@ -26,17 +27,12 @@ import {
   Navigate,
 } from "react-router-dom";
 import {
-  LayoutDashboard,
   LayoutGrid,
-  ClipboardList,
-  ClipboardCheck,
   FileText,
   Users,
   CarFront,
   Package,
-  Wrench,
   Wallet,
-  Settings,
   Search,
   Bell,
   ChevronDown,
@@ -161,56 +157,15 @@ export function App({ homePath = "/inicio" }: { homePath?: "/" | "/inicio" } = {
       />
     );
   if (!data) return null;
-  const groups: {
-    title: string;
-    items: [string, string, typeof LayoutDashboard][];
-  }[] = [
-    {
-      title: "PRINCIPAL",
-      items: [
-        ["/dashboard", "Visão geral", LayoutDashboard],
-        ["/ordens", "Ordens de Serviço", ClipboardList],
-        ["/checklists", "Checklists de entrada", ClipboardCheck],
-      ],
-    },
-    {
-      title: "CADASTROS",
-      items: [
-        ["/cadastros", "Clientes e veículos", Users],
-        ["/catalogo", "Produtos", Package],
-        ["/servicos", "Serviços", Wrench],
-        ["/profissionais", "Profissionais", Wrench],
-        ["/fornecedores", "Fornecedores", Package],
-      ],
-    },
-    {
-      title: "GESTÃO",
-      items: [
-        ["/estoque", "Estoque", Package],
-        ["/financeiro", "Financeiro", Wallet],
-      ],
-    },
-  ];
   const admin = session.role === "owner";
-  const available = (path: string) => {
-    const module = uiModuleForPath(path);
-    return !module || session.modules?.[module] !== false;
-  };
-  const visibleGroups = admin
-    ? groups.map((group) => ({ ...group, items: group.items.filter(([path]) => available(path)) })).filter((group) => group.items.length)
-    : [
-        {
-          title: "OPERAÇÃO",
-          items: groups[0].items.filter(([path]) => path === "/ordens" && available(path)),
-        },
-      ];
+  const { groups: visibleGroups, footer: visibleFooter } = visibleWorkshopNavigation(session);
   const blockedModule = uiModuleForPath(location.pathname);
   if (blockedModule && session.modules?.[blockedModule] === false)
     return <Navigate to={homePath} replace />;
   const current =
-    groups
+    workshopNavGroups
       .flatMap((g) => g.items)
-      .find(([path]) => location.pathname.startsWith(path))?.[1] ||
+      .find((item) => location.pathname.startsWith(item.path))?.label ||
     (location.pathname === homePath
       ? "Início"
       : location.pathname === "/configuracoes"
@@ -318,7 +273,7 @@ export function App({ homePath = "/inicio" }: { homePath?: "/" | "/inicio" } = {
             {visibleGroups.map((group) => (
               <div className="nav-group" key={group.title}>
                 <h2>{group.title}</h2>
-                {group.items.map(([path, label, Icon]) => (
+                {group.items.map(({ path, label, Icon }) => (
                   <NavLink
                     key={path}
                     to={path}
@@ -335,17 +290,16 @@ export function App({ homePath = "/inicio" }: { homePath?: "/" | "/inicio" } = {
             ))}
           </nav>
           <div className="sidebar-bottom">
-            {admin && available("/configuracoes") && (
+            {visibleFooter.map(({ path, label, Icon }) => (
               <NavLink
-                to="/configuracoes"
-                className={({ isActive }) =>
-                  `nav-item ${isActive ? "active" : ""}`
-                }
+                key={path}
+                to={path}
+                className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}
               >
-                <Settings size={19} aria-hidden="true" style={{ flexShrink: 0 }} />
-                <span>Configurações</span>
+                <Icon size={19} aria-hidden="true" style={{ flexShrink: 0 }} />
+                <span>{label}</span>
               </NavLink>
-            )}
+            ))}
             <div className="user-card">
               <span className="user-avatar">{initials(session.user.name)}</span>
               <div>
