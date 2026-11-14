@@ -173,7 +173,7 @@ try {
         await page.getByRole("heading", { name: "Tempos técnicos" }).click();
       }
     }
-    if (entry.id === "financeiro-filtros") {
+    if (entry.id === "ops002-receipt-desktop") {
       await expect(page.locator('a[href="/resultados"]')).toHaveCount(0);
       await expect(page.locator('a[href="/financeiro"]')).toBeVisible();
     }
