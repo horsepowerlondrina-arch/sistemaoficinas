@@ -1,3 +1,4 @@
+import { exclusiveLocalRoles, localAdminTestEmail } from "./localHomologationConfig.js";
 import { isStripeBillingPreview } from "./developmentIsolation.js";
 import { stripeAdminRoutes } from "./stripeBillingRoutes.js";
 import type { StripeBilling } from "./services/stripeBilling.js";
@@ -194,7 +195,16 @@ function approvedActivationOrigin(req: Request) {
   return origin;
 }
 export function createPlatformAdminApp(pool: Pool, encryptionKey: string, transfer?: PlatformAdminDataTransfer, billing?: StripeBilling) {
-  const app = express(); app.disable("x-powered-by"); app.use(noCache); app.use(express.json({ limit: "32kb" }));
+  const exclusiveLocal = exclusiveLocalRoles();
+  const app = express();
+  app.use("/admin-api", (req,res,next) => {
+    if (exclusiveLocal && (req.path.startsWith("/enroll/") ||
+      (req.path.startsWith("/administrators") && !["GET","HEAD"].includes(req.method)))) {
+      res.status(403).json({error:"Contas administrativas existentes não podem ser alteradas pelo ambiente local de teste."}); return;
+    }
+    next();
+  });
+  app.disable("x-powered-by"); app.use(noCache); app.use(express.json({ limit: "32kb" }));
   app.use("/admin-api", (req, res, next) => { if (!["GET", "HEAD", "OPTIONS"].includes(req.method) && !validOrigin(req, res)) return; next(); });
   const requireSession = async (req: Request, res: Response, next: NextFunction) => {
     const token = cookieValue(req);
@@ -205,7 +215,7 @@ export function createPlatformAdminApp(pool: Pool, encryptionKey: string, transf
        WHERE s.token_hash=$1 AND s.expires_at>now() AND a.active=true AND a.enrolled=true`,
       [digestAdminToken(token)],
     );
-    if (!result.rowCount) { res.status(401).json({ error: "Entre no painel central." }); return; }
+    if (!result.rowCount || (exclusiveLocal && result.rows[0]?.email !== localAdminTestEmail)) { res.status(401).json({ error: "Entre no painel central." }); return; }
     res.locals.admin = result.rows[0] as AdminContext; next();
   };
   const requirePermission = (permission: PlatformPermission) => (req: Request, res: Response, next: NextFunction) => {
@@ -279,6 +289,9 @@ export function createPlatformAdminApp(pool: Pool, encryptionKey: string, transf
   app.post("/admin-api/login", async (req, res) => {
     const input = z.object({ email: z.string().email().max(254), password: z.string().min(1).max(200), code: z.string().regex(/^\d{6}$/).optional() }).safeParse(req.body);
     if (!input.success) { res.status(400).json({ error: "Informe e-mail, senha e código autenticador válidos." }); return; }
+    if (exclusiveLocal && input.data.email.toLowerCase() !== localAdminTestEmail) {
+      res.status(403).json({error:"Use a conta administrativa fictícia exclusiva do ambiente local."}); return;
+    }
     const email = input.data.email.toLowerCase(), key = digestAdminToken(`${ipHash(req)}:${email}`);
     if (!input.data.code) { res.status(400).json({ error: "Informe e-mail, senha e código autenticador válidos." }); return; }
     const attempt = await pool.query(
@@ -738,7 +751,7 @@ export async function assertPlatformAdminDatabase(pool: Pool) {
     has_schema_privilege(current_user,'service_catalog','USAGE') AS catalog_schema
     FROM pg_roles WHERE rolname=current_user`);
   const role = result.rows[0];
-  const expectedRole = isStripeBillingPreview(process.env) ? "hp_stripe_preview_admin" : "hp_platform_admin_app";
+  const expectedRole = exclusiveLocalRoles() ? "osdrive_local_admin" : isStripeBillingPreview(process.env) ? "hp_stripe_preview_admin" : "hp_platform_admin_app";
   if (!role || role.role !== expectedRole || role.rolsuper || role.rolcreaterole || role.rolcreatedb || role.rolbypassrls || !role.admin_schema || role.workshop_schema || role.catalog_schema)
     throw new Error("O painel central exige papel restrito ao schema administrativo local.");
   return role;

@@ -146,3 +146,22 @@ Documentação oficial: [controle de deployments Git](https://vercel.com/docs/pr
 - Efeitos externos comerciais ficam bloqueados deliberadamente. Captura somente leitura não substitui validação funcional autenticada.
 - Capturas/validação no PostgreSQL descartável não comprovam disponibilidade de integrações remotas.
 - A avaliação Cloudflare permanece suspensa até nova decisão. Nenhum serviço foi criado/contratado.
+
+## Acessos exclusivos autorizados para o Linux (continuação INF-010)
+
+Quando os Secrets originais não estão disponíveis, o responsável autorizou credenciais novas **sem modificar as existentes**:
+
+- `osdrive_local_app` herda somente `horse_power_app`.
+- `osdrive_local_admin` herda somente `hp_platform_admin_app`.
+- Os novos logins não são superusuários, não ignoram RLS, não criam bancos/papéis e não podem assumir o papel herdado por `SET ROLE` nem concedê-lo a terceiros. A validade inicial é 30 dias e os pools continuam separados.
+- `.env.development.local` contém `LOCAL_EXCLUSIVE_CREDENTIALS=true` e uma chave MFA **nova e exclusiva**. Essa chave não é colocada na Vercel e não é aplicada às contas existentes.
+- A conta `inf010-admin@example.test` usa senha e MFA próprios; não é uma conta de e-mail real e nenhum convite externo é enviado. No modo exclusivo, tentativas de login de outros administradores são recusadas antes de acessar/alterar suas contas; inscrição MFA e alterações de administradores ficam bloqueadas.
+- A senha e o segredo MFA dessa conta ficam somente em `data/inf010-exclusive.json` (0600), ignorado pelo Git. São dados de teste privados: não anexar a relatórios ou artefatos. Não são credenciais da oficina.
+
+A preparação de papéis é explícita em `scripts/infra/inf010-create-local-roles.sql`, fora do conjunto de migrações automáticas. O SQL não contém senhas. Um auxiliar temporário, restrito a `postgres`, recebe somente verificadores SCRAM gerados no Linux para habilitar **apenas os dois nomes novos**. É removido depois da configuração. As senhas em texto não são enviadas por consultas SQL nem armazenadas no histórico de migrações.
+
+A migração `20261114222723_inf010_local_support_identity.sql` adiciona ao Suporte somente o login `osdrive_local_app` **com associação efetiva ao papel operacional**; tenant, usuário e vínculo continuam obrigatórios. Não altera tabelas ou registros de chamados. A cópia `local-postgres/040-inf010-local-support-identity.sql` permite validar essa regra no PostgreSQL 17 temporário, incluindo leitura autorizada e negativa entre oficinas.
+
+**Recuperação/revogação:** colocar os dois logins novos em NOLOGIN, revogar somente suas associações e desativar a conta `inf010-admin@example.test`, preservando a auditoria. Se necessário, restaurar `workshop_support_identity` usando a definição anterior da migração `20261111000100_admin_support.sql`. Nunca redefinir `horse_power_app`, `hp_platform_admin_app` ou o MFA dos administradores existentes. Não excluir oficinas de testes como forma de revogação.
+
+O modo original com os três Secrets existentes continua disponível. Usar a conta administrativa exclusiva para teste local; ela não substitui a conta real do responsável nem altera a autenticação publicada.

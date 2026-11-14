@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { once } from "node:events";
@@ -55,4 +56,26 @@ test("PostgreSQL: chamados isolados por oficina, permissões administrativas e a
     assert.equal((await app.query("SELECT * FROM platform_support.workshop_support_messages($1)",[ticket])).rows.length,2);
     await app.query("ROLLBACK");
   }finally{if(server)await new Promise<void>(resolve=>server!.close(()=>resolve()));await app.end();await adminPool.end();await owner.end();}
+});
+
+test("INF010 inherited local role respects support identity, RLS and separation",async()=>{
+ const owner=adminClient();await owner.connect();
+ try{
+  await owner.query('BEGIN');
+  const hasBase=(await owner.query("SELECT 1 FROM pg_roles WHERE rolname='horse_power_app'")).rowCount;
+  if(!hasBase){await owner.query('CREATE ROLE horse_power_app NOLOGIN INHERIT');await owner.query('GRANT hp_local_app TO horse_power_app');}
+  await owner.query(readFileSync('scripts/infra/inf010-create-local-roles.sql','utf8'));
+  const tenant=randomUUID(),other=randomUUID(),user=randomUUID();
+  await owner.query("INSERT INTO horse_power.tenants(id,name) VALUES($1,'INF010 Fictícia A'),($2,'INF010 Fictícia B')",[tenant,other]);
+  await owner.query("INSERT INTO horse_power.users(id,name,email,password_hash) VALUES($1,'INF010 Fictício',$2,'fictional-only')",[user,`${user}@example.test`]);
+  await owner.query("INSERT INTO horse_power.memberships(user_id,tenant_id,role) VALUES($1,$2,'owner')",[user,tenant]);
+  await owner.query('SET SESSION AUTHORIZATION osdrive_local_app');
+  await owner.query("SELECT set_config('app.tenant_id',$1,true),set_config('app.user_id',$2,true)",[tenant,user]);
+  assert.equal((await owner.query('SELECT * FROM platform_support.workshop_support_list()')).rows.length,0);
+  await owner.query('SELECT platform_support.workshop_support_create($1,$2,$3,$4)',[randomUUID(),randomUUID(),'INF010 chamado fictício','Teste positivo']);
+  assert.equal((await owner.query('SELECT * FROM platform_support.workshop_support_list()')).rows.length,1);
+  await owner.query("SELECT set_config('app.tenant_id',$1,true)",[other]);
+  await assert.rejects(owner.query('SELECT * FROM platform_support.workshop_support_list()'),e=>(e as {code:string}).code==='42501');
+  await owner.query('ROLLBACK');
+ }finally{await owner.end();}
 });

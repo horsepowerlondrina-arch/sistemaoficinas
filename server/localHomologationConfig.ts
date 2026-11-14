@@ -1,5 +1,17 @@
 export const homologationProject = "vnclahdnirqlcbamodqy";
 type Environment = Record<string, string | undefined>;
+export const localAdminTestEmail = "inf010-admin@example.test";
+export function exclusiveLocalRoles(env: Environment = process.env) {
+  return (
+    env.LOCAL_HOMOLOGATION === "true" &&
+    env.LOCAL_EXCLUSIVE_CREDENTIALS === "true"
+  );
+}
+export function localConnectionRoles(env: Environment) {
+  return exclusiveLocalRoles(env)
+    ? { operational: "osdrive_local_app", admin: "osdrive_local_admin" }
+    : { operational: "horse_power_app", admin: "hp_platform_admin_app" };
+}
 export function localPorts(env: Environment) {
   const slot = env.DEV_SLOT || "1";
   if (!["1", "2"].includes(slot)) throw new Error("DEV_SLOT deve ser 1 ou 2.");
@@ -61,11 +73,9 @@ export function assertLocalHomologation(env: Environment) {
     );
   if (Object.keys(env).some((k) => /^PG/.test(k) && env[k]))
     throw new Error("Remova configurações PG externas da execução local.");
-  homologationConnection(env.DATABASE_URL, "horse_power_app");
-  homologationConnection(
-    env.PLATFORM_ADMIN_DATABASE_URL,
-    "hp_platform_admin_app",
-  );
+  const roles = localConnectionRoles(env);
+  homologationConnection(env.DATABASE_URL, roles.operational);
+  homologationConnection(env.PLATFORM_ADMIN_DATABASE_URL, roles.admin);
   if (
     env.DATABASE_URL === env.PLATFORM_ADMIN_DATABASE_URL ||
     !/^[a-f0-9]{64}$/i.test(env.PLATFORM_ADMIN_TOTP_ENCRYPTION_KEY || "")

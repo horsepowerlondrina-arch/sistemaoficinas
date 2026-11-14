@@ -1,3 +1,4 @@
+import { localConnectionRoles } from "./localHomologationConfig.js";
 import {
   integrationFailureRecorder,
   observeIntegration,
@@ -39,7 +40,7 @@ export async function createCloudRuntime() {
         .get();
       if (
         !role ||
-        role.name !== "horse_power_app" ||
+        role.name !== localConnectionRoles(process.env).operational ||
         role.rolsuper ||
         role.rolbypassrls ||
         role.rolcreaterole ||
