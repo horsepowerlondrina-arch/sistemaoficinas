@@ -8,9 +8,14 @@ const identifier=(v:unknown):string|null=>typeof v==="string"?v:v&&typeof v==="o
 export class BillingConflict extends Error {}
 export type StripeRequest=ReturnType<typeof createStripeGateway>;
 export type StripeBilling=ReturnType<typeof stripeBillingService>;
-export function stripeBillingService(pool:Pool,request:StripeRequest,origin:string,testTenants:readonly string[]){
+export function stripeBillingService(pool:Pool,request:StripeRequest,origin:string,testTenants:readonly string[],selfServiceEmails:readonly string[] = []){
  const allowed=new Set(testTenants);
- function requireTestTenant(tenant:string){if(!allowed.has(tenant))throw new BillingConflict('Esta oficina não está autorizada para testes de cobrança.');}
+ async function selfServiceEligible(tenant:string){
+  if(!selfServiceEmails.length)return false;
+  const result=await pool.query("SELECT 1 FROM platform_admin.workshops WHERE tenant_id=$1 AND source='self_service' AND email_verified_at IS NOT NULL AND lower(responsible_email)=ANY($2::text[])",[tenant,selfServiceEmails]);
+  return result.rowCount===1;
+ }
+ async function requireTestTenant(tenant:string){if(!allowed.has(tenant)&&!await selfServiceEligible(tenant))throw new BillingConflict('Esta oficina não está autorizada para testes de cobrança.');}
  const url=new URL(origin);
  if(url.protocol!=="https:"&&!["localhost","127.0.0.1"].includes(url.hostname))throw new Error("Origem de cobrança inválida.");
  const returnUrl=url.origin+"/configuracoes?aba=assinatura";
@@ -24,7 +29,7 @@ export function stripeBillingService(pool:Pool,request:StripeRequest,origin:stri
    [randomUUID(),actor?.id??null,actor?.email??"stripe",tenant,action,JSON.stringify(detail)]);
  }
  async function summary(tenant:string){
-  requireTestTenant(tenant);
+  await requireTestTenant(tenant);
   const [prices,account,payments,workshop,pending]=await Promise.all([
    pool.query("SELECT id,plan_code,amount_cents FROM platform_admin.stripe_prices WHERE active ORDER BY amount_cents"),
    pool.query("SELECT plan_code,method,managed,due_on::text,paid_until::text,subscription_status,invoice_payment_url,cancel_at_period_end,subscription_id IS NOT NULL AS recurring FROM platform_admin.stripe_accounts WHERE tenant_id=$1",[tenant]),
@@ -33,7 +38,7 @@ export function stripeBillingService(pool:Pool,request:StripeRequest,origin:stri
    pool.query("SELECT url,method FROM platform_admin.stripe_checkouts WHERE tenant_id=$1 AND status='open' AND to_timestamp((request_body->>'expires_at')::bigint)>now()",[tenant]),
   ]);
   const a=account.rows[0];
-  return {enabled:true,test_mode:true,pending:pending.rows[0]??null,prices:prices.rows,account:a??null,payments:payments.rows,read_only:a?billingReadOnly({managed:a.managed,paidUntil:a.paid_until,dueOn:a.due_on,trialUntil:workshop.rows[0]?.trial_ends_at}):false};
+  return {enabled:true,test_mode:true,can_subscribe_during_trial:await selfServiceEligible(tenant),pending:pending.rows[0]??null,prices:prices.rows,account:a??null,payments:payments.rows,read_only:a?billingReadOnly({managed:a.managed,paidUntil:a.paid_until,dueOn:a.due_on,trialUntil:workshop.rows[0]?.trial_ends_at}):false};
  }
  async function overview(){
   const prices=await pool.query("SELECT id,plan_code,amount_cents FROM platform_admin.stripe_prices WHERE active ORDER BY plan_code");
@@ -54,8 +59,9 @@ export function stripeBillingService(pool:Pool,request:StripeRequest,origin:stri
  }
  // Durable reservation is committed BEFORE Stripe is called. Retries reuse identical parameters.
  async function checkout(tenant:string,email:string,input:unknown,renewal=false){
-  requireTestTenant(tenant);
+  await requireTestTenant(tenant);
   const p=z.object({price_id:z.string().uuid(),method:z.enum(["card","pix"])}).strict().parse(input);
+  const earlySubscription=await selfServiceEligible(tenant);
   const stale=await pool.query("SELECT provider_id FROM platform_admin.stripe_checkouts WHERE tenant_id=$1 AND status='open' AND to_timestamp((request_body->>'expires_at')::bigint)<=now()",[tenant]);
   if(stale.rows[0])await syncSession(stale.rows[0].provider_id);
   const row=await tx(async c=>{
@@ -63,7 +69,7 @@ export function stripeBillingService(pool:Pool,request:StripeRequest,origin:stri
    const workshop=(await c.query("SELECT status,trial_ends_at FROM platform_admin.workshops WHERE tenant_id=$1",[tenant])).rows[0];
    if(!workshop||["pending_verification","blocked","archived","read_only","legacy"].includes(workshop.status))
     throw new BillingConflict("A administração precisa liberar esta oficina antes da contratação.");
-   if(workshop.status==="trial"&&new Date(workshop.trial_ends_at).getTime()>Date.now())
+   if(workshop.status==="trial"&&new Date(workshop.trial_ends_at).getTime()>Date.now()&&!earlySubscription)
     throw new BillingConflict("Seu teste gratuito está ativo. A contratação ficará disponível ao final do teste, sem cobrança antecipada.");
    const old=(await c.query("SELECT *,paid_until::text AS paid_day FROM platform_admin.stripe_accounts WHERE tenant_id=$1 FOR UPDATE",[tenant])).rows[0];
    if(renewal&&old?.cancel_at_period_end)throw new BillingConflict("A renovação está cancelada.");
@@ -201,7 +207,7 @@ export function stripeBillingService(pool:Pool,request:StripeRequest,origin:stri
   await pool.query("UPDATE platform_admin.stripe_accounts SET subscription_status=$2,cancel_at_period_end=$3,subscription_id=CASE WHEN $2 IN ('canceled','incomplete_expired') THEN NULL ELSE subscription_id END WHERE subscription_id=$1",[id,sub.status,sub.cancel_at_period_end]);
  }
  async function refresh(tenant:string){
-  requireTestTenant(tenant);
+  await requireTestTenant(tenant);
   const sessions=await pool.query("SELECT provider_id FROM platform_admin.stripe_checkouts WHERE tenant_id=$1 AND status IN ('open','paid') AND provider_id IS NOT NULL ORDER BY created_at DESC LIMIT 1",[tenant]);
   for(const row of sessions.rows)await syncSession(row.provider_id);
   const a=(await pool.query("SELECT subscription_id FROM platform_admin.stripe_accounts WHERE tenant_id=$1",[tenant])).rows[0];
@@ -209,7 +215,7 @@ export function stripeBillingService(pool:Pool,request:StripeRequest,origin:stri
   return summary(tenant);
  }
  async function cancel(tenant:string){
-  requireTestTenant(tenant);
+  await requireTestTenant(tenant);
   const a=(await pool.query("SELECT subscription_id FROM platform_admin.stripe_accounts WHERE tenant_id=$1",[tenant])).rows[0];
   if(!a)throw new BillingConflict("Não existe assinatura para cancelar.");
   if(a.subscription_id){
@@ -244,7 +250,7 @@ export function stripeBillingService(pool:Pool,request:StripeRequest,origin:stri
  }
  async function renew(){
   // Bounded daily reconciliation. SKIP LOCKED plus retry_after distributes consecutive executions.
-  const rows=await tx(async c=>(await c.query("UPDATE platform_admin.stripe_accounts SET retry_after=(date_trunc('day',now() AT TIME ZONE 'America/Sao_Paulo')+interval '1 day') AT TIME ZONE 'America/Sao_Paulo' WHERE tenant_id IN (SELECT tenant_id FROM platform_admin.stripe_accounts WHERE managed AND tenant_id=ANY($1::text[]) AND (retry_after IS NULL OR retry_after<now()) ORDER BY retry_after NULLS FIRST LIMIT 10 FOR UPDATE SKIP LOCKED) RETURNING tenant_id,billing_email,price_id,method,cancel_at_period_end,due_on::text",[[...allowed]])).rows);
+  const rows=await tx(async c=>(await c.query("UPDATE platform_admin.stripe_accounts SET retry_after=(date_trunc('day',now() AT TIME ZONE 'America/Sao_Paulo')+interval '1 day') AT TIME ZONE 'America/Sao_Paulo' WHERE tenant_id IN (SELECT tenant_id FROM platform_admin.stripe_accounts WHERE managed AND (tenant_id=ANY($1::text[]) OR tenant_id IN (SELECT tenant_id FROM platform_admin.workshops WHERE source='self_service' AND email_verified_at IS NOT NULL AND lower(responsible_email)=ANY($2::text[]))) AND (retry_after IS NULL OR retry_after<now()) ORDER BY retry_after NULLS FIRST LIMIT 10 FOR UPDATE SKIP LOCKED) RETURNING tenant_id,billing_email,price_id,method,cancel_at_period_end,due_on::text",[[...allowed],selfServiceEmails])).rows);
   let completed=0,failed=0;
   for(const a of rows){
    try{

@@ -10,6 +10,7 @@ import { assertHorsePowerIsolation } from "./horsePowerIsolation.js";
 import { assertPlatformAdminDatabase, createPlatformAdminApp } from "./platformAdminApp.js";
 import { createPlatformAdminDataTransfer } from "./services/platformAdminDataTransfer.js";
 import { readFileSync } from "node:fs";
+import { selfServiceTestEmails } from "./services/selfServicePolicy.js";
 const standaloneHorsePower = process.env.APP_ENV === "horse_power";
 if (standaloneHorsePower) assertHorsePowerIsolation(process.env);
 else assertDevelopmentIsolation(process.env);
@@ -43,7 +44,7 @@ if (standaloneHorsePower) {
   const recordFailure = integrationFailureRecorder(adminPool);
   const stripeRequest = process.env.STRIPE_BILLING_ENABLED === "true" ? createStripeGateway(process.env.STRIPE_SECRET_KEY || "") : undefined;
   const billing = process.env.STRIPE_BILLING_ENABLED === "true"
-    ? stripeBillingService(adminPool, (...args) => observeIntegration("stripe",recordFailure,()=>stripeRequest!(...args)), process.env.APP_ORIGIN!, (process.env.STRIPE_TEST_TENANT_IDS || "").split(",").map(v => v.trim()).filter(Boolean))
+    ? stripeBillingService(adminPool, (...args) => observeIntegration("stripe",recordFailure,()=>stripeRequest!(...args)), process.env.APP_ORIGIN!, (process.env.STRIPE_TEST_TENANT_IDS || "").split(",").map(v => v.trim()).filter(Boolean), selfServiceTestEmails())
     : undefined;
   if (billing && !process.env.STRIPE_WEBHOOK_SECRET?.startsWith("whsec_"))
     throw new Error("Configure o webhook Stripe de teste.");

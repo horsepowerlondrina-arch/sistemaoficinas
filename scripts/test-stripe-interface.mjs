@@ -19,7 +19,7 @@ try{
  const parts=new Intl.DateTimeFormat("en-CA",{timeZone:"America/Sao_Paulo",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date());
  const datePart=type=>parts.find(p=>p.type===type).value;
  const today=`${datePart("year")}-${datePart("month")}-${datePart("day")}`;
- let saves=0,fail=true,cancelled=false,incomplete=false,refreshes=0;
+ let saves=0,fail=true,cancelled=false,incomplete=false,refreshes=0,early=false;
  await page.route("**/admin-api/billing**",async route=>{
   if(route.request().method()==="POST"){
    if(fail)return route.fulfill({status:503,json:{error:"Falha fictícia temporária"}});
@@ -31,9 +31,9 @@ try{
  await page.route("**/api/account/billing**",async route=>{
   if(route.request().url().endsWith("/cancel")){if(route.request().postDataJSON().confirm!==true)throw Error("Missing confirmation");cancelled=true;}
   if(route.request().url().endsWith("/refresh"))refreshes++;
-  return route.fulfill({json:{enabled:true,test_mode:true,prices,read_only:false,pending:null,account:{plan_code:"premium",method:incomplete?"card":"pix",managed:!incomplete,due_on:today,paid_until:today,recurring:incomplete,cancel_at_period_end:cancelled,subscription_status:null,invoice_payment_url:null},payments:[]}});
+  return route.fulfill({json:{enabled:true,test_mode:true,can_subscribe_during_trial:early,prices,read_only:false,pending:null,account:early?null:{plan_code:"premium",method:incomplete?"card":"pix",managed:!incomplete,due_on:today,paid_until:today,recurring:incomplete,cancel_at_period_end:cancelled,subscription_status:null,invoice_payment_url:null},payments:[]}});
  });
- await page.route("**/api/account/plan",route=>route.fulfill({json:{plan:{plan_code:"premium",status:"active",trial_ends_at:null}}}));
+ await page.route("**/api/account/plan",route=>route.fulfill({json:{plan:{plan_code:"premium",status:early?"trial":"active",trial_ends_at:early?new Date(Date.now()+14*86400000).toISOString():null}}}));
  await page.goto("http://127.0.0.1:5181/stripe-ui-fixture.html");
  await page.getByLabel("Mensalidade em reais").fill("12,34");await page.getByLabel("Justificativa").fill("Teste fictício de preço");
  await page.getByRole("button",{name:"Salvar novo preço"}).click();await expect(page.getByRole("alert")).toHaveText("Falha fictícia temporária");
@@ -61,6 +61,13 @@ try{
  await expect(page.getByRole("button",{name:"Cancelar renovação",exact:true})).toBeVisible();
  await page.getByLabel(/Confirmo o cancelamento/).check();await page.getByRole("button",{name:"Cancelar renovação",exact:true}).click();
  await expect(page.getByText("Renovação cancelada. O período já pago será preservado.")).toBeVisible();
+ early=true;await page.setViewportSize({width:1400,height:1000});await page.reload();
+ await page.getByRole("button",{name:"Assinar plano",exact:true}).click();
+ await expect(page.getByText(/A contratação começa agora/)).toBeVisible();
+ await page.screenshot({path:resolve(output,"stripe-early-subscription-desktop.png"),fullPage:true});
+ await page.setViewportSize({width:390,height:844});
+ await page.screenshot({path:resolve(output,"stripe-early-subscription-mobile.png"),fullPage:true});
+ if(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1))throw Error("Early billing overflows mobile viewport");
  if(errors.length)throw Error(errors.join("\n"));
  writeFileSync(resolve(output,"README.md"),"# Stripe — interfaces de teste\nComponentes reais, API fictícia interceptada. Não comprova webhook ou checkout Stripe online. Backend é testado no PostgreSQL 17 separadamente.\nCommit: "+process.env.GITHUB_SHA+"\n");
  console.log("Stripe UI passed: prices, precision, errors, confirmation, cancellation and mobile.");

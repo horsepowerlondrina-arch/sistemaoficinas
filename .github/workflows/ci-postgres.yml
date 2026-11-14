@@ -45,13 +45,27 @@ jobs:
         run: npm run db:local:seed
       - name: OPS-004 concurrent access and RLS regression
         run: npx tsx --test tests/workshopUsers.postgres.integration.ts
+      - name: Self-service three-plan PostgreSQL regression
+        run: npx tsx --test tests/selfService.postgres.integration.ts
       - run: npx tsc --noEmit
       - run: npm run build
       - run: npm test
+      - name: Separate fictitious session and email safety policies
+        run: npm run test:sessions
       - name: Stripe PostgreSQL integration
         run: npx tsx --test tests/stripeBilling.postgres.integration.ts
       - name: Install isolated Playwright browser
         run: npx playwright install --with-deps chromium
+      - name: Self-service registration responsive UI
+        run: node scripts/test-self-service-ui.mjs
+        timeout-minutes: 3
+      - name: Store self-service interface evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: self-service-interface
+          path: ${{ runner.temp }}/self-service-ui
+          retention-days: 14
       - name: ADM-002.1 administrative UI regression
         run: node scripts/test-admin-interface.mjs
         timeout-minutes: 4

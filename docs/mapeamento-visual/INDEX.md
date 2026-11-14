@@ -46,6 +46,30 @@ Convite seguro de colaborador; senha e token não aparecem na captura.
 
 Estado: capturada · mobile · captura 2026-11-14 · commit de origem: 10ab46c5db3eca34b8947849ab96439d55f650b5 · [arquivo completo](./capturas/01-login-acesso/ops004-invite-mobile.png)
 
+### Cadastro de oficina
+
+Interface real com dados e API fictícios; cadastro e ativação PostgreSQL testados separadamente.
+
+[![Cadastro de oficina](./capturas/01-login-acesso/signup-desktop.png)](./capturas/01-login-acesso/signup-desktop.png)
+
+Estado: capturada · desktop · captura 2026-11-14 · commit de origem: a6f12de829555dc77419a6e59037a1a3667e6c50 · [arquivo completo](./capturas/01-login-acesso/signup-desktop.png)
+
+### Cadastro de oficina
+
+Interface real com dados e API fictícios; cadastro e ativação PostgreSQL testados separadamente.
+
+[![Cadastro de oficina](./capturas/01-login-acesso/signup-mobile.png)](./capturas/01-login-acesso/signup-mobile.png)
+
+Estado: capturada · mobile · captura 2026-11-14 · commit de origem: a6f12de829555dc77419a6e59037a1a3667e6c50 · [arquivo completo](./capturas/01-login-acesso/signup-mobile.png)
+
+### Confirmação do envio da ativação
+
+Interface real com dados e API fictícios; cadastro e ativação PostgreSQL testados separadamente.
+
+[![Confirmação do envio da ativação](./capturas/01-login-acesso/signup-confirmation-mobile.png)](./capturas/01-login-acesso/signup-confirmation-mobile.png)
+
+Estado: capturada · mobile · captura 2026-11-14 · commit de origem: a6f12de829555dc77419a6e59037a1a3667e6c50 · [arquivo completo](./capturas/01-login-acesso/signup-confirmation-mobile.png)
+
 ## 02 — Dashboard
 
 Início, visão geral, indicadores e atalhos.
@@ -789,6 +813,22 @@ Gestão de acessos e autorizações com dados fictícios em PostgreSQL descartá
 [![Central interna de aprovações](./capturas/14-configuracoes/ops004-approvals-mobile.png)](./capturas/14-configuracoes/ops004-approvals-mobile.png)
 
 Estado: capturada · mobile · captura 2026-11-14 · commit de origem: 10ab46c5db3eca34b8947849ab96439d55f650b5 · [arquivo completo](./capturas/14-configuracoes/ops004-approvals-mobile.png)
+
+### Contratação durante o teste gratuito
+
+Cobrança imediata informada e seleção de plano em interface real com API fictícia; pagamento online validado separadamente.
+
+[![Contratação durante o teste gratuito](./capturas/14-configuracoes/stripe-early-subscription-desktop.png)](./capturas/14-configuracoes/stripe-early-subscription-desktop.png)
+
+Estado: capturada · desktop · captura 2026-11-14 · commit de origem: a6f12de829555dc77419a6e59037a1a3667e6c50 · [arquivo completo](./capturas/14-configuracoes/stripe-early-subscription-desktop.png)
+
+### Contratação durante o teste gratuito
+
+Cobrança imediata informada e seleção de plano em interface real com API fictícia; pagamento online validado separadamente.
+
+[![Contratação durante o teste gratuito](./capturas/14-configuracoes/stripe-early-subscription-mobile.png)](./capturas/14-configuracoes/stripe-early-subscription-mobile.png)
+
+Estado: capturada · mobile · captura 2026-11-14 · commit de origem: a6f12de829555dc77419a6e59037a1a3667e6c50 · [arquivo completo](./capturas/14-configuracoes/stripe-early-subscription-mobile.png)
 
 ## 15 — Integrações e extensão Chrome
 

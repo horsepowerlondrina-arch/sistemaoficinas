@@ -32,7 +32,7 @@ export function workshopBillingAction(data: BillingSummary, trialActive: boolean
     kind: "unavailable", message: "Não há um link de regularização disponível. Solicite ajuda à administração."
   };
   if (data.account?.recurring || (data.account?.paid_until && data.account.paid_until > today)) return { kind: "success" };
-  if (trialActive) return { kind: "unavailable", message: "Seu teste gratuito está ativo. A contratação ficará disponível ao final do teste." };
+  if (trialActive && !data.can_subscribe_during_trial) return { kind: "unavailable", message: "Seu teste gratuito está ativo. A contratação ficará disponível ao final do teste." };
   if (!data.prices.length) return { kind: "unavailable", message: "Os valores ainda serão configurados pela administração." };
   return { kind: "choose", label: !data.account ? "Assinar plano" : data.read_only ? "Regularizar pagamento" : "Pagar próxima mensalidade" };
 }

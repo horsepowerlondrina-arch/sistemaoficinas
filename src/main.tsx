@@ -5,6 +5,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { PublicOrder } from "./pages/PublicOrder";
 import { Activate } from "./pages/Activate";
 import { ActivateWorkshop } from "./pages/ActivateWorkshop";
+import { RegisterWorkshop } from "./pages/RegisterWorkshop";
 import { PasswordReset } from "./pages/PasswordReset";
 import { PlatformAdmin } from "./pages/PlatformAdmin";
 import { isPlatformAdminAvailable } from "./platformAdminAvailability";
@@ -26,6 +27,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
         <Route path="/aceitar-convite" element={<AcceptEmployeeInvite/>} />
         <Route path="/ativar" element={<Activate />} />
         <Route path="/ativar-oficina" element={<ActivateWorkshop />} />
+        <Route path="/criar-oficina" element={<RegisterWorkshop />} />
         <Route path="/recuperar-senha" element={<PasswordReset />} />
         <Route path="/p/:token" element={<PublicOrder />} />
         {platformAdminAvailable && <Route path="/admin/*" element={<PlatformAdmin />} />}
