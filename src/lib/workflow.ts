@@ -27,7 +27,8 @@ export function filterOrders(orders: Order[], status: string) {
   );
 }
 export const hasMissingProductCost = (order: Order) =>
-  order.items.some((i) => i.kind === "product" && !(Number(i.cost) > 0));
+  order.items.some((i) => i.kind === "product" && !(Number(i.cost) > 0)) &&
+  !(Number(order.product_cost_total) > 0);
 export function revenueBreakdown(orders: Order[], from: string, to: string) {
   return orders
     .filter(
@@ -43,9 +44,9 @@ export function revenueBreakdown(orders: Order[], from: string, to: string) {
         const subtotal = o.items.reduce((s, i) => s + i.price * i.quantity, 0);
         const productRevenue =
           gross - (subtotal ? Math.round((o.discount * gross) / subtotal) : 0);
-        const productCost =
-          o.product_cost_total ??
-          products.reduce((s, i) => s + i.cost * i.quantity, 0);
+        const productCost = Number(o.product_cost_total) > 0
+          ? Number(o.product_cost_total)
+          : products.reduce((s, i) => s + i.cost * i.quantity, 0);
         const serviceCost = o.items.filter((i) => i.kind === "service").reduce((total, i) => total + Number(i.cost || 0) * i.quantity, 0);
         return {
           products: sum.products + productRevenue,
