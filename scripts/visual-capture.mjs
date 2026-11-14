@@ -173,6 +173,19 @@ try {
         await page.getByRole("heading", { name: "Tempos técnicos" }).click();
       }
     }
+    if (entry.id === "gestao-resultados-periodo") {
+      const appliedPeriod = page.locator(".management-results-report-head");
+      const from = page.getByLabel("Data inicial");
+      const to = page.getByLabel("Data final");
+      const checkApplied = async () => {
+        const displayDate = value => value.split("-").reverse().join("/");
+        await expect(appliedPeriod).toContainText(`De ${displayDate(await from.inputValue())} até ${displayDate(await to.inputValue())}`);
+      };
+      await page.getByRole("button", { name: "Semana", exact: true }).click();
+      await checkApplied();
+      await page.getByRole("button", { name: "Mês", exact: true }).click();
+      await checkApplied();
+    }
     await captureCardMachines(page, entry);
     await captureSettings(page, entry);
     await captureCad005(page, entry);

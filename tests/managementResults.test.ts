@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { compareManagementPeriods, cyclePeriod, managementResults, previousPeriod, weekPeriod } from "../src/lib/managementResults.js";
+import { compareManagementPeriods, monthPeriod, managementResults, previousPeriod, weekPeriod } from "../src/lib/managementResults.js";
 import { defaultManagementResultsSettings as settings } from "../shared/managementResultsSettings.js";
 import type { Order, Workspace } from "../src/lib/types.js";
 import { orderResult } from "../src/lib/orderReports.js";
@@ -69,9 +69,11 @@ test("custo zero de peça fica desconhecido; custo consolidado positivo cobre de
   assert.equal(checked.estimated.aggregateDifferenceOrders, 1);
 });
 
-test("datas livres, ciclo e comparação usam dias inclusivos iguais", () => {
-  assert.deepEqual(cyclePeriod("2026-11-14"), { from: "2026-10-15", to: "2026-11-14" });
-  assert.deepEqual(cyclePeriod("2026-11-15"), { from: "2026-11-15", to: "2026-12-14" });
+test("datas livres, mês e comparação usam dias inclusivos iguais", () => {
+  assert.deepEqual(monthPeriod("2026-11-14"), { from: "2026-11-01", to: "2026-11-30" });
+  assert.deepEqual(monthPeriod("2026-02-15"), { from: "2026-02-01", to: "2026-02-28" });
+  assert.deepEqual(monthPeriod("2028-02-15"), { from: "2028-02-01", to: "2028-02-29" });
+  assert.deepEqual(monthPeriod("2026-12-31"), { from: "2026-12-01", to: "2026-12-31" });
   assert.deepEqual(weekPeriod("2026-11-11"), { from: "2026-11-09", to: "2026-11-15" });
   assert.deepEqual(previousPeriod({ from: "2026-11-01", to: "2026-11-10" }), { from: "2026-10-22", to: "2026-10-31" });
   const comparison = compareManagementPeriods(source([order("1", "2026-11-05T13:00:00Z", 4000), order("2", "2026-10-28T13:00:00Z", 4000)]), { from: "2026-11-01", to: "2026-11-10" }, settings);
