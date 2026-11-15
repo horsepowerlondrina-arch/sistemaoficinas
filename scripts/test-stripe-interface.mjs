@@ -54,7 +54,7 @@ try{
  await page.getByRole('tab',{name:'Assinaturas',exact:true}).click();
  await expect(page.getByText('Oficina Fictícia Cobranças')).toBeVisible();
  await page.getByLabel('Buscar oficina').fill('Oficina');await page.getByRole('button',{name:'Buscar',exact:true}).click();
- await page.getByLabel('Situação', {exact:true}).selectOption('pending');
+ await page.getByLabel('Situação').selectOption('pending');
  await expect(page.getByText(/28 concluída/)).toBeVisible();
  await page.getByRole('button',{name:'Próxima',exact:true}).click();await expect(page.getByText('Página 2 · 26 registro(s)')).toBeVisible();
  await page.getByRole('button',{name:'Anterior',exact:true}).click();

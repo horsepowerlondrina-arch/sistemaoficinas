@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useAdminDraft } from "../lib/useAdminDraft";
 import { adminRequest } from "../lib/adminPresentation";
 import { billingPlanNames, type BillingOverview, type BillingAccountDetails } from "../../shared/stripeBilling";
 const money=(v:number)=>new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(v/100);
@@ -11,6 +12,7 @@ export function AdminBillingAccounts(){
  const [selected,setSelected]=useState<string|null>(null),[detailPage,setDetailPage]=useState(1),[version,setVersion]=useState(0);
  const [error,setError]=useState(""),[message,setMessage]=useState(""),[loading,setLoading]=useState(false),[busy,setBusy]=useState(false),[reason,setReason]=useState(""),[jobReason,setJobReason]=useState(""),[jobConfirmed,setJobConfirmed]=useState(false);
  const actionLock=useRef(false);
+ useAdminDraft(Boolean(reason||jobReason));
  useEffect(()=>{
   let active=true;setLoading(true);setError("");setData(null);setDetails(null);
   const url=selected?`/billing/accounts/${encodeURIComponent(selected)}?page=${detailPage}`:`/billing?${new URLSearchParams({search:query,status,page:String(page)})}`;
