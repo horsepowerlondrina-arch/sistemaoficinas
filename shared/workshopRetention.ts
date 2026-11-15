@@ -25,3 +25,24 @@ export function retentionDecision(coverageEnd: string, now = new Date()): Retent
   if (days === 30) return "notice_30";
   return "read_only";
 }
+
+export type WorkshopCoverage = {
+  status: string;
+  emailVerified: boolean;
+  managedBilling: boolean;
+  paidUntil: string | null;
+  dueOn: string | null;
+  trialEndsOn: string | null;
+};
+
+/** Administrative access without a billing contract is not an expired subscription. */
+export function retentionCoverageEnd(value: WorkshopCoverage): string | null {
+  if (!value.emailVerified || !["active", "trial", "read_only"].includes(value.status)) return null;
+  const valid = (day: string | null) => day && /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : null;
+  const trial = valid(value.trialEndsOn);
+  if (value.managedBilling) {
+    const billed = valid(value.paidUntil) ?? valid(value.dueOn);
+    return billed && trial ? (billed > trial ? billed : trial) : billed ?? trial;
+  }
+  return value.status === "trial" || value.status === "read_only" ? trial : null;
+}
