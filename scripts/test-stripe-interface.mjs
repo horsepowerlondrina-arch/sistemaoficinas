@@ -15,7 +15,7 @@ try{
  let ready=false;for(let i=0;i<60;i++){try{if((await fetch("http://127.0.0.1:5181")).ok){ready=true;break;}}catch{}await delay(500);}if(!ready)throw Error("UI fixture unavailable");
  browser=await chromium.launch();const page=await browser.newPage({viewport:{width:1400,height:1000}});page.setDefaultTimeout(15000);
  const errors=[];page.on("pageerror",e=>errors.push(e.message));
- const prices=[{id:"00000000-0000-4000-8000-000000000001",plan_code:"basic",amount_cents:1000},{id:"00000000-0000-4000-8000-000000000002",plan_code:"professional",amount_cents:2000},{id:"00000000-0000-4000-8000-000000000003",plan_code:"premium",amount_cents:3000}];
+ const prices=[{id:"00000000-0000-4000-8000-000000000001",plan_code:"basic",amount_cents:1000},{id:"00000000-0000-4000-8000-000000000002",plan_code:"professional",amount_cents:2000,seats_to_release:3},{id:"00000000-0000-4000-8000-000000000003",plan_code:"premium",amount_cents:3000}];
  const parts=new Intl.DateTimeFormat("en-CA",{timeZone:"America/Sao_Paulo",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date());
  const datePart=type=>parts.find(p=>p.type===type).value;
  const today=`${datePart("year")}-${datePart("month")}-${datePart("day")}`;
@@ -84,6 +84,11 @@ try{
  await expect.poll(()=>refreshes).toBe(1);
  await expect(page.getByRole("button",{name:"Atualizar situação do pagamento"})).toHaveCount(0);
  await page.getByRole("button",{name:"Pagar próxima mensalidade"}).click();
+ await page.getByLabel("Plano mensal").selectOption(prices[1].id);
+ await expect(page.getByRole("alert")).toContainText("libere 3 vagas");
+ await page.getByLabel(/Li os valores/).check();
+ await expect(page.getByRole("button",{name:"Continuar no Stripe"})).toBeDisabled();
+ await page.screenshot({path:resolve(output,"stripe-downgrade-vagas-desktop.png"),fullPage:true});
  await page.getByLabel("Plano mensal").selectOption(prices[0].id);
  await expect(page.getByRole("button",{name:"Continuar no Stripe"})).toBeDisabled();
  await page.getByLabel(/Li os valores/).check();await expect(page.getByRole("button",{name:"Continuar no Stripe"}).first()).toBeEnabled();

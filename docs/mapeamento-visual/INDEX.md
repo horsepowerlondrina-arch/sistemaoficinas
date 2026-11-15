@@ -894,6 +894,14 @@ Cobrança imediata informada e seleção de plano em interface real com API fict
 
 Estado: capturada · mobile · captura 2026-11-14 · commit de origem: a6f12de829555dc77419a6e59037a1a3667e6c50 · [arquivo completo](./capturas/14-configuracoes/stripe-early-subscription-mobile.png)
 
+### Vagas necessárias para reduzir o plano
+
+Oficina Profissional com cinco vagas ocupadas seleciona o Básico. O Master vê quantas vagas liberar antes de pagar.
+
+[![Vagas necessárias para reduzir o plano](./capturas/14-configuracoes/stripe-downgrade-vagas-desktop.png)](./capturas/14-configuracoes/stripe-downgrade-vagas-desktop.png)
+
+Estado: capturada · desktop · captura 2026-11-15 · commit de origem: c23640f177f6377954ae55e77174aa619bbaa3b6 · [arquivo completo](./capturas/14-configuracoes/stripe-downgrade-vagas-desktop.png)
+
 ## 15 — Integrações e extensão Chrome
 
 Captura e envio de dados pela extensão.

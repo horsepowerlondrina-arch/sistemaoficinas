@@ -2,7 +2,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { randomUUID } from "node:crypto";
 import type { Pool, PoolClient } from "pg";
 import { z } from "zod";
-import { billingDate,billingReadOnly,nextBillingMonth,billingPlans,moneyCents,validatePaidAmount } from "../../shared/stripeBilling.js";
+import { billingDate,billingReadOnly,nextBillingMonth,billingPlans,downgradeSeatMessage,moneyCents,validatePaidAmount } from "../../shared/stripeBilling.js";
 import { createStripeGateway } from "./stripeGateway.js";
 const object=z.object({id:z.string(),livemode:z.literal(false)}).passthrough();
 const identifier=(v:unknown):string|null=>typeof v==="string"?v:v&&typeof v==="object"&&"id" in v?String(v.id):null;
@@ -36,7 +36,9 @@ export function stripeBillingService(pool:Pool,gateway:StripeRequest,origin:stri
  async function summary(tenant:string){
   await requireTestTenant(tenant);
   const [prices,account,payments,workshop,pending]=await Promise.all([
-   pool.query("SELECT id,plan_code,amount_cents FROM platform_admin.stripe_prices WHERE active ORDER BY amount_cents"),
+   pool.query(`SELECT p.id,p.plan_code,p.amount_cents,greatest(0,s.occupied-s.seat_limit) AS seats_to_release
+     FROM platform_admin.stripe_prices p LEFT JOIN LATERAL platform_admin.downgrade_seats($1,p.plan_code) s ON true
+     WHERE p.active ORDER BY p.amount_cents`,[tenant]),
    pool.query("SELECT plan_code,method,managed,due_on::text,paid_until::text,subscription_status,invoice_payment_url,cancel_at_period_end,subscription_id IS NOT NULL AS recurring FROM platform_admin.stripe_accounts WHERE tenant_id=$1",[tenant]),
    pool.query("SELECT provider_id,amount_cents,period_start::text,period_end::text,status FROM platform_admin.stripe_payments WHERE tenant_id=$1 ORDER BY created_at DESC LIMIT 24",[tenant]),
    pool.query("SELECT trial_ends_at FROM platform_admin.workshops WHERE tenant_id=$1 AND status='trial'",[tenant]),
@@ -133,6 +135,11 @@ export function stripeBillingService(pool:Pool,gateway:StripeRequest,origin:stri
     throw new BillingConflict("Seu teste gratuito está ativo. A contratação ficará disponível ao final do teste, sem cobrança antecipada.");
    const old=(await c.query("SELECT *,paid_until::text AS paid_day FROM platform_admin.stripe_accounts WHERE tenant_id=$1 FOR UPDATE",[tenant])).rows[0];
    if(renewal&&old?.cancel_at_period_end)throw new BillingConflict("A renovação está cancelada.");
+   await c.query("SELECT pg_advisory_xact_lock(hashtextextended($1,104730))",[tenant]);
+   const seats=await c.query(`SELECT greatest(0,s.occupied-s.seat_limit) AS excess
+     FROM platform_admin.stripe_prices p CROSS JOIN LATERAL platform_admin.downgrade_seats($1,p.plan_code) s
+     WHERE p.id=$2`,[tenant,p.price_id]);
+   if(seats.rows[0]?.excess>0)throw new BillingConflict(downgradeSeatMessage(seats.rows[0].excess));
    const existing=(await c.query("SELECT * FROM platform_admin.stripe_checkouts WHERE tenant_id=$1 AND status IN ('pending','open')",[tenant])).rows[0];
    if(existing){
     if(existing.status==='open'&&existing.request_body.expires_at<=Date.now()/1000)throw new BillingConflict('O Stripe ainda está confirmando a expiração do pagamento anterior. Tente novamente em instantes.');
