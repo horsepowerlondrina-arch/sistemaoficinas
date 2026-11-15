@@ -1,7 +1,21 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import express from "express";
-import { workshopRetentionRoutes } from "../server/workshopRetentionRoutes.js";
+import { createHmac } from "node:crypto";
+import { verifyRetentionWebhook, workshopRetentionRoutes } from "../server/workshopRetentionRoutes.js";
+
+test("webhook de entrega exige assinatura válida sobre o corpo original", () => {
+  const secret=`whsec_${Buffer.from('segredo fictício com comprimento seguro').toString('base64')}`;
+  const body=Buffer.from('{"type":"email.delivered","data":{"email_id":"teste"}}');
+  const id='msg_ficticio', timestamp=String(Math.floor(Date.now()/1000));
+  const signature=`v1,${createHmac('sha256',Buffer.from(secret.slice(6),'base64'))
+    .update(`${id}.${timestamp}.`).update(body).digest('base64')}`;
+  const headers={id,timestamp,signature};
+  assert.equal(verifyRetentionWebhook(body,headers,secret),true);
+  assert.equal(verifyRetentionWebhook(Buffer.from('{}'),headers,secret),false);
+  assert.equal(verifyRetentionWebhook(body,{...headers,signature:'v1,invalid'},secret),false);
+  assert.equal(verifyRetentionWebhook(body,headers,secret,Date.now()+600_000),false);
+});
 
 test("retention cron requires a secret and stays disabled by default", async () => {
   const app=express();

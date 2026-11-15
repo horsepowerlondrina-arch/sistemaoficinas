@@ -27,7 +27,13 @@ test("PostgreSQL: encerra uma oficina fictícia com backup e aviso, preservando 
     await db.query("SET ROLE hp_platform_admin_app");
     await assert.rejects(db.query("SELECT platform_admin.retention_delete_workshop($1,$2::date)", [tenant,coverage]), /Prazo ou aviso final pendente/);
     await db.query("ROLLBACK TO SAVEPOINT missing_notice");
-    await db.query("INSERT INTO platform_admin.workshop_retention_notices(tenant_id,coverage_end,days_late,status,sent_at) VALUES($1,$2,89,'sent',now()-interval '2 days')", [tenant,coverage]);
+    const providerId=randomUUID();
+    await db.query("INSERT INTO platform_admin.workshop_retention_notices(tenant_id,coverage_end,days_late,status,provider_email_id) VALUES($1,$2,89,'accepted',$3)", [tenant,coverage,providerId]);
+    await db.query("SAVEPOINT undelivered_notice");
+    await db.query("SET ROLE hp_platform_admin_app");
+    await assert.rejects(db.query("SELECT platform_admin.retention_delete_workshop($1,$2::date)", [tenant,coverage]), /Prazo ou aviso final pendente/);
+    await db.query("ROLLBACK TO SAVEPOINT undelivered_notice");
+    await db.query("UPDATE platform_admin.workshop_retention_notices SET status='sent',sent_at=now()-interval '2 days',provider_delivered_at=now()-interval '2 days' WHERE tenant_id=$1 AND coverage_end=$2", [tenant,coverage]);
     await db.query("SET ROLE hp_platform_admin_app");
     const removed = await db.query("SELECT platform_admin.retention_delete_workshop($1,$2::date) AS result", [tenant,coverage]);
     await db.query("RESET ROLE");
