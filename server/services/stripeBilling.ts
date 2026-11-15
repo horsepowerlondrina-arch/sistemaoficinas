@@ -358,5 +358,13 @@ export function stripeBillingService(pool:Pool,gateway:StripeRequest,origin:stri
    lock.release(broken);
   }
  }
- return {summary,overview,details,reconcile,adminRenew,savePrice,checkout,refresh,cancel,webhook,renew,syncSession,syncInvoice,syncSubscription};
+ async function isSubscriptionOverdue(tenant:string):Promise<boolean>{
+  const result=await pool.query(`SELECT 1 FROM platform_admin.stripe_accounts a
+   JOIN platform_admin.workshops w ON w.tenant_id=a.tenant_id
+   WHERE a.tenant_id=$1 AND a.managed AND w.status IN ('active','trial')
+     AND (a.paid_until IS NULL OR a.paid_until < (now() AT TIME ZONE 'America/Sao_Paulo')::date)
+     AND a.due_on < (now() AT TIME ZONE 'America/Sao_Paulo')::date`,[tenant]);
+  return result.rowCount===1;
+ }
+ return {isSubscriptionOverdue,summary,overview,details,reconcile,adminRenew,savePrice,checkout,refresh,cancel,webhook,renew,syncSession,syncInvoice,syncSubscription};
 }

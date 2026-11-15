@@ -627,3 +627,37 @@ test("permission reductions revoke prior share links issued by that account", as
     db.close();
   }
 });
+
+test("expired subscription permits only the Master's seat reductions in the active workshop", async () => {
+  const db = fixture();
+  const owner = await ctx(db, "master");
+  const invitation = await createUserInvite(db, owner, {email:"seat@example.test",profile:"mechanic"}, "", async () => {});
+  Object.assign(db, {getTenantAccessState: async () => "read_only"});
+  let overdue = false;
+  const billing = {isSubscriptionOverdue: async (tenant:string) => overdue && tenant === "a"} as import("../server/services/stripeBilling").StripeBilling;
+  const server = createApp(db, undefined, {}, billing).listen(0, "127.0.0.1");
+  await new Promise<void>(resolve => server.once("listening", resolve));
+  const base = "http://127.0.0.1:" + (server.address() as import("node:net").AddressInfo).port + "/api";
+  const write = async (path:string, method:string, body:unknown, cookie="master") =>
+    (await fetch(base+path,{method,headers:{Cookie:"hp_session="+cookie,"Content-Type":"application/json"},body:JSON.stringify(body)})).status;
+  const access = "/users/mechanic/access";
+  const deactivate = {active:false,profile:"mechanic",order_scope:"assigned"};
+  const cancel = "/user-invites/"+invitation.id+"/cancel";
+  try {
+    assert.equal(await write(access,"PUT",deactivate),403);
+    overdue = true;
+    assert.equal(await write(access,"PUT",deactivate,"manager"),403);
+    assert.equal(await write(cancel,"POST",{},"master-b"),403);
+    assert.equal(await write(access,"PUT",{...deactivate,discount_bps:100}),403);
+    assert.equal(await write("/user-invites","POST",{}),403);
+    assert.equal(await write("/reauthenticate","POST",{password}),200);
+    assert.equal(await write("/users/master/access","PUT",{active:false,profile:"master",confirm_master:true}),403);
+    assert.equal(await write(access,"PUT",deactivate),200);
+    assert.equal(await write(access,"PUT",{...deactivate,active:true}),403);
+    assert.equal(await write(cancel,"POST",{}),200);
+    assert.equal((await userCapacity(db,owner)).pending,0);
+  } finally {
+    await new Promise<void>(resolve=>server.close(()=>resolve()));
+    db.close();
+  }
+});

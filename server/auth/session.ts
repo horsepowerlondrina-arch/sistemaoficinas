@@ -10,7 +10,7 @@ import type { DB } from "../db/transactions.js";
 import { tenantAccessDecision } from "./tenantAccess.js";
 import type { Request, Response, NextFunction } from "express";
 import { defaultWorkshopModules } from "../../shared/workshopModules.js";
-export type Context = { userId: string; tenantId: string; role: string; modules?: Record<string, boolean>; access?: import('../services/userAccess.js').UserAccess; action?: import('../../shared/userPermissions.js').Permission };
+export type Context = { userId: string; tenantId: string; role: string; overdueSeatRelease?: boolean; modules?: Record<string, boolean>; access?: import('../services/userAccess.js').UserAccess; action?: import('../../shared/userPermissions.js').Permission };
 export function hashPassword(password: string) {
   const salt = randomBytes(16).toString("hex");
   return `${salt}:${scryptSync(password, salt, 64).toString("hex")}`;
@@ -57,7 +57,7 @@ export async function startSession(
     path: "/",
   });
 }
-export function auth(db: DB) {
+export function auth(db: DB, isSubscriptionOverdue?: (tenant: string) => Promise<boolean>) {
   return async (req: Request, res: Response, next: NextFunction) => {
     const session = await db
       .prepare(
@@ -85,12 +85,19 @@ export function auth(db: DB) {
       res.status(403).json({ error: "O acesso operacional desta oficina está indisponível." });
       return;
     }
-    if (decision === "read_only") {
+    let overdueSeatRelease = false;
+    if (decision === "read_only" && membership.role === "owner" && isSubscriptionOverdue) {
+      const releaseAction =
+        (req.method === "PUT" && /^\/users\/[^/]+\/access$/.test(req.path) && req.body?.active === false) ||
+        (req.method === "POST" && (/^\/user-invites\/[^/]+\/cancel$/.test(req.path) || req.path === "/reauthenticate"));
+      if (releaseAction) overdueSeatRelease = await isSubscriptionOverdue(String(session.tenantId));
+    }
+    if (decision === "read_only" && !overdueSeatRelease) {
       res.status(403).json({ error: "Esta oficina está em modo somente leitura." });
       return;
     }
     const modules = await db.getTenantModuleAccess?.(String(session.tenantId)) || { ...defaultWorkshopModules };
-    const ctx:Context = { userId:String(session.userId),tenantId:String(session.tenantId), role: membership.role, modules };
+    const ctx:Context = { userId:String(session.userId),tenantId:String(session.tenantId), role: membership.role, overdueSeatRelease, modules };
     if(!db.hasUserAccessSchema||await db.hasUserAccessSchema())ctx.access=await readUserAccess(db,ctx);
     if(ctx.access&&!ctx.access.active){res.status(401).json({error:"Acesso desativado nesta oficina."});return;}
     const choice=ctx.access?await db.prepare('SELECT confirmed FROM session_office_choices WHERE token_hash=?').get(digest(tokenFrom(req))):null;

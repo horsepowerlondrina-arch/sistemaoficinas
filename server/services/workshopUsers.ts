@@ -1,4 +1,5 @@
 import { randomBytes, randomUUID } from "node:crypto";
+import { isDeepStrictEqual } from "node:util";
 import { z } from "zod";
 import type { DB } from "../db/transactions.js";
 import { transaction } from "../db/transactions.js";
@@ -133,6 +134,15 @@ export async function saveUserAccess(
       throw Object.assign(new Error("Usuário não encontrado nesta oficina."), {
         status: 404,
       });
+    if (ctx.overdueSeatRelease) {
+      const permissions = typeof old.permissions === "string" ? JSON.parse(old.permissions) : old.permissions;
+      if (ctx.role !== "owner" || input.active || Number(old.active) !== 1 ||
+          input.profile !== old.profile || input.order_scope !== old.order_scope ||
+          input.discount_bps !== Number(old.discount_bps) || input.discount_cents !== old.discount_cents ||
+          !isDeepStrictEqual(input.permissions, permissions)) {
+        accessDenied("Com a assinatura vencida, somente a desativação do acesso é permitida.");
+      }
+    }
     if (old.role === "owner" || input.profile === "master") {
       await recentAuthentication(db, ctx, sessionHash);
       if (!input.confirm_master)
