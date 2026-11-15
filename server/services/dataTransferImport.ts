@@ -1,3 +1,4 @@
+import {portablePhotoRow,assertPortablePhoto} from "./checklistPhotoStorage.js";
 import { createHash, randomUUID } from "node:crypto";
 import type { DB } from "../db/database.js";
 import { createWorkshopTransfer } from "./dataTransferExport.js";
@@ -157,7 +158,8 @@ function remapRow(row: TransferRow, sourceTenantId: string, targetTenantId: stri
 async function selectByFields(db: DB, table: string, tenantId: string, fields: string[], row: TransferRow): Promise<TransferRow | undefined> {
   if (!fields.length) return db.prepare(`SELECT * FROM ${table} WHERE tenant_id=? LIMIT 1`).get(tenantId);
   const where = ["tenant_id=?", ...fields.map((field) => `${field} IS NOT DISTINCT FROM ?`)];
-  return db.prepare(`SELECT * FROM ${table} WHERE ${where.join(" AND ")} LIMIT 1`).get(tenantId, ...fields.map((field) => row[field]));
+  const found=await db.prepare(`SELECT * FROM ${table} WHERE ${where.join(" AND ")} LIMIT 1`).get(tenantId, ...fields.map((field) => row[field]));
+  return found&&table==="checklist_photos"?portablePhotoRow(tenantId,found):found;
 }
 async function getTracking(db: DB, tenantId: string, payload: TransferPayload, table: string, sourceId: string) {
   return db.prepare(`SELECT source_hash,target_hash,target_record_id FROM data_transfer_records
@@ -166,7 +168,8 @@ async function getTracking(db: DB, tenantId: string, payload: TransferPayload, t
 }
 async function existingTenantRows(db: DB, table: TransferTable, tenantId: string): Promise<TransferRow[]> {
   if (!(await columnsFor(db, table)).has("tenant_id")) return [];
-  return db.prepare(`SELECT * FROM ${table} WHERE tenant_id=?`).all(tenantId);
+  const rows=await db.prepare(`SELECT * FROM ${table} WHERE tenant_id=?`).all(tenantId);
+  return table==="checklist_photos"?Promise.all(rows.map(row=>portablePhotoRow(tenantId,row))):rows;
 }
 function sumTotals(rows: Record<string, TransferRow[]>): Totals {
   const sum = (table: string, field: string, filter?: (row: TransferRow) => boolean) => (rows[table] || []).reduce((total, row) => {
@@ -230,6 +233,7 @@ async function buildPlan(db: DB, tenantId: string, payload: TransferPayload, mod
     }
 
     for (const row of sourceRows) {
+      if(table==="checklist_photos")assertPortablePhoto(row.image_data);
       if (row.tenant_id !== payload.source.tenant.id) { issues.push(`A entidade ${table} contém registro de outra oficina.`); summary.conflicts++; continue; }
       for (const key of Object.keys(row)) if (!columns.has(key)) { issues.push(`O destino não possui o campo ${table}.${key}; nenhuma importação será feita para evitar perda de dados.`); summary.conflicts++; }
       const sourceId = recordKey(table, row), sourceHash = hash(row);

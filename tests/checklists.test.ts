@@ -1,3 +1,4 @@
+import {withPhotoStore,type PhotoStore} from "../server/services/checklistPhotoStorage.js";
 import test from "node:test";
 import { randomUUID } from "node:crypto";
 import assert from "node:assert/strict";
@@ -54,7 +55,10 @@ function fixture() {
   return db;
 }
 
-test("checklist vincula OS/veículo, salva fotos e finaliza com assinatura", async () => {
+for(const privateFiles of [false,true])test(`checklist vincula OS/veículo, salva fotos e finaliza com assinatura (privado=${privateFiles})`, async () => {
+ const files=new Map<string,Buffer>();
+ const store:PhotoStore={async put(key,data){files.set(key,Buffer.from(data));},async get(key){return files.get(key)!;}};
+ return withPhotoStore(privateFiles?store:null,async()=>{
   const db = fixture();
   try {
     const created = await createChecklist(db, ctx, {
@@ -123,6 +127,7 @@ test("checklist vincula OS/veículo, salva fotos e finaliza com assinatura", asy
   } finally {
     db.close();
   }
+ });
 });
 
 
