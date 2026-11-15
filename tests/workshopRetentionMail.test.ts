@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { sendWorkshopRetentionNotice } from "../server/services/workshopRetentionMail.js";
 
+const providerId = "37e4414c-5e25-4dbc-a071-43552a4bd53b";
+
 const notice = {
   tenantId: "8b32ca14-6042-43a7-a486-2383e57dfaae",
   workshopName: "Oficina <Fictícia>",
@@ -15,10 +17,10 @@ test("aviso do dia 89 usa destinatário da oficina, texto seguro e chave idempot
   const calls: { headers: Headers; body: Record<string, unknown> }[] = [];
   const fetchImpl = async (_url: unknown, init: RequestInit) => {
     calls.push({ headers: new Headers(init.headers), body: JSON.parse(String(init.body)) });
-    return new Response(null, { status: 200 });
+    return Response.json({ id: providerId });
   };
   const config = { apiKey: "chave-ficticia", from: "OSDrive <noreply@osdrive.com.br>", origin: "https://sistema-oficinas-homologacao.vercel.app/", fetchImpl: fetchImpl as typeof fetch };
-  await sendWorkshopRetentionNotice(notice, config);
+  assert.equal(await sendWorkshopRetentionNotice(notice, config), providerId);
   await sendWorkshopRetentionNotice(notice, config);
   assert.equal(calls.length, 2);
   assert.deepEqual(calls[0].body.to, [notice.email]);

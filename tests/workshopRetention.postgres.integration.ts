@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import pg from "pg";
 import { adminClient } from "../scripts/local-admin.js";
 import { localDatabaseUrl, platformAdminDatabaseUrl } from "../server/localConfig.js";
-import { sendDueWorkshopRetentionNotices } from "../server/services/workshopRetentionNotices.js";
+import { recordWorkshopRetentionDelivery, sendDueWorkshopRetentionNotices } from "../server/services/workshopRetentionNotices.js";
 import { createLocalDatabase } from "../server/db/local.js";
 import { createVerifiedWorkshopRecoveryBackup, purgeDeletedWorkshopPhotos, purgeExpiredWorkshopBackups, purgeSupersededWorkshopBackups, type RecoveryObjectStore } from "../server/services/workshopRecoveryStorage.js";
 import { processDueWorkshopRetirements } from "../server/services/workshopRetentionRunner.js";
@@ -23,7 +23,7 @@ test("PostgreSQL: retenção fica privada, exige backup verificado e preserva av
     await assert.rejects(admin.query("UPDATE platform_admin.workshop_retention_cases SET status='deleted' WHERE tenant_id=$1", [tenant]), /check constraint/);
     await admin.query("INSERT INTO platform_admin.workshop_retention_notices(tenant_id,coverage_end,days_late,status) VALUES($1,$2,89,'reserved')", [tenant, coverage]);
     await assert.rejects(admin.query("INSERT INTO platform_admin.workshop_retention_notices(tenant_id,coverage_end,days_late,status) VALUES($1,$2,89,'reserved')", [tenant, coverage]), /duplicate key/);
-    await admin.query("UPDATE platform_admin.workshop_retention_notices SET status='sent',sent_at=now() WHERE tenant_id=$1 AND coverage_end=$2 AND days_late=89", [tenant, coverage]);
+    await admin.query("UPDATE platform_admin.workshop_retention_notices SET status='sent',sent_at=now(),provider_email_id=$3,provider_delivered_at=now() WHERE tenant_id=$1 AND coverage_end=$2 AND days_late=89", [tenant, coverage, randomUUID()]);
     const key = `${tenant}/${backup}/0000.hptxpart`;
     const manifest = { tenantId: tenant, backupId: backup, bytes: 10, sha256: "a".repeat(64), chunks: [{ key, bytes: 10, sha256: "b".repeat(64) }] };
     await admin.query("UPDATE platform_admin.workshop_retention_cases SET status='backup_verified',backup_id=$3,backup_manifest=$4::jsonb,backup_verified_at=now() WHERE tenant_id=$1 AND coverage_end=$2", [tenant, coverage, backup, JSON.stringify(manifest)]);
@@ -88,15 +88,19 @@ test("PostgreSQL: aviso do dia 89 é único e não atinge oficina com liberaçã
             ($2,'admin','Acesso administrativo','Pessoa fictícia',$4,'active',now(),NULL,NULL)`,
       [trial, granted, `${trial}@example.test`, `${granted}@example.test`]);
     const now = new Date("2026-11-15T15:00:00Z");
-    const deliver = async (notice: { tenantId: string; daysLate: number }) => { sent.push(`${notice.tenantId}:${notice.daysLate}`); };
+    const providerId = randomUUID();
+    const deliver = async (notice: { tenantId: string; daysLate: number }) => { sent.push(`${notice.tenantId}:${notice.daysLate}`); return providerId; };
     const first = await sendDueWorkshopRetentionNotices(pool, deliver, now);
     const second = await sendDueWorkshopRetentionNotices(pool, deliver, now);
-    assert.equal(first.sent, 1);
-    assert.equal(second.sent, 0);
+    assert.equal(first.accepted, 1);
+    assert.equal(second.accepted, 0);
+    assert.equal(await recordWorkshopRetentionDelivery(pool,providerId,"delivered"),1);
+    assert.equal(await recordWorkshopRetentionDelivery(pool,providerId,"delivered"),0);
     assert.deepEqual(sent, [`${trial}:89`]);
-    const rows = await pool.query("SELECT status,sent_at IS NOT NULL AS sent FROM platform_admin.workshop_retention_notices WHERE tenant_id=$1", [trial]);
+    const rows = await pool.query("SELECT status,sent_at IS NOT NULL AS sent,provider_delivered_at IS NOT NULL AS delivered FROM platform_admin.workshop_retention_notices WHERE tenant_id=$1", [trial]);
     assert.equal(rows.rows[0].status, "sent");
     assert.equal(rows.rows[0].sent, true);
+    assert.equal(rows.rows[0].delivered, true);
     assert.equal((await pool.query("SELECT count(*)::int AS n FROM platform_admin.workshop_retention_notices WHERE tenant_id=$1", [granted])).rows[0].n, 0);
   } finally { await pool.end(); await root.end(); }
 });
@@ -123,7 +127,7 @@ test("PostgreSQL: rotina só exclui oficina fictícia após aviso final e cópia
     await root.query('INSERT INTO platform_admin.workshop_retention_cases(tenant_id,coverage_end) VALUES($1,$2)',[tenant,coverage]);
     assert.equal((await processDueWorkshopRetirements(db,pool,store,'frase ficticia longa')).retired,0);
     assert.equal((await root.query('SELECT count(*)::int AS n FROM horse_power.customers WHERE tenant_id=$1',[tenant])).rows[0].n,1);
-    await root.query("INSERT INTO platform_admin.workshop_retention_notices(tenant_id,coverage_end,days_late,status,sent_at) VALUES($1,$2,89,'sent',now()-interval '2 days')",[tenant,coverage]);
+    await root.query("INSERT INTO platform_admin.workshop_retention_notices(tenant_id,coverage_end,days_late,status,sent_at,provider_email_id,provider_delivered_at) VALUES($1,$2,89,'sent',now()-interval '2 days',$3,now()-interval '2 days')",[tenant,coverage,randomUUID()]);
     const done=await processDueWorkshopRetirements(db,pool,store,'frase ficticia longa');
     assert.deepEqual({retired:done.retired,blocked:done.blocked},{retired:1,blocked:0});
     assert.equal((await root.query('SELECT count(*)::int AS n FROM horse_power.customers WHERE tenant_id=$1',[tenant])).rows[0].n,0);

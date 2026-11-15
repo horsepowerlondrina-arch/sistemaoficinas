@@ -11,13 +11,15 @@ export type RetentionNotice = {
   daysLate: NoticeDay;
 };
 
+const emailId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 function escapeHtml(value: string) {
   return value.replace(/[&<>"']/g, character => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
   })[character]!);
 }
 
-/** Delivery is called only after reserving the notice in the retention outbox. */
+/** Provider acceptance is not proof of delivery. */
 export async function sendWorkshopRetentionNotice(
   notice: RetentionNotice,
   config: { apiKey?: string; from?: string; origin?: string; fetchImpl?: typeof fetch } = {},
@@ -41,8 +43,14 @@ export async function sendWorkshopRetentionNotice(
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json", "Idempotency-Key": `workshop-retention/${key}` },
     body: JSON.stringify({ from, to: [notice.email], subject, text: message,
+      tags: [{ name: "category", value: "workshop_retention" }],
       html: `<p>${escapeHtml(message)}</p>` }),
     signal: AbortSignal.timeout(10_000),
   });
   if (!response.ok) throw new Error("Falha no envio do aviso de retenção.");
+  const result: unknown = await response.json().catch(() => null);
+  const id = (result as { id?: unknown } | null)?.id;
+  if (typeof id !== "string" || !emailId.test(id)) throw new Error("Confirmação do aviso indisponível.");
+  return id;
 }
+

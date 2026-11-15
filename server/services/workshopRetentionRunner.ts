@@ -26,7 +26,7 @@ export async function processDueWorkshopRetirements(
     JOIN platform_admin.workshops w ON w.tenant_id=c.tenant_id
     LEFT JOIN platform_admin.stripe_accounts a ON a.tenant_id=w.tenant_id
     JOIN platform_admin.workshop_retention_notices n ON n.tenant_id=c.tenant_id AND n.coverage_end=c.coverage_end
-      AND n.days_late=89 AND n.status='sent'
+      AND n.days_late=89 AND n.status='sent' AND n.provider_delivered_at IS NOT NULL
     WHERE c.status NOT IN ('deleted','purged') AND c.coverage_end<=($1::date-90)
       AND (c.processing_until IS NULL OR c.processing_until<now())
     ORDER BY c.coverage_end,c.tenant_id LIMIT 100`,[today]);
