@@ -67,6 +67,16 @@ jobs:
             ${{ runner.temp }}/financial-ui
             ${{ runner.temp }}/operational-reports-ui
           retention-days: 14
+      - name: Monthly expenses configuration and pending amount UI
+        run: node scripts/test-monthly-expenses-ui.mjs
+        timeout-minutes: 3
+      - name: Store monthly expenses interface evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: monthly-expenses-ui
+          path: ${{ runner.temp }}/monthly-expenses-ui
+          retention-days: 14
       - name: ADM-002.1 administrative UI regression
         run: node scripts/test-admin-interface.mjs
         timeout-minutes: 4

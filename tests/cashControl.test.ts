@@ -49,7 +49,7 @@ test("recorrentes podem ser criados editados e excluídos sem apagar contas já 
       amount: 200000,
       due_day: 31,
       remaining_months: null,
-      start_month: "2026-02",
+      start_month: "2097-02",
       active: 1,
     };
     const created = await call("/expense-templates", v);
@@ -63,13 +63,13 @@ test("recorrentes podem ser criados editados e excluídos sem apagar contas já 
       1,
     );
     assert.equal(
-      (await call("/expenses/generate", { month: "2026-02" })).status,
+      (await call("/expenses/generate", { month: "2097-02" })).status,
       200,
     );
     let payable = db
       .prepare("SELECT * FROM payables WHERE template_id=?")
       .get(id)!;
-    assert.equal(payable.due_on, "2026-02-28");
+    assert.equal(payable.due_on, "2097-02-28");
     assert.equal(payable.supplier, "Imobiliária");
     assert.equal(
       (
@@ -87,7 +87,7 @@ test("recorrentes podem ser criados editados e excluídos sem apagar contas já 
       200,
     );
     assert.equal(
-      (await call("/expenses/generate", { month: "2026-02" })).status,
+      (await call("/expenses/generate", { month: "2097-02" })).status,
       200,
     );
     assert.equal(
@@ -100,9 +100,9 @@ test("recorrentes podem ser criados editados e excluídos sem apagar contas já 
         .amount,
       200000,
     );
-    await call("/expenses/generate", { month: "2026-03" });
+    await call("/expenses/generate", { month: "2097-03" });
     assert.equal(
-      db.prepare("SELECT amount FROM payables WHERE due_on='2026-03-10'").get()!
+      db.prepare("SELECT amount FROM payables WHERE due_on='2097-03-10'").get()!
         .amount,
       250000,
     );
@@ -110,7 +110,7 @@ test("recorrentes podem ser criados editados e excluídos sem apagar contas já 
       (await call("/expense-templates/" + id, {}, "DELETE")).status,
       200,
     );
-    await call("/expenses/generate", { month: "2026-04" });
+    await call("/expenses/generate", { month: "2097-04" });
     assert.equal(
       db.prepare("SELECT COUNT(*) n FROM payables WHERE template_id=?").get(id)!
         .n,
