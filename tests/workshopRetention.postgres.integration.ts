@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import pg from "pg";
 import { adminClient } from "../scripts/local-admin.js";
 import { localDatabaseUrl, platformAdminDatabaseUrl } from "../server/localConfig.js";
+import { sendDueWorkshopRetentionNotices } from "../server/services/workshopRetentionNotices.js";
 
 test("PostgreSQL: retenção fica privada, exige backup verificado e preserva aviso único", async () => {
   const root = adminClient();
@@ -34,4 +35,29 @@ test("PostgreSQL: retenção fica privada, exige backup verificado e preserva av
     await root.query("DELETE FROM horse_power.tenants WHERE id=ANY($1::text[])", [[tenant, other]]);
     await workshop.end(); await admin.end(); await root.end();
   }
+});
+
+test("PostgreSQL: aviso do dia 89 é único e não atinge oficina com liberação administrativa", async () => {
+  const root = adminClient();
+  const pool = new pg.Pool({ connectionString: platformAdminDatabaseUrl(process.env.PLATFORM_ADMIN_DATABASE_URL), ssl: false });
+  await root.connect();
+  const trial = randomUUID(), granted = randomUUID(), sent: string[] = [];
+  try {
+    await root.query("INSERT INTO horse_power.tenants(id,name) VALUES($1,'Teste retenção'),($2,'Acesso administrativo')", [trial, granted]);
+    await root.query(`INSERT INTO platform_admin.workshops(tenant_id,source,name,responsible_name,responsible_email,status,email_verified_at,trial_started_at,trial_ends_at)
+      VALUES($1,'admin','Teste retenção','Pessoa fictícia',$3,'trial',now(),'2026-08-04T12:00:00Z','2026-08-18T12:00:00Z'),
+            ($2,'admin','Acesso administrativo','Pessoa fictícia',$4,'active',now(),NULL,NULL)`,
+      [trial, granted, `${trial}@example.test`, `${granted}@example.test`]);
+    const now = new Date("2026-11-15T15:00:00Z");
+    const deliver = async (notice: { tenantId: string; daysLate: number }) => { sent.push(`${notice.tenantId}:${notice.daysLate}`); };
+    const first = await sendDueWorkshopRetentionNotices(pool, deliver, now);
+    const second = await sendDueWorkshopRetentionNotices(pool, deliver, now);
+    assert.equal(first.sent, 1);
+    assert.equal(second.sent, 0);
+    assert.deepEqual(sent, [`${trial}:89`]);
+    const rows = await pool.query("SELECT status,sent_at IS NOT NULL AS sent FROM platform_admin.workshop_retention_notices WHERE tenant_id=$1", [trial]);
+    assert.equal(rows.rows[0].status, "sent");
+    assert.equal(rows.rows[0].sent, true);
+    assert.equal((await pool.query("SELECT count(*)::int AS n FROM platform_admin.workshop_retention_notices WHERE tenant_id=$1", [granted])).rows[0].n, 0);
+  } finally { await pool.end(); await root.end(); }
 });
