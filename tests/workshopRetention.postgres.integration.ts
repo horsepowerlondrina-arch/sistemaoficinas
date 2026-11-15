@@ -6,7 +6,7 @@ import { adminClient } from "../scripts/local-admin.js";
 import { localDatabaseUrl, platformAdminDatabaseUrl } from "../server/localConfig.js";
 import { sendDueWorkshopRetentionNotices } from "../server/services/workshopRetentionNotices.js";
 import { createLocalDatabase } from "../server/db/local.js";
-import { createVerifiedWorkshopRecoveryBackup, purgeDeletedWorkshopPhotos, purgeExpiredWorkshopBackups, type RecoveryObjectStore } from "../server/services/workshopRecoveryStorage.js";
+import { createVerifiedWorkshopRecoveryBackup, purgeDeletedWorkshopPhotos, purgeExpiredWorkshopBackups, purgeSupersededWorkshopBackups, type RecoveryObjectStore } from "../server/services/workshopRecoveryStorage.js";
 import { processDueWorkshopRetirements } from "../server/services/workshopRetentionRunner.js";
 
 test("PostgreSQL: retenção fica privada, exige backup verificado e preserva aviso único", async () => {
@@ -118,7 +118,7 @@ test("PostgreSQL: rotina só exclui oficina fictícia após aviso final e cópia
     await root.query("INSERT INTO horse_power.tenants(id,name) VALUES($1,'Oficina Retirada'),($2,'Oficina Protegida')",[tenant,other]);
     await root.query("INSERT INTO horse_power.customers(id,tenant_id,name) VALUES($1,$2,'Cliente Fictício'),($3,$4,'Outro Cliente')",[customer,tenant,otherCustomer,other]);
     await root.query(`INSERT INTO platform_admin.workshops(tenant_id,source,name,responsible_name,responsible_email,status,email_verified_at,trial_started_at,trial_ends_at)
-      VALUES($1,'admin','Oficina Retirada','Pessoa Fictícia',$4,'read_only',now(),($3::date-14)::timestamp,$3::date::timestamp),
+      VALUES($1,'admin','Oficina Retirada','Pessoa Fictícia',$4,'read_only',now(),(($3::date-14)::timestamp AT TIME ZONE 'America/Sao_Paulo'),($3::date::timestamp AT TIME ZONE 'America/Sao_Paulo')),
             ($2,'admin','Oficina Protegida','Outra Pessoa',$5,'active',now(),NULL,NULL)`,[tenant,other,coverage,`${tenant}@example.test`,`${other}@example.test`]);
     await root.query('INSERT INTO platform_admin.workshop_retention_cases(tenant_id,coverage_end) VALUES($1,$2)',[tenant,coverage]);
     assert.equal((await processDueWorkshopRetirements(db,pool,store,'frase ficticia longa')).retired,0);
@@ -131,4 +131,28 @@ test("PostgreSQL: rotina só exclui oficina fictícia após aviso final e cópia
     assert.equal((await root.query('SELECT status,backup_verified_at IS NOT NULL AS verified FROM platform_admin.workshop_retention_cases WHERE tenant_id=$1',[tenant])).rows[0].status,'deleted');
     assert.ok(objects.size>0);
   }finally{await db.close();await pool.end();await root.end();}
+});
+
+test('PostgreSQL: pagamento posterior descarta a cópia antiga sem excluir dados',async()=>{
+  const root=adminClient();
+  const pool=new pg.Pool({connectionString:platformAdminDatabaseUrl(process.env.PLATFORM_ADMIN_DATABASE_URL),ssl:false});
+  const tenant=randomUUID(),backupId=randomUUID(),coverage='2026-01-01';
+  await root.connect();
+  try{
+    await root.query("INSERT INTO horse_power.tenants(id,name) VALUES($1,'Oficina renovada')",[tenant]);
+    await root.query(`INSERT INTO platform_admin.workshops(tenant_id,source,name,responsible_name,responsible_email,status,email_verified_at,trial_started_at,trial_ends_at)
+      VALUES($1,'admin','Oficina renovada','Pessoa Fictícia',$2,'trial',now(),'2026-01-01','2026-01-15')`,[tenant,`${tenant}@example.test`]);
+    const key=`${tenant}/${backupId}/0000.hptxpart`;
+    const manifest={tenantId:tenant,backupId,bytes:10,sha256:'a'.repeat(64),chunks:[{key,bytes:10,sha256:'b'.repeat(64)}]};
+    await root.query(`INSERT INTO platform_admin.workshop_retention_cases(tenant_id,coverage_end,status,backup_id,backup_manifest,backup_verified_at)
+      VALUES($1,$2,'backup_verified',$3,$4::jsonb,now())`,[tenant,coverage,backupId,JSON.stringify(manifest)]);
+    const removed:string[]=[];
+    const store:RecoveryObjectStore={async put(){},async get(){throw new Error('unused');},async remove(keys){removed.push(...keys);}};
+    assert.equal((await purgeSupersededWorkshopBackups(pool,store)).purged,1);
+    assert.deepEqual(removed,[key]);
+    const state=await root.query('SELECT status,backup_manifest FROM platform_admin.workshop_retention_cases WHERE tenant_id=$1',[tenant]);
+    assert.equal(state.rows[0].status,'blocked');
+    assert.equal(state.rows[0].backup_manifest,null);
+    assert.equal((await root.query('SELECT count(*)::int AS n FROM horse_power.tenants WHERE id=$1',[tenant])).rows[0].n,1);
+  }finally{await root.query('DELETE FROM platform_admin.workshop_retention_cases WHERE tenant_id=$1',[tenant]).catch(()=>{});await root.query('DELETE FROM platform_admin.workshops WHERE tenant_id=$1',[tenant]).catch(()=>{});await root.query('DELETE FROM horse_power.tenants WHERE id=$1',[tenant]).catch(()=>{});await pool.end();await root.end();}
 });

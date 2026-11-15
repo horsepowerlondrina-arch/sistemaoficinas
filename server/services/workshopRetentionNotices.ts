@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { Pool } from "pg";
 import { billingDate } from "../../shared/stripeBilling.js";
-import { retentionCoverageEnd, retentionDecision } from "../../shared/workshopRetention.js";
+import { daysAfterCoverage, retentionCoverageEnd } from "../../shared/workshopRetention.js";
 import { sendWorkshopRetentionNotice, type RetentionNotice } from "./workshopRetentionMail.js";
 
 type Candidate = {
@@ -16,7 +16,6 @@ type Candidate = {
   trial_ends_on: string | null;
 };
 
-const noticeDay = { notice_30: 30, notice_60: 60, notice_89: 89 } as const;
 const dateAfterDays = (date: string, days: number) => {
   const [year, month, day] = date.split("-").map(Number);
   return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
@@ -46,9 +45,10 @@ export async function sendDueWorkshopRetentionNotices(
       const coverage = retentionCoverageEnd({ status: row.status, emailVerified: row.email_verified,
         managedBilling: row.managed_billing, paidUntil: row.paid_until, dueOn: row.due_on, trialEndsOn: row.trial_ends_on });
       if (!coverage || coverage >= today) continue;
-      const decision = retentionDecision(coverage, now);
-      if (!(decision in noticeDay)) continue;
-      const day = noticeDay[decision as keyof typeof noticeDay];
+      const late=daysAfterCoverage(coverage,now);
+      const day=late>=89?89:late>=60?60:late>=30?30:null;
+      if(!day)continue;
+      const decision=`notice_${day}`;
       const activeCase = await pool.query(`INSERT INTO platform_admin.workshop_retention_cases(tenant_id,coverage_end)
         VALUES($1,$2::date)
         ON CONFLICT(tenant_id,coverage_end) DO UPDATE SET updated_at=platform_admin.workshop_retention_cases.updated_at
@@ -57,11 +57,9 @@ export async function sendDueWorkshopRetentionNotices(
       if (!activeCase.rowCount) { blocked++; continue; }
       const claimed = await pool.query(`INSERT INTO platform_admin.workshop_retention_notices(tenant_id,coverage_end,days_late,status)
       VALUES($1,$2::date,$3,'reserved')
-      ON CONFLICT (tenant_id,coverage_end,days_late) DO UPDATE
-        SET status='reserved',reserved_at=now(),last_error_code=NULL
+      ON CONFLICT (tenant_id,coverage_end,days_late) DO UPDATE SET status='reserved',reserved_at=now(),last_error_code=NULL
       WHERE platform_admin.workshop_retention_notices.status='failed'
-        OR (platform_admin.workshop_retention_notices.status='reserved'
-          AND platform_admin.workshop_retention_notices.reserved_at<now()-interval '15 minutes')
+        AND platform_admin.workshop_retention_notices.reserved_at<now()-interval '1 hour'
       RETURNING status`, [row.tenant_id, coverage, day]);
       if (!claimed.rowCount) { blocked++; continue; }
       try {

@@ -15,7 +15,7 @@ test("PostgreSQL: encerra uma oficina fictícia com backup e aviso, preservando 
     await db.query("INSERT INTO horse_power.tenants(id,name,document,email) VALUES($1,'Oficina A','123','a@example.test'),($2,'Oficina B','456','b@example.test')", [tenant, other]);
     await db.query("INSERT INTO horse_power.users(id,name,email,password_hash) VALUES($1,'Pessoa compartilhada',$4,'fake'),($2,'Pessoa exclusiva',$5,'fake'),($3,'Pessoa B',$6,'fake')", [shared,exclusive,otherOwner,`${shared}@example.test`,`${exclusive}@example.test`,`${otherOwner}@example.test`]);
     await db.query(`INSERT INTO platform_admin.workshops(tenant_id,source,name,responsible_name,responsible_email,status,email_verified_at,trial_started_at,trial_ends_at)
-      VALUES($1,'admin','Oficina A','Pessoa A','a@example.test','read_only',now(),($3::date-14)::timestamp,$3::date::timestamp),
+      VALUES($1,'admin','Oficina A','Pessoa A','a@example.test','read_only',now(),(($3::date-14)::timestamp AT TIME ZONE 'America/Sao_Paulo'),($3::date::timestamp AT TIME ZONE 'America/Sao_Paulo')),
             ($2,'admin','Oficina B','Pessoa B','b@example.test','active',now(),NULL,NULL)`, [tenant,other,coverage]);
     await db.query("INSERT INTO horse_power.memberships(user_id,tenant_id,role) VALUES($1,$3,'owner'),($2,$3,'operator'),($1,$4,'operator'),($5,$4,'owner')", [shared,exclusive,tenant,other,otherOwner]);
     await db.query("INSERT INTO horse_power.customers(id,tenant_id,name) VALUES($1,$2,'Cliente A'),($3,$4,'Cliente B')", [customer,tenant,otherCustomer,other]);

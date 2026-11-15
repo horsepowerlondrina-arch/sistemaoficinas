@@ -127,7 +127,7 @@ BEGIN
   IF v_today<p_coverage+90 OR NOT EXISTS (
     SELECT 1 FROM platform_admin.workshop_retention_notices n
     WHERE n.tenant_id=p_tenant AND n.coverage_end=p_coverage AND n.days_late=89
-      AND n.status='sent' AND n.sent_at < ((p_coverage+90)::timestamp AT TIME ZONE 'America/Sao_Paulo')
+      AND n.status='sent' AND n.sent_at<=now()-interval '24 hours'
   ) THEN RAISE EXCEPTION 'Prazo ou aviso final pendente.' USING ERRCODE='23514'; END IF;
   SELECT coalesce(managed,false),paid_until,due_on,subscription_id,subscription_status
     INTO v_managed,v_paid,v_due,v_subscription,v_subscription_status
@@ -185,6 +185,7 @@ BEGIN
     WHERE id=p_tenant;
   UPDATE platform_admin.workshop_retention_cases SET status='deleted',deleted_at=now(),
     recovery_expires_at=now()+interval '15 days',photo_object_keys=v_keys,
+    photo_objects_purged_at=CASE WHEN jsonb_array_length(v_keys)=0 THEN now() ELSE NULL END,
     processing_until=NULL,updated_at=now()
     WHERE tenant_id=p_tenant AND coverage_end=p_coverage;
   INSERT INTO platform_admin.audit_events(id,actor_email,subject_tenant_id,action,result,technical_context)

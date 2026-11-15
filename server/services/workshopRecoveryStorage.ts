@@ -5,6 +5,7 @@ import { openTransferPackage, sealTransferPackage, type TransferPayload } from "
 import type { DB } from "../db/transactions.js";
 import { createWorkshopTransfer } from "./dataTransferExport.js";
 import type { PhotoStore } from "./checklistPhotoStorage.js";
+import { retentionCoverageEnd } from "../../shared/workshopRetention.js";
 
 const bucket = "workshop-recovery-backups";
 const chunkBytes = 4_000_000;
@@ -180,6 +181,41 @@ export async function purgeExpiredWorkshopBackups(pool: Pool, store: RecoveryObj
     finally { client.release(); }
   }
   return { inspected: due.rowCount, purged };
+}
+
+/** Payment or administrative access supersedes the old deadline and its temporary copy. */
+export async function purgeSupersededWorkshopBackups(pool:Pool,store:RecoveryObjectStore,limit=10){
+  if(!Number.isInteger(limit)||limit<1||limit>50)throw new Error('Lote de limpeza inválido.');
+  const rows=await pool.query<{tenant_id:string;coverage_end:string;backup_id:string;backup_manifest:RecoveryManifest;
+    status:string;email_verified:boolean;managed_billing:boolean;paid_until:string|null;due_on:string|null;trial_ends_on:string|null}>(
+    `SELECT c.tenant_id,c.coverage_end::text,c.backup_id,c.backup_manifest,w.status,
+      (w.email_verified_at IS NOT NULL) AS email_verified,coalesce(a.managed,false) AS managed_billing,
+      a.paid_until::text,a.due_on::text,(w.trial_ends_at AT TIME ZONE 'America/Sao_Paulo')::date::text AS trial_ends_on
+     FROM platform_admin.workshop_retention_cases c JOIN platform_admin.workshops w ON w.tenant_id=c.tenant_id
+     LEFT JOIN platform_admin.stripe_accounts a ON a.tenant_id=c.tenant_id
+     WHERE c.status IN ('backup_verified','blocked') AND c.backup_manifest IS NOT NULL
+       AND (c.processing_until IS NULL OR c.processing_until<now())
+     ORDER BY c.updated_at,c.tenant_id LIMIT $1`,[limit]);
+  let purged=0;
+  for(const row of rows.rows){
+    const current=retentionCoverageEnd({status:row.status,emailVerified:row.email_verified,
+      managedBilling:row.managed_billing,paidUntil:row.paid_until,dueOn:row.due_on,trialEndsOn:row.trial_ends_on});
+    if(current===row.coverage_end && row.status==='backup_verified')continue;
+    if(!row.backup_manifest || row.backup_manifest.tenantId!==row.tenant_id || row.backup_manifest.backupId!==row.backup_id)
+      throw new Error('Manifesto de backup inválido.');
+    const blocked=await pool.query(`UPDATE platform_admin.workshop_retention_cases SET status='blocked',updated_at=now()
+      WHERE tenant_id=$1 AND coverage_end=$2::date AND backup_id=$3 AND status IN ('backup_verified','blocked')
+        AND (processing_until IS NULL OR processing_until<now()) RETURNING tenant_id`,
+      [row.tenant_id,row.coverage_end,row.backup_id]);
+    if(!blocked.rowCount)continue;
+    await store.remove(recoveryObjectKeys(row.backup_manifest));
+    const updated=await pool.query(`UPDATE platform_admin.workshop_retention_cases
+      SET backup_id=NULL,backup_manifest=NULL,backup_verified_at=NULL,updated_at=now()
+      WHERE tenant_id=$1 AND coverage_end=$2::date AND backup_id=$3 AND status='blocked'`,
+      [row.tenant_id,row.coverage_end,row.backup_id]);
+    purged+=updated.rowCount||0;
+  }
+  return {inspected:rows.rowCount,purged};
 }
 
 /** Removes only the former tenant's private photo objects after the database retirement commits. */

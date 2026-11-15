@@ -36,7 +36,7 @@ export async function sendWorkshopRetentionNotice(
   const accountUrl = `${base.origin}/configuracoes?aba=assinatura`;
   const key = createHash("sha256").update(`${notice.tenantId}:${notice.coverageEnd}:${notice.daysLate}`).digest("hex");
   const subject = `Aviso sobre o acesso da oficina ${notice.workshopName}`;
-  const message = `A oficina ${notice.workshopName} está há ${notice.daysLate} dias sem cobertura de assinatura ou teste. Se não houver renovação, a exclusão está prevista para ${notice.removalDate}. Acesse ${accountUrl} para regularizar o plano ou exportar seus dados. Uma cópia criptografada de recuperação ficará disponível por 15 dias após a exclusão. Se já efetuou o pagamento, confira a situação no sistema ou entre em contato com o suporte.`;
+  const message = `A oficina ${notice.workshopName} está há pelo menos ${notice.daysLate} dias sem cobertura de assinatura ou teste. Se não houver renovação, a exclusão está prevista a partir de ${notice.removalDate}, respeitando o prazo mínimo após o aviso final. Acesse ${accountUrl} para regularizar o plano ou exportar seus dados. Uma cópia criptografada de recuperação ficará disponível por 15 dias após a exclusão. Se já efetuou o pagamento, confira a situação no sistema ou entre em contato com o suporte.`;
   const response = await (config.fetchImpl ?? globalThis.fetch)("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json", "Idempotency-Key": `workshop-retention/${key}` },

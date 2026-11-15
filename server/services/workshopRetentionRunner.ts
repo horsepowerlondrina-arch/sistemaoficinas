@@ -5,7 +5,7 @@ import { billingDate } from "../../shared/stripeBilling.js";
 import { retentionCoverageEnd, retentionDecision } from "../../shared/workshopRetention.js";
 import { configuredPhotoStore } from "./checklistPhotoStorage.js";
 import { sendDueWorkshopRetentionNotices } from "./workshopRetentionNotices.js";
-import { createVerifiedWorkshopRecoveryBackup, configuredRecoveryStore, purgeDeletedWorkshopPhotos, purgeExpiredWorkshopBackups, readRecoveryBackup, verifyRecoveredWorkshop, type RecoveryManifest, type RecoveryObjectStore } from "./workshopRecoveryStorage.js";
+import { createVerifiedWorkshopRecoveryBackup, configuredRecoveryStore, purgeDeletedWorkshopPhotos, purgeExpiredWorkshopBackups, purgeSupersededWorkshopBackups, readRecoveryBackup, verifyRecoveredWorkshop, type RecoveryManifest, type RecoveryObjectStore } from "./workshopRecoveryStorage.js";
 
 type Due = { tenant_id:string; status:string; email_verified:boolean; managed_billing:boolean;
   paid_until:string|null; due_on:string|null; trial_ends_on:string|null; coverage_end:string; case_status:string;
@@ -86,9 +86,10 @@ export async function processDueWorkshopRetirements(
 
 export async function runWorkshopRetentionDaily(db:DB,pool:Pool,passphrase:string,now=new Date(),store=configuredRecoveryStore()){
   const notices=await sendDueWorkshopRetentionNotices(pool,undefined,now);
+  const supersededBackups=await purgeSupersededWorkshopBackups(pool,store);
   const retirements=await processDueWorkshopRetirements(db,pool,store,passphrase,now);
   const photos=configuredPhotoStore();
   const photoCleanup=photos?.remove?await purgeDeletedWorkshopPhotos(pool,photos):{inspected:0,removed:0,remaining:0};
   const expiredBackups=await purgeExpiredWorkshopBackups(pool,store,now);
-  return {notices,retirements,photoCleanup,expiredBackups};
+  return {notices,retirements,photoCleanup,supersededBackups,expiredBackups};
 }
