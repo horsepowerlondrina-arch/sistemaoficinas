@@ -44,6 +44,8 @@ test("Stripe administração: sessão, permissão, detalhes, conciliação e ren
  const calls:unknown[]=[];
  const billing={overview:async(q:unknown)=>{calls.push(q);return{};},details:async(t:string,q:unknown)=>{calls.push([t,q]);return{};},reconcile:async(t:string,b:unknown,a:unknown)=>{calls.push([t,b,a]);return{ok:true};},adminRenew:async(b:unknown,a:unknown)=>{calls.push([b,a]);return{};}} as unknown as StripeBilling;
  const app=express();app.use(express.json());
+ // Vercel installs its own legacy/cached getter before normalizing req.url.
+ app.use((req,_res,next)=>{Object.defineProperty(req,'query',{get(){throw new Error('Legacy runtime query getter must not be used');}});next();});
  app.use(stripeAdminRoutes(billing,(req,res,next)=>{if(!req.get('x-session')){res.sendStatus(401);return;}res.locals.admin={id:'actor',email:'fictional@example.test'};next();},permission=>(req,res,next)=>{assert.equal(permission,'platform:settings');if(req.get('x-permission')!=='yes'){res.sendStatus(403);return;}next();}));
  const server=app.listen(0,'127.0.0.1');await once(server,'listening');const base='http://127.0.0.1:'+(server.address() as AddressInfo).port;
  try{
@@ -56,6 +58,7 @@ test("Stripe administração: sessão, permissão, detalhes, conciliação e ren
   assert.equal((await fetch(base+'/admin-api/billing/accounts/fake?page=3',{headers})).status,200);
   assert.equal((await fetch(base+'/admin-api/billing/accounts/fake/reconcile',{method:'POST',headers,body:JSON.stringify({kind:'account',reason:'Teste fictício'})})).status,200);
   assert.equal((await fetch(base+'/admin-api/billing/renew',{method:'POST',headers,body:JSON.stringify({reason:'Teste fictício',confirm:true})})).status,200);
+  assert.deepEqual({...calls[0] as object},{status:'overdue',page:'2'});
   assert.deepEqual(calls[2],['fake',{kind:'account',reason:'Teste fictício'},{id:'actor',email:'fictional@example.test'}]);
  }finally{server.close();await once(server,'close');}
 });
