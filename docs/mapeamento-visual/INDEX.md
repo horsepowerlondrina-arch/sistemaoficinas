@@ -370,6 +370,70 @@ Plano fictício salvo e reaberto: seleção da máquina, repasse e líquido pres
 
 Estado: capturada · mobile · captura 2026-11-01 · commit de origem: 26770cc4da2ccbf9de3620882b0a87066fdce927 · [arquivo completo](./capturas/08-financeiro/ops002-receipt-mobile.png)
 
+### Horse Power — Pagamento misto com taxa repassada
+
+Componente real da versão definitiva com dados fictícios e requisições externas bloqueadas no CI. Não representa transação de produção.
+
+[![Horse Power — Pagamento misto com taxa repassada](./capturas/08-financeiro/hp-financeiro-pass-desktop.png)](./capturas/08-financeiro/hp-financeiro-pass-desktop.png)
+
+Estado: capturada · desktop · captura 2026-11-14 · commit de origem: a07dad78170222e83e10afecc24b294cc95cb2eb · [arquivo completo](./capturas/08-financeiro/hp-financeiro-pass-desktop.png)
+
+### Horse Power — Pagamento misto com taxa repassada
+
+Componente real da versão definitiva com dados fictícios e requisições externas bloqueadas no CI. Não representa transação de produção.
+
+[![Horse Power — Pagamento misto com taxa repassada](./capturas/08-financeiro/hp-financeiro-pass-mobile.png)](./capturas/08-financeiro/hp-financeiro-pass-mobile.png)
+
+Estado: capturada · mobile · captura 2026-11-14 · commit de origem: a07dad78170222e83e10afecc24b294cc95cb2eb · [arquivo completo](./capturas/08-financeiro/hp-financeiro-pass-mobile.png)
+
+### Horse Power — Pagamento misto com taxa e juros separados
+
+Componente real da versão definitiva com dados fictícios e requisições externas bloqueadas no CI. Não representa transação de produção.
+
+[![Horse Power — Pagamento misto com taxa e juros separados](./capturas/08-financeiro/hp-financeiro-pass-interest-desktop.png)](./capturas/08-financeiro/hp-financeiro-pass-interest-desktop.png)
+
+Estado: capturada · desktop · captura 2026-11-14 · commit de origem: a07dad78170222e83e10afecc24b294cc95cb2eb · [arquivo completo](./capturas/08-financeiro/hp-financeiro-pass-interest-desktop.png)
+
+### Horse Power — Pagamento misto com taxa e juros separados
+
+Componente real da versão definitiva com dados fictícios e requisições externas bloqueadas no CI. Não representa transação de produção.
+
+[![Horse Power — Pagamento misto com taxa e juros separados](./capturas/08-financeiro/hp-financeiro-pass-interest-mobile.png)](./capturas/08-financeiro/hp-financeiro-pass-interest-mobile.png)
+
+Estado: capturada · mobile · captura 2026-11-14 · commit de origem: a07dad78170222e83e10afecc24b294cc95cb2eb · [arquivo completo](./capturas/08-financeiro/hp-financeiro-pass-interest-mobile.png)
+
+### Horse Power — Ganhos com custos registrados
+
+Componente real da versão definitiva com dados fictícios e requisições externas bloqueadas no CI. Não representa transação de produção.
+
+[![Horse Power — Ganhos com custos registrados](./capturas/08-financeiro/hp-financeiro-gains-desktop.png)](./capturas/08-financeiro/hp-financeiro-gains-desktop.png)
+
+Estado: capturada · desktop · captura 2026-11-14 · commit de origem: a07dad78170222e83e10afecc24b294cc95cb2eb · [arquivo completo](./capturas/08-financeiro/hp-financeiro-gains-desktop.png)
+
+### Horse Power — Ganhos com custos registrados
+
+Componente real da versão definitiva com dados fictícios e requisições externas bloqueadas no CI. Não representa transação de produção.
+
+[![Horse Power — Ganhos com custos registrados](./capturas/08-financeiro/hp-financeiro-gains-mobile.png)](./capturas/08-financeiro/hp-financeiro-gains-mobile.png)
+
+Estado: capturada · mobile · captura 2026-11-14 · commit de origem: a07dad78170222e83e10afecc24b294cc95cb2eb · [arquivo completo](./capturas/08-financeiro/hp-financeiro-gains-mobile.png)
+
+### Horse Power — Lucro dos serviços com custo próprio
+
+Componente real da versão definitiva com dados fictícios e requisições externas bloqueadas no CI. Não representa transação de produção.
+
+[![Horse Power — Lucro dos serviços com custo próprio](./capturas/08-financeiro/hp-financeiro-services-desktop.png)](./capturas/08-financeiro/hp-financeiro-services-desktop.png)
+
+Estado: capturada · desktop · captura 2026-11-14 · commit de origem: a07dad78170222e83e10afecc24b294cc95cb2eb · [arquivo completo](./capturas/08-financeiro/hp-financeiro-services-desktop.png)
+
+### Horse Power — Lucro dos serviços com custo próprio
+
+Componente real da versão definitiva com dados fictícios e requisições externas bloqueadas no CI. Não representa transação de produção.
+
+[![Horse Power — Lucro dos serviços com custo próprio](./capturas/08-financeiro/hp-financeiro-services-mobile.png)](./capturas/08-financeiro/hp-financeiro-services-mobile.png)
+
+Estado: capturada · mobile · captura 2026-11-14 · commit de origem: a07dad78170222e83e10afecc24b294cc95cb2eb · [arquivo completo](./capturas/08-financeiro/hp-financeiro-services-mobile.png)
+
 ## 09 — Cadastros e serviços
 
 Produtos, serviços, profissionais e tempos.

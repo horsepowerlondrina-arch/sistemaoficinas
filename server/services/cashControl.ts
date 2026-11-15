@@ -87,7 +87,15 @@ export async function cashControl(db: DB, ctx: Context) {
     )
     .get(ctx.tenantId);
   return {
-    accounts,
+    // SUM(bigint) is numeric in PostgreSQL and pg returns numeric as text.
+    // Keep the operational API in integer cents, including zero pending receipts.
+    accounts: accounts.map((account): Row & { balance: number; pending_receipts: number } => {
+      const balance = Number(account.balance);
+      const pendingReceipts = Number(account.pending_receipts);
+      if (!Number.isSafeInteger(balance) || !Number.isSafeInteger(pendingReceipts))
+        throw new Error("Saldo fora do limite monetário seguro.");
+      return { ...account, balance, pending_receipts: pendingReceipts };
+    }),
     movements,
     legacy_count: Number(legacy?.n || 0) + Number(legacyExpenses?.n || 0),
   };
