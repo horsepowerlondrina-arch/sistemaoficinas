@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { configuredRecoveryStore, readRecoveryBackup, uploadRecoveryBackup, verifyRecoveredWorkshop, type RecoveryObjectStore } from "../server/services/workshopRecoveryStorage.js";
 import { createTransferPayload, sealTransferPackage } from "../shared/transferPackage.js";
 
@@ -61,9 +61,12 @@ test("a restauração autenticada confere oficina e inventário do pacote", asyn
   const { store } = memoryStore();
   const tenant = randomUUID();
   const passphrase = "frase ficticia longa para teste";
-  const archive = sealTransferPackage(createTransferPayload("sistemaoficinas", { id: tenant, name: "Oficina Fictícia" }, {
+  const payload=createTransferPayload("sistemaoficinas", { id: tenant, name: "Oficina Fictícia" }, {
     tenant: { id: tenant, name: "Oficina Fictícia" }, users: [], memberships: [], customers: [{ id: randomUUID(), tenant_id: tenant, name: "Cliente Teste" }],
-  }), passphrase);
+  });
+  const tables={workshop_user_access:[],staff_accounts:[],order_assignments:[],discount_requests:[],support_tickets:[],support_messages:[],memberships:[],users:[]};
+  const recovery={version:1,tenantId:tenant,tables,sha256:createHash('sha256').update(JSON.stringify(tables)).digest('hex')};
+  const archive=sealTransferPackage(Object.assign(payload,{recovery}),passphrase);
   const manifest = await uploadRecoveryBackup(store, tenant, randomUUID(), archive);
   const restored = await readRecoveryBackup(store, manifest);
   assert.equal(verifyRecoveredWorkshop(manifest, restored, passphrase).entities.customers?.count, 1);

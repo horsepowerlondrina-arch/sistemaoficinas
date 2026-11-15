@@ -210,15 +210,15 @@ export function verifyRecoveredWorkshop(manifest: RecoveryManifest, archive: Buf
   if (archive.length !== manifest.bytes || sha256(archive) !== manifest.sha256)
     throw new Error("Integridade do backup não confirmada.");
   const payload = openTransferPackage(archive, passphrase);
+  if (payload.source.application !== "sistemaoficinas" || payload.source.tenant.id !== manifest.tenantId ||
+      payload.records.tenant.id !== manifest.tenantId)
+    throw new Error("Backup pertence a outra oficina.");
   const recovery=(payload as RecoveryPayload).recovery;
   if(!recovery || recovery.version!==1 || recovery.tenantId!==manifest.tenantId ||
     !recovery.tables || typeof recovery.tables!=="object" ||
     ![...extraTables,"memberships","users"].every(table=>Array.isArray(recovery.tables[table])) ||
     recovery.sha256!==supplementDigest(recovery.tables))
     throw new Error("Dados complementares do backup inválidos.");
-  if (payload.source.application !== "sistemaoficinas" || payload.source.tenant.id !== manifest.tenantId ||
-      payload.records.tenant.id !== manifest.tenantId)
-    throw new Error("Backup pertence a outra oficina.");
   return { sha256: manifest.sha256, entities: payload.entities,
     supplementalCounts:Object.fromEntries(Object.entries(recovery.tables).map(([name,rows])=>[name,rows.length])) };
 }
