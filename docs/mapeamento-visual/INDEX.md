@@ -20,7 +20,7 @@ Conta fictícia com dois vínculos e perfis independentes.
 
 [![Seleção da oficina ativa](./capturas/01-login-acesso/ops004-office-desktop.png)](./capturas/01-login-acesso/ops004-office-desktop.png)
 
-Estado: capturada · desktop · captura 2026-11-14 · commit de origem: 10ab46c5db3eca34b8947849ab96439d55f650b5 · [arquivo completo](./capturas/01-login-acesso/ops004-office-desktop.png)
+Estado: capturada · desktop · captura 2026-11-15 · commit de origem: 794eeb0f56b2cd13a634812e74945cab86d83690 · [arquivo completo](./capturas/01-login-acesso/ops004-office-desktop.png)
 
 ### Ativação de colaborador
 
@@ -28,7 +28,7 @@ Convite seguro de colaborador; senha e token não aparecem na captura.
 
 [![Ativação de colaborador](./capturas/01-login-acesso/ops004-invite-desktop.png)](./capturas/01-login-acesso/ops004-invite-desktop.png)
 
-Estado: capturada · desktop · captura 2026-11-14 · commit de origem: 10ab46c5db3eca34b8947849ab96439d55f650b5 · [arquivo completo](./capturas/01-login-acesso/ops004-invite-desktop.png)
+Estado: capturada · desktop · captura 2026-11-15 · commit de origem: 794eeb0f56b2cd13a634812e74945cab86d83690 · [arquivo completo](./capturas/01-login-acesso/ops004-invite-desktop.png)
 
 ### Seleção da oficina ativa
 
@@ -36,7 +36,7 @@ Conta fictícia com dois vínculos e perfis independentes.
 
 [![Seleção da oficina ativa](./capturas/01-login-acesso/ops004-office-mobile.png)](./capturas/01-login-acesso/ops004-office-mobile.png)
 
-Estado: capturada · mobile · captura 2026-11-14 · commit de origem: 10ab46c5db3eca34b8947849ab96439d55f650b5 · [arquivo completo](./capturas/01-login-acesso/ops004-office-mobile.png)
+Estado: capturada · mobile · captura 2026-11-15 · commit de origem: 794eeb0f56b2cd13a634812e74945cab86d83690 · [arquivo completo](./capturas/01-login-acesso/ops004-office-mobile.png)
 
 ### Ativação de colaborador
 
@@ -44,7 +44,7 @@ Convite seguro de colaborador; senha e token não aparecem na captura.
 
 [![Ativação de colaborador](./capturas/01-login-acesso/ops004-invite-mobile.png)](./capturas/01-login-acesso/ops004-invite-mobile.png)
 
-Estado: capturada · mobile · captura 2026-11-14 · commit de origem: 10ab46c5db3eca34b8947849ab96439d55f650b5 · [arquivo completo](./capturas/01-login-acesso/ops004-invite-mobile.png)
+Estado: capturada · mobile · captura 2026-11-15 · commit de origem: 794eeb0f56b2cd13a634812e74945cab86d83690 · [arquivo completo](./capturas/01-login-acesso/ops004-invite-mobile.png)
 
 ## 02 — Dashboard
 
@@ -340,7 +340,7 @@ Atribuição por OS a funcionário sem login e pedido de aprovação de desconto
 
 [![Equipe e autorizações da OS](./capturas/07-ordens-servico/ops004-order-access-desktop.png)](./capturas/07-ordens-servico/ops004-order-access-desktop.png)
 
-Estado: capturada · desktop · captura 2026-11-14 · commit de origem: 10ab46c5db3eca34b8947849ab96439d55f650b5 · [arquivo completo](./capturas/07-ordens-servico/ops004-order-access-desktop.png)
+Estado: capturada · desktop · captura 2026-11-15 · commit de origem: 794eeb0f56b2cd13a634812e74945cab86d83690 · [arquivo completo](./capturas/07-ordens-servico/ops004-order-access-desktop.png)
 
 ### Equipe e autorizações da OS
 
@@ -348,7 +348,7 @@ Atribuição por OS a funcionário sem login e pedido de aprovação de desconto
 
 [![Equipe e autorizações da OS](./capturas/07-ordens-servico/ops004-order-access-mobile.png)](./capturas/07-ordens-servico/ops004-order-access-mobile.png)
 
-Estado: capturada · mobile · captura 2026-11-14 · commit de origem: 10ab46c5db3eca34b8947849ab96439d55f650b5 · [arquivo completo](./capturas/07-ordens-servico/ops004-order-access-mobile.png)
+Estado: capturada · mobile · captura 2026-11-15 · commit de origem: 794eeb0f56b2cd13a634812e74945cab86d83690 · [arquivo completo](./capturas/07-ordens-servico/ops004-order-access-mobile.png)
 
 ### OS atribuída — perfil Mecânico
 
@@ -356,7 +356,7 @@ Identificação do Mecânico e anos de fabricação/modelo distintos; sem cadast
 
 [![OS atribuída — perfil Mecânico](./capturas/07-ordens-servico/ops004-mechanic-order-desktop.png)](./capturas/07-ordens-servico/ops004-mechanic-order-desktop.png)
 
-Estado: capturada · desktop · captura 2026-11-14 · commit de origem: 10ab46c5db3eca34b8947849ab96439d55f650b5 · [arquivo completo](./capturas/07-ordens-servico/ops004-mechanic-order-desktop.png)
+Estado: capturada · desktop · captura 2026-11-15 · commit de origem: 794eeb0f56b2cd13a634812e74945cab86d83690 · [arquivo completo](./capturas/07-ordens-servico/ops004-mechanic-order-desktop.png)
 
 ### OS atribuída — perfil Mecânico
 
@@ -364,7 +364,7 @@ Identificação do Mecânico e anos de fabricação/modelo distintos; sem cadast
 
 [![OS atribuída — perfil Mecânico](./capturas/07-ordens-servico/ops004-mechanic-order-mobile.png)](./capturas/07-ordens-servico/ops004-mechanic-order-mobile.png)
 
-Estado: capturada · mobile · captura 2026-11-14 · commit de origem: 10ab46c5db3eca34b8947849ab96439d55f650b5 · [arquivo completo](./capturas/07-ordens-servico/ops004-mechanic-order-mobile.png)
+Estado: capturada · mobile · captura 2026-11-15 · commit de origem: 794eeb0f56b2cd13a634812e74945cab86d83690 · [arquivo completo](./capturas/07-ordens-servico/ops004-mechanic-order-mobile.png)
 
 ## 08 — Financeiro
 
@@ -788,7 +788,7 @@ Gestão de acessos e autorizações com dados fictícios em PostgreSQL descartá
 
 [![Usuários, funcionários e vagas](./capturas/14-configuracoes/ops004-users-desktop.png)](./capturas/14-configuracoes/ops004-users-desktop.png)
 
-Estado: capturada · desktop · captura 2026-11-14 · commit de origem: 10ab46c5db3eca34b8947849ab96439d55f650b5 · [arquivo completo](./capturas/14-configuracoes/ops004-users-desktop.png)
+Estado: capturada · desktop · captura 2026-11-15 · commit de origem: 794eeb0f56b2cd13a634812e74945cab86d83690 · [arquivo completo](./capturas/14-configuracoes/ops004-users-desktop.png)
 
 ### Perfil e permissões individuais
 
@@ -796,7 +796,7 @@ Gestão de acessos e autorizações com dados fictícios em PostgreSQL descartá
 
 [![Perfil e permissões individuais](./capturas/14-configuracoes/ops004-permissions-desktop.png)](./capturas/14-configuracoes/ops004-permissions-desktop.png)
 
-Estado: capturada · desktop · captura 2026-11-14 · commit de origem: 10ab46c5db3eca34b8947849ab96439d55f650b5 · [arquivo completo](./capturas/14-configuracoes/ops004-permissions-desktop.png)
+Estado: capturada · desktop · captura 2026-11-15 · commit de origem: 794eeb0f56b2cd13a634812e74945cab86d83690 · [arquivo completo](./capturas/14-configuracoes/ops004-permissions-desktop.png)
 
 ### Funcionário sem login e vínculo opcional
 
@@ -804,7 +804,7 @@ Gestão de acessos e autorizações com dados fictícios em PostgreSQL descartá
 
 [![Funcionário sem login e vínculo opcional](./capturas/14-configuracoes/ops004-staff-desktop.png)](./capturas/14-configuracoes/ops004-staff-desktop.png)
 
-Estado: capturada · desktop · captura 2026-11-14 · commit de origem: 10ab46c5db3eca34b8947849ab96439d55f650b5 · [arquivo completo](./capturas/14-configuracoes/ops004-staff-desktop.png)
+Estado: capturada · desktop · captura 2026-11-15 · commit de origem: 794eeb0f56b2cd13a634812e74945cab86d83690 · [arquivo completo](./capturas/14-configuracoes/ops004-staff-desktop.png)
 
 ### Central interna de aprovações
 
@@ -812,7 +812,7 @@ Gestão de acessos e autorizações com dados fictícios em PostgreSQL descartá
 
 [![Central interna de aprovações](./capturas/14-configuracoes/ops004-approvals-desktop.png)](./capturas/14-configuracoes/ops004-approvals-desktop.png)
 
-Estado: capturada · desktop · captura 2026-11-14 · commit de origem: 10ab46c5db3eca34b8947849ab96439d55f650b5 · [arquivo completo](./capturas/14-configuracoes/ops004-approvals-desktop.png)
+Estado: capturada · desktop · captura 2026-11-15 · commit de origem: 794eeb0f56b2cd13a634812e74945cab86d83690 · [arquivo completo](./capturas/14-configuracoes/ops004-approvals-desktop.png)
 
 ### Usuários, funcionários e vagas
 
@@ -820,7 +820,7 @@ Gestão de acessos e autorizações com dados fictícios em PostgreSQL descartá
 
 [![Usuários, funcionários e vagas](./capturas/14-configuracoes/ops004-users-mobile.png)](./capturas/14-configuracoes/ops004-users-mobile.png)
 
-Estado: capturada · mobile · captura 2026-11-14 · commit de origem: 10ab46c5db3eca34b8947849ab96439d55f650b5 · [arquivo completo](./capturas/14-configuracoes/ops004-users-mobile.png)
+Estado: capturada · mobile · captura 2026-11-15 · commit de origem: 794eeb0f56b2cd13a634812e74945cab86d83690 · [arquivo completo](./capturas/14-configuracoes/ops004-users-mobile.png)
 
 ### Perfil e permissões individuais
 
@@ -828,7 +828,7 @@ Gestão de acessos e autorizações com dados fictícios em PostgreSQL descartá
 
 [![Perfil e permissões individuais](./capturas/14-configuracoes/ops004-permissions-mobile.png)](./capturas/14-configuracoes/ops004-permissions-mobile.png)
 
-Estado: capturada · mobile · captura 2026-11-14 · commit de origem: 10ab46c5db3eca34b8947849ab96439d55f650b5 · [arquivo completo](./capturas/14-configuracoes/ops004-permissions-mobile.png)
+Estado: capturada · mobile · captura 2026-11-15 · commit de origem: 794eeb0f56b2cd13a634812e74945cab86d83690 · [arquivo completo](./capturas/14-configuracoes/ops004-permissions-mobile.png)
 
 ### Funcionário sem login e vínculo opcional
 
@@ -836,7 +836,7 @@ Gestão de acessos e autorizações com dados fictícios em PostgreSQL descartá
 
 [![Funcionário sem login e vínculo opcional](./capturas/14-configuracoes/ops004-staff-mobile.png)](./capturas/14-configuracoes/ops004-staff-mobile.png)
 
-Estado: capturada · mobile · captura 2026-11-14 · commit de origem: 10ab46c5db3eca34b8947849ab96439d55f650b5 · [arquivo completo](./capturas/14-configuracoes/ops004-staff-mobile.png)
+Estado: capturada · mobile · captura 2026-11-15 · commit de origem: 794eeb0f56b2cd13a634812e74945cab86d83690 · [arquivo completo](./capturas/14-configuracoes/ops004-staff-mobile.png)
 
 ### Central interna de aprovações
 
@@ -844,7 +844,7 @@ Gestão de acessos e autorizações com dados fictícios em PostgreSQL descartá
 
 [![Central interna de aprovações](./capturas/14-configuracoes/ops004-approvals-mobile.png)](./capturas/14-configuracoes/ops004-approvals-mobile.png)
 
-Estado: capturada · mobile · captura 2026-11-14 · commit de origem: 10ab46c5db3eca34b8947849ab96439d55f650b5 · [arquivo completo](./capturas/14-configuracoes/ops004-approvals-mobile.png)
+Estado: capturada · mobile · captura 2026-11-15 · commit de origem: 794eeb0f56b2cd13a634812e74945cab86d83690 · [arquivo completo](./capturas/14-configuracoes/ops004-approvals-mobile.png)
 
 ## 15 — Integrações e extensão Chrome
 

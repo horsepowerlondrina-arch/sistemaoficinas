@@ -21,3 +21,11 @@ A leitura dos NOMES das configurações Production encontrou APP_ORIGIN e EXPECT
 CI obrigatório: build, TypeScript, testes gerais, PostgreSQL 17 descartável, concorrência, RLS, revogação, último Master, privacidade, documentos, atribuição e aprovação de descontos, fotos privadas e regressões financeiras/visuais. A suíte de interface OPS-004 usa oficinas fictícias em banco descartável. Capturas da versão portada devem ser revisadas no artefato antes de atualizar os PNGs do catálogo. Nunca capturar dados reais para a biblioteca do GitHub.
 
 Após autorização e publicação: validar por leitura autenticada a conta atual como Master, Configurações → Usuários e funcionários, vagas, equipe/aprovações e preservação das fotos/documentos. Não criar usuários reais, convites, descontos ou movimentações para testar em produção.
+
+## Evidências do PR #196
+
+Código `794eeb0f56b2cd13a634812e74945cab86d83690`: [CI 43672212856](https://github.com/horsepowerlondrina-arch/sistemaoficinas/actions/runs/43672212856) concluído com sucesso. Build, tipos, 382 testes gerais e 44 casos da suíte PostgreSQL 17, além de concorrência/RLS antecipada, regressão financeira adicional, interface real desktop/mobile/tablet, schema limpo e extensão aprovados. A primeira checagem de tipos detectou uma referência a receipt_accounts do fluxo Básico, removida antes desta rodada aprovada; não houve alteração de expectativas.
+
+Mapeamento visual atualizado: 16 PNGs específicos da OPS-004 renovados a partir do artefato ops004-users-interface deste CI, com data e revisão de origem. Índices regenerados, sem substituir as capturas de outras funcionalidades da Horse Power. Evidências adicionais de tablet permanecem no artefato. Nenhuma imagem ou dado real foi usado. A rodada final após as evidências deve ser aprovada antes da liberação.
+
+Para envio, os domínios Resend consultados por metadados mostram osdrive.com.br verificado e apto a enviar; email.oficinahorsepower.com.br ainda não verificado. Pode-se preparar remetente Horse Power em osdrive.com.br com nova chave restrita, sem modificar a chave do OSDrive, somente após autorização específica. Nenhum e-mail real foi enviado.
