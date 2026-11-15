@@ -14,7 +14,7 @@ Este inventário foi feito pela leitura do código e das migrações. Ele não c
 | Catálogo e captura externa | Placa, peças, serviços, preços e identificadores de captura | Importar itens escolhidos | Provedores externos e extensão, quando usados | Aplicabilidade por oficina e contratos dos provedores |
 | Cobrança | Identificadores de cliente, assinatura, pagamento, valores, período e e-mail de faturamento | Contratação e cobrança | Stripe em modo de teste no estado examinado | Prazo fiscal/contábil, passagem para produção e compartilhamento efetivo |
 | Suporte e auditoria | Mensagens, e-mail, oficina, ações e horários | Atendimento, segurança e rastreabilidade | Painel central e oficina | Prazo de retenção e procedimento de acesso/correção |
-| Exportação e backup | Pacote criptografado `.hptx` com registros operacionais e fotos portáteis | Portabilidade e recuperação | PostgreSQL hoje; R2 proposto para cópia antes da exclusão | Chave, acesso, restauração e eliminação após 15 dias |
+| Exportação e backup | Pacote criptografado `.hptx` com registros operacionais e fotos portáteis | Portabilidade e recuperação | PostgreSQL hoje; bucket privado `workshop-recovery-backups` do Supabase Storage criado na homologação em 15/11/2026 | Chave, acesso, restauração e eliminação após 15 dias |
 
 Evidência principal: `supabase/migrations/20261003220749_horse_power_cloud.sql`, `supabase/migrations/20261023000500_platform_workshops.sql`, `server/services/dataTransferExport.ts`, `server/services/checklistPhotoStorage.ts`, `server/services/stripeBilling.ts`, `server/services/workshopActivation.ts` e `server/platformAdminApp.ts`.
 
@@ -40,4 +40,3 @@ Evidência principal: `supabase/migrations/20261003220749_horse_power_cloud.sql`
 6. Testar exportação, restauração, integridade e eliminação de backups, bem como a revogação de links públicos e sessões na exclusão.
 
 Referências: [ANPD — agentes de tratamento](https://www.gov.br/anpd/pt-br/centrais-de-conteudo/materiais-educativos-e-publicacoes/guia-orientativo-para-definicoes-dos-agentes-de-tratamento-de-dados-pessoais-e-do-encarregado), [ANPD — direitos dos titulares](https://www.gov.br/anpd/pt-br/assuntos/titular-de-dados-1/direito-dos-titulares) e [ANPD — término e conservação](https://www.gov.br/anpd/pt-br/acesso-a-informacao/perguntas-frequentes).
-
