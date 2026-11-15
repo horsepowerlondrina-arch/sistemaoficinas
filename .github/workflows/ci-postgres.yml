@@ -62,6 +62,16 @@ jobs:
       - name: Operational financial reports desktop and mobile
         run: node scripts/test-operational-reports-ui.mjs
         timeout-minutes: 3
+      - name: Monthly expenses configuration and pending amount UI
+        run: node scripts/test-monthly-expenses-ui.mjs
+        timeout-minutes: 3
+      - name: Store monthly expenses interface evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: monthly-expenses-ui
+          path: ${{ runner.temp }}/monthly-expenses-ui
+          retention-days: 14
       - name: Mixed payment surcharge and interest snapshots
         run: node scripts/test-financial-ui.mjs
         timeout-minutes: 3

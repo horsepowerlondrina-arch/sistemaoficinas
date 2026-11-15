@@ -1,3 +1,4 @@
+import { expenseAppliesToMonth } from "../../shared/expensePlanning";
 import { NumericInput } from "../components/NumericInput";
 import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
@@ -22,7 +23,9 @@ import {
 export function FinanceNav() {
   return (
     <div className="tabs finance-nav">
-      <NavLink to="/financeiro" end>Contas a pagar</NavLink>
+      <NavLink to="/financeiro" end>
+        Contas a pagar
+      </NavLink>
       <NavLink to="/financeiro/receber">Contas a receber</NavLink>
       <NavLink to="/financeiro/caixa">Caixa</NavLink>
       <NavLink to="/financeiro/pecas">Lucro das peças</NavLink>
@@ -45,7 +48,6 @@ export function Expenses({ cash = false }: { cash?: boolean }) {
   const [editing, setEditing] = useState<Entity | null>(null),
     [paying, setPaying] = useState<Entity | null>(null),
     [template, setTemplate] = useState<Entity | null>(null),
-    [generating, setGenerating] = useState(false),
     [cancel, setCancel] = useState<Entity | null>(null),
     [deletingTemplate, setDeletingTemplate] = useState<Entity | null>(null);
   const load = async () => {
@@ -138,14 +140,18 @@ export function Expenses({ cash = false }: { cash?: boolean }) {
       )}
       <div className="stats-grid three">
         <Stat
-          detail="Conforme o mês selecionado"
+          detail={
+            cash
+              ? "Conforme o mês selecionado"
+              : `${open.filter((p) => p.amount === null).length} conta(s) com valor a informar`
+          }
           label={cash ? "Entradas no período" : "A pagar no período"}
           value={money(
             cash
               ? cashRows
                   .filter((c) => c.signed > 0)
                   .reduce((s, c) => s + c.signed, 0)
-              : open.reduce((s, p) => s + p.amount, 0),
+              : open.reduce((s, p) => s + (p.amount ?? 0), 0),
           )}
           icon={<Wallet size={18} />}
         />
@@ -159,7 +165,7 @@ export function Expenses({ cash = false }: { cash?: boolean }) {
                   .reduce((s, c) => s + c.signed, 0)
               : open
                   .filter((p) => p.due_on < today())
-                  .reduce((s, p) => s + p.amount, 0),
+                  .reduce((s, p) => s + (p.amount ?? 0), 0),
           )}
           icon={<ArrowUpRight size={18} />}
         />
@@ -173,13 +179,15 @@ export function Expenses({ cash = false }: { cash?: boolean }) {
             cash
               ? cashRows.reduce((s, c) => s + c.signed, 0)
               : records.templates
-                  .filter((t) => t.active)
+                  .filter((t) =>
+                    expenseAppliesToMonth(t, month || today().slice(0, 7)),
+                  )
                   .reduce((s, t) => s + (t.amount ?? 0), 0),
           )}
           detail={
             cash
               ? "Não inclui saldo bancário inicial."
-              : "Variáveis sem valor não entram no total."
+              : "Gastos previstos para o mês; valores a informar ficam fora do total."
           }
           icon={<CalendarDays size={18} />}
         />
@@ -193,7 +201,7 @@ export function Expenses({ cash = false }: { cash?: boolean }) {
                 ["overdue", "Vencidas"],
                 ["paid", "Pagas"],
                 ["all", "Todas"],
-                ["templates", "Planejamento"],
+                ["templates", "Planejamento mensal"],
               ].map(([v, l]) => (
                 <button
                   key={v}
@@ -204,14 +212,16 @@ export function Expenses({ cash = false }: { cash?: boolean }) {
                 </button>
               ))}
           </div>
-          <label className="field">
-            <span>Mês</span>
-            <input
-              type="month"
-              value={month}
-              onChange={(e) => setMonth(e.target.value)}
-            />
-          </label>
+          {tab !== "templates" && (
+            <label className="field">
+              <span>Mês</span>
+              <input
+                type="month"
+                value={month}
+                onChange={(e) => setMonth(e.target.value)}
+              />
+            </label>
+          )}
           {!cash && tab !== "templates" && (
             <SearchBox
               value={search}
@@ -255,17 +265,6 @@ export function Expenses({ cash = false }: { cash?: boolean }) {
         ) : tab === "templates" ? (
           <>
             <div className="expense-toolbar">
-              <p className="muted">
-                Importado da planilha. Gere as contas no mês correto para
-                começar a acompanhar os vencimentos. Gerar o mesmo mês novamente
-                não duplica contas.
-              </p>
-              <button
-                className="button primary"
-                onClick={() => setGenerating(true)}
-              >
-                Gerar contas do mês
-              </button>
               <button
                 className="button"
                 onClick={() =>
@@ -313,7 +312,9 @@ export function Expenses({ cash = false }: { cash?: boolean }) {
                       </td>
                       <td>{t.category}</td>
                       <td>
-                        {t.amount === null ? "A informar" : money(t.amount)}
+                        {t.amount === null || t.amount === 0
+                          ? "A informar"
+                          : money(t.amount)}
                       </td>
                       <td>Dia {t.due_day}</td>
                       <td>{t.remaining_months ?? "Recorrente"}</td>
@@ -323,7 +324,10 @@ export function Expenses({ cash = false }: { cash?: boolean }) {
                           onClick={() =>
                             setTemplate({
                               ...t,
-                              amount: t.amount === null ? "" : t.amount / 100,
+                              amount:
+                                t.amount === null || t.amount === 0
+                                  ? ""
+                                  : t.amount / 100,
                             })
                           }
                         >
@@ -368,7 +372,9 @@ export function Expenses({ cash = false }: { cash?: boolean }) {
                         "pt-BR",
                       )}
                     </td>
-                    <td>{money(p.amount)}</td>
+                    <td>
+                      {p.amount === null ? "Valor a informar" : money(p.amount)}
+                    </td>
                     <td>
                       {p.status === "paid"
                         ? "Paga"
@@ -384,13 +390,22 @@ export function Expenses({ cash = false }: { cash?: boolean }) {
                           <button
                             className="button"
                             onClick={() =>
-                              setEditing({ ...p, amount: p.amount / 100 })
+                              setEditing({
+                                ...p,
+                                amount: p.amount === null ? "" : p.amount / 100,
+                              })
                             }
                           >
                             Editar
                           </button>
                           <button
                             className="button primary"
+                            disabled={p.amount === null}
+                            title={
+                              p.amount === null
+                                ? "Edite a conta e informe o valor antes de pagar"
+                                : undefined
+                            }
                             onClick={() =>
                               setPaying({
                                 ...p,
@@ -417,7 +432,7 @@ export function Expenses({ cash = false }: { cash?: boolean }) {
             {!filtered.length && (
               <Empty
                 title="Nenhuma conta neste filtro"
-                description="Cadastre uma conta ou use Planejamento para gerar os gastos do mês."
+                description="Cadastre uma despesa esporádica ou configure os gastos recorrentes no Planejamento mensal."
               />
             )}
           </div>
@@ -437,7 +452,10 @@ export function Expenses({ cash = false }: { cash?: boolean }) {
                     "/payables" + (editing.id ? "/" + editing.id : ""),
                     {
                       ...editing,
-                      amount: Math.round(Number(editing.amount) * 100),
+                      amount:
+                        editing.amount === ""
+                          ? null
+                          : Math.round(Number(editing.amount) * 100),
                     },
                     editing.id ? "PUT" : "POST",
                   ),
@@ -456,7 +474,7 @@ export function Expenses({ cash = false }: { cash?: boolean }) {
               ].map(([k, l]) => (
                 <Field label={l} key={k}>
                   <input
-                    required={k !== "supplier"}
+                    required={k !== "supplier" && k !== "amount"}
                     type={
                       k === "amount"
                         ? "number"
@@ -639,7 +657,7 @@ export function Expenses({ cash = false }: { cash?: boolean }) {
                   }
                 />
               </Field>
-              <Field label="Parcelas restantes (vazio = recorrente)">
+              <Field label="Quantidade de parcelas (vazio = recorrente)">
                 <NumericInput
                   type="number"
                   min="1"
@@ -685,6 +703,14 @@ export function Expenses({ cash = false }: { cash?: boolean }) {
                   }
                 />
               </Field>
+              <Field label="Observações" full>
+                <textarea
+                  value={template.source || ""}
+                  onChange={(e) =>
+                    setTemplate({ ...template, source: e.target.value })
+                  }
+                />
+              </Field>
               <label>
                 <input
                   type="checkbox"
@@ -709,38 +735,6 @@ export function Expenses({ cash = false }: { cash?: boolean }) {
               </button>
             </div>
           </form>
-        </Modal>
-      )}
-      {generating && (
-        <Modal title="Gerar contas do mês" onClose={() => setGenerating(false)}>
-          <div className="modal-body">
-            <Field label="Mês de referência">
-              <input
-                required
-                type="month"
-                value={month}
-                onChange={(e) => setMonth(e.target.value)}
-              />
-            </Field>
-            <p>
-              O primeiro mês gerado será o início das parcelas restantes
-              informadas na planilha. As contas entram em aberto; nenhum
-              pagamento será presumido. Gastos sem valor ficam no planejamento.
-            </p>
-            {error && <p role="alert">{error}</p>}
-          </div>
-          <div className="modal-footer">
-            <button
-              className="button primary"
-              disabled={busy || !month}
-              onClick={async () => {
-                if (await action(() => send("/expenses/generate", { month })))
-                  setGenerating(false);
-              }}
-            >
-              Gerar contas de {month}
-            </button>
-          </div>
         </Modal>
       )}
       {deletingTemplate && (
