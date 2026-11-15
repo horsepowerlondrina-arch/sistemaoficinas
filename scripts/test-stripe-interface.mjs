@@ -50,6 +50,7 @@ try{
  await expect(page.getByRole("alert")).toContainText("libere 3 vagas");
  await page.getByLabel(/Li os valores/).check();
  await expect(page.getByRole("button",{name:"Continuar no Stripe"})).toBeDisabled();
+ await page.screenshot({path:resolve(output,"stripe-downgrade-vagas-desktop.png"),fullPage:true});
  await page.getByLabel("Plano mensal").selectOption(prices[0].id);
  await expect(page.getByRole("button",{name:"Continuar no Stripe"})).toBeDisabled();
  await page.getByLabel(/Li os valores/).check();await expect(page.getByRole("button",{name:"Continuar no Stripe"}).first()).toBeEnabled();
