@@ -5,6 +5,8 @@ import pg from "pg";
 import { adminClient } from "../scripts/local-admin.js";
 import { localDatabaseUrl, platformAdminDatabaseUrl } from "../server/localConfig.js";
 import { sendDueWorkshopRetentionNotices } from "../server/services/workshopRetentionNotices.js";
+import { createLocalDatabase } from "../server/db/local.js";
+import { createVerifiedWorkshopRecoveryBackup, type RecoveryObjectStore } from "../server/services/workshopRecoveryStorage.js";
 
 test("PostgreSQL: retenção fica privada, exige backup verificado e preserva aviso único", async () => {
   const root = adminClient();
@@ -35,6 +37,28 @@ test("PostgreSQL: retenção fica privada, exige backup verificado e preserva av
     await root.query("DELETE FROM horse_power.tenants WHERE id=ANY($1::text[])", [[tenant, other]]);
     await workshop.end(); await admin.end(); await root.end();
   }
+});
+
+test("PostgreSQL: pacote recuperado inclui só os registros da oficina fictícia selecionada", async () => {
+  const root = adminClient();
+  const db = await createLocalDatabase();
+  const tenant = randomUUID(), other = randomUUID(), customer = randomUUID(), otherCustomer = randomUUID();
+  const objects = new Map<string, Buffer>();
+  const store: RecoveryObjectStore = {
+    async put(key, content) { objects.set(key, Buffer.from(content)); },
+    async get(key) { const content = objects.get(key); if (!content) throw new Error("Parte ausente."); return Buffer.from(content); },
+    async remove(keys) { for (const key of keys) objects.delete(key); },
+  };
+  await root.connect();
+  try {
+    await root.query("INSERT INTO horse_power.tenants(id,name) VALUES($1,'Oficina Backup A'),($2,'Oficina Backup B')", [tenant, other]);
+    await root.query("INSERT INTO horse_power.customers(id,tenant_id,name) VALUES($1,$2,'Cliente Teste A'),($3,$4,'Cliente Teste B')", [customer, tenant, otherCustomer, other]);
+    const result = await createVerifiedWorkshopRecoveryBackup(db, store, tenant, randomUUID(), "frase ficticia longa para backup");
+    assert.equal(result.inventory.entities.customers?.count, 1);
+    assert.equal(result.manifest.tenantId, tenant);
+    assert.ok(result.manifest.chunks.length >= 1);
+    assert.ok([...objects.keys()].every(key => key.startsWith(`${tenant}/`)));
+  } finally { await db.close(); await root.end(); }
 });
 
 test("PostgreSQL: aviso do dia 89 é único e não atinge oficina com liberação administrativa", async () => {
