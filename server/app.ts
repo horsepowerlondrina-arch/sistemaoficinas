@@ -789,6 +789,8 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
   });
   app.post("/api/payables/:id/cancel", async (req, res) => {
     const ctx: Context = res.locals.context;
+    await transaction(db, async () => {
+    await db.lockTenantMutations?.(ctx.tenantId);
     const p = await scoped(db, "payables", ctx.tenantId, String(req.params.id));
     if (p.status !== "open")
       throw new Error("Somente contas em aberto podem ser canceladas.");
@@ -798,6 +800,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
       )
       .run(ctx.tenantId, p.id);
     await audit(db, ctx, "expense.cancelled", p.id);
+    });
     res.json({ ok: true });
   });
   app.post("/api/expenses/generate", async (req, res) => {
@@ -831,6 +834,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
         .parse(req.body),
       record = v.request_id || id();
     await transaction(db, async () => {
+      await db.lockTenantMutations?.(ctx.tenantId);
       const existing = await db
         .prepare("SELECT * FROM expense_templates WHERE tenant_id=? AND id=?")
         .get(ctx.tenantId, record);
@@ -884,6 +888,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
     requireAdmin(ctx);
     const v = templateSchema.parse(req.body);
     await transaction(db, async () => {
+      await db.lockTenantMutations?.(ctx.tenantId);
       const p = await scoped(
         db,
         "expense_templates",
@@ -905,7 +910,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
           v.remaining_months === undefined
             ? p.remaining_months
             : v.remaining_months,
-          v.start_month === undefined ? p.start_month : v.start_month,
+          v.start_month ?? p.start_month ?? currentExpenseMonth(),
           v.source ?? p.source,
           v.active,
           ctx.tenantId,
@@ -920,6 +925,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
     const ctx: Context = res.locals.context;
     requireAdmin(ctx);
     await transaction(db, async () => {
+      await db.lockTenantMutations?.(ctx.tenantId);
       const p = await scoped(
         db,
         "expense_templates",
