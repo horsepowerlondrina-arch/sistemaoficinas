@@ -54,11 +54,12 @@ test("Stripe administração: sessão, permissão, detalhes, conciliação e ren
    assert.equal((await fetch(base+path,{headers:{'x-session':'yes'}})).status,403);
   }
   const headers={'x-session':'yes','x-permission':'yes','content-type':'application/json'};
-  assert.equal((await fetch(base+'/admin-api/billing?status=overdue&page=2',{headers})).status,200);
-  assert.equal((await fetch(base+'/admin-api/billing/accounts/fake?page=3',{headers})).status,200);
+  assert.equal((await fetch(base+'/admin-api/billing?status=overdue&page=2&__hp_vercel_path=%2Fapi%2Fadmin-api%2Fbilling&provider_internal=ignored',{headers})).status,200);
+  assert.equal((await fetch(base+'/admin-api/billing/accounts/fake?page=3&provider_internal=ignored',{headers})).status,200);
   assert.equal((await fetch(base+'/admin-api/billing/accounts/fake/reconcile',{method:'POST',headers,body:JSON.stringify({kind:'account',reason:'Teste fictício'})})).status,200);
   assert.equal((await fetch(base+'/admin-api/billing/renew',{method:'POST',headers,body:JSON.stringify({reason:'Teste fictício',confirm:true})})).status,200);
-  assert.deepEqual({...calls[0] as object},{status:'overdue',page:'2'});
+  assert.deepEqual({...calls[0] as object},{search:undefined,status:'overdue',page:'2'});
+  assert.deepEqual(calls[1],['fake',{page:'3'}]);
   assert.deepEqual(calls[2],['fake',{kind:'account',reason:'Teste fictício'},{id:'actor',email:'fictional@example.test'}]);
  }finally{server.close();await once(server,'close');}
 });
