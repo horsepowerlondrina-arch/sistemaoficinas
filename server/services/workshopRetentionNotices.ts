@@ -57,9 +57,11 @@ export async function sendDueWorkshopRetentionNotices(
       if (!activeCase.rowCount) { blocked++; continue; }
       const claimed = await pool.query(`INSERT INTO platform_admin.workshop_retention_notices(tenant_id,coverage_end,days_late,status)
       VALUES($1,$2::date,$3,'reserved')
-      ON CONFLICT (tenant_id,coverage_end,days_late) DO UPDATE SET status='reserved'
+      ON CONFLICT (tenant_id,coverage_end,days_late) DO UPDATE
+        SET status='reserved',reserved_at=now(),last_error_code=NULL
       WHERE platform_admin.workshop_retention_notices.status='failed'
-        AND platform_admin.workshop_retention_notices.reserved_at>now()-interval '24 hours'
+        OR (platform_admin.workshop_retention_notices.status='reserved'
+          AND platform_admin.workshop_retention_notices.reserved_at<now()-interval '15 minutes')
       RETURNING status`, [row.tenant_id, coverage, day]);
       if (!claimed.rowCount) { blocked++; continue; }
       try {

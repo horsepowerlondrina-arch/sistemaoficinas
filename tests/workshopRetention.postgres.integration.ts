@@ -80,6 +80,8 @@ test("PostgreSQL: aviso do dia 89 é único e não atinge oficina com liberaçã
       [trial, granted, `${trial}@example.test`, `${granted}@example.test`]);
     const now = new Date("2026-11-15T15:00:00Z");
     const deliver = async (notice: { tenantId: string; daysLate: number }) => { sent.push(`${notice.tenantId}:${notice.daysLate}`); };
+    await root.query("INSERT INTO platform_admin.workshop_retention_cases(tenant_id,coverage_end) VALUES($1,'2026-08-18')", [trial]);
+    await root.query("INSERT INTO platform_admin.workshop_retention_notices(tenant_id,coverage_end,days_late,status,reserved_at,last_error_code) VALUES($1,'2026-08-18',89,'failed',now()-interval '2 days','delivery_unconfirmed')", [trial]);
     const first = await sendDueWorkshopRetentionNotices(pool, deliver, now);
     const second = await sendDueWorkshopRetentionNotices(pool, deliver, now);
     assert.equal(first.sent, 1);
