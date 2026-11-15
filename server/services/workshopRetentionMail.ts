@@ -11,7 +11,7 @@ export type RetentionNotice = {
   daysLate: NoticeDay;
 };
 
-const emailId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const emailId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function escapeHtml(value: string) {
   return value.replace(/[&<>"']/g, character => ({
