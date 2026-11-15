@@ -4,7 +4,7 @@
 
 ## Quem opera o serviço
 
-O OSDrive é oferecido por **[RAZÃO SOCIAL E CNPJ A CONFIRMAR]**. Pedidos sobre privacidade podem ser encaminhados a **[E-MAIL DE PRIVACIDADE A CONFIRMAR]**. Cada oficina usa o sistema para atender seus clientes e decide quais dados incluir nos cadastros e documentos. As responsabilidades do OSDrive e da oficina para cada tratamento serão detalhadas no contrato e dependem da finalidade efetiva de cada fluxo.
+O OSDrive é oferecido por **[RAZÃO SOCIAL E CNPJ A CONFIRMAR]**. Pedidos sobre privacidade podem ser encaminhados a **[E-MAIL DE PRIVACIDADE EM OSDRIVE.COM.BR, COM RECEBIMENTO A CONFIRMAR]**. Cada oficina usa o sistema para atender seus clientes e decide quais dados incluir nos cadastros e documentos. As responsabilidades do OSDrive e da oficina para cada tratamento serão detalhadas no contrato e dependem da finalidade efetiva de cada fluxo.
 
 ## Quais dados são tratados e por quê
 

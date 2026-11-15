@@ -21,6 +21,7 @@ Evidência principal: `supabase/migrations/20261003220749_horse_power_cloud.sql`
 ## Lacunas a resolver antes da publicação comercial
 
 1. Identificar a pessoa jurídica responsável pelo OSDrive, contato de privacidade e a relação contratual entre OSDrive e cada oficina. A classificação controlador/operador depende de quem decide finalidade e meios essenciais em cada fluxo; não pode ser inferida apenas do esquema do banco.
+   O responsável informou em 15/11/2026 que ainda não tem razão social e CNPJ definidos. O endereço em `osdrive.com.br` também ainda precisa de uma caixa de entrada ou roteamento capaz de receber solicitações; o Resend configurado para envio não comprova recebimento.
 2. Registrar as bases legais e prazos por categoria. Não assumir que a regra de exclusão de 90 dias elimina obrigações fiscais, contábeis ou de preservação de registros de acesso.
 3. Publicar política do OSDrive distinta de `public/privacidade.html`, que hoje cobre apenas o Conector Horse Power.
 4. Oferecer canal e procedimento para pedidos de acesso, correção, portabilidade e eliminação, inclusive para dados de clientes das oficinas.
