@@ -24,7 +24,7 @@ Evidência principal: `supabase/migrations/20261003220749_horse_power_cloud.sql`
 - Os links públicos de documentos têm token, vencimento e revogação. O processo de exclusão precisa revogar os links ativos antes de retirar a oficina.
 - A exportação `.hptx` é criptografada e transforma referências de fotos privadas em conteúdo portátil. A restauração completa e a guarda fora do banco ainda precisam ser testadas para este novo fluxo.
 - Existe página de privacidade da extensão Horse Power, mas ela não descreve o serviço OSDrive. Não foi encontrado no código um aviso/aceite próprio do OSDrive para os novos termos.
-- Não foi confirmado prazo de eliminação para todos os eventos de auditoria, logs técnicos, convites e registros de cobrança. Nem todos podem seguir o prazo de 90 dias dos dados operacionais.
+- O responsável autorizou preservar, após a exclusão operacional, apenas os registros legais mínimos de cobrança e auditoria, isolados da oficina. As categorias, bases legais e prazos de cada registro ainda exigem revisão jurídica; não foi confirmado prazo de eliminação para todos os eventos, logs, convites e cobranças. Nem todos podem seguir o prazo de 90 dias dos dados operacionais.
 - Campos livres de OS, checklists, suporte e documentos podem receber dados pessoais adicionais inseridos pelas oficinas. A análise de schema não permite afirmar quais tipos de dados reais os usuários armazenam neles.
 
 **Conclusão da auditoria de código:** existem controles técnicos de autenticação, escopo por oficina e exportação, mas ainda não há evidência suficiente para afirmar conformidade integral com a LGPD. Os documentos, a governança de pedidos dos titulares, os contratos com prestadores e a retenção por categoria seguem pendentes.

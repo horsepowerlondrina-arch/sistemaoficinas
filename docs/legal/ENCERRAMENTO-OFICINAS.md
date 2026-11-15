@@ -10,6 +10,7 @@ Referência: 15/11/2026, `main` `ff8f1af1`. Este documento **não ativa exclusã
 - Para uma oficina real, gerar pacote `.hptx` criptografado com fotos portáteis, armazená-lo no bucket privado `workshop-recovery-backups` do Supabase Storage e verificar hash, tamanho, inventário e recuperação antes da exclusão. Reter a cópia por 15 dias após a exclusão e removê-la automaticamente. Os bytes ficam no Storage, mas os metadados dos objetos continuam no schema `storage` do PostgreSQL.
 - A oficina de teste só dispensa backup se possuir marcação interna explícita e auditada; nome, domínio do e-mail e plano não bastam para classificá-la.
 - Falha de envio do último aviso, exportação, armazenamento, conferência ou exclusão bloqueia o processo. O acesso permanece somente leitura e o erro é comunicado ao painel.
+- Após a exclusão operacional, preservar somente registros legais mínimos de cobrança e auditoria, isolados da oficina e indisponíveis no acesso operacional. Categorias, base legal e prazos específicos dependem de revisão jurídica; não apagar esses registros automaticamente pelo prazo do backup.
 
 ## Operação segura
 
@@ -17,7 +18,7 @@ O job deve ser idempotente e operar em lotes pequenos. Registrar uma única tent
 
 A exclusão antecipada no painel deverá usar o mesmo mecanismo, com prévia de contagens, justificativa, reautenticação/MFA quando aplicável e confirmação digitando o nome exato da oficina. A ação e seu resultado ficam no histórico central, fora das tabelas excluídas. Não usar a ação de mudar o plano como atalho para excluir.
 
-O usuário escolheu Supabase Storage porque não conseguiu habilitar R2. O bucket privado foi criado em 15/11/2026, sem políticas públicas. O plano gratuito do Supabase limita cada arquivo a 50 MB e inclui 1 GB de Storage; a implementação deve dividir pacotes grandes, verificar capacidade e falhar de forma segura. Não executar a etapa destrutiva até que o acesso do servidor seja configurado, a migração seja aprovada e os testes de backup/restauração com dados fictícios passem.
+O usuário escolheu Supabase Storage porque não conseguiu habilitar R2. O bucket privado foi criado em 15/11/2026, sem políticas públicas. O plano gratuito do Supabase limita cada arquivo a 50 MB e inclui 1 GB de Storage; a implementação deve dividir pacotes grandes, verificar capacidade e falhar de forma segura. A migração das duas tabelas privadas de controle foi aplicada somente na homologação em 15/11/2026, depois do CI completo. As tabelas estavam vazias, com RLS ativo e sem acesso do papel operacional. Isso não ativa avisos nem exclusões. Não executar a etapa destrutiva até concluir o procedimento de remoção, a preservação dos registros legais mínimos, a configuração da frase de backup e os testes de ponta a ponta com dados fictícios.
 
 O adaptador de backup reutiliza a credencial de servidor já configurada para fotos privadas na homologação e exige que a URL corresponda ao projeto `vnclahdnirqlcbamodqy`. Ele recusa o ambiente definitivo da Horse Power. Essa credencial nunca deve chegar ao navegador ou ao manifesto da cópia.
 
