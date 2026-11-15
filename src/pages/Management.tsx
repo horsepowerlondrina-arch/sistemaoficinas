@@ -1,3 +1,5 @@
+import {can} from '../lib/userAccess';
+import {WorkshopUsers} from '../components/WorkshopUsers';
 import { CardMachines, InstallmentInterestSettings } from "../components/CardMachines";
 import { workshopDate } from "../lib/workflow";
 import { NumericInput } from "../components/NumericInput";
@@ -520,13 +522,13 @@ export function Finance() {
 }
 export function Settings() {
   const [params, setParams] = useSearchParams();
-  const tabs = [["oficina","Dados da oficina"],["geral","Taxas e parcelamento"],["servicos","Mão de obra por porte"],["pecas","Lucro de peças e terceiros"],["assinatura","Assinatura e pagamentos"],["conta","Conta"]];
+  const { session, data, refresh, notify } = useApp();
+  const tabs = [["oficina","Dados da oficina"],["geral","Taxas e parcelamento"],["servicos","Mão de obra por porte"],["pecas","Lucro de peças e terceiros"],["assinatura","Assinatura e pagamentos"],["conta","Conta"],["usuarios","Usuários e funcionários"]].filter(([id])=>id==="usuarios"?!!session.access&&can(session,"users.manage"):id==="assinatura"?session.role==="owner":["geral","servicos","pecas"].includes(id)?can(session,id==="geral"?"settings.finance":"settings.manage"):can(session,"settings.view"));
   const requestedTab = params.get("aba");
   const activeTab = tabs.some(([id]) => id === requestedTab) ? requestedTab! : "oficina";
   useEffect(() => {
     if (requestedTab && requestedTab !== activeTab) setParams({aba: activeTab}, {replace: true});
   }, [requestedTab, activeTab, setParams]);
-  const { session, data, refresh, notify } = useApp();
   const financeEnabled = session.modules?.finance !== false;
   return <>
     <PageHeading eyebrow="ADMINISTRAÇÃO" title="Configurações" description="Dados, documentos e regras comerciais da sua oficina." />
@@ -534,6 +536,7 @@ export function Settings() {
       {tabs.map(([id,label]) => <button key={id} type="button" data-settings-tab={id} aria-current={activeTab === id ? "page" : undefined} className={activeTab === id ? "active" : ""} onClick={() => setParams({aba:id})}>{label}</button>)}
     </div>
     {activeTab === "oficina" ? <WorkshopProfile key={session.tenant.id} /> :
+      activeTab === "usuarios" ? <WorkshopUsers/> :
       activeTab === "servicos" ? <LaborRates /> :
       activeTab === "pecas" ? <PartsPricing /> :
       activeTab === "assinatura" ? <WorkshopBilling tenantId={session.tenant.id}/> :

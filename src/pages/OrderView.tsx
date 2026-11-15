@@ -1,3 +1,5 @@
+import {OrderAccessControls} from '../components/OrderAccessControls';
+import {can} from '../lib/userAccess';
 import { VehiclePlate } from "../components/VehiclePlate";
 import { IssuedDocumentActions, IssuedDocumentPreview, IssuedDocumentProvider, PostReceiptActions } from "../components/IssuedDocument";
 import { useState } from "react";
@@ -16,7 +18,8 @@ export function OrderView() {
   const location = useLocation();
   const [postReceiptOpen, setPostReceiptOpen] = useState(Boolean(location.state?.postReceipt));
   const order = data.orders.find((o) => o.id === id);
-  const admin = session.role === "owner";
+  const admin = can(session,"orders.prices");
+  const financeEnabled = session.modules?.finance !== false;
   const [confirm, setConfirm] = useState(""),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
@@ -36,6 +39,13 @@ export function OrderView() {
     ["completed", "Finalizada", "Finalizar a OS, baixar estoque e gerar cobrança."],
     ["cancelled", "Cancelada", "Cancelar o atendimento mantendo o histórico."],
   ] as const;
+  const permittedStatusOptions = statusOptions.filter(([value]) => {
+    if (value === order.status) return false;
+    if (!session.access && session.role !== "owner")
+      return ["open", "working", "ready"].includes(order.status) && ["working", "ready"].includes(value);
+    if (order.status === "quote" && !["quote", "cancelled"].includes(value) && !can(session, "orders.edit")) return false;
+    return can(session, value === "cancelled" ? "orders.admin" : value === "completed" ? "orders.finalize" : (order.status === "completed" || value === "quote") ? "orders.reopen" : "orders.status");
+  });
   const next: Record<string, [string, string]> = {
     quote: ["open", "Aprovar OS"],
     open: ["working", "Iniciar execução"],
@@ -47,8 +57,8 @@ export function OrderView() {
     const value = values.find((item) => item !== undefined && item !== null && String(item).trim() !== "");
     return value === undefined ? "Não informado" : String(value);
   };
-  const manufactureYear = displayValue(vehicle?.year, vehicle?.manufacture_year, vehicle?.year_manufacture, order.manufacture_year, order.year_manufacture);
-  const modelYear = displayValue(vehicle?.model_year, vehicle?.year_model, vehicle?.year, order.model_year, order.year_model, order.year);
+  const manufactureYear = displayValue(vehicle?.year, vehicle?.manufacture_year, vehicle?.year_manufacture, order.vehicle_year, order.manufacture_year, order.year_manufacture);
+  const modelYear = displayValue(vehicle?.model_year, vehicle?.year_model, order.vehicle_model_year, vehicle?.year, order.model_year, order.year_model, order.year, order.vehicle_year);
   const mileage = Number(order.km || 0) || Number(vehicle?.km || 0);
   const mileageLabel = mileage > 0 ? mileage.toLocaleString("pt-BR") + " km" : "Não informado";
   const engineVersion = displayValue(vehicle?.engine, vehicle?.motorization, vehicle?.motor, vehicle?.version, vehicle?.trim, order.engine, order.motorization, order.version);
@@ -126,13 +136,13 @@ export function OrderView() {
               customerPhone={customer?.phone}
             />
           )}
-          {admin && (
+          {permittedStatusOptions.length > 0 && (
             <button className="button" onClick={() => setStatusPicker(true)}>
               Alterar status
             </button>
           )}
           <IssuedDocumentActions includeShare={false} />
-          {admin && editable && (
+          {can(session,"orders.edit") && editable && (
             <button
               className="button"
               onClick={() => navigate(`/ordens/${id}/editar`)}
@@ -140,7 +150,7 @@ export function OrderView() {
               Editar atendimento
             </button>
           )}
-          {action && (admin || ["working", "ready"].includes(action[0])) && (
+          {action && permittedStatusOptions.some(([value])=>value===action[0]) && (
             <button
               className="button primary"
               disabled={busy}
@@ -149,7 +159,7 @@ export function OrderView() {
               {action[1]}
             </button>
           )}
-          {admin && order.status === "completed" && order.receivable_id && (
+          {can(session,"finance.receive") && financeEnabled && order.status === "completed" && order.receivable_id && (
             <button
               className="button primary"
               onClick={() => navigate(`/ordens/${id}/receber`)}
@@ -253,7 +263,7 @@ export function OrderView() {
       <section className="panel work-order-section">
         <div className="section-heading">
           <h2>Observações para a equipe</h2>
-          {order.status !== "quote" && editable && (
+          {can(session,"orders.notes") && order.status !== "quote" && editable && (
             <button
               className="text-button no-print"
               onClick={() => {
@@ -269,7 +279,7 @@ export function OrderView() {
           {order.notes || "Nenhuma observação adicional."}
         </p>
       </section>
-      {admin && editable && (
+      {can(session,"orders.admin") && editable && (
         <button
           className="text-button danger"
           onClick={() => setConfirm("cancelled")}
@@ -278,6 +288,7 @@ export function OrderView() {
         </button>
       )}
       </div>
+      <div className="no-print"><OrderAccessControls orderId={order.id}/></div>
       <IssuedDocumentPreview />
       {postReceiptOpen && <PostReceiptActions order={order} shopName={session.tenant.name} customerPhone={customer?.phone} onDone={finishReceipt} />}
       {statusPicker && (
@@ -287,8 +298,7 @@ export function OrderView() {
           onClose={() => setStatusPicker(false)}
         >
           <div className="modal-body status-choice-list">
-            {statusOptions
-              .filter(([value]) => value !== order.status)
+            {permittedStatusOptions
               .map(([value, label, description]) => (
                 <button
                   type="button"

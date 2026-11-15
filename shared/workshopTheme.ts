@@ -1,4 +1,4 @@
-import { contrastInk, workshopIdentity } from "./workshopIdentity";
+import { contrastInk, workshopIdentity } from "./workshopIdentity.js";
 
 /** CSS tokens scoped to the authenticated workshop shell. */
 export function workshopTheme(shop: Record<string, unknown>) {

@@ -18,7 +18,7 @@ const accessMessages: Record<string, string> = {
   not_installed: "O Catálogo de Tempos ainda não está disponível neste ambiente.",
 };
 
-export function TechnicalServiceCatalog({ enabled, initialQuery = "" }: { enabled: boolean; initialQuery?: string }) {
+export function TechnicalServiceCatalog({ enabled, initialQuery = "", showRates = true }: { enabled: boolean; initialQuery?: string; showRates?: boolean }) {
   const [info, setInfo] = useState<CatalogInfo | null>(null);
   const [accessError, setAccessError] = useState("");
   const [brandQuery, setBrandQuery] = useState("");
@@ -137,7 +137,7 @@ export function TechnicalServiceCatalog({ enabled, initialQuery = "" }: { enable
             <strong>{row.name}</strong>
             <span>Tempo: {minutes > 0 ? `${minutes.toLocaleString("pt-BR")} min` : "não cadastrado"}</span>
             <span>Porte: {porteName}</span>
-            <strong>Mão de obra: {price === null ? "tarifa não configurada" : money(price)}</strong>
+            {showRates && <strong>Mão de obra: {price === null ? "tarifa não configurada" : money(price)}</strong>}
           </div>;
         })}</div>
         <div className="technical-catalog-pagination"><button type="button" className="button" disabled={offset === 0 || loading} onClick={() => setOffset((value) => Math.max(0, value - 50))}>Anterior</button><button type="button" className="button" disabled={!hasMore || loading} onClick={() => setOffset((value) => value + 50)}>Mais serviços</button></div>

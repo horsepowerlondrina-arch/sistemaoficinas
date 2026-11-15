@@ -43,3 +43,13 @@ Este documento consolida as decisões vigentes acordadas para desenvolvimento. U
 ## Planejamento
 
 Decisões funcionais, escopo e prioridade são definidos nas conversas de planejamento correspondentes do ChatGPT. Registrar decisões técnicas neste arquivo e tarefas/estado em `docs/GESTAO-PROJETO.md` e `docs/ESTADO-ATUAL.md`. Não tratar a existência de uma sugestão como aprovação de implementação.
+
+## OPS-004 — Vínculos operacionais e autorização (13/11/2026)
+
+- A conta permanece global em `users`; cada `membership` recebe estado, perfil, escopo e personalizações próprios em `workshop_user_access`. Perfis são modelos, sem alterações compartilhadas entre usuários.
+- Funcionários reutilizam `professionals` e seus IDs históricos. `staff_accounts` guarda habilitação produtiva e vínculo opcional; funcionário sem login não consome vaga.
+- O contexto da sessão identifica a oficina ativa. A API revalida acesso e permissões atuais; os módulos contratados limitam todos os perfis. A administração central mantém autenticação e atribuições separadas.
+- Convites de colaboradores têm finalidade própria, hash, expiração e reserva de vaga. Vagas e Masters são protegidos por trava transacional e triggers; alterações sensíveis exigem confirmação e autenticação recente.
+- Atribuições são por OS, com vários profissionais. A política SQL restritiva complementa a autorização das APIs e a projeção de dados pessoais e financeiros. O vínculo histórico por item permanece compatível e opcional.
+- Aprovações de desconto registram o desconto total, estado de referência, justificativa e decisão, com revalidação monetária e sem autoaprovação. Recebimentos confirmados não são reescritos.
+- As migrações são aditivas e estão somente preparadas na branch. O PR e qualquer aplicação em banco persistente dependem de autorização específica nesta tarefa.
