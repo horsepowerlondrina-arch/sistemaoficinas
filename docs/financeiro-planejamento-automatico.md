@@ -4,7 +4,7 @@ Destino exclusivo: homologação OSDrive, Supabase vnclahdnirqlcbamodqy e Vercel
 
 ## Migração e ativação (exigem autorização específica)
 
-Aplicar a migração 20261115030000_monthly_expenses somente após testes e aprovação. Ela permite valor desconhecido em contas não pagas; os valores, estados e pagamentos existentes são preservados. O mês de geração das contas antigas é inferido do vencimento atual, pois o histórico não armazenava outro mês. Contas antigas já remarcadas devem ser conferidas antes da ativação. A referência passa a ser imutável; remarcar uma conta não autoriza nova geração da mesma competência.
+Aplicar a migração 20261115191614_monthly_expenses somente após testes e aprovação. Ela permite valor desconhecido em contas não pagas; os valores, estados e pagamentos existentes são preservados. O mês de geração das contas antigas é inferido do vencimento atual, pois o histórico não armazenava outro mês. Contas antigas já remarcadas devem ser conferidas antes da ativação. A referência passa a ser imutável; remarcar uma conta não autoriza nova geração da mesma competência.
 
 A função de geração não concede acesso adicional à aplicação e não aceita IDs de oficina ou SQL externo. Executar exclusivamente pelo agendador do banco, sem autenticação pública. Habilitar pg_cron se necessário e, após autorização, agendar:
 
