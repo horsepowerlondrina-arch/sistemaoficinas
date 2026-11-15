@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { readRecoveryBackup, uploadRecoveryBackup, type RecoveryObjectStore } from "../server/services/workshopRecoveryStorage.js";
+import { configuredRecoveryStore, readRecoveryBackup, uploadRecoveryBackup, type RecoveryObjectStore } from "../server/services/workshopRecoveryStorage.js";
 
 function memoryStore() {
   const objects = new Map<string, Buffer>();
@@ -42,4 +42,16 @@ test("identificadores inválidos são recusados antes de tocar no armazenamento"
   const { store, objects } = memoryStore();
   await assert.rejects(uploadRecoveryBackup(store, "outra-oficina", randomUUID(), Buffer.from("x")));
   assert.equal(objects.size, 0);
+});
+
+test("a cópia de recuperação aceita apenas o Storage da homologação com credencial de servidor", () => {
+  const config = {
+    CHECKLIST_STORAGE_ENABLED: "true",
+    CHECKLIST_STORAGE_URL: "https://vnclahdnirqlcbamodqy.supabase.co/",
+    CHECKLIST_STORAGE_SECRET: "segredo-ficticio",
+  };
+  assert.ok(configuredRecoveryStore(config));
+  assert.throws(() => configuredRecoveryStore({ ...config, APP_ENV: "horse_power" }), /não configurado/);
+  assert.throws(() => configuredRecoveryStore({ ...config, CHECKLIST_STORAGE_URL: "https://rvlovjpquozbrsszsxwe.supabase.co/" }), /não configurado/);
+  assert.throws(() => configuredRecoveryStore({ ...config, CHECKLIST_STORAGE_SECRET: "" }), /não configurado/);
 });

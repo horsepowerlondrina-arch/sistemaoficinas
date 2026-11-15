@@ -19,4 +19,6 @@ A exclusão antecipada no painel deverá usar o mesmo mecanismo, com prévia de 
 
 O usuário escolheu Supabase Storage porque não conseguiu habilitar R2. O bucket privado foi criado em 15/11/2026, sem políticas públicas. O plano gratuito do Supabase limita cada arquivo a 50 MB e inclui 1 GB de Storage; a implementação deve dividir pacotes grandes, verificar capacidade e falhar de forma segura. Não executar a etapa destrutiva até que o acesso do servidor seja configurado, a migração seja aprovada e os testes de backup/restauração com dados fictícios passem.
 
+O adaptador de backup reutiliza a credencial de servidor já configurada para fotos privadas na homologação e exige que a URL corresponda ao projeto `vnclahdnirqlcbamodqy`. Ele recusa o ambiente definitivo da Horse Power. Essa credencial nunca deve chegar ao navegador ou ao manifesto da cópia.
+
 O backup de substituição existente em `horse_power.data_transfer_backups` fica no próprio PostgreSQL e expira em 30 dias. Ele não é o armazenamento final deste fluxo. A exportação `.hptx` converte referências das fotos privadas em conteúdo portátil; esta propriedade precisa de teste de restauração antes da exclusão.

@@ -20,6 +20,17 @@ export interface RecoveryObjectStore {
   remove(keys: string[]): Promise<void>;
 }
 
+/** Reuses the already configured server-only checklist credential in homologation. */
+export function configuredRecoveryStore(env: NodeJS.ProcessEnv = process.env): RecoveryObjectStore {
+  if (env.APP_ENV === "horse_power" || env.CHECKLIST_STORAGE_ENABLED !== "true")
+    throw new Error("Armazenamento de recuperação não configurado.");
+  return supabaseRecoveryStore({
+    url: env.CHECKLIST_STORAGE_URL || "",
+    secret: env.CHECKLIST_STORAGE_SECRET || "",
+    project: "vnclahdnirqlcbamodqy",
+  });
+}
+
 /** The server credential stays out of the browser and is never returned in errors. */
 export function supabaseRecoveryStore(config: { url: string; secret: string; project: string; fetchImpl?: typeof fetch }): RecoveryObjectStore {
   const url = new URL(config.url);
