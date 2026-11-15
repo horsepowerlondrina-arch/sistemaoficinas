@@ -162,7 +162,8 @@ export function Payment() {
   const settlementOn = nextBankingDay(saleOn || today());
   const openParts = parts.filter((p) => p.status === "open" && p.method === "Cartão de crédito");
   const creditTotal = openParts.reduce((v,p) => ({gross:v.gross+p.gross,fee:v.fee+p.fee,net:v.net+p.net}),{gross:0,fee:0,net:0});
-  const configuredInterest=parts.length&&parts.every(p=>p.interest_bps!=null)
+  const hasInterestSnapshot=parts.length>0&&parts.every(p=>p.interest_bps!=null);
+  const configuredInterest=hasInterestSnapshot
     ? [...new Set(parts.map(p=>p.method))].reduce((total,method)=>{const group=parts.filter(p=>p.method===method);return total+Math.round(group.reduce((s,p)=>s+Number(p.principal),0)*Number(group[0].interest_bps)/10000);},0)
     : Math.round((r.amount*r.interest_bps)/10000);
   const plan = r.plan_configured
@@ -362,9 +363,9 @@ export function Payment() {
             {[
               ["Subtotal", orderSubtotal || Number(plan.base) + Number(order?.discount || 0)],
               ["Desconto", Number(order?.discount || 0)],
-              ["Taxa repassada", r.method === "Misto" ? parts.reduce((sum, part) => sum + Math.max(0, Number(part.gross) - Number(part.principal) - Number(part.interest)), 0) : plan.surcharge || 0],
+              ["Taxa repassada", r.method === "Misto" && !hasInterestSnapshot ? parts.reduce((sum, part) => sum + Math.max(0, Number(part.gross) - Number(part.principal) - Number(part.interest)), 0) : plan.surcharge || 0],
               ["Total a receber", plan.gross],
-              ["Juros do parcelamento", r.method === "Misto" ? parts.reduce((sum, part) => sum + Number(part.interest || 0), 0) : plan.interest],
+              ["Juros do parcelamento", r.method === "Misto" && !hasInterestSnapshot ? parts.reduce((sum, part) => sum + Number(part.interest || 0), 0) : plan.interest],
               ["Taxa da oficina", plan.fee],
               ["Líquido da oficina", plan.net],
             ].map(([label, value]) => (

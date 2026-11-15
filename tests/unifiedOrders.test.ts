@@ -79,7 +79,7 @@ test("paid OS cannot be reopened; failed transition preserves stock and financia
     db.prepare("UPDATE receivables SET status='paid' WHERE tenant_id='a' AND order_id=?").run(record);
     await assert.rejects(
       transitionOrder(db, owner, record, "open"),
-      /recebimento confirmado/,
+      /O estorno desses recebimentos ainda não está disponível no Financeiro/,
     );
     assert.equal((await listOrders(db, "a"))[0].status, "completed");
     assert.equal(db.prepare("SELECT stock FROM catalog").get()!.stock, 4);
