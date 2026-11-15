@@ -1,0 +1,45 @@
+name: Checklist private storage controlled batch
+on:
+  workflow_dispatch:
+    inputs:
+      tenant_id:
+        description: Identificador da oficina fictícia de homologação autorizada
+        required: true
+      operation:
+        type: choice
+        options: [migrate, cleanup]
+        default: migrate
+      apply:
+        type: boolean
+        description: Aplicar somente após autorização específica
+        default: false
+      offset:
+        description: Página de limpeza (0 para início)
+        default: '0'
+permissions:
+  contents: read
+concurrency:
+  group: checklist-storage-homologacao
+  cancel-in-progress: false
+jobs:
+  batch:
+    environment: checklist-storage-homologacao
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx tsx scripts/checklist-photo-storage.ts
+        env:
+          PHOTO_DATABASE_URL: ${{ secrets.PHOTO_DATABASE_URL }}
+          CHECKLIST_STORAGE_SECRET: ${{ secrets.CHECKLIST_STORAGE_SECRET }}
+          CHECKLIST_STORAGE_URL: https://vnclahdnirqlcbamodqy.supabase.co
+          CHECKLIST_STORAGE_ENABLED: 'true'
+          PHOTO_TENANT_ID: ${{ inputs.tenant_id }}
+          PHOTO_OPERATION: ${{ inputs.operation }}
+          PHOTO_APPLY: ${{ inputs.apply }}
+          PHOTO_OFFSET: ${{ inputs.offset }}

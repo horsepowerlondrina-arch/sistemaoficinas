@@ -1,3 +1,4 @@
+import {portablePhotoRow} from "./checklistPhotoStorage.js";
 import { documentLogoBytes } from "../runtimeAssets.js";
 import { vehicleDisplayModel } from "../../shared/vehicleIdentity.js";
 import { createHash, randomUUID } from "node:crypto";
@@ -109,7 +110,8 @@ export async function issueDocument(
    }
   }else{
    const checklist={...entity};
-   const photos=await db.prepare("SELECT id,kind,mime,image_data,created_at FROM checklist_photos WHERE tenant_id=? AND checklist_id=? ORDER BY created_at,id").all(ctx.tenantId,id);
+   const photoRows=await db.prepare("SELECT id,kind,mime,image_data,created_at FROM checklist_photos WHERE tenant_id=? AND checklist_id=? ORDER BY created_at,id").all(ctx.tenantId,id);
+   const photos=await Promise.all(photoRows.map(row=>portablePhotoRow(ctx.tenantId,row)));
    checklist.photos=photos.map(p=>({id:p.id,kind:p.kind,created_at:p.created_at,image_url:"data:"+p.mime+";base64,"+p.image_data}));
    payload.checklist=checklist;
   }

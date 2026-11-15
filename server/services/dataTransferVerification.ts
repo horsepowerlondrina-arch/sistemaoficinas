@@ -1,3 +1,4 @@
+import {portablePhotoRow} from "./checklistPhotoStorage.js";
 import { createHash } from "node:crypto";
 import type { DB } from "../db/transactions.js";
 import {
@@ -150,7 +151,8 @@ async function columnsFor(db: DB, table: string): Promise<Set<string>> {
 }
 async function rowsFor(db: DB, table: TransferTable, tenantId: string, columns: Set<string>): Promise<TransferRow[]> {
   if (!columns.has("tenant_id")) return [];
-  return db.prepare(`SELECT * FROM ${table} WHERE tenant_id=?`).all(tenantId);
+  const rows=await db.prepare(`SELECT * FROM ${table} WHERE tenant_id=?`).all(tenantId);
+  return table==="checklist_photos"?Promise.all(rows.map(row=>portablePhotoRow(tenantId,row))):rows;
 }
 function findByUniqueKeys(table: TransferTable, source: TransferRow, candidates: TransferRow[]): TransferRow[] {
   const keys = UNIQUE_FIELDS[table] || [];

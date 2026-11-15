@@ -1,3 +1,4 @@
+import {portablePhotoRow} from "./checklistPhotoStorage.js";
 import type { DB } from "../db/transactions.js";
 import {
   createTransferPayload,
@@ -30,7 +31,8 @@ export async function createWorkshopTransfer(db: DB, tenantId: string, passphras
     const columns = await db.prepare("SELECT column_name FROM information_schema.columns WHERE table_schema='horse_power' AND table_name=?").all(table);
     if (!columns.length || !columns.some((column) => column.column_name === "tenant_id")) continue;
     const rows = await db.prepare(`SELECT * FROM ${table} WHERE tenant_id=?`).all(tenantId);
-    records[table] = rows.map(safeRecord).sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)));
+    const portable=table==="checklist_photos"?await Promise.all(rows.map(row=>portablePhotoRow(tenantId,row))):rows;
+    records[table] = portable.map(safeRecord).sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)));
   }
   return sealTransferPackage(createTransferPayload("sistemaoficinas", { id: tenantId, name: String(tenantRow.name || "Oficina") }, records, now.toISOString()), passphrase);
 }
