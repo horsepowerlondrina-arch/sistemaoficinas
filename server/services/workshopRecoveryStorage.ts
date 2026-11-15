@@ -1,4 +1,7 @@
 import { createHash } from "node:crypto";
+import { openTransferPackage } from "../../shared/transferPackage.js";
+import type { DB } from "../db/transactions.js";
+import { createWorkshopTransfer } from "./dataTransferExport.js";
 
 const bucket = "workshop-recovery-backups";
 const chunkBytes = 4_000_000;
@@ -110,4 +113,32 @@ export async function readRecoveryBackup(store: RecoveryObjectStore, manifest: R
   const archive = Buffer.concat(contents);
   if (archive.length !== manifest.bytes || sha256(archive) !== manifest.sha256) throw new Error("Integridade do backup não confirmada.");
   return archive;
+}
+
+/** A complete decrypt/manifest check must succeed before a backup is marked usable. */
+export function verifyRecoveredWorkshop(manifest: RecoveryManifest, archive: Buffer, passphrase: string) {
+  if (archive.length !== manifest.bytes || sha256(archive) !== manifest.sha256)
+    throw new Error("Integridade do backup não confirmada.");
+  const payload = openTransferPackage(archive, passphrase);
+  if (payload.source.application !== "sistemaoficinas" || payload.source.tenant.id !== manifest.tenantId ||
+      payload.records.tenant.id !== manifest.tenantId)
+    throw new Error("Backup pertence a outra oficina.");
+  return { sha256: manifest.sha256, entities: payload.entities };
+}
+
+/** Reads only the selected tenant and leaves no verified marker on a failed restore. */
+export async function createVerifiedWorkshopRecoveryBackup(
+  db: DB, store: RecoveryObjectStore, tenantId: string, backupId: string, passphrase: string,
+) {
+  if (!db.withTenantRead) throw new Error("A exportação exige contexto de oficina com RLS.");
+  const archive = await db.withTenantRead(tenantId, () => createWorkshopTransfer(db, tenantId, passphrase));
+  const manifest = await uploadRecoveryBackup(store, tenantId, backupId, archive);
+  try {
+    const restored = await readRecoveryBackup(store, manifest);
+    const inventory = verifyRecoveredWorkshop(manifest, restored, passphrase);
+    return { manifest, inventory };
+  } catch (error) {
+    await store.remove(manifest.chunks.map(part => part.key)).catch(() => {});
+    throw error;
+  }
 }

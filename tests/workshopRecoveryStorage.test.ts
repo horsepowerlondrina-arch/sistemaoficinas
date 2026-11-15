@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { configuredRecoveryStore, readRecoveryBackup, uploadRecoveryBackup, type RecoveryObjectStore } from "../server/services/workshopRecoveryStorage.js";
+import { configuredRecoveryStore, readRecoveryBackup, uploadRecoveryBackup, verifyRecoveredWorkshop, type RecoveryObjectStore } from "../server/services/workshopRecoveryStorage.js";
+import { createTransferPayload, sealTransferPackage } from "../shared/transferPackage.js";
 
 function memoryStore() {
   const objects = new Map<string, Buffer>();
@@ -54,4 +55,18 @@ test("a cópia de recuperação aceita apenas o Storage da homologação com cre
   assert.throws(() => configuredRecoveryStore({ ...config, APP_ENV: "horse_power" }), /não configurado/);
   assert.throws(() => configuredRecoveryStore({ ...config, CHECKLIST_STORAGE_URL: "https://rvlovjpquozbrsszsxwe.supabase.co/" }), /não configurado/);
   assert.throws(() => configuredRecoveryStore({ ...config, CHECKLIST_STORAGE_SECRET: "" }), /não configurado/);
+});
+
+test("a restauração autenticada confere oficina e inventário do pacote", async () => {
+  const { store } = memoryStore();
+  const tenant = randomUUID();
+  const passphrase = "frase ficticia longa para teste";
+  const archive = sealTransferPackage(createTransferPayload("sistemaoficinas", { id: tenant, name: "Oficina Fictícia" }, {
+    tenant: { id: tenant, name: "Oficina Fictícia" }, users: [], memberships: [], customers: [{ id: randomUUID(), tenant_id: tenant, name: "Cliente Teste" }],
+  }), passphrase);
+  const manifest = await uploadRecoveryBackup(store, tenant, randomUUID(), archive);
+  const restored = await readRecoveryBackup(store, manifest);
+  assert.equal(verifyRecoveredWorkshop(manifest, restored, passphrase).entities.customers?.count, 1);
+  await assert.rejects(async () => verifyRecoveredWorkshop({ ...manifest, tenantId: randomUUID() }, restored, passphrase), /outra oficina/);
+  await assert.rejects(async () => verifyRecoveredWorkshop(manifest, restored, "frase diferente"), /frase|pacote|integridade/i);
 });
