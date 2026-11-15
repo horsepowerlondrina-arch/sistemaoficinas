@@ -1985,8 +1985,8 @@
     {
       "id": "stripe-admin-desktop",
       "module": "17-painel-admin-central",
-      "title": "Preços e assinaturas Stripe",
-      "description": "Componente real em Chromium com API e pagamentos fictícios; não comprova entrega de webhook ou cobrança externa.",
+      "title": "Preços mensais Stripe",
+      "description": "Interface real em Chromium com API e cobranças fictícias; não comprova webhook ou pagamento externo.",
       "route": "/admin",
       "navigation": "Assinaturas e cobranças",
       "driver": "admin-interface",
@@ -1994,10 +1994,10 @@
       "viewport": "desktop",
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/17-painel-admin-central/stripe-admin-desktop.png",
-      "updatedAt": "2026-11-13",
-      "commit": "1a45971dc80ce77954c95612f39891bada77d5b4",
+      "updatedAt": "2026-11-15",
+      "commit": "fbaa9f600ddc61417b22752e8396712ecedaaad6",
       "freshness": "atual",
-      "reason": "Interface real com API fictícia. Regressões de interação aprovadas; backend validado separadamente no CI."
+      "reason": "Teste de busca, paginação, erros, conciliação com justificativa e retomada confirmada; PostgreSQL validado separadamente no CI."
     },
     {
       "id": "stripe-oficina-desktop",
@@ -2549,6 +2549,57 @@
       "freshness": "atual",
       "reason": "",
       "driver": "financial-interface"
+    },
+    {
+      "id": "stripe-admin-subscriptions-desktop",
+      "module": "17-painel-admin-central",
+      "route": "/admin",
+      "navigation": "Assinaturas e cobranças → Assinaturas",
+      "driver": "admin-interface",
+      "kind": "Cobrança",
+      "title": "Assinaturas e processamento de renovações",
+      "description": "Interface real em Chromium com API e cobranças fictícias; não comprova webhook ou pagamento externo.",
+      "viewport": "desktop",
+      "status": "capturada",
+      "image": "docs/mapeamento-visual/capturas/17-painel-admin-central/stripe-admin-subscriptions-desktop.png",
+      "updatedAt": "2026-11-15",
+      "commit": "fbaa9f600ddc61417b22752e8396712ecedaaad6",
+      "freshness": "atual",
+      "reason": "Teste de busca, paginação, erros, conciliação com justificativa e retomada confirmada; PostgreSQL validado separadamente no CI."
+    },
+    {
+      "id": "stripe-admin-details-desktop",
+      "module": "17-painel-admin-central",
+      "route": "/admin",
+      "navigation": "Assinaturas e cobranças → Assinaturas",
+      "driver": "admin-interface",
+      "kind": "Cobrança",
+      "title": "Conferência de cobranças por oficina",
+      "description": "Interface real em Chromium com API e cobranças fictícias; não comprova webhook ou pagamento externo.",
+      "viewport": "desktop",
+      "status": "capturada",
+      "image": "docs/mapeamento-visual/capturas/17-painel-admin-central/stripe-admin-details-desktop.png",
+      "updatedAt": "2026-11-15",
+      "commit": "fbaa9f600ddc61417b22752e8396712ecedaaad6",
+      "freshness": "atual",
+      "reason": "Teste de busca, paginação, erros, conciliação com justificativa e retomada confirmada; PostgreSQL validado separadamente no CI."
+    },
+    {
+      "id": "stripe-admin-details-mobile",
+      "module": "17-painel-admin-central",
+      "route": "/admin",
+      "navigation": "Assinaturas e cobranças → Assinaturas",
+      "driver": "admin-interface",
+      "kind": "Cobrança",
+      "title": "Conferência de cobranças por oficina",
+      "description": "Interface real em Chromium com API e cobranças fictícias; não comprova webhook ou pagamento externo.",
+      "viewport": "mobile",
+      "status": "capturada",
+      "image": "docs/mapeamento-visual/capturas/17-painel-admin-central/stripe-admin-details-mobile.png",
+      "updatedAt": "2026-11-15",
+      "commit": "fbaa9f600ddc61417b22752e8396712ecedaaad6",
+      "freshness": "atual",
+      "reason": "Teste de busca, paginação, erros, conciliação com justificativa e retomada confirmada; PostgreSQL validado separadamente no CI."
     }
   ],
   "flows": [
