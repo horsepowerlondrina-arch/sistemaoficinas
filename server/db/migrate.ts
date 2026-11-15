@@ -34,6 +34,7 @@ export function migrate(db: DatabaseSync) {
     [31, "031-card-machines.sql"],
     [32, "032-password-reset.sql"],
     [33, "033-workshop-users.sql"],
+    [34, "034-monthly-expenses.sql"],
   ] as const) {
     if (db.prepare("SELECT 1 FROM migrations WHERE version=?").get(version))
       continue;

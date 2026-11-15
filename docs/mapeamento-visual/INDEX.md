@@ -498,6 +498,54 @@ Componente real da versão definitiva com dados fictícios e requisições exter
 
 Estado: capturada · mobile · captura 2026-11-14 · commit de origem: a07dad78170222e83e10afecc24b294cc95cb2eb · [arquivo completo](./capturas/08-financeiro/hp-financeiro-services-mobile.png)
 
+### Conta variável com valor a informar
+
+Componente real da Horse Power com dados fictícios e API simulada; pagamento bloqueado até preencher o valor, sem confirmar saída de caixa.
+
+[![Conta variável com valor a informar](./capturas/08-financeiro/monthly-payables-desktop.png)](./capturas/08-financeiro/monthly-payables-desktop.png)
+
+Estado: capturada · desktop · captura 2026-11-15 · commit de origem: 9bfc575c784b77cf424ec8f5f4c5188989ff841e · [arquivo completo](./capturas/08-financeiro/monthly-payables-desktop.png)
+
+### Configuração do planejamento mensal
+
+Componente real da Horse Power com dados fictícios e API simulada; pagamento bloqueado até preencher o valor, sem confirmar saída de caixa.
+
+[![Configuração do planejamento mensal](./capturas/08-financeiro/monthly-planning-desktop.png)](./capturas/08-financeiro/monthly-planning-desktop.png)
+
+Estado: capturada · desktop · captura 2026-11-15 · commit de origem: 9bfc575c784b77cf424ec8f5f4c5188989ff841e · [arquivo completo](./capturas/08-financeiro/monthly-planning-desktop.png)
+
+### Cadastro de gasto recorrente
+
+Componente real da Horse Power com dados fictícios e API simulada; pagamento bloqueado até preencher o valor, sem confirmar saída de caixa.
+
+[![Cadastro de gasto recorrente](./capturas/08-financeiro/monthly-config-desktop.png)](./capturas/08-financeiro/monthly-config-desktop.png)
+
+Estado: capturada · desktop · captura 2026-11-15 · commit de origem: 9bfc575c784b77cf424ec8f5f4c5188989ff841e · [arquivo completo](./capturas/08-financeiro/monthly-config-desktop.png)
+
+### Conta variável com valor a informar
+
+Componente real da Horse Power com dados fictícios e API simulada; pagamento bloqueado até preencher o valor, sem confirmar saída de caixa.
+
+[![Conta variável com valor a informar](./capturas/08-financeiro/monthly-payables-mobile.png)](./capturas/08-financeiro/monthly-payables-mobile.png)
+
+Estado: capturada · mobile · captura 2026-11-15 · commit de origem: 9bfc575c784b77cf424ec8f5f4c5188989ff841e · [arquivo completo](./capturas/08-financeiro/monthly-payables-mobile.png)
+
+### Configuração do planejamento mensal
+
+Componente real da Horse Power com dados fictícios e API simulada; pagamento bloqueado até preencher o valor, sem confirmar saída de caixa.
+
+[![Configuração do planejamento mensal](./capturas/08-financeiro/monthly-planning-mobile.png)](./capturas/08-financeiro/monthly-planning-mobile.png)
+
+Estado: capturada · mobile · captura 2026-11-15 · commit de origem: 9bfc575c784b77cf424ec8f5f4c5188989ff841e · [arquivo completo](./capturas/08-financeiro/monthly-planning-mobile.png)
+
+### Cadastro de gasto recorrente
+
+Componente real da Horse Power com dados fictícios e API simulada; pagamento bloqueado até preencher o valor, sem confirmar saída de caixa.
+
+[![Cadastro de gasto recorrente](./capturas/08-financeiro/monthly-config-mobile.png)](./capturas/08-financeiro/monthly-config-mobile.png)
+
+Estado: capturada · mobile · captura 2026-11-15 · commit de origem: 9bfc575c784b77cf424ec8f5f4c5188989ff841e · [arquivo completo](./capturas/08-financeiro/monthly-config-mobile.png)
+
 ## 09 — Cadastros e serviços
 
 Produtos, serviços, profissionais e tempos.

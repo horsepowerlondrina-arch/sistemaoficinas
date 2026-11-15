@@ -27,7 +27,7 @@ import {
 import { listProductCategories, saveProductCategory, removeProductCategory, validProductCategory } from "./services/productCategories.js";
 import { assertUniqueService } from "./services/serviceCatalog.js";
 import { createProductBatch } from "./services/productBatch.js";
-import { generateExpenses, payExpense } from "./services/expenses.js";
+import { generateExpenses, payExpense, currentExpenseMonth } from "./services/expenses.js";
 import { createShare, readShare } from "./services/sharing.js";
 import {
   addChecklistPhoto,
@@ -682,7 +682,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
     description: name,
     supplier: text,
     category: name,
-    amount: integer.refine((v) => v > 0),
+    amount: integer.refine((v) => v > 0).nullable(),
     due_on: date,
     notes: text,
   });
@@ -709,6 +709,8 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
   });
   app.put("/api/payables/:id", async (req, res) => {
     const ctx: Context = res.locals.context;
+    await transaction(db, async () => {
+    await db.lockTenantMutations?.(ctx.tenantId);
     const p = await scoped(db, "payables", ctx.tenantId, String(req.params.id));
     if (p.status !== "open")
       throw new Error("Somente contas em aberto podem ser editadas.");
@@ -727,7 +729,8 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
         ctx.tenantId,
         p.id,
       );
-    await audit(db, ctx, "expense.updated", p.id);
+    await audit(db, ctx, "expense.updated", p.id, { before: p, after: v });
+    });
     res.json({ ok: true });
   });
   app.post("/api/payables/:id/pay", async (req, res) => {
@@ -750,6 +753,8 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
   });
   app.post("/api/payables/:id/cancel", async (req, res) => {
     const ctx: Context = res.locals.context;
+    await transaction(db, async () => {
+    await db.lockTenantMutations?.(ctx.tenantId);
     const p = await scoped(db, "payables", ctx.tenantId, String(req.params.id));
     if (p.status !== "open")
       throw new Error("Somente contas em aberto podem ser canceladas.");
@@ -759,6 +764,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
       )
       .run(ctx.tenantId, p.id);
     await audit(db, ctx, "expense.cancelled", p.id);
+    });
     res.json({ ok: true });
   });
   app.post("/api/expenses/generate", async (req, res) => {
@@ -772,7 +778,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
     description: name.optional(),
     category: name.optional(),
     supplier: text.optional(),
-    amount: integer.nullable(),
+    amount: integer.refine(v => v > 0).nullable(),
     due_day: z.number().int().min(1).max(31),
     remaining_months: z.number().int().min(1).max(600).nullable().optional(),
     start_month: z
@@ -792,6 +798,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
         .parse(req.body),
       record = v.request_id || id();
     await transaction(db, async () => {
+      await db.lockTenantMutations?.(ctx.tenantId);
       const existing = await db
         .prepare("SELECT * FROM expense_templates WHERE tenant_id=? AND id=?")
         .get(ctx.tenantId, record);
@@ -803,7 +810,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
           amount: v.amount,
           due_day: v.due_day,
           remaining_months: v.remaining_months ?? null,
-          start_month: v.start_month ?? null,
+          start_month: v.start_month ?? currentExpenseMonth(),
           source: v.source || "",
           active: v.active,
         };
@@ -831,11 +838,12 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
           v.amount,
           v.due_day,
           v.remaining_months ?? null,
-          v.start_month ?? null,
+          v.start_month ?? currentExpenseMonth(),
           v.source || "",
           v.active,
         );
       await audit(db, ctx, "expense_template.created", record);
+      await generateExpenses(db, ctx, currentExpenseMonth());
     });
     res.status(201).json({ id: record });
   });
@@ -844,6 +852,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
     requireAdmin(ctx);
     const v = templateSchema.parse(req.body);
     await transaction(db, async () => {
+      await db.lockTenantMutations?.(ctx.tenantId);
       const p = await scoped(
         db,
         "expense_templates",
@@ -851,6 +860,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
         String(req.params.id),
       );
       if (p.deleted_at) throw new Error("Este gasto recorrente foi excluído.");
+      await generateExpenses(db, ctx, currentExpenseMonth());
       await db
         .prepare(
           "UPDATE expense_templates SET description=?,category=?,supplier=?,amount=?,due_day=?,remaining_months=?,start_month=?,source=?,active=? WHERE tenant_id=? AND id=?",
@@ -864,13 +874,14 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
           v.remaining_months === undefined
             ? p.remaining_months
             : v.remaining_months,
-          v.start_month === undefined ? p.start_month : v.start_month,
+          v.start_month ?? p.start_month ?? currentExpenseMonth(),
           v.source ?? p.source,
           v.active,
           ctx.tenantId,
           p.id,
         );
       await audit(db, ctx, "expense_template.updated", p.id);
+      await generateExpenses(db, ctx, currentExpenseMonth());
     });
     res.json({ ok: true });
   });
@@ -878,6 +889,7 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
     const ctx: Context = res.locals.context;
     requireAdmin(ctx);
     await transaction(db, async () => {
+      await db.lockTenantMutations?.(ctx.tenantId);
       const p = await scoped(
         db,
         "expense_templates",
