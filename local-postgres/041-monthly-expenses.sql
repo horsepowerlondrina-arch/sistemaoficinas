@@ -58,4 +58,4 @@ BEGIN
  END LOOP;
  RETURN v_count;
 END $$;
-REVOKE ALL ON FUNCTION horse_power.generate_current_expenses() FROM PUBLIC,anon,authenticated,horse_power_app,hp_platform_admin_app;
+REVOKE ALL ON FUNCTION horse_power.generate_current_expenses() FROM PUBLIC,horse_power_app,hp_platform_admin_app;

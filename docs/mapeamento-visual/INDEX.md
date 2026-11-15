@@ -530,6 +530,54 @@ Componente real de recebimento com dados fictícios e snapshots salvos. Taxa rep
 
 Estado: capturada · mobile · captura 2026-11-14 · commit de origem: 28bfbfc5bcdaf0b21768a2f025de5b2f23430424 · [arquivo completo](./capturas/08-financeiro/financeiro-misto-pass-interest-mobile.png)
 
+### Conta variável com valor a informar
+
+Componente real com dados fictícios e API simulada; pagamento bloqueado até preencher o valor, sem confirmar saída de caixa.
+
+[![Conta variável com valor a informar](./capturas/08-financeiro/monthly-payables-desktop.png)](./capturas/08-financeiro/monthly-payables-desktop.png)
+
+Estado: capturada · desktop · captura 2026-11-15 · commit de origem: 3c5af9c0e3099d28bb33dcd327202680744e1985 · [arquivo completo](./capturas/08-financeiro/monthly-payables-desktop.png)
+
+### Configuração do planejamento mensal
+
+Componente real com dados fictícios e API simulada; pagamento bloqueado até preencher o valor, sem confirmar saída de caixa.
+
+[![Configuração do planejamento mensal](./capturas/08-financeiro/monthly-planning-desktop.png)](./capturas/08-financeiro/monthly-planning-desktop.png)
+
+Estado: capturada · desktop · captura 2026-11-15 · commit de origem: 3c5af9c0e3099d28bb33dcd327202680744e1985 · [arquivo completo](./capturas/08-financeiro/monthly-planning-desktop.png)
+
+### Cadastro de gasto recorrente
+
+Componente real com dados fictícios e API simulada; pagamento bloqueado até preencher o valor, sem confirmar saída de caixa.
+
+[![Cadastro de gasto recorrente](./capturas/08-financeiro/monthly-config-desktop.png)](./capturas/08-financeiro/monthly-config-desktop.png)
+
+Estado: capturada · desktop · captura 2026-11-15 · commit de origem: 3c5af9c0e3099d28bb33dcd327202680744e1985 · [arquivo completo](./capturas/08-financeiro/monthly-config-desktop.png)
+
+### Conta variável com valor a informar
+
+Componente real com dados fictícios e API simulada; pagamento bloqueado até preencher o valor, sem confirmar saída de caixa.
+
+[![Conta variável com valor a informar](./capturas/08-financeiro/monthly-payables-mobile.png)](./capturas/08-financeiro/monthly-payables-mobile.png)
+
+Estado: capturada · mobile · captura 2026-11-15 · commit de origem: 3c5af9c0e3099d28bb33dcd327202680744e1985 · [arquivo completo](./capturas/08-financeiro/monthly-payables-mobile.png)
+
+### Configuração do planejamento mensal
+
+Componente real com dados fictícios e API simulada; pagamento bloqueado até preencher o valor, sem confirmar saída de caixa.
+
+[![Configuração do planejamento mensal](./capturas/08-financeiro/monthly-planning-mobile.png)](./capturas/08-financeiro/monthly-planning-mobile.png)
+
+Estado: capturada · mobile · captura 2026-11-15 · commit de origem: 3c5af9c0e3099d28bb33dcd327202680744e1985 · [arquivo completo](./capturas/08-financeiro/monthly-planning-mobile.png)
+
+### Cadastro de gasto recorrente
+
+Componente real com dados fictícios e API simulada; pagamento bloqueado até preencher o valor, sem confirmar saída de caixa.
+
+[![Cadastro de gasto recorrente](./capturas/08-financeiro/monthly-config-mobile.png)](./capturas/08-financeiro/monthly-config-mobile.png)
+
+Estado: capturada · mobile · captura 2026-11-15 · commit de origem: 3c5af9c0e3099d28bb33dcd327202680744e1985 · [arquivo completo](./capturas/08-financeiro/monthly-config-mobile.png)
+
 ## 09 — Cadastros e serviços
 
 Produtos, serviços, profissionais e tempos.

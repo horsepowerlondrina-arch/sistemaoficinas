@@ -19,6 +19,17 @@ test("PostgreSQL: rotina automática, mês imutável, RLS e conta sem valor", as
       "INSERT INTO horse_power.expense_templates(id,tenant_id,description,category,amount,due_day,start_month) VALUES('monthly-fixture','local-a','Gasto fictício','Variável',NULL,31,$1),('monthly-other','local-b','Outro gasto fictício','Fixo',10001,1,$1)",
       [month],
     );
+    await admin.query(
+      `INSERT INTO platform_admin.workshop_entitlements(tenant_id,module_overrides) VALUES('local-b','{"finance":false}') ON CONFLICT(tenant_id) DO UPDATE SET module_overrides='{"finance":false}'`,
+    );
+    await admin.query(
+      `INSERT INTO horse_power.expense_templates(id,tenant_id,description,category,amount,due_day,start_month,remaining_months,active,deleted_at) VALUES
+      ('monthly-ended','local-a','Encerrado fictício','Fixo',100,1,to_char(to_date($1||'-01','YYYY-MM-DD')-interval '1 month','YYYY-MM'),1,1,NULL),
+      ('monthly-future','local-a','Futuro fictício','Fixo',100,1,to_char(to_date($1||'-01','YYYY-MM-DD')+interval '1 month','YYYY-MM'),NULL,1,NULL),
+      ('monthly-paused','local-a','Pausado fictício','Fixo',100,1,$1,NULL,0,NULL),
+      ('monthly-removed','local-a','Excluído fictício','Fixo',100,1,$1,NULL,1,$1||'-01')`,
+      [month],
+    );
     await admin.query("SELECT horse_power.generate_current_expenses()");
     const a = await admin.query(
       "SELECT * FROM horse_power.payables WHERE template_id='monthly-fixture'",
@@ -27,6 +38,20 @@ test("PostgreSQL: rotina automática, mês imutável, RLS e conta sem valor", as
     assert.equal(a.rows[0].amount, null);
     assert.equal(a.rows[0].generation_month, month);
     assert.equal(a.rows[0].status, "open");
+    const [year, monthNumber] = month.split("-").map(Number);
+    assert.equal(
+      a.rows[0].due_on,
+      month + "-" + new Date(year, monthNumber, 0).getDate(),
+    );
+    assert.equal(
+      (
+        await admin.query(
+          "SELECT count(*)::int n FROM horse_power.payables WHERE template_id IN ('monthly-ended','monthly-future','monthly-paused','monthly-removed','monthly-other')",
+        )
+      ).rows[0].n,
+      0,
+    );
+
     await admin.query(
       "UPDATE horse_power.payables SET due_on='2098-01-01',status='cancelled' WHERE template_id='monthly-fixture'",
     );
