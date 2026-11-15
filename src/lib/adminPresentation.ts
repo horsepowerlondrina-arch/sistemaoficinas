@@ -37,6 +37,7 @@ const actions: Record<string,string> = {
  "admin.workshop.invitation_sent":"Convite enviado", "admin.workshop.invitation_failed":"Falha no envio do convite",
  "admin.workshop.manual_activation_link_created":"Link manual de ativação gerado",
  "admin.workshop.activated":"Ativação concluída",
+ "admin.workshop.invitation.delivery_failed":"Falha no envio do convite",
  "admin.workshop.invitation.created":"Convite de ativação preparado",
  "admin.workshop.invitation.manual_link_created":"Link manual de ativação gerado",
  "admin.workshop.entitlements.updated":"Permissões e limites alterados",

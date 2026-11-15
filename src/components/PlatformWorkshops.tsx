@@ -223,7 +223,7 @@ export function PlatformWorkshops({ canManage, canTransfer, canRequestCritical, 
         {error&&<p role="alert" className="pa-note pa-note--error">{error}</p>}
         {manualActivation.mode === "confirm" ? <>
           <p>Antes de continuar, confirme que verificou fora do sistema a titularidade da oficina e a autorização de quem receberá o link. A pessoa que concluir o fluxo poderá criar o acesso do responsável cadastrado e iniciar o teste grátis.</p>
-          <p>O link não será enviado por e-mail. Ele expira em 72 horas e a geração invalida convites anteriores ainda não utilizados.</p>
+          <p>O link não será enviado por e-mail. Ele expira em 48 horas e a geração invalida convites anteriores ainda não utilizados.</p>
           <label>Como a titularidade foi verificada?
             <select value={verificationMethod} onChange={event => setVerificationMethod(event.target.value as typeof verificationMethod)}>
               <option value="phone">Contato telefônico</option>

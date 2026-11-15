@@ -968,11 +968,11 @@ Estado: capturada · desktop · captura 2026-11-15 · commit de origem: fbaa9f60
 
 ### Monitoramento — falhas por integração
 
-Interface real com dados fictícios; não comprova fluxo autenticado na homologação.
+Monitoramento real com eventos fictícios, incluindo falha no envio de convite; não comprova disponibilidade externa.
 
 [![Monitoramento — falhas por integração](./capturas/17-painel-admin-central/monitoramento-mobile.png)](./capturas/17-painel-admin-central/monitoramento-mobile.png)
 
-Estado: capturada · mobile · captura 2026-11-13 · commit de origem: 1a45971dc80ce77954c95612f39891bada77d5b4 · [arquivo completo](./capturas/17-painel-admin-central/monitoramento-mobile.png)
+Estado: capturada · mobile · captura 2026-11-15 · commit de origem: c70f7882f045ef840f8425161c8cfc5f3a0534c8 · [arquivo completo](./capturas/17-painel-admin-central/monitoramento-mobile.png)
 
 ### Suporte — atualização da conversa (admin, desktop)
 
@@ -1013,6 +1013,22 @@ Interface real em Chromium com API e cobranças fictícias; não comprova webhoo
 [![Conferência de cobranças por oficina](./capturas/17-painel-admin-central/stripe-admin-details-mobile.png)](./capturas/17-painel-admin-central/stripe-admin-details-mobile.png)
 
 Estado: capturada · mobile · captura 2026-11-15 · commit de origem: fbaa9f600ddc61417b22752e8396712ecedaaad6 · [arquivo completo](./capturas/17-painel-admin-central/stripe-admin-details-mobile.png)
+
+### Confirmação do link manual de ativação
+
+Diálogo real com API fictícia: prazo de 48 horas, verificação de titularidade e confirmação obrigatória; nenhum token é exibido.
+
+[![Confirmação do link manual de ativação](./capturas/17-painel-admin-central/oficina-convite-confirmacao-mobile.png)](./capturas/17-painel-admin-central/oficina-convite-confirmacao-mobile.png)
+
+Estado: capturada · mobile · captura 2026-11-15 · commit de origem: c70f7882f045ef840f8425161c8cfc5f3a0534c8 · [arquivo completo](./capturas/17-painel-admin-central/oficina-convite-confirmacao-mobile.png)
+
+### Histórico de falha no envio do convite
+
+Histórico real com evento fictício de falha: descrição compreensível e resultado Falhou, preservando o identificador interno.
+
+[![Histórico de falha no envio do convite](./capturas/17-painel-admin-central/oficina-historico-convites-desktop.png)](./capturas/17-painel-admin-central/oficina-historico-convites-desktop.png)
+
+Estado: capturada · desktop · captura 2026-11-15 · commit de origem: c70f7882f045ef840f8425161c8cfc5f3a0534c8 · [arquivo completo](./capturas/17-painel-admin-central/oficina-historico-convites-desktop.png)
 
 ## 18 — Resultados da oficina
 
