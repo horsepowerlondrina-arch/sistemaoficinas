@@ -20,6 +20,10 @@
     {
       "path": "/api/billing/stripe/renew",
       "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/retention/daily",
+      "schedule": "0 10 * * *"
     }
   ],
   "rewrites": [

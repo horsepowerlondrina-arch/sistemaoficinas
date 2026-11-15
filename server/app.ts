@@ -238,10 +238,11 @@ function requestSecuritySettings(req: express.Request) {
 }
 
 import type { IntegrationFailure } from "./services/integrationMonitoring.js";
-export function createApp(db: DB, platformAdminApp?: express.RequestHandler, passwordResetMailConfig: PasswordResetMailConfig = {}, billing?: StripeBilling, billingPublic?: express.RequestHandler, recordIntegrationFailure?: IntegrationFailure) {
+export function createApp(db: DB, platformAdminApp?: express.RequestHandler, passwordResetMailConfig: PasswordResetMailConfig = {}, billing?: StripeBilling, billingPublic?: express.RequestHandler, recordIntegrationFailure?: IntegrationFailure, retentionPublic?: express.RequestHandler) {
   const app = express();
   app.disable("x-powered-by");
   if (billingPublic) app.use(billingPublic);
+  if (retentionPublic) app.use(retentionPublic);
   app.use("/api/stock-invoices", express.json({ limit: "3mb" }));
   app.use("/api/workshop-profile", express.json({ limit: "512kb" }));
   app.use("/api/admin-api/workshops/:id/data-transfer", express.json({ limit: "4.25mb" }));
