@@ -1,3 +1,4 @@
+import {readPhotoData,storePhotoData} from "./checklistPhotoStorage.js";
 import { z } from "zod";
 import { vehicleDisplayModel } from "../../shared/vehicleIdentity.js";
 import type { Context } from "../auth/session.js";
@@ -548,7 +549,7 @@ export async function addChecklistPhoto(
         checklistId,
         kind,
         mime,
-        data.toString("base64"),
+        await storePhotoData(ctx.tenantId,data,mime),
       );
     await db
       .prepare(
@@ -604,5 +605,5 @@ export async function getChecklistPhoto(
     .get(ctx.tenantId, photoId);
   if (!photo)
     throw Object.assign(new Error("Foto não encontrada."), { status: 404 });
-  return photo;
+  return {...photo,id:photo.id,mime:photo.mime,image_data:(await readPhotoData(ctx.tenantId,String(photo.image_data))).toString("base64")};
 }
