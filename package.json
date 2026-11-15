@@ -26,7 +26,12 @@
     "test:homologation": "node scripts/e2e/run-security.mjs",
     "test:onboarding": "node scripts/e2e/onboarding.mjs",
     "test:operations": "node scripts/e2e/run-operations.mjs",
-    "test:finance": "tsx scripts/e2e/run-financial.ts"
+    "test:finance": "tsx scripts/e2e/run-financial.ts",
+    "dev:homologation": "node --import tsx scripts/dev-homologation.ts",
+    "dev:configure": "node --import tsx scripts/configure-local-homologation.ts",
+    "visual:local:readonly": "node scripts/local-readonly-capture.mjs",
+    "build:cloudflare": "npm run build && npm --prefix cloudflare run build",
+    "test:cloudflare": "node scripts/test-cloudflare.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.6",

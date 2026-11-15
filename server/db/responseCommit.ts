@@ -1,5 +1,5 @@
 import type { NextFunction, Response } from "express";
-import type { DB } from "./database.js";
+import type { DB } from "./transactions.js";
 
 // JSON/buffer responses must not advertise success before PostgreSQL commits.
 export function respondAfterCommit(

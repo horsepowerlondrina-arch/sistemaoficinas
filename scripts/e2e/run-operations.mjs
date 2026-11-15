@@ -2,8 +2,12 @@ import { chromium, expect } from '@playwright/test';
 import { readFileSync, writeFileSync, mkdirSync, lstatSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { HOMOLOGATION } from './isolated-sessions.mjs';
+import { HOMOLOGATION as VERCEL_HOMOLOGATION } from './isolated-sessions.mjs';
 
+const cloudflare = process.env.TEST_OPERATIONAL_TARGET === 'cloudflare';
+if (process.env.TEST_OPERATIONAL_TARGET && !['vercel','cloudflare'].includes(process.env.TEST_OPERATIONAL_TARGET)) throw Error('TARGET_REFUSED');
+const check = expect.configure({ timeout: cloudflare ? 20000 : 5000 });
+const HOMOLOGATION = cloudflare ? 'https://sistema-oficinas-homologacao.osdrive-homologacao.workers.dev' : VERCEL_HOMOLOGATION;
 // Writes are opt-in and restricted to the three fictitious, activated workshops.
 if (process.env.TEST_OPERATIONAL_WRITES !== 'fictitious-homologation-only') throw Error('EXPLICIT_FICTITIOUS_WRITES_REQUIRED');
 const manifestPath = resolve(process.env.TEST_ONBOARDING_FILE || 'data/test-onboarding.json');
@@ -11,11 +15,11 @@ const stat = lstatSync(manifestPath);
 if (!stat.isFile() || stat.isSymbolicLink() || (stat.mode & 0o077) || stat.uid !== process.getuid()) throw Error('PRIVATE_MANIFEST_REQUIRED');
 const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
 const expectedTenants = { basic: '26bb4fc1-276d-411c-b903-1c84c0b77299', professional: '1f866f8e-d6e0-475f-a270-1dae4b2279b1', premium: 'd0a82163-8b22-4ec6-98d4-f5495c386ee2' };
-if (manifest.baseURL !== HOMOLOGATION || manifest.run !== '20261114-autonomo' || manifest.offices.length !== 3) throw Error('FICTITIOUS_MANIFEST_REQUIRED');
+if (manifest.baseURL !== VERCEL_HOMOLOGATION || manifest.run !== '20261114-autonomo' || manifest.offices.length !== 3) throw Error('FICTITIOUS_MANIFEST_REQUIRED');
 for (const office of manifest.offices) if (office.tenantId !== expectedTenants[office.plan] || !office.name.startsWith('Oficina Fictícia Automação ') || office.members[0].profile !== 'master' || !office.members[0].email.endsWith('@testes.osdrive.com.br')) throw Error('FICTITIOUS_MANIFEST_REQUIRED');
-const run = process.env.TEST_OPERATIONAL_RUN || 'operacional-20261114';
+const run = process.env.TEST_OPERATIONAL_RUN || (cloudflare ? 'cf-operacional-20261114' : 'operacional-20261114');
 if (!/^[a-z0-9-]{8,35}$/.test(run)) throw Error('RUN_INVALID');
-const output = resolve(process.env.TEST_OPERATIONAL_OUTPUT || '../relatorios/operacionais-2026-11-14');
+const output = resolve(process.env.TEST_OPERATIONAL_OUTPUT || (cloudflare ? '../relatorios/cloudflare-2026-11-14' : '../relatorios/operacionais-2026-11-14'));
 mkdirSync(output, { recursive: true, mode: 0o700 });
 const statePath = resolve('data', run + '.json');
 let state;
@@ -24,7 +28,7 @@ if (state.run !== run) throw Error('CHECKPOINT_MISMATCH');
 const save = () => writeFileSync(statePath, JSON.stringify(state, null, 2), { mode: 0o600 });
 const report = { environment: HOMOLOGATION, run, startedAt: new Date().toISOString(), offices: [], productionModified: false };
 const day = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
-const browser = await chromium.launch();
+const browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH });
 try {
  for (const office of manifest.offices) {
   const result = { plan: office.plan, checks: [], errors: [], evidence: [] }; report.offices.push(result);
@@ -68,7 +72,7 @@ try {
     await page.getByLabel('Telefone / celular',{exact:true}).fill('00000000000');
     await page.getByLabel('E-mail',{exact:true}).fill(`${office.plan}-${run}@testes.osdrive.com.br`);
     await page.getByLabel('Cadastrar um veículo junto').check();
-    await page.getByPlaceholder('ABC1D23',{exact:true}).fill(['QAT1A11','QAT1A12','QAT1A13'][manifest.offices.indexOf(office)]);
+    await page.getByPlaceholder('ABC1D23',{exact:true}).fill((cloudflare ? ['CFQ1A11','CFQ1A12','CFQ1A13'] : ['QAT1A11','QAT1A12','QAT1A13'])[manifest.offices.indexOf(office)]);
     await page.getByLabel('Marca *',{exact:true}).fill('Marca Fictícia');
     await page.getByLabel('Modelo *',{exact:true}).fill('Modelo Fictício Operacional');
     await page.getByLabel('Ano de fabricação *',{exact:true}).fill('2025');
@@ -76,7 +80,7 @@ try {
     const [r] = await Promise.all([page.waitForResponse(r=>r.url().endsWith('/api/customers-with-vehicle')&&r.request().method()==='POST'),page.getByRole('button',{name:'Salvar cadastro',exact:true}).click()]);
     if (!r.ok()) throw Error('CUSTOMER_UI_SAVE_FAILED');
     const created = await r.json(); s.ids.customer=created.id; s.ids.vehicle=created.vehicle_id; save();
-    await expect(page.getByRole('dialog')).toHaveCount(0); await shot('cliente');
+    await check(page.getByRole('dialog')).toHaveCount(0); await shot('cliente');
    });
    await step('cliente-veiculo-edicao-persistencia', async () => {
     let w=await workspace(); const customer=w.customers.find(c=>c.id===s.ids.customer), vehicle=w.vehicles.find(v=>v.id===s.ids.vehicle);
@@ -132,9 +136,9 @@ try {
     if(saved.total!==19000 || saved.items.length!==2 || saved.discount!==1000 || order.status!=='quote')throw Error('QUOTE_TOTAL_MISMATCH');
     await page.goto(HOMOLOGATION+`/ordens/${s.ids.order}/editar`);
     await page.getByRole('button',{name:'Adicionar produtos e serviços',exact:true}).click();
-    await expect(page.locator('.order-item')).toHaveCount(1);
+    await check(page.locator('.order-item')).toHaveCount(1);
     await page.getByRole('button',{name:'Serviços',exact:true}).click();
-    await expect(page.locator('.order-item')).toHaveCount(1);await shot('orcamento-itens');
+    await check(page.locator('.order-item')).toHaveCount(1);await shot('orcamento-itens');
    });
    await step('os-aprovacao-execucao-finalizacao-interface',async()=>{
     for(const [from,button,to] of [['quote','Aprovar OS','open'],['open','Iniciar execução','working'],['working','Marcar como pronta','ready'],['ready',modules.finance?'Finalizar OS e receber':'Finalizar OS','completed']]){
@@ -186,7 +190,7 @@ try {
     s.ids.expense ||= expenses.payables.find(p=>p.description===`Despesa Fictícia ${run}`)?.id || (await api('POST','/api/payables',{description:`Despesa Fictícia ${run}`,supplier:'Fornecedor Fictício',category:'Teste operacional',amount:2500,due_on:day,notes:'Sem cobrança externa real'})).id;save();
     expenses=await api('GET','/api/expenses');if(expenses.payables.find(p=>p.id===s.ids.expense).status!=='paid')await api('POST',`/api/payables/${s.ids.expense}/pay`,{paid_on:day,method:'Pix',account_id:s.ids.account});
     const cash=await api('GET','/api/cash-control');if(cash.accounts.find(a=>a.id===s.ids.account).balance!==16500)throw Error('CASH_EXPENSE_MISMATCH');
-    await page.goto(HOMOLOGATION+'/financeiro/caixa');await expect(page.getByText(`Caixa Fictício ${run}`,{exact:true}).first()).toBeVisible();await shot('caixa');
+    await page.goto(HOMOLOGATION+'/financeiro/caixa');await check(page.getByText(`Caixa Fictício ${run}`,{exact:true}).first()).toBeVisible();await shot('caixa');
    });
    await step('documentos-historico-travas',async()=>{
     const document=await api('GET',`/api/documents/order/${s.ids.order}?current=1`);if(!JSON.stringify(document).includes('Modelo Fictício Operacional'))throw Error('DOCUMENT_IDENTITY_MISSING');

@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { type DB, transaction } from "../db/database.js";
+import { type DB, transaction } from "../db/transactions.js";
 import { digest, type Context } from "../auth/session.js";
 import { requireAdmin } from "./payments.js";
 import { scoped, audit } from "./workshop.js";

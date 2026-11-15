@@ -3,7 +3,7 @@ import {assertOrderVisible} from './userAccess.js';
 import { z } from "zod";
 import { vehicleDisplayModel } from "../../shared/vehicleIdentity.js";
 import type { Context } from "../auth/session.js";
-import { transaction, type DB } from "../db/database.js";
+import { transaction, type DB } from "../db/transactions.js";
 import { requireAdmin } from "./payments.js";
 import { normalizePlate } from "./vehicleLookup.js";
 import { vehicleFipeFields } from "./vehicleFipeFields.js";

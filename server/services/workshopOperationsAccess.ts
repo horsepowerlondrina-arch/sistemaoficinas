@@ -1,7 +1,7 @@
 import { updateReceivableDiscount } from "./payments.js";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { transaction, type DB } from "../db/database.js";
+import { transaction, type DB } from "../db/transactions.js";
 import type { Context } from "../auth/session.js";
 import { audit, invalidateOrderShares, listOrders } from "./workshop.js";
 import {

@@ -3,7 +3,7 @@ import { timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { BillingConflict, type StripeBilling } from "./services/stripeBilling.js";
 import { verifiedStripeEvent } from "./services/stripeGateway.js";
-import type { DB } from "./db/database.js";
+import type { DB } from "./db/transactions.js";
 import type { Context } from "./auth/session.js";
 export function billingError(error:unknown,res:Response){
  if(error instanceof z.ZodError){res.status(400).json({error:"Confira os campos do pagamento."});return;}

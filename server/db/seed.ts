@@ -1,4 +1,4 @@
-import type { DB } from "./database.js";
+import type { DB } from "./transactions.js";
 import { hashPassword } from "../auth/session.js";
 import { saveOrder, transitionOrder, settle } from "../services/workshop.js";
 export async function seed(db: DB) {

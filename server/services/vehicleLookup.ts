@@ -1,5 +1,5 @@
 import { fipePlacaAllowed, fipePlacaToken, lookupFipePlaca } from "./fipePlaca.js";
-import type { DB } from "../db/database.js";
+import type { DB } from "../db/transactions.js";
 import { z } from "zod";
 type FipeLookup = Awaited<ReturnType<typeof lookupFipePlaca>>;
 const pending = new WeakMap<object, Map<string, Promise<FipeLookup>>>();

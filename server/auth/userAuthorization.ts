@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
-import type { DB } from "../db/database.js";
+import type { DB } from "../db/transactions.js";
 import type { Context } from "./session.js";
 import {
   assertOrderVisible,

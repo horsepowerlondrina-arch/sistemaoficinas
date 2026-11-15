@@ -1,7 +1,8 @@
 import {portablePhotoRow} from "./checklistPhotoStorage.js";
+import { documentLogoBytes } from "../runtimeAssets.js";
 import { vehicleDisplayModel } from "../../shared/vehicleIdentity.js";
 import { createHash, randomUUID } from "node:crypto";
-import { transaction, type DB } from "../db/database.js";
+import { transaction, type DB } from "../db/transactions.js";
 import type { Context } from "../auth/session.js";
 import { requireAdmin } from "./payments.js";
 import { scoped, audit } from "./workshop.js";
@@ -85,8 +86,7 @@ export async function issueDocument(
   const shop=workshopIdentity(shopRow);
   // Capture static legacy logo bytes as part of the artifact, never a mutable file reference.
   if(shop.document_logo==="/brand/icon.jpg"){
-   const {readFileSync}=await import("node:fs");
-   shop.document_logo="data:image/jpeg;base64,"+readFileSync(new URL("../../public/brand/icon.jpg",import.meta.url)).toString("base64");
+   shop.document_logo="data:image/jpeg;base64,"+(await documentLogoBytes()).toString("base64");
   }
   const issuedAt=new Date().toISOString();
   const highest=await db.prepare("SELECT revision FROM document_revisions WHERE tenant_id=? AND kind=? AND entity_id=? ORDER BY revision DESC LIMIT 1").get(ctx.tenantId,kind,id);

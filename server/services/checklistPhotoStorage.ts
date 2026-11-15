@@ -1,6 +1,6 @@
 import {AsyncLocalStorage} from "node:async_hooks";
 import { createHash, randomUUID } from 'node:crypto';
-import type { DB } from '../db/database.js';
+import type { DB } from '../db/transactions.js';
 const prefix = 'private-checklist:v1:';
 const bucket = 'checklist-photos';
 const maxBytes = 1600000;

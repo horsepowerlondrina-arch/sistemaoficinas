@@ -1,3 +1,5 @@
+import { isCloudflareHomologation, cloudflareDatabaseRoles } from "./cloudflarePolicy.js";
+import { assertLocalHomologation } from "./localHomologationConfig.js";
 const productionProject = "cbdwgocofigrdigfgwkp";
 export function isStripeBillingPreview(env: Record<string, string | undefined>) {
   return env.VERCEL_ENV === "preview" &&
@@ -7,6 +9,7 @@ export function isStripeBillingPreview(env: Record<string, string | undefined>) 
 export function assertDevelopmentIsolation(
   env: Record<string, string | undefined>,
 ) {
+  if (env.LOCAL_HOMOLOGATION === "true") { assertLocalHomologation(env); return; }
   const expected = env.EXPECTED_DATABASE_PROJECT;
   if (
     env.APP_ENV !== "development" ||
@@ -28,11 +31,11 @@ export function assertDevelopmentIsolation(
   }
   const direct =
     database.hostname === `db.${expected}.supabase.co` &&
-    decodeURIComponent(database.username) === allowedUser;
+    (isCloudflareHomologation(env) ? cloudflareDatabaseRoles(allowedUser).includes(decodeURIComponent(database.username)) : decodeURIComponent(database.username) === allowedUser);
   const pooled =
     database.hostname.endsWith(".pooler.supabase.com") &&
     database.port === "6543" &&
-    decodeURIComponent(database.username) === `${allowedUser}.${expected}`;
+    (isCloudflareHomologation(env) ? cloudflareDatabaseRoles(allowedUser).some(role => decodeURIComponent(database.username) === `${role}.${expected}`) : decodeURIComponent(database.username) === `${allowedUser}.${expected}`);
   if (
     (!direct && !pooled) ||
     database.pathname !== "/postgres" ||
@@ -60,7 +63,7 @@ export function assertDevelopmentIsolation(
     allowedOrigins.includes(origin.origin) &&
     allowedOrigins.includes("https://sistema-oficinas-homologacao.vercel.app");
   if (
-    (!vercelOnly && !osdriveHomologation) ||
+    (!vercelOnly && !osdriveHomologation && !isCloudflareHomologation(env)) ||
     (env.PUBLIC_ORIGIN && env.PUBLIC_ORIGIN !== origin.origin)
   )
     throw new Error("A homologação exige origens próprias e consistentes.");

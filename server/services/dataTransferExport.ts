@@ -1,5 +1,5 @@
 import {portablePhotoRow} from "./checklistPhotoStorage.js";
-import type { DB } from "../db/database.js";
+import type { DB } from "../db/transactions.js";
 import {
   createTransferPayload,
   sealTransferPackage,

@@ -2,7 +2,7 @@ import {thirdPartyMarkup} from "../../shared/pricing.js";
 import { PORTE_RATE_IDS, porteRateId } from "../../shared/vehiclePorte.js";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import type { DB, Row } from "../db/database.js";
+import type { DB, Row } from "../db/transactions.js";
 import type { Context } from "../auth/session.js";
 import { requireAdmin } from "./payments.js";
 import { getPartsPricing } from "./partsPricing.js";

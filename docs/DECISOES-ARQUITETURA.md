@@ -53,3 +53,9 @@ Decisões funcionais, escopo e prioridade são definidos nas conversas de planej
 - Atribuições são por OS, com vários profissionais. A política SQL restritiva complementa a autorização das APIs e a projeção de dados pessoais e financeiros. O vínculo histórico por item permanece compatível e opcional.
 - Aprovações de desconto registram o desconto total, estado de referência, justificativa e decisão, com revalidação monetária e sem autoaprovação. Recebimentos confirmados não são reescritos.
 - As migrações são aditivas e estão somente preparadas na branch. O PR e qualquer aplicação em banco persistente dependem de autorização específica nesta tarefa.
+
+## INF-010 — Modalidade local e integração sem publicação imediata (14/11/2026)
+
+O desenvolvimento Linux pode usar o Supabase de homologação com conexões restritas e MFA existentes, sem instalar PostgreSQL. GitHub Actions continua no PostgreSQL 17 temporário, sem banco remoto. Duas execuções usam branches, diretórios, portas, perfis de navegador e oficinas fictícias independentes; manutenção remota é sequencial.
+
+Durante o regime consolidado, eventos Git da Vercel ficam pausados por configuração versionada. CI aprovado permite integração na `main` sem publicação imediata; não declarar o commit publicado até conferir o deployment correspondente. A publicação manual consolidada e a retomada do automático são reversíveis e seguem o [manual INF-010](infraestrutura/INF-010-DESENVOLVIMENTO-LOCAL.md). Preservam-se todas as exigências de autorização, segurança e produção; a Horse Power definitiva não é alterada.

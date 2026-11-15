@@ -1,3 +1,4 @@
+import { cloudflareTestTenants } from "../cloudflarePolicy.js";
 import {readUserAccess} from '../services/userAccess.js';
 import {
   randomBytes,
@@ -5,7 +6,7 @@ import {
   timingSafeEqual,
   createHash,
 } from "node:crypto";
-import type { DB } from "../db/database.js";
+import type { DB } from "../db/transactions.js";
 import { tenantAccessDecision } from "./tenantAccess.js";
 import type { Request, Response, NextFunction } from "express";
 import { defaultWorkshopModules } from "../../shared/workshopModules.js";
@@ -39,6 +40,8 @@ export async function startSession(
   userId: string,
   tenantId: string,
 ) {
+  if (process.env.CLOUDFLARE_HOMOLOGATION === "true" && !cloudflareTestTenants.includes(tenantId))
+    throw Object.assign(new Error("A homologação paralela aceita somente as oficinas fictícias reservadas."), { status: 403 });
   const token = randomBytes(32).toString("hex");
   await db
     .prepare("INSERT INTO sessions VALUES(?,?,?,?)")
@@ -64,6 +67,9 @@ export function auth(db: DB) {
     if (!session) {
       res.status(401).json({ error: "Entre na sua conta para continuar." });
       return;
+    }
+    if (process.env.CLOUDFLARE_HOMOLOGATION === "true" && !cloudflareTestTenants.includes(String(session.tenantId))) {
+      res.status(403).json({ error: "A homologação paralela aceita somente as oficinas fictícias reservadas." }); return;
     }
     await db.setRequestIdentity?.(String(session.tenantId), String(session.userId));
     const membership = await db.prepare(

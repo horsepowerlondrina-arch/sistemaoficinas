@@ -1,4 +1,4 @@
-import { transaction, type DB } from "../db/database.js";
+import { transaction, type DB } from "../db/transactions.js";
 import type { Context } from "../auth/session.js";
 import { requireAdmin } from "./payments.js";
 import { scoped, id, audit, type Row } from "./workshop.js";
