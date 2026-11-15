@@ -2549,6 +2549,22 @@
       "freshness": "atual",
       "reason": "",
       "driver": "financial-interface"
+    },
+    {
+      "id": "stripe-downgrade-vagas-desktop",
+      "module": "14-configuracoes",
+      "title": "Vagas necessárias para reduzir o plano",
+      "description": "Oficina Profissional com cinco vagas ocupadas seleciona o Básico. O Master vê quantas vagas liberar antes de pagar.",
+      "route": "/configuracoes?aba=assinatura",
+      "kind": "Configuração",
+      "viewport": "desktop",
+      "status": "capturada",
+      "image": "docs/mapeamento-visual/capturas/14-configuracoes/stripe-downgrade-vagas-desktop.png",
+      "updatedAt": "2026-11-15",
+      "commit": "c23640f177f6377954ae55e77174aa619bbaa3b6",
+      "freshness": "atual",
+      "reason": null,
+      "driver": "stripe-interface"
     }
   ],
   "flows": [
