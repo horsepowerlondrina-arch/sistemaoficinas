@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { randomUUID } from "node:crypto";
 import type { Pool } from "pg";
-import { openTransferPackage } from "../../shared/transferPackage.js";
+import { openTransferPackage, sealTransferPackage, type TransferPayload } from "../../shared/transferPackage.js";
 import type { DB } from "../db/transactions.js";
 import { createWorkshopTransfer } from "./dataTransferExport.js";
 import type { PhotoStore } from "./checklistPhotoStorage.js";
@@ -19,6 +19,28 @@ export type RecoveryManifest = {
   sha256: string;
   chunks: { key: string; bytes: number; sha256: string }[];
 };
+
+type RecoverySupplement = {
+  version: 1;
+  tenantId: string;
+  tables: Record<string, Record<string,unknown>[]>;
+  sha256: string;
+};
+type RecoveryPayload = TransferPayload & { recovery?: RecoverySupplement };
+const extraTables = ["workshop_user_access", "staff_accounts", "order_assignments", "discount_requests", "support_tickets", "support_messages"] as const;
+const supplementDigest = (tables: RecoverySupplement["tables"]) =>
+  createHash("sha256").update(JSON.stringify(tables)).digest("hex");
+
+/** Preserve newer operational relations without exposing credentials or reusable links. */
+async function createRecoveryArchive(db:DB,tenantId:string,passphrase:string,tables:RecoverySupplement["tables"]) {
+  const original=await createWorkshopTransfer(db,tenantId,passphrase);
+  const payload=openTransferPackage(original,passphrase) as RecoveryPayload;
+  if(![...extraTables,"memberships","users"].every(table=>Array.isArray(tables[table])))
+    throw new Error("Dados complementares do backup inválidos.");
+  if(tables.memberships.length!==tables.users.length)throw new Error("Identidades da oficina incompletas; exclusão bloqueada.");
+  payload.recovery={version:1,tenantId,tables,sha256:supplementDigest(tables)};
+  return sealTransferPackage(payload,passphrase);
+}
 
 export interface RecoveryObjectStore {
   put(key: string, content: Buffer): Promise<void>;
@@ -188,18 +210,26 @@ export function verifyRecoveredWorkshop(manifest: RecoveryManifest, archive: Buf
   if (archive.length !== manifest.bytes || sha256(archive) !== manifest.sha256)
     throw new Error("Integridade do backup não confirmada.");
   const payload = openTransferPackage(archive, passphrase);
+  const recovery=(payload as RecoveryPayload).recovery;
+  if(!recovery || recovery.version!==1 || recovery.tenantId!==manifest.tenantId ||
+    !recovery.tables || typeof recovery.tables!=="object" ||
+    ![...extraTables,"memberships","users"].every(table=>Array.isArray(recovery.tables[table])) ||
+    recovery.sha256!==supplementDigest(recovery.tables))
+    throw new Error("Dados complementares do backup inválidos.");
   if (payload.source.application !== "sistemaoficinas" || payload.source.tenant.id !== manifest.tenantId ||
       payload.records.tenant.id !== manifest.tenantId)
     throw new Error("Backup pertence a outra oficina.");
-  return { sha256: manifest.sha256, entities: payload.entities };
+  return { sha256: manifest.sha256, entities: payload.entities,
+    supplementalCounts:Object.fromEntries(Object.entries(recovery.tables).map(([name,rows])=>[name,rows.length])) };
 }
 
 /** Reads only the selected tenant and leaves no verified marker on a failed restore. */
 export async function createVerifiedWorkshopRecoveryBackup(
   db: DB, store: RecoveryObjectStore, tenantId: string, backupId: string, passphrase: string,
+  supplement:RecoverySupplement["tables"],
 ) {
   if (!db.withTenantRead) throw new Error("A exportação exige contexto de oficina com RLS.");
-  const archive = await db.withTenantRead(tenantId, () => createWorkshopTransfer(db, tenantId, passphrase));
+  const archive = await db.withTenantRead(tenantId, () => createRecoveryArchive(db, tenantId, passphrase,supplement));
   const manifest = await uploadRecoveryBackup(store, tenantId, backupId, archive);
   try {
     const restored = await readRecoveryBackup(store, manifest);

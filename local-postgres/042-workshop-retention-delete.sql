@@ -7,6 +7,38 @@ ALTER TABLE platform_admin.workshop_retention_cases
   ADD COLUMN photo_objects_purged_at timestamptz,
   ADD COLUMN processing_until timestamptz;
 
+-- Server-only recovery supplement for operational relations added after the
+-- .hptx transfer format. It excludes passwords, tokens, sessions and links.
+CREATE FUNCTION platform_admin.retention_recovery_supplement(p_tenant text)
+RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog AS $supplement$
+DECLARE
+  result jsonb:='{}'::jsonb;
+  rows jsonb;
+  table_name text;
+  table_schema text;
+BEGIN
+  IF NOT (pg_has_role(session_user,'hp_platform_admin_app','MEMBER') OR current_setting('role',true)='hp_platform_admin_app')
+    OR NOT EXISTS(SELECT 1 FROM platform_admin.workshops WHERE tenant_id=p_tenant) THEN
+    RAISE EXCEPTION 'Operação não autorizada.' USING ERRCODE='42501';
+  END IF;
+  FOREACH table_name IN ARRAY ARRAY['workshop_user_access','staff_accounts','order_assignments',
+    'discount_requests','support_tickets','support_messages'] LOOP
+    table_schema:=CASE WHEN table_name LIKE 'support_%' THEN 'platform_support' ELSE 'horse_power' END;
+    EXECUTE format('SELECT coalesce(jsonb_agg(to_jsonb(x) ORDER BY to_jsonb(x)::text),''[]''::jsonb)
+      FROM %I.%I x WHERE tenant_id=$1',table_schema,table_name) INTO rows USING p_tenant;
+    result:=result||jsonb_build_object(table_name,rows);
+  END LOOP;
+  SELECT coalesce(jsonb_agg(jsonb_build_object('user_id',m.user_id,'tenant_id',m.tenant_id,'role',m.role)
+      ORDER BY m.user_id),'[]'::jsonb) INTO rows FROM horse_power.memberships m WHERE m.tenant_id=p_tenant;
+  result:=result||jsonb_build_object('memberships',rows);
+  SELECT coalesce(jsonb_agg(jsonb_build_object('id',u.id,'name',u.name,'email',u.email)
+      ORDER BY u.id),'[]'::jsonb) INTO rows
+    FROM horse_power.users u JOIN horse_power.memberships m ON m.user_id=u.id WHERE m.tenant_id=p_tenant;
+  RETURN result||jsonb_build_object('users',rows);
+END $supplement$;
+REVOKE ALL ON FUNCTION platform_admin.retention_recovery_supplement(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION platform_admin.retention_recovery_supplement(text) TO hp_platform_admin_app;
+
 -- The two historic guards remain strict for every ordinary request. Only the
 -- restricted administrator invoking retention_delete_workshop may delete the
 -- selected tenant's revisions and final Master in one transaction.

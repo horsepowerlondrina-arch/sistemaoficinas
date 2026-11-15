@@ -65,8 +65,11 @@ test("PostgreSQL: pacote recuperado inclui só os registros da oficina fictícia
   try {
     await root.query("INSERT INTO horse_power.tenants(id,name) VALUES($1,'Oficina Backup A'),($2,'Oficina Backup B')", [tenant, other]);
     await root.query("INSERT INTO horse_power.customers(id,tenant_id,name) VALUES($1,$2,'Cliente Teste A'),($3,$4,'Cliente Teste B')", [customer, tenant, otherCustomer, other]);
-    const result = await createVerifiedWorkshopRecoveryBackup(db, store, tenant, randomUUID(), "frase ficticia longa para backup");
+    const result = await createVerifiedWorkshopRecoveryBackup(db, store, tenant, randomUUID(), "frase ficticia longa para backup",
+      {workshop_user_access:[],staff_accounts:[],order_assignments:[],discount_requests:[],support_tickets:[],support_messages:[],memberships:[],users:[]});
     assert.equal(result.inventory.entities.customers?.count, 1);
+    assert.equal(result.inventory.supplementalCounts.order_assignments,0);
+    assert.equal(result.inventory.supplementalCounts.discount_requests,0);
     assert.equal(result.manifest.tenantId, tenant);
     assert.ok(result.manifest.chunks.length >= 1);
     assert.ok([...objects.keys()].every(key => key.startsWith(`${tenant}/`)));

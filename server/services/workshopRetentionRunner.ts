@@ -49,7 +49,10 @@ export async function processDueWorkshopRetirements(
         manifest=row.backup_manifest;
         verifyRecoveredWorkshop(manifest,await readRecoveryBackup(store,manifest),passphrase);
       }else{
-        const verified=await createVerifiedWorkshopRecoveryBackup(db,store,row.tenant_id,randomUUID(),passphrase);
+        const supplement=await pool.query<{data:Record<string,Record<string,unknown>[]>}>(
+          'SELECT platform_admin.retention_recovery_supplement($1) AS data',[row.tenant_id]);
+        if(!supplement.rows[0]?.data)throw new Error('supplement_unavailable');
+        const verified=await createVerifiedWorkshopRecoveryBackup(db,store,row.tenant_id,randomUUID(),passphrase,supplement.rows[0].data);
         manifest=verified.manifest;
         uploaded=true;
         const saved=await pool.query(`UPDATE platform_admin.workshop_retention_cases

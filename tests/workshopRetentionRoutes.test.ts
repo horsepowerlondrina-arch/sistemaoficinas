@@ -9,6 +9,7 @@ test("retention cron requires a secret and stays disabled by default", async () 
   app.use(workshopRetentionRoutes({} as never,{} as never,{CRON_SECRET:secret,APP_ENV:"development"}));
   const server=app.listen(0,"127.0.0.1");
   try{
+    await new Promise<void>(resolve=>server.once('listening',resolve));
     const address=server.address();
     if(!address || typeof address==="string")throw new Error("Server unavailable");
     const url=`http://127.0.0.1:${address.port}/api/retention/daily`;
