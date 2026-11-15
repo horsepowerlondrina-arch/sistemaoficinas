@@ -89,7 +89,7 @@ export async function cashControl(db: DB, ctx: Context) {
   return {
     // SUM(bigint) is numeric in PostgreSQL and pg returns numeric as text.
     // Keep the operational API in integer cents, including zero pending receipts.
-    accounts: accounts.map((account) => {
+    accounts: accounts.map((account): Row & { balance: number; pending_receipts: number } => {
       const balance = Number(account.balance);
       const pendingReceipts = Number(account.pending_receipts);
       if (!Number.isSafeInteger(balance) || !Number.isSafeInteger(pendingReceipts))
