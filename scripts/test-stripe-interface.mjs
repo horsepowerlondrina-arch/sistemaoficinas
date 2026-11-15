@@ -19,14 +19,23 @@ try{
  const parts=new Intl.DateTimeFormat("en-CA",{timeZone:"America/Sao_Paulo",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date());
  const datePart=type=>parts.find(p=>p.type===type).value;
  const today=`${datePart("year")}-${datePart("month")}-${datePart("day")}`;
- let saves=0,fail=true,cancelled=false,incomplete=false,refreshes=0,early=false;
+ let saves=0,fail=true,cancelled=false,incomplete=false,refreshes=0,early=false,management=false,reconciliations=0,jobRuns=0,failList=false;
+ const tenant="00000000-0000-4000-8000-000000000099";
+ const account={tenant_id:tenant,name:"Oficina Fictícia Cobranças",plan_code:"basic",method:"pix",due_on:today,paid_until:null,managed:true,subscription_status:null,cancel_at_period_end:false};
  await page.route("**/admin-api/billing**",async route=>{
+  const path=new URL(route.request().url()).pathname;
+  if(path.endsWith('/reconcile')){const body=route.request().postDataJSON();if(body.reason.length<10)throw Error('Missing audit reason');reconciliations++;return route.fulfill({json:{ok:true}});}
+  if(path.endsWith('/renew')){const body=route.request().postDataJSON();if(body.confirm!==true||body.reason.length<10)throw Error('Missing job confirmation');jobRuns++;return route.fulfill({json:{completed:28,failed:0,remaining:0,busy:false}});}
+  if(path.includes('/accounts/'))return route.fulfill({json:{account:{...account,amount_cents:500,retry_after:null,has_pending_invoice:false},payments:[{provider_id:'pi_Fictional',method:'pix',amount_cents:500,period_start:today,period_end:today,status:'paid',created_at:new Date().toISOString()}],checkouts:[{id:'reservation-fictional',provider_id:null,method:'pix',status:'pending',due_on:today,period_end:today,created_at:new Date().toISOString(),amount_cents:500,needs_review:true}],page:1,total:1,page_size:25}});
   if(route.request().method()==="POST"){
    if(fail)return route.fulfill({status:503,json:{error:"Falha fictícia temporária"}});
    saves++;const body=route.request().postDataJSON();if(body.amount_cents!==1234)throw Error("Price precision lost");
    return route.fulfill({json:{id:"fixture"}});
   }
-  return route.fulfill({json:{enabled:true,test_mode:true,prices,accounts:[]}});
+  if(failList)return route.fulfill({status:503,json:{error:'Falha fictícia na listagem'}});
+  const q=new URL(route.request().url()).searchParams;
+  const currentPage=Number(q.get('page')||1);
+  return route.fulfill({json:{enabled:true,test_mode:true,prices,accounts:management&&currentPage===1?[account]:[],page:currentPage,total:management?26:0,page_size:25,renewal:management?{created_at:new Date().toISOString(),technical_context:{completed:28,failed:1,remaining:2,duration_ms:1000}}:null}});
  });
  await page.route("**/api/account/billing**",async route=>{
   if(route.request().url().endsWith("/cancel")){if(route.request().postDataJSON().confirm!==true)throw Error("Missing confirmation");cancelled=true;}
@@ -41,6 +50,35 @@ try{
  fail=false;await page.getByRole("button",{name:"Salvar novo preço"}).click();await expect(page.getByRole("status")).toHaveText("Novo preço registrado com auditoria.");
  if(saves!==1)throw Error("Duplicate price submission");
  await page.screenshot({path:resolve(output,"stripe-admin-desktop.png"),fullPage:true});
+ management=true;
+ await page.getByRole('tab',{name:'Assinaturas',exact:true}).click();
+ await expect(page.getByText('Oficina Fictícia Cobranças')).toBeVisible();
+ await page.getByLabel('Buscar oficina').fill('Oficina');await page.getByRole('button',{name:'Buscar',exact:true}).click();
+ await page.getByLabel('Situação', {exact:true}).selectOption('pending');
+ await expect(page.getByText(/28 concluída/)).toBeVisible();
+ await page.getByRole('button',{name:'Próxima',exact:true}).click();await expect(page.getByText('Página 2 · 26 registro(s)')).toBeVisible();
+ await page.getByRole('button',{name:'Anterior',exact:true}).click();
+ failList=true;await page.getByRole('button',{name:'Atualizar',exact:true}).click();await expect(page.getByRole('alert')).toHaveText('Falha fictícia na listagem');
+ failList=false;await page.getByRole('button',{name:'Atualizar',exact:true}).click();await expect(page.getByText('Oficina Fictícia Cobranças')).toBeVisible();
+ await page.screenshot({path:resolve(output,'stripe-admin-subscriptions-desktop.png'),fullPage:true});
+ await page.getByRole('button',{name:'Ver cobranças',exact:true}).click();
+ await expect(page.getByRole('button',{name:'Conferir assinatura',exact:true})).toBeDisabled();
+ await expect(page.getByRole('button',{name:'Conferir tentativa',exact:true})).toBeDisabled();
+ await expect(page.getByText(/Reserva sem confirmação há mais de 23 horas/)).toBeVisible();
+ await page.getByLabel('Justificativa da conferência').fill('Conferência fictícia de pagamento');
+ await page.getByRole('button',{name:'Conferir pagamento',exact:true}).click();
+ await expect(page.getByText(/Conferência concluída com os dados atuais/)).toBeVisible();
+ if(reconciliations!==1)throw Error('Duplicate reconciliation');
+ await page.screenshot({path:resolve(output,'stripe-admin-details-desktop.png'),fullPage:true});
+ await page.setViewportSize({width:390,height:844});await page.screenshot({path:resolve(output,'stripe-admin-details-mobile.png'),fullPage:true});
+ if(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1))throw Error('Admin billing overflows mobile');
+ await page.getByRole('button',{name:'Voltar às assinaturas'}).click();
+ await page.getByText('Retomar rotina de renovação',{exact:true}).click();
+ await expect(page.getByRole('button',{name:'Executar rotina de teste'})).toBeDisabled();
+ await page.getByLabel('Justificativa da rotina').fill('Retomada fictícia da rotina');await page.getByLabel('Confirmo o processamento das renovações de teste.').check();
+ await page.getByRole('button',{name:'Executar rotina de teste'}).click();await expect(page.getByText(/Rotina concluída: 28 conta/)).toBeVisible();
+ if(jobRuns!==1)throw Error('Duplicate job');
+ await page.setViewportSize({width:1400,height:1000});
  await page.goto("http://127.0.0.1:5181/stripe-ui-fixture.html?owner");
  await expect(page.getByLabel("Plano mensal")).toHaveCount(0);
  await expect.poll(()=>refreshes).toBe(1);

@@ -59,7 +59,10 @@ export function stripeAdminRoutes(billing:StripeBilling|undefined,session:Reques
  app.use("/admin-api/billing",session,permission("platform:settings"),(_req,res,next)=>{
   if(!billing){res.status(503).json({error:"A cobrança está desabilitada neste ambiente."});return;}next();
  });
- app.get("/admin-api/billing",async(_req,res)=>{try{res.json(await billing!.overview());}catch(e){billingError(e,res);}});
+ app.get("/admin-api/billing",async(req,res)=>{try{res.json(await billing!.overview(req.query));}catch(e){billingError(e,res);}});
+ app.get("/admin-api/billing/accounts/:tenant",async(req,res)=>{try{res.json(await billing!.details(String(req.params.tenant),req.query));}catch(e){billingError(e,res);}});
+ app.post("/admin-api/billing/accounts/:tenant/reconcile",async(req,res)=>{try{res.json(await billing!.reconcile(String(req.params.tenant),req.body,res.locals.admin));}catch(e){billingError(e,res);}});
+ app.post("/admin-api/billing/renew",async(req,res)=>{try{res.json(await billing!.adminRenew(req.body,res.locals.admin));}catch(e){billingError(e,res);}});
  app.post("/admin-api/billing/prices",async(req,res)=>{try{res.status(201).json(await billing!.savePrice(req.body,res.locals.admin));}catch(e){billingError(e,res);}});
  return app;
 }

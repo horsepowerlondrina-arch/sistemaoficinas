@@ -43,3 +43,11 @@ test("Stripe client never exposes provider error payloads",async()=>{
  const request=createStripeGateway("sk_test_fictional",async()=>new Response("private provider error",{status:500}));
  await assert.rejects(request("/customers"),error=>error instanceof Error&&!error.message.includes("private"));
 });
+
+test("Stripe deadline: exhausted renewal budget never calls provider",async()=>{
+ const {createStripeGateway}=await import('../server/services/stripeGateway.js');
+ let calls=0;
+ const request=createStripeGateway('sk_test_Fictional',async()=>{calls++;return new Response('{}');});
+ await assert.rejects(request('/subscriptions/sub_Fictional',undefined,undefined,Date.now()-1));
+ assert.equal(calls,0);
+});

@@ -1,13 +1,13 @@
 # Assinaturas Stripe — PR de teste
 
-Branch: `feat/admin-billing-stripe`. Mercado Pago: PR #121 preservado, sem merge.
+Gestão e renovação: `feat/admin-billing-management-renewal`. Mercado Pago permanece histórico, sem merge.
 Este recurso aceita exclusivamente chaves `sk_test_` ou `rk_test_`. Chaves live e eventos live são rejeitados.
 O schema Stripe foi aplicado somente na homologação autorizada.
 
 ## Funcionamento
 
 - Administração → Assinaturas e cobranças: preços mensais de Básico, Profissional e Premium, em centavos, com justificativa/auditoria. Exige `platform:settings`.
-- Configurações → Conta: proprietário contrata, acompanha pagamentos e cancela renovação. A oficina vem da sessão, nunca do corpo da requisição.
+- Configurações → Assinatura e pagamentos: proprietário contrata, acompanha pagamentos e cancela renovação. A oficina vem da sessão, nunca do corpo da requisição.
 - Cartão: Checkout de assinatura mensal. Fatura pendente pode ser regularizada no link hospedado do Stripe exibido na conta. Pix: Checkout de pagamento único; renovação mensal preparada pelo job, paga pelo cliente todo mês.
 - Para empresas brasileiras, a documentação Stripe informa que Pix Automático não está disponível: https://docs.stripe.com/payments/pix .
 - Contratação após o teste gratuito existente. Nenhum segundo período grátis é concedido.
@@ -17,6 +17,17 @@ O schema Stripe foi aplicado somente na homologação autorizada.
 - Registros operacionais, usuários e catálogo não são removidos por cancelamento, downgrade ou atraso.
 - Reembolsos/disputas retiram a cobertura daquele pagamento. Nenhuma rotina executa reembolsos automaticamente.
 - Uma reserva durável precede cada chamada de criação de checkout. Repetições usam os mesmos parâmetros e chave. Falhas ambíguas com mais de 23 horas bloqueiam nova criação para conciliação, evitando reutilizar uma chave Stripe expirada.
+
+## Gestão administrativa de cobranças (2026-11-15)
+
+- Aba Assinaturas: busca por oficina, filtros, paginação e detalhe dos pagamentos confirmados e tentativas pendentes/expiradas. Valores em centavos e preços históricos preservados. A indicação de período pago não sobrepõe suspensões administrativas.
+- “Conferir assinatura/pagamento/tentativa” exige `platform:settings`, sessão/MFA e justificativa de 10–500 caracteres. Consulta apenas identificadores já vinculados à oficina selecionada. Registra solicitação e conclusão/falha na auditoria. Não cria checkout nem permite marcar manualmente como pago.
+- Reservas ambíguas sem identificador confirmado permanecem bloqueadas; não há botão para apagar ou recriar automaticamente uma cobrança. A investigação no provedor continua necessária.
+- O resumo mostra o último processamento registrado, suas falhas e a quantidade ainda elegível. Falhas por oficina são auditadas sem respostas do provedor ou dados sensíveis.
+- “Retomar rotina de renovação” exige justificativa e confirmação explícita. Pode preparar Pix de teste para oficinas já autorizadas; não renova cartão por débito próprio, não envia e-mail nem inclui novas oficinas na lista de testes.
+- O agendamento diário é preservado. Uma tentativa com falha fica elegível após uma hora, mas só é executada no próximo acionamento (diário ou retomada administrativa). Fila que ultrapasse 40 segundos permanece explícita para retomada; não se promete processamento ilimitado numa função de 60 segundos. Aumentar a frequência ou usar fila externa requer avaliação de infraestrutura separada.
+- Nenhuma migração, chave, configuração de e-mail ou lista de oficinas autorizadas é alterada nesta tarefa. Stripe live continua rejeitado.
+- Sem cálculo automático de impostos nesta etapa; avaliar a configuração fiscal/Stripe Tax antes da ativação comercial, sem habilitá-la incidentalmente.
 
 ## Configuração de Preview (somente após autorização)
 
@@ -37,8 +48,7 @@ A assinatura é conferida no corpo original, antes do parser JSON. Eventos nunca
 os recursos atuais são consultados na Stripe, verificando cliente, moeda, valor e pagamento liquidado.
 
 Job autenticado: `GET /api/billing/stripe/renew`, Authorization Bearer com o segredo do job.
-Na homologação, a Vercel chama a rotina diariamente às 09:00 UTC (06:00 de Brasília), usando `CRON_SECRET`. O segredo separado `STRIPE_CRON_SECRET` continua válido para o acionamento controlado. Cada lote processa até dez contas,
-com retomada e exclusão mútua no PostgreSQL. A cobrança vencida é bloqueada na leitura do acesso,
+Na homologação, a Vercel chama a rotina diariamente às 09:00 UTC (06:00 de Brasília), usando `CRON_SECRET`. O segredo separado `STRIPE_CRON_SECRET` continua válido para o acionamento controlado. A rotina percorre todas as contas elegíveis enquanto houver orçamento (40 segundos). Uma transação dedicada mantém um bloqueio exclusivo no PostgreSQL, compatível com pooler transacional; execuções simultâneas retornam “em execução”. Cada conta é reservada por cinco minutos, marcada para o dia seguinte ao concluir e para nova tentativa após uma hora em caso de falha. O próximo acionamento elegível retoma a fila. Não existe mais o teto de dez contas. A cobrança vencida é bloqueada na leitura do acesso,
 independentemente da execução do job. O Pix pendente aparece na conta da oficina.
 Não há envio automático de email de cobrança nesta versão.
 
@@ -74,7 +84,7 @@ A conexão do plugin Stripe não substitui as variáveis do backend Vercel.
 - Apenas BRL/mensal; sem descontos, impostos automáticos, prorrata, créditos, parcelamento ou múltiplos itens.
   Faturas divergentes são bloqueadas para revisão, nunca ignoradas.
 - Cancelamento mantém o período pago. Trocas imediatas não são suportadas.
-- Lista administrativa mostra as cem contas mais recentes.
+- Consultas administrativas são paginadas em 25 registros, com busca por oficina e filtros de cobertura/pendência/cancelamento.
 - O teste gratuito atual deve terminar antes da contratação.
 
 ## Preview exclusivo para validação
