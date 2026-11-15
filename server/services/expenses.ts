@@ -2,10 +2,12 @@ import { type DB, transaction } from "../db/transactions.js";
 import { type Context } from "../auth/session.js";
 import { audit, id, scoped } from "./workshop.js";
 import { requireAdmin } from "./payments.js";
-import { cashAccount, recordCash } from "./cashControl.js";
+import { cashAccount, recordCash, cashToday } from "./cashControl.js";
+export const currentExpenseMonth = () => cashToday().slice(0, 7);
 export async function generateExpenses(db: DB, ctx: Context, month: string) {
   requireAdmin(ctx);
   return await transaction(db, async () => {
+    await db.lockTenantMutations?.(ctx.tenantId);
     let created = 0;
     const templates = await db
       .prepare(
@@ -13,7 +15,6 @@ export async function generateExpenses(db: DB, ctx: Context, month: string) {
       )
       .all(ctx.tenantId);
     for (const t of templates) {
-      if (t.amount === null || Number(t.amount) <= 0) continue;
       if (!t.start_month)
         await db
           .prepare(
@@ -41,7 +42,7 @@ export async function generateExpenses(db: DB, ctx: Context, month: string) {
         String(Math.min(Number(t.due_day), last)).padStart(2, "0");
       const result = await db
         .prepare(
-          "INSERT OR IGNORE INTO payables(id,tenant_id,template_id,description,category,amount,due_on,notes,supplier) VALUES(?,?,?,?,?,?,?,?,?)",
+          "INSERT OR IGNORE INTO payables(id,tenant_id,template_id,description,category,amount,due_on,notes,supplier,generation_month) VALUES(?,?,?,?,?,?,?,?,?,?)",
         )
         .run(
           id(),
@@ -52,14 +53,15 @@ export async function generateExpenses(db: DB, ctx: Context, month: string) {
               ? ` · parcela ${diff + 1}/${t.remaining_months}`
               : ""),
           t.category,
-          t.amount,
+          t.amount === null || Number(t.amount) === 0 ? null : t.amount,
           due,
           t.source,
           t.supplier || "",
+          month,
         );
       created += Number(result.changes);
     }
-    await audit(db, ctx, "expenses.generated", month);
+    if (created) await audit(db, ctx, "expenses.generated", month, { created });
     return { created };
   });
 }
@@ -73,8 +75,13 @@ export async function payExpense(
 ) {
   requireAdmin(ctx);
   return await transaction(db, async () => {
+    await db.lockTenantMutations?.(ctx.tenantId);
     const p = await scoped(db, "payables", ctx.tenantId, record);
     if (p.status !== "open") throw new Error("Esta conta não está em aberto.");
+    if (p.amount === null || Number(p.amount) <= 0)
+      throw new Error(
+        "Informe o valor da conta antes de confirmar o pagamento.",
+      );
     const account = await cashAccount(db, ctx, accountId, paidOn);
     await db
       .prepare(

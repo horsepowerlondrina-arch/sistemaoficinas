@@ -24,17 +24,17 @@ test("Recurring expenses: exact month, idempotence, missing values and finite in
   db.exec(
     "INSERT INTO expense_templates(id,tenant_id,description,category,amount,due_day,remaining_months) VALUES('t','a','Ferramenta','Investimento',3673,31,2),('v','a','Peças','Variável',NULL,10,NULL),('other','b','Privado','Fixo',100,10,NULL)",
   );
-  assert.equal((await generateExpenses(db, ctx, "2026-02")).created, 1);
+  assert.equal((await generateExpenses(db, ctx, "2026-02")).created, 2);
   assert.equal((await generateExpenses(db, ctx, "2026-02")).created, 0);
   db.exec("UPDATE expense_templates SET due_day=15 WHERE id='t'");
   assert.equal((await generateExpenses(db, ctx, "2026-02")).created, 0);
   assert.equal(
-    db.prepare("SELECT due_on FROM payables").get()!.due_on,
+    db.prepare("SELECT due_on FROM payables WHERE template_id='t'").get()!.due_on,
     "2026-02-28",
   );
-  assert.equal((await generateExpenses(db, ctx, "2026-03")).created, 1);
-  assert.equal((await generateExpenses(db, ctx, "2026-04")).created, 0);
-  const p = db.prepare("SELECT * FROM payables ORDER BY due_on").get()!;
+  assert.equal((await generateExpenses(db, ctx, "2026-03")).created, 2);
+  assert.equal((await generateExpenses(db, ctx, "2026-04")).created, 1);
+  const p = db.prepare("SELECT * FROM payables WHERE amount IS NOT NULL ORDER BY due_on").get()!;
   await payExpense(db, ctx, String(p.id), "2026-02-27", "Pix");
   await assert.rejects(
     async () => await payExpense(db, ctx, String(p.id), "2026-02-27", "Pix"),
