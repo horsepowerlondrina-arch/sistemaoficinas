@@ -10,6 +10,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { uiModuleForPath } from "../../shared/workshopModules";
+import {can,canOpenPath} from "./userAccess";
 import type { Session } from "./types";
 
 export type WorkshopNavItem = {
@@ -60,9 +61,10 @@ const settingsItem: WorkshopNavItem = {
 };
 
 export function visibleWorkshopNavigation(session: Session) {
-  const admin = session.role === "owner";
+  const admin = session.role === "owner" || !!session.access;
   const available = (path: string) => {
-    const module = uiModuleForPath(path);
+    if(!canOpenPath(session,path)) return false;
+    const module = path === "/servicos" && !can(session,"catalog.view") && can(session,"technical.view") ? "technical_catalog" : uiModuleForPath(path);
     return !module || session.modules?.[module] !== false;
   };
   const groups = admin

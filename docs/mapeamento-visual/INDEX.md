@@ -14,6 +14,38 @@ Tela inicial de autenticação, sem usuário ou senha preenchidos.
 
 Estado: capturada · mobile · captura 2026-10-22 · commit de origem: não registrado · [arquivo completo](./capturas/01-login-acesso/login-oficina.png)
 
+### Seleção da oficina ativa
+
+Conta fictícia com dois vínculos e perfis independentes.
+
+[![Seleção da oficina ativa](./capturas/01-login-acesso/ops004-office-desktop.png)](./capturas/01-login-acesso/ops004-office-desktop.png)
+
+Estado: capturada · desktop · captura 2026-11-14 · commit de origem: 10ab46c5db3eca34b8947849ab96439d55f650b5 · [arquivo completo](./capturas/01-login-acesso/ops004-office-desktop.png)
+
+### Ativação de colaborador
+
+Convite seguro de colaborador; senha e token não aparecem na captura.
+
+[![Ativação de colaborador](./capturas/01-login-acesso/ops004-invite-desktop.png)](./capturas/01-login-acesso/ops004-invite-desktop.png)
+
+Estado: capturada · desktop · captura 2026-11-14 · commit de origem: 10ab46c5db3eca34b8947849ab96439d55f650b5 · [arquivo completo](./capturas/01-login-acesso/ops004-invite-desktop.png)
+
+### Seleção da oficina ativa
+
+Conta fictícia com dois vínculos e perfis independentes.
+
+[![Seleção da oficina ativa](./capturas/01-login-acesso/ops004-office-mobile.png)](./capturas/01-login-acesso/ops004-office-mobile.png)
+
+Estado: capturada · mobile · captura 2026-11-14 · commit de origem: 10ab46c5db3eca34b8947849ab96439d55f650b5 · [arquivo completo](./capturas/01-login-acesso/ops004-office-mobile.png)
+
+### Ativação de colaborador
+
+Convite seguro de colaborador; senha e token não aparecem na captura.
+
+[![Ativação de colaborador](./capturas/01-login-acesso/ops004-invite-mobile.png)](./capturas/01-login-acesso/ops004-invite-mobile.png)
+
+Estado: capturada · mobile · captura 2026-11-14 · commit de origem: 10ab46c5db3eca34b8947849ab96439d55f650b5 · [arquivo completo](./capturas/01-login-acesso/ops004-invite-mobile.png)
+
 ## 02 — Dashboard
 
 Início, visão geral, indicadores e atalhos.
@@ -301,6 +333,38 @@ Formulário real com dados fictícios; identificação FIPE independente da asso
 [![CAD-005 — Troca de veículo no atendimento (mobile)](./capturas/07-ordens-servico/cad005-switch-mobile.png)](./capturas/07-ordens-servico/cad005-switch-mobile.png)
 
 Estado: capturada · mobile · captura 2026-10-30 · commit de origem: f6e2a4cb13517dc8f57dc1703586ce27268d004c · [arquivo completo](./capturas/07-ordens-servico/cad005-switch-mobile.png)
+
+### Equipe e autorizações da OS
+
+Atribuição por OS a funcionário sem login e pedido de aprovação de desconto.
+
+[![Equipe e autorizações da OS](./capturas/07-ordens-servico/ops004-order-access-desktop.png)](./capturas/07-ordens-servico/ops004-order-access-desktop.png)
+
+Estado: capturada · desktop · captura 2026-11-14 · commit de origem: 10ab46c5db3eca34b8947849ab96439d55f650b5 · [arquivo completo](./capturas/07-ordens-servico/ops004-order-access-desktop.png)
+
+### Equipe e autorizações da OS
+
+Atribuição por OS a funcionário sem login e pedido de aprovação de desconto.
+
+[![Equipe e autorizações da OS](./capturas/07-ordens-servico/ops004-order-access-mobile.png)](./capturas/07-ordens-servico/ops004-order-access-mobile.png)
+
+Estado: capturada · mobile · captura 2026-11-14 · commit de origem: 10ab46c5db3eca34b8947849ab96439d55f650b5 · [arquivo completo](./capturas/07-ordens-servico/ops004-order-access-mobile.png)
+
+### OS atribuída — perfil Mecânico
+
+Identificação do Mecânico e anos de fabricação/modelo distintos; sem cadastro completo, contatos ou valores comerciais.
+
+[![OS atribuída — perfil Mecânico](./capturas/07-ordens-servico/ops004-mechanic-order-desktop.png)](./capturas/07-ordens-servico/ops004-mechanic-order-desktop.png)
+
+Estado: capturada · desktop · captura 2026-11-14 · commit de origem: 10ab46c5db3eca34b8947849ab96439d55f650b5 · [arquivo completo](./capturas/07-ordens-servico/ops004-mechanic-order-desktop.png)
+
+### OS atribuída — perfil Mecânico
+
+Identificação do Mecânico e anos de fabricação/modelo distintos; sem cadastro completo, contatos ou valores comerciais.
+
+[![OS atribuída — perfil Mecânico](./capturas/07-ordens-servico/ops004-mechanic-order-mobile.png)](./capturas/07-ordens-servico/ops004-mechanic-order-mobile.png)
+
+Estado: capturada · mobile · captura 2026-11-14 · commit de origem: 10ab46c5db3eca34b8947849ab96439d55f650b5 · [arquivo completo](./capturas/07-ordens-servico/ops004-mechanic-order-mobile.png)
 
 ## 08 — Financeiro
 
@@ -718,6 +782,70 @@ Componente real em Chromium com API e pagamentos fictícios; não comprova entre
 
 Estado: capturada · mobile · captura 2026-11-05 · commit de origem: ffa6ae17881c2848a19a373d48599d99fc35ef4f · [arquivo completo](./capturas/14-configuracoes/stripe-oficina-mobile.png)
 
+### Usuários, funcionários e vagas
+
+Gestão de acessos e autorizações com dados fictícios em PostgreSQL descartável.
+
+[![Usuários, funcionários e vagas](./capturas/14-configuracoes/ops004-users-desktop.png)](./capturas/14-configuracoes/ops004-users-desktop.png)
+
+Estado: capturada · desktop · captura 2026-11-14 · commit de origem: 10ab46c5db3eca34b8947849ab96439d55f650b5 · [arquivo completo](./capturas/14-configuracoes/ops004-users-desktop.png)
+
+### Perfil e permissões individuais
+
+Gestão de acessos e autorizações com dados fictícios em PostgreSQL descartável.
+
+[![Perfil e permissões individuais](./capturas/14-configuracoes/ops004-permissions-desktop.png)](./capturas/14-configuracoes/ops004-permissions-desktop.png)
+
+Estado: capturada · desktop · captura 2026-11-14 · commit de origem: 10ab46c5db3eca34b8947849ab96439d55f650b5 · [arquivo completo](./capturas/14-configuracoes/ops004-permissions-desktop.png)
+
+### Funcionário sem login e vínculo opcional
+
+Gestão de acessos e autorizações com dados fictícios em PostgreSQL descartável.
+
+[![Funcionário sem login e vínculo opcional](./capturas/14-configuracoes/ops004-staff-desktop.png)](./capturas/14-configuracoes/ops004-staff-desktop.png)
+
+Estado: capturada · desktop · captura 2026-11-14 · commit de origem: 10ab46c5db3eca34b8947849ab96439d55f650b5 · [arquivo completo](./capturas/14-configuracoes/ops004-staff-desktop.png)
+
+### Central interna de aprovações
+
+Gestão de acessos e autorizações com dados fictícios em PostgreSQL descartável.
+
+[![Central interna de aprovações](./capturas/14-configuracoes/ops004-approvals-desktop.png)](./capturas/14-configuracoes/ops004-approvals-desktop.png)
+
+Estado: capturada · desktop · captura 2026-11-14 · commit de origem: 10ab46c5db3eca34b8947849ab96439d55f650b5 · [arquivo completo](./capturas/14-configuracoes/ops004-approvals-desktop.png)
+
+### Usuários, funcionários e vagas
+
+Gestão de acessos e autorizações com dados fictícios em PostgreSQL descartável.
+
+[![Usuários, funcionários e vagas](./capturas/14-configuracoes/ops004-users-mobile.png)](./capturas/14-configuracoes/ops004-users-mobile.png)
+
+Estado: capturada · mobile · captura 2026-11-14 · commit de origem: 10ab46c5db3eca34b8947849ab96439d55f650b5 · [arquivo completo](./capturas/14-configuracoes/ops004-users-mobile.png)
+
+### Perfil e permissões individuais
+
+Gestão de acessos e autorizações com dados fictícios em PostgreSQL descartável.
+
+[![Perfil e permissões individuais](./capturas/14-configuracoes/ops004-permissions-mobile.png)](./capturas/14-configuracoes/ops004-permissions-mobile.png)
+
+Estado: capturada · mobile · captura 2026-11-14 · commit de origem: 10ab46c5db3eca34b8947849ab96439d55f650b5 · [arquivo completo](./capturas/14-configuracoes/ops004-permissions-mobile.png)
+
+### Funcionário sem login e vínculo opcional
+
+Gestão de acessos e autorizações com dados fictícios em PostgreSQL descartável.
+
+[![Funcionário sem login e vínculo opcional](./capturas/14-configuracoes/ops004-staff-mobile.png)](./capturas/14-configuracoes/ops004-staff-mobile.png)
+
+Estado: capturada · mobile · captura 2026-11-14 · commit de origem: 10ab46c5db3eca34b8947849ab96439d55f650b5 · [arquivo completo](./capturas/14-configuracoes/ops004-staff-mobile.png)
+
+### Central interna de aprovações
+
+Gestão de acessos e autorizações com dados fictícios em PostgreSQL descartável.
+
+[![Central interna de aprovações](./capturas/14-configuracoes/ops004-approvals-mobile.png)](./capturas/14-configuracoes/ops004-approvals-mobile.png)
+
+Estado: capturada · mobile · captura 2026-11-14 · commit de origem: 10ab46c5db3eca34b8947849ab96439d55f650b5 · [arquivo completo](./capturas/14-configuracoes/ops004-approvals-mobile.png)
+
 ## 15 — Integrações e extensão Chrome
 
 Captura e envio de dados pela extensão.
@@ -873,5 +1001,21 @@ Editar taxas, selecionar máquina, simular repasse, salvar e reabrir plano fict�
 
 1. Máquina e taxas por parcela (capturada) — [imagem](./capturas/14-configuracoes/ops002-machine-editor-desktop.png)
 2. Recebimento com máquina e repasse (capturada) — [imagem](./capturas/08-financeiro/ops002-receipt-desktop.png)
+
+Estado: capturada
+
+### FL-OPS004 — Usuários → permissões → funcionários → aprovações
+
+Gestão de acessos e autorizações internas da oficina fictícia.
+
+1. Usuários, funcionários e vagas (capturada) — [imagem](./capturas/14-configuracoes/ops004-users-desktop.png)
+2. Perfil e permissões individuais (capturada) — [imagem](./capturas/14-configuracoes/ops004-permissions-desktop.png)
+3. Funcionário sem login e vínculo opcional (capturada) — [imagem](./capturas/14-configuracoes/ops004-staff-desktop.png)
+4. Equipe e autorizações da OS (capturada) — [imagem](./capturas/07-ordens-servico/ops004-order-access-desktop.png)
+5. Central interna de aprovações (capturada) — [imagem](./capturas/14-configuracoes/ops004-approvals-desktop.png)
+6. Seleção da oficina ativa (capturada) — [imagem](./capturas/01-login-acesso/ops004-office-desktop.png)
+7. Ativação de colaborador (capturada) — [imagem](./capturas/01-login-acesso/ops004-invite-desktop.png)
+8. OS atribuída — perfil Mecânico (capturada) — [imagem](./capturas/07-ordens-servico/ops004-mechanic-order-desktop.png)
+9. OS atribuída — perfil Mecânico (capturada) — [imagem](./capturas/07-ordens-servico/ops004-mechanic-order-mobile.png)
 
 Estado: capturada

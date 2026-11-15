@@ -1,3 +1,4 @@
+import {can} from '../lib/userAccess';
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Plus, Download, Filter, ChevronDown } from "lucide-react";
@@ -89,7 +90,7 @@ export function Orders() {
         eyebrow="ATENDIMENTO"
         title="Ordens de Serviço"
         description="Uma única OS, do status Orçamento até a entrega."
-        actions={session.role === "owner" ? <>
+        actions={can(session,"orders.edit") ? <>
           <button className="button" onClick={() => setShowReport(true)} disabled={!financialRows.length}>
             <Download size={17} />Relatório PDF / Excel
           </button>
