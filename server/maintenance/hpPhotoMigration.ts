@@ -62,7 +62,7 @@ export function photoMigrationRoutes(db:DB){
  const router=express.Router();
  router.use((_req,res,next)=>{
   if(process.env.APP_ENV!=='horse_power'||process.env.EXPECTED_DATABASE_PROJECT!=='rvlovjpquozbrsszsxwe'||Date.now()>=approved.expiresAt){res.status(404).json({error:'Manutenção indisponível.'});return;}
-  requireAdmin(res.locals.context);res.set('Referrer-Policy','no-referrer');res.set('Content-Security-Policy',"default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'");next();
+  requireAdmin(res.locals.context);res.set('Referrer-Policy','same-origin');res.set('Content-Security-Policy',"default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'");next();
  });
  router.get('/',async(req,res)=>{
   const state=req.query.verify==='1'?await verifyPhotoMigration(db,res.locals.context):await photoMigrationState(db,res.locals.context);

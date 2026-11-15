@@ -47,7 +47,7 @@ test('maintenance HTTP preserves authentication, owner authorization and origin;
   for(const [token,user] of [['owner-test','u'],['operator-test','m']])db.prepare('INSERT INTO sessions VALUES(?,?,?,?)').run(digest(token),user,'a',Date.now()+60000);
   const call=(token='',method='GET',body?:string)=>fetch(`http://127.0.0.1:${port}/api/photo-migration`,{method,headers:token?{Cookie:`hp_session=${token}`,'Content-Type':'application/x-www-form-urlencoded'}:{},body});
   assert.equal((await call()).status,401);assert.equal((await call('operator-test')).status,403);
-  assert.equal((await call('owner-test')).status,409);
+  const preview=await call('owner-test');assert.equal(preview.status,409);assert.equal(preview.headers.get('referrer-policy'),'same-origin');
   assert.equal((await call('owner-test','POST','confirm=migrar-24-fotos-autorizadas')).status,403);
   process.env.APP_ENV='development';assert.equal((await call('owner-test')).status,404);
  }finally{await new Promise<void>((r,e)=>server.close(x=>x?e(x):r()));db.close();for(const[k,v]of Object.entries(old)){if(v===undefined)delete process.env[k];else process.env[k]=v;}}
