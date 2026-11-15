@@ -1,4 +1,3 @@
-import {photoMigrationRoutes} from "./maintenance/hpPhotoMigration.js";
 import { stripeWorkshopRoutes } from "./stripeBillingRoutes.js";
 import type { StripeBilling } from "./services/stripeBilling.js";
 import {thirdPartySalePrice} from "../shared/pricing.js";
@@ -445,7 +444,6 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
     }
     void db.lockTenantMutations(String(res.locals.context.tenantId)).then(() => next()).catch(next);
   });
-  app.use("/api/photo-migration", photoMigrationRoutes(db));
   app.get("/api/session", async (_req, res) => {
     const ctx: Context = res.locals.context;
     res.json({

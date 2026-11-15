@@ -36,15 +36,6 @@ test('PostgreSQL 17: private photo migration checks integrity, rollback, repeat 
     assert.equal(payload.records.checklist_photos?.[0].image_data,data.toString('base64'));
     assert.ok(!JSON.stringify(payload).includes('private-checklist:v1:'));
 
-    const {photoMigrationState,runPhotoMigration,verifyPhotoMigration}=await import('../server/maintenance/hpPhotoMigration.js');
-    await db.prepare('UPDATE checklist_photos SET image_data=? WHERE tenant_id=? AND id=?').run(data.toString('base64'),tenant,result.id);
-    const state=await photoMigrationState(db,ctx);
-    const policy={photos:state.photos,manifest:state.manifest,documents:state.documents,documentDigest:state.documentDigest,expiresAt:Date.now()+60000};
-    assert.equal((await runPhotoMigration(db,ctx,policy,store)).migrated,1);
-    assert.equal((await runPhotoMigration(db,ctx,policy,store)).migrated,0);
-    assert.equal((await verifyPhotoMigration(db,ctx,policy,store)).verified,1);
-    assert.equal((await photoMigrationState(db,ctx)).documentDigest,state.documentDigest);
-
     await assert.rejects(withPhotoStore(store,()=>getChecklistPhoto(db,{...ctx,tenantId:other},result.id)),/não encontrada/);
     assert.equal((await migrateChecklistPhotos(db,other,10,true,store)).inspected,0);
   });
