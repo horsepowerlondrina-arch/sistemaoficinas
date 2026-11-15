@@ -93,7 +93,21 @@ test("Stripe PostgreSQL: preços versionados, Pix, cartão, repetição, falha, 
   await assert.rejects(service.checkout(tenant,"owner@example.test",{price_id:newPrice,method:"pix"}),/administração/);
   // Card: session creation alone must not grant access; invoice and actual charge must match.
   const cardPrice=(await service.savePrice({plan_code:"basic",amount_cents:1000,reason:"Preço cartão fictício."},actor)).id;
+  await root.query("UPDATE platform_admin.workshops SET plan_code='premium',plan_policy_activated_at=now() WHERE tenant_id=$1",[other]);
+  const attempt=()=>service.checkout(other,"card@example.test",{price_id:cardPrice,method:"card"});
+  const beforeDowngrade=calls;
+  await assert.rejects(attempt(),/libere 1 vaga\./);
+  const operator=(await root.query("SELECT user_id FROM horse_power.memberships WHERE tenant_id=$1 AND role='operator' LIMIT 1",[other])).rows[0].user_id;
+  await root.query("INSERT INTO horse_power.workshop_user_access(tenant_id,user_id,profile,active) VALUES($1,$2,'mechanic',0) ON CONFLICT(tenant_id,user_id) DO UPDATE SET active=0",[other,operator]);
+  const inviteId=randomUUID();
+  const addInvite=(id:string)=>root.query(`INSERT INTO horse_power.workshop_user_invites(id,tenant_id,email,profile,token_hash,created_by,created_at,expires_at)
+    VALUES($1,$2,$3,'mechanic',$1,$4,$5,$6)`,[id,other,id+"@example.test",operator,Date.now(),Date.now()+60000]);
+  await addInvite(inviteId);
+  await assert.rejects(attempt(),/libere 1 vaga\./);
+  assert.equal(calls,beforeDowngrade,"no Stripe session while seats exceed the limit");
+  await root.query("UPDATE horse_power.workshop_user_invites SET expires_at=$2 WHERE id=$1",[inviteId,Date.now()-1000]);
   const card=await service.checkout(other,"card@example.test",{price_id:cardPrice,method:"card"});
+  await assert.rejects(addInvite(randomUUID()),/limite de usuários/i);
   sessionId=card.url.split("/").at(-1)!;
   const cs=resources.get("/checkout/sessions/"+sessionId) as Record<string,unknown>;
   cs.status="complete";cs.payment_status="paid";cs.subscription=`sub_TestCard${fixture}`;

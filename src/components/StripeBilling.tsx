@@ -4,7 +4,7 @@ import { api,send } from "../lib/api";
 import { checkoutUrl,workshopBillingAction } from "../lib/billingDisplay";
 import { adminRequest } from "../lib/adminPresentation";
 import { useAdminDraft } from "../lib/useAdminDraft";
-import { billingDate,billingPlanNames,billingPlans,type BillingSummary,type BillingOverview,type BillingPlan } from "../../shared/stripeBilling";
+import { billingDate,downgradeSeatMessage,billingPlanNames,billingPlans,type BillingSummary,type BillingOverview,type BillingPlan } from "../../shared/stripeBilling";
 const money=(cents:number)=>new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(cents/100);
 const date=(day:string|null)=>day?day.split("-").reverse().join("/"):"—";
 type PlanSummary={plan_code:string|null;status:string|null;trial_ends_at:string|null}|null;
@@ -39,6 +39,8 @@ export function WorkshopBilling({tenantId}:{tenantId:string}){
   return()=>{active=false;};
  },[tenantId]);
  async function act(action:()=>Promise<void>){if(busy)return;setBusy(true);setError("");try{await action();}catch(e){setError((e as Error).message);}finally{setBusy(false);}}
+ const selectedPrice=data?.prices.find(p=>p.id===priceId);
+ const seatsToRelease=selectedPrice?.seats_to_release??0;
  const account=data?.account;
  const currentPlan=account?billingPlanNames[account.plan_code]:plan?.plan_code?planLabels[plan.plan_code]??plan.plan_code:"Nenhum plano contratado";
  const trialActive=plan?.status==="trial"&&!!plan.trial_ends_at&&new Date(plan.trial_ends_at).getTime()>Date.now();
@@ -80,10 +82,11 @@ export function WorkshopBilling({tenantId}:{tenantId:string}){
        <option value="">Selecione o plano</option>
        {data.prices.map(p=><option key={p.id} value={p.id}>{billingPlanNames[p.plan_code]} — {money(p.amount_cents)} / mês</option>)}
       </select></label>
+      {seatsToRelease>0&&<p role="alert" className="error-box">{downgradeSeatMessage(seatsToRelease)}</p>}
       <label>Forma de pagamento<select value={method} disabled={busy} onChange={e=>{setMethod(e.target.value as "card"|"pix");setConfirmed(false);}}><option value="card">Cartão — renovação mensal automática</option><option value="pix">Pix — confirmar pagamento todo mês</option></select></label>
       {trialActive&&data.can_subscribe_during_trial&&<p>A contratação começa agora, com cobrança imediata do valor exibido. O teste gratuito não será reiniciado.</p>}
       <label className="billing-check"><input type="checkbox" checked={confirmed} onChange={e=>setConfirmed(e.target.checked)}/> Li os valores e autorizo {method==="card"?"a renovação mensal no cartão":"a criação das mensalidades Pix, que pagarei a cada mês"}.</label>
-      <button type="button" className="button" disabled={busy||!confirmed||!data.prices.some(p=>p.id===priceId)} onClick={()=>void act(async()=>{
+      <button type="button" className="button" disabled={busy||!confirmed||!selectedPrice||seatsToRelease>0} onClick={()=>void act(async()=>{
        const result=await send("/account/billing/checkout",{price_id:priceId,method}) as {url:string};
        const target=checkoutUrl(result.url);if(!target)throw new Error("Endereço de pagamento inválido.");
        window.location.assign(target);
@@ -99,6 +102,7 @@ export function WorkshopBilling({tenantId}:{tenantId:string}){
    </section>
    {account&&(account.managed||account.recurring)&&!account.cancel_at_period_end&&<section className="panel settings-card billing-section">
     <h3>Cancelar renovação</h3><p>Você mantém seus dados e o período pago. Para mudar de plano, cancele a renovação e contrate o novo pacote após o período vigente.</p>
+    {data.prices.filter(p=>(p.seats_to_release??0)>0).map(p=><p key={p.id}>{billingPlanNames[p.plan_code]} · {downgradeSeatMessage(p.seats_to_release!)}</p>)}
     <label className="billing-check"><input type="checkbox" checked={cancelConfirmed} onChange={e=>setCancelConfirmed(e.target.checked)}/> Confirmo o cancelamento das próximas renovações.</label>
     <button type="button" className="button" disabled={busy||!cancelConfirmed} onClick={()=>void act(async()=>{setData(await send("/account/billing/cancel",{confirm:true}));setCancelConfirmed(false);})}>Cancelar renovação</button>
    </section>}
