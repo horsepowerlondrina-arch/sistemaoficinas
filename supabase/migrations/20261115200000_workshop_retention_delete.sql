@@ -4,7 +4,8 @@
 ALTER TABLE platform_admin.workshop_retention_cases
   ADD COLUMN photo_object_keys jsonb NOT NULL DEFAULT '[]'::jsonb
     CHECK (jsonb_typeof(photo_object_keys)='array'),
-  ADD COLUMN photo_objects_purged_at timestamptz;
+  ADD COLUMN photo_objects_purged_at timestamptz,
+  ADD COLUMN processing_until timestamptz;
 
 -- The two historic guards remain strict for every ordinary request. Only the
 -- restricted administrator invoking retention_delete_workshop may delete the
@@ -108,8 +109,7 @@ BEGIN
   END IF;
   IF v_current_end IS DISTINCT FROM p_coverage OR
     (v_subscription IS NOT NULL AND coalesce(v_subscription_status,'') NOT IN ('canceled','incomplete_expired')) OR
-    EXISTS(SELECT 1 FROM platform_admin.stripe_checkouts WHERE tenant_id=p_tenant AND status IN ('open','pending')
-      AND to_timestamp((request_body->>'expires_at')::bigint)>now()) THEN
+    EXISTS(SELECT 1 FROM platform_admin.stripe_checkouts WHERE tenant_id=p_tenant AND status IN ('open','pending')) THEN
     RAISE EXCEPTION 'Cobertura ou cobrança mudou; exclusão bloqueada.' USING ERRCODE='23514';
   END IF;
   -- Fail closed if a later migration added tenant data without updating this list.
@@ -152,7 +152,8 @@ BEGIN
     legal_name='',email='',city='',state='',document_logo='',profile_data='{}'
     WHERE id=p_tenant;
   UPDATE platform_admin.workshop_retention_cases SET status='deleted',deleted_at=now(),
-    recovery_expires_at=now()+interval '15 days',photo_object_keys=v_keys,updated_at=now()
+    recovery_expires_at=now()+interval '15 days',photo_object_keys=v_keys,
+    processing_until=NULL,updated_at=now()
     WHERE tenant_id=p_tenant AND coverage_end=p_coverage;
   INSERT INTO platform_admin.audit_events(id,actor_email,subject_tenant_id,action,result,technical_context)
     VALUES(gen_random_uuid()::text,'retention',p_tenant,'retention.workshop_deleted','success',

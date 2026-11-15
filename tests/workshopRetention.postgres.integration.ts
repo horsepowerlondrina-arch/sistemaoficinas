@@ -6,7 +6,8 @@ import { adminClient } from "../scripts/local-admin.js";
 import { localDatabaseUrl, platformAdminDatabaseUrl } from "../server/localConfig.js";
 import { sendDueWorkshopRetentionNotices } from "../server/services/workshopRetentionNotices.js";
 import { createLocalDatabase } from "../server/db/local.js";
-import { createVerifiedWorkshopRecoveryBackup, purgeExpiredWorkshopBackups, type RecoveryObjectStore } from "../server/services/workshopRecoveryStorage.js";
+import { createVerifiedWorkshopRecoveryBackup, purgeDeletedWorkshopPhotos, purgeExpiredWorkshopBackups, type RecoveryObjectStore } from "../server/services/workshopRecoveryStorage.js";
+import { processDueWorkshopRetirements } from "../server/services/workshopRetentionRunner.js";
 
 test("PostgreSQL: retenção fica privada, exige backup verificado e preserva aviso único", async () => {
   const root = adminClient();
@@ -26,11 +27,16 @@ test("PostgreSQL: retenção fica privada, exige backup verificado e preserva av
     const key = `${tenant}/${backup}/0000.hptxpart`;
     const manifest = { tenantId: tenant, backupId: backup, bytes: 10, sha256: "a".repeat(64), chunks: [{ key, bytes: 10, sha256: "b".repeat(64) }] };
     await admin.query("UPDATE platform_admin.workshop_retention_cases SET status='backup_verified',backup_id=$3,backup_manifest=$4::jsonb,backup_verified_at=now() WHERE tenant_id=$1 AND coverage_end=$2", [tenant, coverage, backup, JSON.stringify(manifest)]);
-    await admin.query("UPDATE platform_admin.workshop_retention_cases SET status='deleted',deleted_at=now(),recovery_expires_at=now()+interval '15 days' WHERE tenant_id=$1 AND coverage_end=$2", [tenant, coverage]);
+    const photoKey = `${tenant}/${randomUUID()}`;
+    await admin.query("UPDATE platform_admin.workshop_retention_cases SET status='deleted',deleted_at=now(),recovery_expires_at=now()+interval '15 days',photo_object_keys=$3::jsonb WHERE tenant_id=$1 AND coverage_end=$2", [tenant, coverage, JSON.stringify([photoKey])]);
     const row = await admin.query("SELECT status,backup_manifest->>'tenantId' AS backup_tenant FROM platform_admin.workshop_retention_cases WHERE tenant_id=$1", [tenant]);
     assert.equal(row.rows[0].status, "deleted");
     assert.equal(row.rows[0].backup_tenant, tenant);
     assert.equal((await admin.query("SELECT count(*)::int AS n FROM platform_admin.workshop_retention_cases WHERE tenant_id=$1", [other])).rows[0].n, 0);
+    const removedPhotos: string[] = [];
+    assert.deepEqual(await purgeDeletedWorkshopPhotos(pool, { async put() {}, async get() { throw new Error("unused"); }, async remove(keys) { removedPhotos.push(...keys); } }), { inspected: 1, removed: 1, remaining: 0 });
+    assert.deepEqual(removedPhotos, [photoKey]);
+    assert.equal((await admin.query("SELECT photo_objects_purged_at IS NOT NULL AS done FROM platform_admin.workshop_retention_cases WHERE tenant_id=$1", [tenant])).rows[0].done, true);
     const removed: string[] = [];
     const store: RecoveryObjectStore = { async put() {}, async get() { throw new Error("Não é necessário ler cópia expirada."); }, async remove(keys) { removed.push(...keys); } };
     const result = await purgeExpiredWorkshopBackups(pool, store, new Date(Date.now() + 16 * 86400000));
@@ -80,8 +86,6 @@ test("PostgreSQL: aviso do dia 89 é único e não atinge oficina com liberaçã
       [trial, granted, `${trial}@example.test`, `${granted}@example.test`]);
     const now = new Date("2026-11-15T15:00:00Z");
     const deliver = async (notice: { tenantId: string; daysLate: number }) => { sent.push(`${notice.tenantId}:${notice.daysLate}`); };
-    await root.query("INSERT INTO platform_admin.workshop_retention_cases(tenant_id,coverage_end) VALUES($1,'2026-08-18')", [trial]);
-    await root.query("INSERT INTO platform_admin.workshop_retention_notices(tenant_id,coverage_end,days_late,status,reserved_at,last_error_code) VALUES($1,'2026-08-18',89,'failed',now()-interval '2 days','delivery_unconfirmed')", [trial]);
     const first = await sendDueWorkshopRetentionNotices(pool, deliver, now);
     const second = await sendDueWorkshopRetentionNotices(pool, deliver, now);
     assert.equal(first.sent, 1);
@@ -92,4 +96,36 @@ test("PostgreSQL: aviso do dia 89 é único e não atinge oficina com liberaçã
     assert.equal(rows.rows[0].sent, true);
     assert.equal((await pool.query("SELECT count(*)::int AS n FROM platform_admin.workshop_retention_notices WHERE tenant_id=$1", [granted])).rows[0].n, 0);
   } finally { await pool.end(); await root.end(); }
+});
+
+test("PostgreSQL: rotina só exclui oficina fictícia após aviso final e cópia verificada", async()=>{
+  const root=adminClient();
+  const db=await createLocalDatabase();
+  const pool=new pg.Pool({connectionString:platformAdminDatabaseUrl(process.env.PLATFORM_ADMIN_DATABASE_URL),ssl:false});
+  const tenant=randomUUID(),other=randomUUID(),customer=randomUUID(),otherCustomer=randomUUID();
+  const objects=new Map<string,Buffer>();
+  const store:RecoveryObjectStore={
+    async put(key,data){objects.set(key,Buffer.from(data));},
+    async get(key){const data=objects.get(key);if(!data)throw new Error('missing');return Buffer.from(data);},
+    async remove(keys){for(const key of keys)objects.delete(key);},
+  };
+  await root.connect();
+  try{
+    const coverage=(await root.query("SELECT ((now() AT TIME ZONE 'America/Sao_Paulo')::date-91)::text AS day")).rows[0].day as string;
+    await root.query("INSERT INTO horse_power.tenants(id,name) VALUES($1,'Oficina Retirada'),($2,'Oficina Protegida')",[tenant,other]);
+    await root.query("INSERT INTO horse_power.customers(id,tenant_id,name) VALUES($1,$2,'Cliente Fictício'),($3,$4,'Outro Cliente')",[customer,tenant,otherCustomer,other]);
+    await root.query(`INSERT INTO platform_admin.workshops(tenant_id,source,name,responsible_name,responsible_email,status,email_verified_at,trial_started_at,trial_ends_at)
+      VALUES($1,'admin','Oficina Retirada','Pessoa Fictícia',$4,'read_only',now(),($3::date-14)::timestamp,$3::date::timestamp),
+            ($2,'admin','Oficina Protegida','Outra Pessoa',$5,'active',now(),NULL,NULL)`,[tenant,other,coverage,`${tenant}@example.test`,`${other}@example.test`]);
+    await root.query('INSERT INTO platform_admin.workshop_retention_cases(tenant_id,coverage_end) VALUES($1,$2)',[tenant,coverage]);
+    assert.equal((await processDueWorkshopRetirements(db,pool,store,'frase ficticia longa')).retired,0);
+    assert.equal((await root.query('SELECT count(*)::int AS n FROM horse_power.customers WHERE tenant_id=$1',[tenant])).rows[0].n,1);
+    await root.query("INSERT INTO platform_admin.workshop_retention_notices(tenant_id,coverage_end,days_late,status,sent_at) VALUES($1,$2,89,'sent',now()-interval '2 days')",[tenant,coverage]);
+    const done=await processDueWorkshopRetirements(db,pool,store,'frase ficticia longa');
+    assert.deepEqual({retired:done.retired,blocked:done.blocked},{retired:1,blocked:0});
+    assert.equal((await root.query('SELECT count(*)::int AS n FROM horse_power.customers WHERE tenant_id=$1',[tenant])).rows[0].n,0);
+    assert.equal((await root.query('SELECT count(*)::int AS n FROM horse_power.customers WHERE tenant_id=$1',[other])).rows[0].n,1);
+    assert.equal((await root.query('SELECT status,backup_verified_at IS NOT NULL AS verified FROM platform_admin.workshop_retention_cases WHERE tenant_id=$1',[tenant])).rows[0].status,'deleted');
+    assert.ok(objects.size>0);
+  }finally{await db.close();await pool.end();await root.end();}
 });

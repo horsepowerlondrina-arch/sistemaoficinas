@@ -19,6 +19,7 @@ import {
 import { createPlatformAdminDataTransfer } from "./services/platformAdminDataTransfer.js";
 import { readFileSync } from "node:fs";
 import { selfServiceTestEmails } from "./services/selfServicePolicy.js";
+import { workshopRetentionRoutes } from "./workshopRetentionRoutes.js";
 export async function createCloudRuntime(options: { ca?: string; operationalUrl?: string; administrativeUrl?: string; hyperdrive?: boolean; onStage?: (stage: string) => void } = {}) {
   if (options.hyperdrive && (!isCloudflareHomologation(process.env) || !options.operationalUrl || !options.administrativeUrl)) throw new Error("Hyperdrive exige os dois bindings da homologação paralela.");
   const standaloneHorsePower = process.env.APP_ENV === "horse_power";
@@ -124,6 +125,7 @@ export async function createCloudRuntime(options: { ca?: string; operationalUrl?
             )
           : undefined,
         recordFailure,
+        workshopRetentionRoutes(db,adminPool),
       );
     }
     return {

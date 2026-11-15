@@ -41,7 +41,9 @@ export function retentionCoverageEnd(value: WorkshopCoverage): string | null {
   const valid = (day: string | null) => day && /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : null;
   const trial = valid(value.trialEndsOn);
   if (value.managedBilling) {
-    const billed = valid(value.paidUntil) ?? valid(value.dueOn);
+    const paid = valid(value.paidUntil);
+    const due = valid(value.dueOn);
+    const billed = paid && due ? (paid > due ? paid : due) : paid ?? due;
     return billed && trial ? (billed > trial ? billed : trial) : billed ?? trial;
   }
   return value.status === "trial" || value.status === "read_only" ? trial : null;

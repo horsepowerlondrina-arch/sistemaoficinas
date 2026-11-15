@@ -4,6 +4,7 @@ import type { Pool } from "pg";
 import { openTransferPackage } from "../../shared/transferPackage.js";
 import type { DB } from "../db/transactions.js";
 import { createWorkshopTransfer } from "./dataTransferExport.js";
+import type { PhotoStore } from "./checklistPhotoStorage.js";
 
 const bucket = "workshop-recovery-backups";
 const chunkBytes = 4_000_000;
@@ -132,7 +133,8 @@ export async function purgeExpiredWorkshopBackups(pool: Pool, store: RecoveryObj
   if (!Number.isInteger(limit) || limit < 1 || limit > 50) throw new Error("Lote de limpeza inválido.");
   const due = await pool.query<{ tenant_id: string; coverage_end: string; backup_manifest: RecoveryManifest }>(
     `SELECT tenant_id,coverage_end::text,backup_manifest FROM platform_admin.workshop_retention_cases
-     WHERE status='deleted' AND recovery_expires_at<=$1 ORDER BY recovery_expires_at,tenant_id LIMIT $2`, [now, limit]);
+     WHERE status='deleted' AND photo_objects_purged_at IS NOT NULL AND recovery_expires_at<=$1
+     ORDER BY recovery_expires_at,tenant_id LIMIT $2`, [now, limit]);
   let purged = 0;
   for (const row of due.rows) {
     const manifest = row.backup_manifest;
@@ -156,6 +158,29 @@ export async function purgeExpiredWorkshopBackups(pool: Pool, store: RecoveryObj
     finally { client.release(); }
   }
   return { inspected: due.rowCount, purged };
+}
+
+/** Removes only the former tenant's private photo objects after the database retirement commits. */
+export async function purgeDeletedWorkshopPhotos(pool: Pool, photos: PhotoStore, limit = 50) {
+  if (!photos.remove || !Number.isInteger(limit) || limit < 1 || limit > 100)
+    throw new Error("Limpeza de fotos privadas não configurada.");
+  const cases = await pool.query<{tenant_id:string;coverage_end:string;photo_object_keys:unknown}>(
+    `SELECT tenant_id,coverage_end::text,photo_object_keys FROM platform_admin.workshop_retention_cases
+     WHERE status='deleted' AND photo_objects_purged_at IS NULL ORDER BY deleted_at,tenant_id LIMIT 1`);
+  const row = cases.rows[0];
+  if (!row) return { inspected: 0, removed: 0, remaining: 0 };
+  const keys = row.photo_object_keys;
+  if (!Array.isArray(keys) || keys.some(key => typeof key !== "string" ||
+      !new RegExp(`^${row.tenant_id}/[0-9a-f-]{36}$`).test(key)))
+    throw new Error("Referências de fotos da oficina inválidas.");
+  const batch = keys.slice(0, limit) as string[];
+  if (batch.length) await photos.remove(batch);
+  const remaining = keys.slice(batch.length);
+  const updated = await pool.query(`UPDATE platform_admin.workshop_retention_cases SET
+    photo_object_keys=$3::jsonb,photo_objects_purged_at=CASE WHEN $4::int=0 THEN now() ELSE NULL END,updated_at=now()
+    WHERE tenant_id=$1 AND coverage_end=$2::date AND status='deleted' AND photo_object_keys=$5::jsonb`,
+    [row.tenant_id,row.coverage_end,JSON.stringify(remaining),remaining.length,JSON.stringify(keys)]);
+  return { inspected: 1, removed: updated.rowCount ? batch.length : 0, remaining: remaining.length };
 }
 
 /** A complete decrypt/manifest check must succeed before a backup is marked usable. */
