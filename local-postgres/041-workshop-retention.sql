@@ -33,7 +33,7 @@ CREATE TABLE platform_admin.workshop_retention_notices (
 CREATE INDEX workshop_retention_notices_status ON platform_admin.workshop_retention_notices(status,reserved_at);
 ALTER TABLE platform_admin.workshop_retention_cases ENABLE ROW LEVEL SECURITY;
 ALTER TABLE platform_admin.workshop_retention_notices ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON platform_admin.workshop_retention_cases,platform_admin.workshop_retention_notices FROM PUBLIC,horse_power_app;
+REVOKE ALL ON platform_admin.workshop_retention_cases,platform_admin.workshop_retention_notices FROM PUBLIC;
 CREATE POLICY workshop_retention_admin_cases ON platform_admin.workshop_retention_cases TO hp_platform_admin_app USING(true) WITH CHECK(true);
 CREATE POLICY workshop_retention_admin_notices ON platform_admin.workshop_retention_notices TO hp_platform_admin_app USING(true) WITH CHECK(true);
 GRANT SELECT,INSERT,UPDATE,DELETE ON platform_admin.workshop_retention_cases TO hp_platform_admin_app;
