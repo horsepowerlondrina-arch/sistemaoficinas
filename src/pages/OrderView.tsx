@@ -20,7 +20,6 @@ export function OrderView() {
   const order = data.orders.find((o) => o.id === id);
   const admin = can(session,"orders.prices");
   const financeEnabled = session.modules?.finance !== false;
-  const receiptAccounts = data.receipt_accounts || [];
   const [confirm, setConfirm] = useState(""),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
