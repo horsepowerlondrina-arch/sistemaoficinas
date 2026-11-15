@@ -444,13 +444,13 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
     );
   });
   app.use("/api",employeePublicRoutes(db));
-  const workshopAuth = auth(db);
+  const workshopAuth = auth(db, billing?.isSubscriptionOverdue);
   app.use("/api", (req, res, next) => {
     if (req.path === "/admin-api" || req.path.startsWith("/admin-api/")) {
       next();
       return;
     }
-    workshopAuth(req, res, next);
+    void workshopAuth(req, res, next).catch(next);
   });
   app.use("/api", (req, res, next) => {
     if (["GET", "HEAD", "OPTIONS"].includes(req.method) || req.path.startsWith("/admin-api") || !res.locals.context?.tenantId) {
@@ -464,6 +464,10 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
     void db.lockTenantMutations(String(res.locals.context.tenantId)).then(async()=>{
       const ctx:Context=res.locals.context;
       if(ctx.access){const membership=await db.prepare('SELECT role FROM memberships WHERE user_id=? AND tenant_id=?').get(ctx.userId,ctx.tenantId);const alive=await db.prepare('SELECT 1 FROM sessions WHERE token_hash=? AND expires_at>?').get(digest(tokenFrom(req)),Date.now());if(!membership||!alive){res.status(401).json({error:'Entre na sua conta para continuar.'});return;}ctx.role=membership.role;ctx.access=await readUserAccess(db,ctx);if(!ctx.access.active){res.status(401).json({error:'Acesso desativado nesta oficina.'});return;}}
+      if (ctx.overdueSeatRelease && ctx.role !== "owner") {
+        res.status(403).json({error:"Somente o Master pode liberar vagas."});
+        return;
+      }
       next();
     }).catch(next);
   });
