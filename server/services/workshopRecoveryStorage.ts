@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import { randomUUID } from "node:crypto";
+import type { Pool } from "pg";
 import { openTransferPackage } from "../../shared/transferPackage.js";
 import type { DB } from "../db/transactions.js";
 import { createWorkshopTransfer } from "./dataTransferExport.js";
@@ -78,6 +80,18 @@ function manifestKeys(tenantId: string, backupId: string, count: number) {
   return Array.from({ length: count }, (_, index) => `${tenantId}/${backupId}/${String(index).padStart(4, "0")}.hptxpart`);
 }
 
+export function recoveryObjectKeys(manifest: RecoveryManifest): string[] {
+  const keys = manifestKeys(manifest.tenantId, manifest.backupId, manifest.chunks.length);
+  if (!Number.isInteger(manifest.bytes) || manifest.bytes < 1 || manifest.bytes > maxBackupBytes || !/^[a-f0-9]{64}$/.test(manifest.sha256))
+    throw new Error("Manifesto de backup inválido.");
+  for (let index = 0; index < keys.length; index++) {
+    const part = manifest.chunks[index];
+    if (part.key !== keys[index] || !Number.isInteger(part.bytes) || part.bytes < 1 || part.bytes > chunkBytes || !/^[a-f0-9]{64}$/.test(part.sha256))
+      throw new Error("Manifesto de backup inválido.");
+  }
+  return keys;
+}
+
 /** A verified copy is mandatory before a real workshop can be removed. */
 export async function uploadRecoveryBackup(store: RecoveryObjectStore, tenantId: string, backupId: string, archive: Buffer): Promise<RecoveryManifest> {
   if (!archive.length || archive.length > maxBackupBytes) throw new Error("Backup fora do limite seguro; exclusão bloqueada.");
@@ -100,12 +114,10 @@ export async function uploadRecoveryBackup(store: RecoveryObjectStore, tenantId:
 }
 
 export async function readRecoveryBackup(store: RecoveryObjectStore, manifest: RecoveryManifest): Promise<Buffer> {
-  const keys = manifestKeys(manifest.tenantId, manifest.backupId, manifest.chunks.length);
-  if (!Number.isInteger(manifest.bytes) || manifest.bytes < 1 || manifest.bytes > maxBackupBytes || !/^[a-f0-9]{64}$/.test(manifest.sha256)) throw new Error("Manifesto de backup inválido.");
+  const keys = recoveryObjectKeys(manifest);
   const contents: Buffer[] = [];
   for (let index = 0; index < keys.length; index++) {
     const part = manifest.chunks[index];
-    if (part.key !== keys[index] || !Number.isInteger(part.bytes) || part.bytes < 1 || part.bytes > chunkBytes || !/^[a-f0-9]{64}$/.test(part.sha256)) throw new Error("Manifesto de backup inválido.");
     const content = await store.get(part.key);
     if (content.length !== part.bytes || sha256(content) !== part.sha256) throw new Error("Integridade do backup não confirmada.");
     contents.push(content);
@@ -113,6 +125,37 @@ export async function readRecoveryBackup(store: RecoveryObjectStore, manifest: R
   const archive = Buffer.concat(contents);
   if (archive.length !== manifest.bytes || sha256(archive) !== manifest.sha256) throw new Error("Integridade do backup não confirmada.");
   return archive;
+}
+
+/** Removes only expired, previously deleted workshop copies; failure keeps the case for retry. */
+export async function purgeExpiredWorkshopBackups(pool: Pool, store: RecoveryObjectStore, now = new Date(), limit = 10) {
+  if (!Number.isInteger(limit) || limit < 1 || limit > 50) throw new Error("Lote de limpeza inválido.");
+  const due = await pool.query<{ tenant_id: string; coverage_end: string; backup_manifest: RecoveryManifest }>(
+    `SELECT tenant_id,coverage_end::text,backup_manifest FROM platform_admin.workshop_retention_cases
+     WHERE status='deleted' AND recovery_expires_at<=$1 ORDER BY recovery_expires_at,tenant_id LIMIT $2`, [now, limit]);
+  let purged = 0;
+  for (const row of due.rows) {
+    const manifest = row.backup_manifest;
+    if (!manifest || manifest.tenantId !== row.tenant_id) throw new Error("Manifesto não corresponde à oficina.");
+    await store.remove(recoveryObjectKeys(manifest));
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      const updated = await client.query(`UPDATE platform_admin.workshop_retention_cases
+        SET status='purged',backup_id=NULL,backup_manifest=NULL,backup_verified_at=NULL,updated_at=now()
+        WHERE tenant_id=$1 AND coverage_end=$2 AND status='deleted' AND recovery_expires_at<=$3`,
+        [row.tenant_id, row.coverage_end, now]);
+      if (updated.rowCount) {
+        await client.query(`INSERT INTO platform_admin.audit_events(id,actor_email,subject_tenant_id,action,result,technical_context)
+          VALUES($1,'retention',$2,'retention.backup_purged','success',$3::jsonb)`,
+          [randomUUID(), row.tenant_id, JSON.stringify({ backup_id: manifest.backupId, coverage_end: row.coverage_end })]);
+        purged++;
+      }
+      await client.query("COMMIT");
+    } catch (error) { await client.query("ROLLBACK").catch(() => {}); throw error; }
+    finally { client.release(); }
+  }
+  return { inspected: due.rowCount, purged };
 }
 
 /** A complete decrypt/manifest check must succeed before a backup is marked usable. */
