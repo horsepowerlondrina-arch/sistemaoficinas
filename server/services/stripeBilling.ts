@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import { randomUUID } from "node:crypto";
 import type { Pool, PoolClient } from "pg";
 import { z } from "zod";
@@ -8,8 +9,12 @@ const identifier=(v:unknown):string|null=>typeof v==="string"?v:v&&typeof v==="o
 export class BillingConflict extends Error {}
 export type StripeRequest=ReturnType<typeof createStripeGateway>;
 export type StripeBilling=ReturnType<typeof stripeBillingService>;
-export function stripeBillingService(pool:Pool,request:StripeRequest,origin:string,testTenants:readonly string[],selfServiceEmails:readonly string[] = []){
+export function stripeBillingService(pool:Pool,gateway:StripeRequest,origin:string,testTenants:readonly string[],selfServiceEmails:readonly string[] = []){
+ const deadlineContext=new AsyncLocalStorage<number>();
+ const request:StripeRequest=(path,input,key)=>gateway(path,input,key,deadlineContext.getStore());
  const allowed=new Set(testTenants);
+ const eligibleSql="(a.tenant_id=ANY($1::text[]) OR a.tenant_id IN (SELECT tenant_id FROM platform_admin.workshops WHERE source='self_service' AND email_verified_at IS NOT NULL AND lower(responsible_email)=ANY($2::text[])))";
+ const eligibility=()=>[[...allowed],selfServiceEmails];
  async function selfServiceEligible(tenant:string){
   if(!selfServiceEmails.length)return false;
   const result=await pool.query("SELECT 1 FROM platform_admin.workshops WHERE tenant_id=$1 AND source='self_service' AND email_verified_at IS NOT NULL AND lower(responsible_email)=ANY($2::text[])",[tenant,selfServiceEmails]);
@@ -42,10 +47,65 @@ export function stripeBillingService(pool:Pool,request:StripeRequest,origin:stri
   const a=account.rows[0];
   return {enabled:true,test_mode:true,can_subscribe_during_trial:await selfServiceEligible(tenant),pending:pending.rows[0]??null,prices:prices.rows,account:a??null,payments:payments.rows,read_only:a?billingReadOnly({managed:a.managed,paidUntil:a.paid_until,dueOn:a.due_on,trialUntil:workshop.rows[0]?.trial_ends_at}):false};
  }
- async function overview(){
-  const prices=await pool.query("SELECT id,plan_code,amount_cents FROM platform_admin.stripe_prices WHERE active ORDER BY plan_code");
-  const accounts=await pool.query("SELECT w.name,a.tenant_id,a.plan_code,a.method,a.due_on::text,a.paid_until::text,a.managed,a.subscription_status,a.cancel_at_period_end FROM platform_admin.stripe_accounts a JOIN platform_admin.workshops w ON w.tenant_id=a.tenant_id ORDER BY a.created_at DESC LIMIT 100");
-  return {enabled:true,test_mode:true,prices:prices.rows,accounts:accounts.rows};
+ async function overview(input:unknown={}){
+  const q=z.object({search:z.string().trim().max(100).default(""),status:z.enum(["all","overdue","pending","paid","cancelled"]).default("all"),page:z.coerce.number().int().min(1).max(100000).default(1)}).strict().parse(input);
+  const params=["%"+q.search.replace(/[\\%_]/g,"\\$&")+"%",q.status];
+  const where=`(w.name ILIKE $1) AND ($2='all' OR ($2='overdue' AND a.managed AND coalesce(a.paid_until,a.due_on)<(now() AT TIME ZONE 'America/Sao_Paulo')::date AND a.due_on<(now() AT TIME ZONE 'America/Sao_Paulo')::date) OR ($2='pending' AND EXISTS(SELECT 1 FROM platform_admin.stripe_checkouts x WHERE x.tenant_id=a.tenant_id AND x.status IN ('pending','open'))) OR ($2='paid' AND a.paid_until>=(now() AT TIME ZONE 'America/Sao_Paulo')::date) OR ($2='cancelled' AND a.cancel_at_period_end))`;
+  const [prices,accounts,total,job]=await Promise.all([
+   pool.query("SELECT id,plan_code,amount_cents FROM platform_admin.stripe_prices WHERE active ORDER BY plan_code"),
+   pool.query(`SELECT w.name,a.tenant_id,a.plan_code,a.method,a.due_on::text,a.paid_until::text,a.managed,a.subscription_status,a.cancel_at_period_end,a.retry_after FROM platform_admin.stripe_accounts a JOIN platform_admin.workshops w ON w.tenant_id=a.tenant_id WHERE ${where} ORDER BY a.created_at DESC,a.tenant_id LIMIT 25 OFFSET $3`,[...params,(q.page-1)*25]),
+   pool.query(`SELECT count(*)::int AS total FROM platform_admin.stripe_accounts a JOIN platform_admin.workshops w ON w.tenant_id=a.tenant_id WHERE ${where}`,params),
+   pool.query("SELECT created_at,technical_context FROM platform_admin.audit_events WHERE action='stripe.renewal.completed' ORDER BY created_at DESC LIMIT 1"),
+  ]);
+  return {enabled:true,test_mode:true,prices:prices.rows,accounts:accounts.rows,page:q.page,total:total.rows[0].total,page_size:25,renewal:job.rows[0]??null};
+ }
+ async function details(tenant:string,input:unknown={}){
+  z.string().uuid().parse(tenant);
+  const q=z.object({page:z.coerce.number().int().min(1).max(100000).default(1)}).strict().parse(input);
+  const account=(await pool.query("SELECT w.name,a.tenant_id,a.plan_code,a.method,a.managed,a.due_on::text,a.paid_until::text,a.subscription_status,a.cancel_at_period_end,a.retry_after,a.invoice_payment_url IS NOT NULL AS has_pending_invoice,p.amount_cents FROM platform_admin.stripe_accounts a JOIN platform_admin.workshops w ON w.tenant_id=a.tenant_id JOIN platform_admin.stripe_prices p ON p.id=a.price_id WHERE a.tenant_id=$1",[tenant])).rows[0];
+  if(!account)throw new BillingConflict("Assinatura não encontrada.");
+  const [payments,checkouts,total]=await Promise.all([
+   pool.query("SELECT provider_id,method,amount_cents,period_start::text,period_end::text,status,created_at FROM platform_admin.stripe_payments WHERE tenant_id=$1 ORDER BY created_at DESC,provider_id LIMIT 25 OFFSET $2",[tenant,(q.page-1)*25]),
+   pool.query("SELECT x.id,x.provider_id,x.method,x.status,x.due_on::text,x.period_end::text,x.created_at,p.amount_cents,(x.status='pending' AND x.created_at<now()-interval '23 hours') AS needs_review FROM platform_admin.stripe_checkouts x JOIN platform_admin.stripe_prices p ON p.id=x.price_id WHERE x.tenant_id=$1 ORDER BY x.created_at DESC,x.id LIMIT 25 OFFSET $2",[tenant,(q.page-1)*25]),
+   pool.query("SELECT GREATEST((SELECT count(*) FROM platform_admin.stripe_payments WHERE tenant_id=$1),(SELECT count(*) FROM platform_admin.stripe_checkouts WHERE tenant_id=$1))::int AS total",[tenant]),
+  ]);
+  return {account,payments:payments.rows,checkouts:checkouts.rows,page:q.page,total:total.rows[0].total,page_size:25};
+ }
+ async function reconcile(tenant:string,input:unknown,actor:{id:string;email:string}){
+  await requireTestTenant(tenant);
+  const p=z.object({reason:z.string().trim().min(10).max(500),kind:z.enum(["account","checkout","payment"]),id:z.string().max(150).optional()}).strict().parse(input);
+  // Select provider identifiers exclusively from this workshop's stored records, never from arbitrary input.
+  const row=p.kind==='account'?null:(await pool.query(p.kind==='checkout'?"SELECT provider_id FROM platform_admin.stripe_checkouts WHERE tenant_id=$1 AND id=$2":"SELECT provider_id FROM platform_admin.stripe_payments WHERE tenant_id=$1 AND provider_id=$2",[tenant,p.id])).rows[0];
+  if(p.kind!=='account'&&!row)throw new BillingConflict("Registro de cobrança não encontrado nesta oficina.");
+  if(p.kind==='checkout'&&!row?.provider_id)throw new BillingConflict("Criação sem identificador confirmado. Não recrie a cobrança: confira a reserva no Stripe antes de qualquer intervenção.");
+  await tx(c=>audit(c,tenant,"admin.stripe.reconciliation_requested",{reason:p.reason,kind:p.kind,record_id:p.id??null},actor));
+  try{
+   await deadlineContext.run(Date.now()+40000,async()=>{
+    if(p.kind==='account')await refresh(tenant);
+    else if(p.kind==='checkout')await syncSession(row.provider_id);
+    else if(row.provider_id.startsWith('in_'))await syncInvoice(row.provider_id);
+    else if(row.provider_id.startsWith('pi_')){
+     const payment=(await pool.query("SELECT p.*,a.customer_id FROM platform_admin.stripe_payments p JOIN platform_admin.stripe_accounts a ON a.tenant_id=p.tenant_id WHERE p.tenant_id=$1 AND p.provider_id=$2",[tenant,row.provider_id])).rows[0];
+     const pi=await intentState(row.provider_id);
+     validatePaidAmount(pi.amount_received,payment.amount_cents,pi.currency);
+     if(identifier(pi.customer)!==payment.customer_id)throw new Error("Pagamento de outra oficina.");
+     await tx(async c=>{
+      await c.query("SELECT pg_advisory_xact_lock(hashtextextended($1,1232))",[tenant]);
+      // Existing coverage is preserved; this path only verifies/revokes an already recorded receipt.
+      if(pi.revoked){
+       await c.query("UPDATE platform_admin.stripe_payments SET status='refunded' WHERE tenant_id=$1 AND provider_id=$2",[tenant,row.provider_id]);
+       await c.query("UPDATE platform_admin.stripe_accounts SET paid_until=(SELECT max(period_end) FROM platform_admin.stripe_payments WHERE tenant_id=$1 AND status='paid'),due_on=LEAST(due_on,(now() AT TIME ZONE 'America/Sao_Paulo')::date-1) WHERE tenant_id=$1",[tenant]);
+      }
+     });
+    }
+    else throw new BillingConflict("Este registro exige conferência no Stripe.");
+   });
+   await tx(c=>audit(c,tenant,"admin.stripe.reconciliation_completed",{reason:p.reason,kind:p.kind,record_id:p.id??null},actor));
+   return {ok:true};
+  }catch(error){
+   await pool.query("INSERT INTO platform_admin.audit_events(id,actor_administrator_id,actor_email,subject_tenant_id,action,result,technical_context) VALUES($1,$2,$3,$4,'admin.stripe.reconciliation_failed','failure',$5::jsonb)",[randomUUID(),actor.id,actor.email,tenant,JSON.stringify({reason:p.reason,kind:p.kind,record_id:p.id??null})]);
+   throw error;
+  }
  }
  async function savePrice(input:unknown,actor:{id:string;email:string}){
   const p=z.object({plan_code:z.enum(billingPlans),amount_cents:z.number().int().min(50).max(100000000),reason:z.string().trim().min(10).max(500)}).strict().parse(input);
@@ -255,19 +315,48 @@ export function stripeBillingService(pool:Pool,request:StripeRequest,origin:stri
   }
   await pool.query("INSERT INTO platform_admin.stripe_events(id,event_type,resource_id) VALUES($1,$2,$3) ON CONFLICT(id) DO NOTHING",[event.id,event.type,id]);
  }
- async function renew(){
-  // Bounded daily reconciliation. SKIP LOCKED plus retry_after distributes consecutive executions.
-  const rows=await tx(async c=>(await c.query("UPDATE platform_admin.stripe_accounts SET retry_after=(date_trunc('day',now() AT TIME ZONE 'America/Sao_Paulo')+interval '1 day') AT TIME ZONE 'America/Sao_Paulo' WHERE tenant_id IN (SELECT tenant_id FROM platform_admin.stripe_accounts WHERE managed AND (tenant_id=ANY($1::text[]) OR tenant_id IN (SELECT tenant_id FROM platform_admin.workshops WHERE source='self_service' AND email_verified_at IS NOT NULL AND lower(responsible_email)=ANY($2::text[]))) AND (retry_after IS NULL OR retry_after<now()) ORDER BY retry_after NULLS FIRST LIMIT 10 FOR UPDATE SKIP LOCKED) RETURNING tenant_id,billing_email,price_id,method,cancel_at_period_end,due_on::text",[[...allowed],selfServiceEmails])).rows);
-  let completed=0,failed=0;
-  for(const a of rows){
-   try{
-    await refresh(a.tenant_id);
-    if(a.method==="pix"&&!a.cancel_at_period_end&&a.due_on<=billingDate(new Date()))
-     await checkout(a.tenant_id,a.billing_email,{price_id:a.price_id,method:"pix"},true);
-    completed++;
-   }catch{failed++;await pool.query("UPDATE platform_admin.stripe_accounts SET retry_after=now()+interval '1 hour' WHERE tenant_id=$1",[a.tenant_id]);}
-  }
-  return {completed,failed};
+ async function adminRenew(input:unknown,actor:{id:string;email:string}){
+  const p=z.object({reason:z.string().trim().min(10).max(500),confirm:z.literal(true)}).strict().parse(input);
+  await tx(c=>audit(c,null,'admin.stripe.renewal_requested',{reason:p.reason},actor));
+  return renew();
  }
- return {summary,overview,savePrice,checkout,refresh,cancel,webhook,renew,syncSession,syncInvoice,syncSubscription};
+ async function renew(options:{budgetMs?:number}={}){
+  const started=Date.now(),deadline=started+Math.min(40000,Math.max(0,options.budgetMs??40000));
+  // A transaction-scoped lock is safe with Supabase transaction pooling and released on disconnect.
+  const lock=await pool.connect();let locked=false;
+  let completed=0,failed=0,remaining=0;
+  try{
+   await lock.query("BEGIN");
+   locked=(await lock.query("SELECT pg_try_advisory_xact_lock(1233,1) AS locked")).rows[0].locked;
+   if(!locked)return {completed,failed,remaining:0,busy:true};
+   await deadlineContext.run(deadline,async()=>{
+    while(Date.now()<deadline){
+     // Claim one account at a time. An interrupted attempt becomes eligible again after its lease.
+     const a=await tx(async c=>(await c.query(`UPDATE platform_admin.stripe_accounts SET retry_after=now()+interval '5 minutes' WHERE tenant_id IN (SELECT a.tenant_id FROM platform_admin.stripe_accounts a WHERE a.managed AND ${eligibleSql} AND (a.retry_after IS NULL OR a.retry_after<=now()) ORDER BY a.retry_after NULLS FIRST,a.tenant_id LIMIT 1 FOR UPDATE SKIP LOCKED) RETURNING tenant_id`,eligibility())).rows[0]);
+     if(!a)break;
+     try{
+      await refresh(a.tenant_id);
+      // Refresh can confirm payment/cancellation; use the current state, not the stale claim.
+      const current=(await pool.query("SELECT billing_email,price_id,method,cancel_at_period_end,due_on::text,paid_until::text FROM platform_admin.stripe_accounts WHERE tenant_id=$1",[a.tenant_id])).rows[0];
+      if(current?.method==='pix'&&!current.cancel_at_period_end&&current.due_on<=billingDate(new Date())&&(!current.paid_until||current.paid_until<=billingDate(new Date())))
+       await checkout(a.tenant_id,current.billing_email,{price_id:current.price_id,method:'pix'},true);
+      await pool.query("UPDATE platform_admin.stripe_accounts SET retry_after=(date_trunc('day',now() AT TIME ZONE 'America/Sao_Paulo')+interval '1 day') AT TIME ZONE 'America/Sao_Paulo' WHERE tenant_id=$1",[a.tenant_id]);
+      completed++;
+     }catch{
+      failed++;
+      await pool.query("UPDATE platform_admin.stripe_accounts SET retry_after=now()+interval '1 hour' WHERE tenant_id=$1",[a.tenant_id]);
+      await pool.query("INSERT INTO platform_admin.audit_events(id,actor_email,subject_tenant_id,action,result,technical_context) VALUES($1,'stripe',$2,'stripe.renewal.failed','failure','{}')",[randomUUID(),a.tenant_id]);
+     }
+    }
+   });
+   remaining=(await pool.query(`SELECT count(*)::int AS total FROM platform_admin.stripe_accounts a WHERE a.managed AND ${eligibleSql} AND (a.retry_after IS NULL OR a.retry_after<=now())`,eligibility())).rows[0].total;
+   const result={completed,failed,remaining,busy:false};
+   await tx(c=>audit(c,null,'stripe.renewal.completed',{...result,duration_ms:Date.now()-started}));
+   return result;
+  }finally{
+   let broken=false;try{await lock.query("ROLLBACK");}catch{broken=true;}
+   lock.release(broken);
+  }
+ }
+ return {summary,overview,details,reconcile,adminRenew,savePrice,checkout,refresh,cancel,webhook,renew,syncSession,syncInvoice,syncSubscription};
 }

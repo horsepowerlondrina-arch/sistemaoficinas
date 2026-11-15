@@ -46,18 +46,19 @@ export function stripeForm(input: Record<string, unknown>) {
 }
 export function createStripeGateway(key: string, send: typeof fetch = fetch) {
   stripeTestKey(key);
-  return async function request(path: string, input?: Record<string, unknown>, idempotencyKey?: string): Promise<unknown> {
+  return async function request(path: string, input?: Record<string, unknown>, idempotencyKey?: string, deadline?:number): Promise<unknown> {
     if (!/^\/(charges|disputes|customers|prices|products|checkout\/sessions|subscriptions|invoices|payment_intents|billing_portal\/sessions)(\/[A-Za-z0-9_]+)?(\?[A-Za-z0-9_%=&.\[\]-]+)?$/.test(path))
       throw new Error("Recurso de pagamento inválido.");
     if (input && (!idempotencyKey || !/^[A-Za-z0-9:_-]{1,200}$/.test(idempotencyKey)))
       throw new Error("Identificador da operação inválido.");
+    if(deadline!==undefined&&deadline<=Date.now())throw new StripeUnavailable();
     try {
       const response = await send("https://api.stripe.com/v1" + path, {
         method: input ? "POST" : "GET", redirect: "error",
         headers: { Authorization: "Bearer " + key, "Stripe-Version": stripeApiVersion,
           ...(input ? { "Content-Type":"application/x-www-form-urlencoded", "Idempotency-Key":idempotencyKey! } : {}) },
         body: input ? stripeForm(input) : undefined,
-        signal: AbortSignal.timeout(15000),
+        signal: AbortSignal.timeout(Math.max(1,Math.min(15000,(deadline??Date.now()+15000)-Date.now()))),
       });
       if (!response.ok) throw new StripeUnavailable();
       const result: unknown = await response.json();

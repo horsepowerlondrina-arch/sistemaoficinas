@@ -26,3 +26,6 @@
 .billing-policy,.billing-sync-note{font-size:12px}
 @media(max-width:800px){.billing-admin-grid{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:600px){.billing-summary-grid{grid-template-columns:minmax(0,1fr)}.billing-workshop .billing-section .button{max-width:100%}}
+.billing-admin-heading,.billing-pagination{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap}
+.billing-admin-filters{display:flex;align-items:end;gap:1rem;flex-wrap:wrap;margin:1.5rem 0}.billing-admin-filters label{display:grid;gap:.4rem;flex:1;min-width:12rem}.billing-admin-filters input,.billing-admin-filters select,.billing-reconcile textarea{width:100%;box-sizing:border-box;padding:.7rem;border:1px solid #cbd5e1;border-radius:.5rem;font:inherit;background:white;color:#1e293b}
+.billing-reconcile{padding:1rem;border:1px solid #e2e8f0;border-radius:.6rem;margin:1rem 0}.billing-reconcile label{display:grid;gap:.4rem;margin-bottom:.8rem}.billing-job-summary{padding:1rem;background:#f8fafc;border-radius:.6rem}.billing-reference{overflow-wrap:anywhere;font-size:.85rem}.billing-record{min-width:0}.billing-pagination{margin-top:1rem}

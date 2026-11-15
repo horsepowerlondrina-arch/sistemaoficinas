@@ -54,6 +54,13 @@ export type BillingSummary={
 };
 export type BillingOverview={
  enabled:boolean;test_mode?:boolean;
+ page?:number;total?:number;page_size?:number;renewal?:{created_at:string;technical_context:{completed:number;failed:number;remaining:number;duration_ms:number}}|null;
  prices:BillingSummary["prices"];
  accounts:{tenant_id:string;name:string;plan_code:BillingPlan;method:string;due_on:string|null;paid_until:string|null;managed:boolean;subscription_status:string|null;cancel_at_period_end:boolean}[];
+};
+export type BillingAccountDetails={
+ account:BillingOverview["accounts"][number]&{amount_cents:number;retry_after:string|null;has_pending_invoice:boolean};
+ payments:(BillingSummary["payments"][number]&{method:string;created_at:string})[];
+ checkouts:{id:string;provider_id:string|null;method:string;status:string;due_on:string;period_end:string;created_at:string;amount_cents:number;needs_review:boolean}[];
+ page:number;total:number;page_size:number;
 };

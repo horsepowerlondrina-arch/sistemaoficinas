@@ -71,6 +71,8 @@ test("Stripe PostgreSQL: preços versionados, Pix, cartão, repetição, falha, 
   await service.webhook({id:`evt_TestPix${fixture}`,type:"checkout.session.completed",data:{object:{id:sessionId}}});
   await service.webhook({id:`evt_TestPix${fixture}`,type:"checkout.session.completed",data:{object:{id:sessionId}}});
   const summary=await service.summary(tenant);
+  await service.reconcile(tenant,{kind:"payment",id:summary.payments[0].provider_id,reason:"Conferir Pix fictício liquidado."},actor);
+  assert.equal((await service.summary(tenant)).payments.length,1);
   assert.equal(summary.payments.length,1);assert.equal(summary.account.managed,true);assert.equal(summary.account.plan_code,"premium");
   assert.equal((await service.summary(other)).payments.length,0);
   assert.equal((await root.query("SELECT platform_admin.workshop_entitlement_status($1) AS v",[tenant])).rows[0].v.modules.technical_catalog,true);
@@ -173,4 +175,67 @@ test("Stripe PostgreSQL: preços versionados, Pix, cartão, repetição, falha, 
   await assert.rejects(pool.query("UPDATE platform_admin.stripe_prices SET amount_cents=1 WHERE id=$1",[price]),/permission denied/);
   await assert.rejects(pool.query("SELECT id FROM horse_power.users"),/permission denied/);
  }finally{await pool.end();await root.end();}
+});
+
+test("Stripe gestão: paginação, conciliação auditada, mais de dez renovações e concorrência",async()=>{
+ const root=adminClient();await root.connect();
+ const pool=new pg.Pool({connectionString:process.env.PLATFORM_ADMIN_DATABASE_URL,ssl:false,max:5});
+ const prefix='Billing-management-'+randomUUID();
+ const actor={id:randomUUID(),email:randomUUID()+'@example.test'};
+ const tenants=Array.from({length:28},()=>randomUUID()),excluded=randomUUID();
+ let providerCalls=0,failedTenant:string=tenants[0],release:()=>void=()=>{};
+ const gate=new Promise<void>(r=>{release=r;});let entered:()=>void=()=>{};const started=new Promise<void>(r=>{entered=r;});
+ let block=true;
+ const request:StripeRequest=async(path,input)=>{
+  providerCalls++;
+  assert.ok(!input,"Card renewal only queries Stripe; it never creates a second charge");
+  if(block){block=false;entered();await gate;}
+  const tenant=path.slice('/subscriptions/sub_'.length);
+  if(tenant===failedTenant)throw Error('fictional provider unavailable');
+  return {id:'sub_'+tenant,livemode:false,customer:'cus_'+tenant,latest_invoice:null,status:'active',cancel_at_period_end:false};
+ };
+ const service=stripeBillingService(pool,request,'https://example.test',tenants);
+ try{
+  await root.query("INSERT INTO platform_admin.administrators(id,email,display_name,role,permissions,password_hash,totp_secret_ciphertext,active,enrolled) VALUES($1,$2,'Fictício','principal','[]','fixture','fixture',true,true)",[actor.id,actor.email]);
+  const price=(await service.savePrice({plan_code:'basic',amount_cents:500,reason:'Preço fictício para regressão.'},actor)).id;
+  for(const tenant of [...tenants,excluded]){
+   await root.query("INSERT INTO horse_power.tenants(id,name) VALUES($1,$2)",[tenant,prefix]);
+   await root.query("INSERT INTO platform_admin.workshops(tenant_id,source,name,responsible_name,responsible_email,status,email_verified_at) VALUES($1,'admin',$2,'Fictício',$3,'active',now())",[tenant,prefix,tenant+'@example.test']);
+   await root.query("INSERT INTO platform_admin.stripe_accounts(tenant_id,billing_email,plan_code,price_id,method,managed,subscription_id,customer_id,due_on,paid_until) VALUES($1,$2,'basic',$3,'card',true,$4,$5,current_date-2,current_date-2)",[tenant,tenant+'@example.test',price,'sub_'+tenant.replaceAll('-',''),'cus_'+tenant.replaceAll('-','')]);
+  }
+  failedTenant=failedTenant.replaceAll('-','');
+  const first=await service.overview({search:prefix,page:'1',status:'overdue'});
+  assert.equal(first.total,29);assert.equal(first.accounts.length,25);
+  const second=await service.overview({search:prefix,page:'2'});assert.equal(second.accounts.length,4);
+  assert.equal(new Set([...first.accounts,...second.accounts].map(a=>a.tenant_id)).size,29);
+  assert.equal((await service.overview({search:prefix+"' OR 1=1 --"})).total,0);
+  assert.equal((await service.overview({search:'%'})).accounts.length,0,'LIKE wildcards are treated literally');
+  const emptyBudget=await service.renew({budgetMs:0});assert.equal(emptyBudget.remaining,28);assert.equal(providerCalls,0);
+  const job=service.renew();await started;
+  const concurrent=await service.renew();assert.equal(concurrent.busy,true);release();
+  const result=await job;
+  assert.equal(result.completed,27);assert.equal(result.failed,1);assert.equal(result.remaining,0);assert.equal(providerCalls,28);
+  await service.renew();assert.equal(providerCalls,28,'successful and failed leases prevent immediate duplicate work');
+  assert.equal((await root.query("SELECT retry_after FROM platform_admin.stripe_accounts WHERE tenant_id=$1",[excluded])).rows[0].retry_after,null,'unauthorized workshop untouched');
+  const failed=tenants[0];
+  assert.ok((await root.query("SELECT 1 FROM platform_admin.audit_events WHERE subject_tenant_id=$1 AND action='stripe.renewal.failed' AND result='failure'",[failed])).rowCount);
+  failedTenant='';await root.query("UPDATE platform_admin.stripe_accounts SET retry_after=now()-interval '1 second' WHERE tenant_id=$1",[failed]);
+  assert.equal((await service.adminRenew({reason:'Repetir falha fictícia resolvida.',confirm:true},actor)).completed,1);
+  const d=await service.details(failed);assert.equal(d.account.amount_cents,500);assert.equal(d.payments.length,0);
+  await assert.rejects(service.reconcile(excluded,{kind:'account',reason:'Conferência de isolamento.'},actor),/não está autorizada/);
+  await assert.rejects(service.reconcile(failed,{kind:'payment',id:'in_foreign',reason:'Conferência de isolamento.'},actor),/não encontrado/);
+  await assert.rejects(service.reconcile(failed,{kind:'account',reason:'curto'},actor));
+  await service.reconcile(failed,{kind:'account',reason:'Conferência fictícia autorizada.'},actor);
+  assert.ok((await root.query("SELECT 1 FROM platform_admin.audit_events WHERE subject_tenant_id=$1 AND action='admin.stripe.reconciliation_completed' AND actor_administrator_id=$2",[failed,actor.id])).rowCount);
+  failedTenant=failed.replaceAll('-','');
+  await assert.rejects(service.reconcile(failed,{kind:'account',reason:'Conferência fictícia com falha.'},actor),/provider unavailable/);
+  assert.ok((await root.query("SELECT 1 FROM platform_admin.audit_events WHERE subject_tenant_id=$1 AND action='admin.stripe.reconciliation_failed' AND result='failure'",[failed])).rowCount);
+  const pending=randomUUID();
+  await root.query("INSERT INTO platform_admin.stripe_checkouts(id,tenant_id,price_id,method,due_on,period_end,request_body,created_at) VALUES($1,$2,$3,'pix',current_date,current_date+30,'{}',now()-interval '24 hours')",[pending,failed,price]);
+  assert.equal((await service.details(failed)).checkouts[0].needs_review,true);
+  const callsBefore=providerCalls;
+  await assert.rejects(service.reconcile(failed,{kind:'checkout',id:pending,reason:'Não repetir criação ambígua.'},actor),/sem identificador/);
+  assert.equal(providerCalls,callsBefore);
+  assert.equal((await root.query("SELECT count(*)::int AS n FROM platform_admin.stripe_payments WHERE tenant_id=ANY($1::text[])",[tenants])).rows[0].n,0);
+ }finally{release();await pool.end();await root.end();}
 });

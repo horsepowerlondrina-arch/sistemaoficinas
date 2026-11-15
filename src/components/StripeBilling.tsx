@@ -1,4 +1,5 @@
 import "./stripe-billing.css";
+import { AdminBillingAccounts } from "./AdminBillingAccounts";
 import { useEffect,useState } from "react";
 import { api,send } from "../lib/api";
 import { checkoutUrl,workshopBillingAction } from "../lib/billingDisplay";
@@ -116,8 +117,7 @@ export function AdminBilling(){
  useAdminDraft(Boolean(amount||reason));
  const load=()=>adminRequest<BillingOverview>("/billing").then(setData);
  useEffect(()=>{let active=true;adminRequest<BillingOverview>("/billing").then(v=>{if(active)setData(v);}).catch(e=>{if(active)setError(e.message);});return()=>{active=false;};},[]);
- return <div className="pa-admin-workspace"><div className="pa-workshop-tabs" role="tablist" aria-label="Cobrança">{[["prices","Preços dos planos"],["subscriptions","Assinaturas"]].map(([id,label])=><button key={id} role="tab" aria-selected={tab===id} onClick={()=>setTab(id)}>{label}</button>)}</div><div hidden={tab!=="prices"}><section className="pa-card billing-section"><h2>Preços mensais</h2><p>Stripe em teste. Alterações valem para novas contratações. Os preços dos contratos existentes são preservados.</p>
-  {error&&<p role="alert" className="error-box">{error}</p>}{message&&<p role="status">{message}</p>}
+ return <div className="pa-admin-workspace">{error&&<p role="alert" className="error-box">{error}</p>}{message&&<p role="status">{message}</p>}<div className="pa-workshop-tabs" role="tablist" aria-label="Cobrança">{[["prices","Preços dos planos"],["subscriptions","Assinaturas"]].map(([id,label])=><button key={id} role="tab" aria-selected={tab===id} onClick={()=>{setTab(id);setError("");setMessage("");}}>{label}</button>)}</div><div hidden={tab!=="prices"}><section className="pa-card billing-section"><h2>Preços mensais</h2><p>Stripe em teste. Alterações valem para novas contratações. Os preços dos contratos existentes são preservados.</p>
   {data?.prices.map(p=><p key={p.id}>{billingPlanNames[p.plan_code]}: {money(p.amount_cents)} / mês</p>)}
   <form className="pa-form" onSubmit={async e=>{e.preventDefault();if(busy)return;setError("");setMessage("");
    if(!/^\d+([.,]\d{1,2})?$/.test(amount)){setError("Informe um valor em reais, com até duas casas decimais.");return;}
@@ -129,8 +129,5 @@ export function AdminBilling(){
    <label>Mensalidade em reais<input required inputMode="decimal" value={amount} onChange={e=>setAmount(e.target.value)}/></label>
    <label>Justificativa<textarea required minLength={10} maxLength={500} value={reason} onChange={e=>setReason(e.target.value)}/></label>
    <button className="pa-primary" disabled={busy||!data?.enabled}>{busy?"Salvando…":"Salvar novo preço"}</button>
-  </form></section></div><div hidden={tab!=="subscriptions"}><section className="pa-card billing-section"><h2>Assinaturas</h2><button className="pa-quiet" disabled={busy} onClick={()=>void load().catch(e=>setError(e.message))}>Atualizar</button>
-   {data?.accounts.map(a=><article key={a.tenant_id} className="pa-account"><strong>{a.name}</strong><p>{billingPlanNames[a.plan_code]} · {a.method==="card"?"Cartão":"Pix"}</p><p>Pago até {date(a.paid_until)} · vence {date(a.due_on)}</p><p>{a.managed?"Contrato iniciado":"Aguardando primeiro pagamento"}{a.cancel_at_period_end?" · renovação cancelada":""}</p></article>)}
-   {data&&!data.accounts.length&&<p>Nenhuma assinatura de teste criada.</p>}
-  </section></div></div>;
+  </form></section></div><div hidden={tab!=="subscriptions"}>{tab==="subscriptions"&&<AdminBillingAccounts/>}</div></div>;
 }

@@ -958,13 +958,13 @@ Interface real da ADM-002.1 em Chromium, com API fictícia interceptada; integra
 
 Estado: capturada · desktop · captura 2026-10-30 · commit de origem: fdbee764e0dfdcaeb7698131779d52a4a8a6a4a8 · [arquivo completo](./capturas/17-painel-admin-central/adm0021-oficina-usuarios-desktop.png)
 
-### Preços e assinaturas Stripe
+### Preços mensais Stripe
 
-Componente real em Chromium com API e pagamentos fictícios; não comprova entrega de webhook ou cobrança externa.
+Interface real em Chromium com API e cobranças fictícias; não comprova webhook ou pagamento externo.
 
-[![Preços e assinaturas Stripe](./capturas/17-painel-admin-central/stripe-admin-desktop.png)](./capturas/17-painel-admin-central/stripe-admin-desktop.png)
+[![Preços mensais Stripe](./capturas/17-painel-admin-central/stripe-admin-desktop.png)](./capturas/17-painel-admin-central/stripe-admin-desktop.png)
 
-Estado: capturada · desktop · captura 2026-11-13 · commit de origem: 1a45971dc80ce77954c95612f39891bada77d5b4 · [arquivo completo](./capturas/17-painel-admin-central/stripe-admin-desktop.png)
+Estado: capturada · desktop · captura 2026-11-15 · commit de origem: fbaa9f600ddc61417b22752e8396712ecedaaad6 · [arquivo completo](./capturas/17-painel-admin-central/stripe-admin-desktop.png)
 
 ### Monitoramento — falhas por integração
 
@@ -989,6 +989,30 @@ Interface real e APIs fictícias: atualização de mensagens, estado e rascunho 
 [![Suporte — atualização da conversa (admin, mobile)](./capturas/17-painel-admin-central/suporte-mobile.png)](./capturas/17-painel-admin-central/suporte-mobile.png)
 
 Estado: capturada · mobile · captura 2026-11-13 · commit de origem: 1c7a0ed13dec531868f6a0eb168a08f2969dcb78 · [arquivo completo](./capturas/17-painel-admin-central/suporte-mobile.png)
+
+### Assinaturas e processamento de renovações
+
+Interface real em Chromium com API e cobranças fictícias; não comprova webhook ou pagamento externo.
+
+[![Assinaturas e processamento de renovações](./capturas/17-painel-admin-central/stripe-admin-subscriptions-desktop.png)](./capturas/17-painel-admin-central/stripe-admin-subscriptions-desktop.png)
+
+Estado: capturada · desktop · captura 2026-11-15 · commit de origem: fbaa9f600ddc61417b22752e8396712ecedaaad6 · [arquivo completo](./capturas/17-painel-admin-central/stripe-admin-subscriptions-desktop.png)
+
+### Conferência de cobranças por oficina
+
+Interface real em Chromium com API e cobranças fictícias; não comprova webhook ou pagamento externo.
+
+[![Conferência de cobranças por oficina](./capturas/17-painel-admin-central/stripe-admin-details-desktop.png)](./capturas/17-painel-admin-central/stripe-admin-details-desktop.png)
+
+Estado: capturada · desktop · captura 2026-11-15 · commit de origem: fbaa9f600ddc61417b22752e8396712ecedaaad6 · [arquivo completo](./capturas/17-painel-admin-central/stripe-admin-details-desktop.png)
+
+### Conferência de cobranças por oficina
+
+Interface real em Chromium com API e cobranças fictícias; não comprova webhook ou pagamento externo.
+
+[![Conferência de cobranças por oficina](./capturas/17-painel-admin-central/stripe-admin-details-mobile.png)](./capturas/17-painel-admin-central/stripe-admin-details-mobile.png)
+
+Estado: capturada · mobile · captura 2026-11-15 · commit de origem: fbaa9f600ddc61417b22752e8396712ecedaaad6 · [arquivo completo](./capturas/17-painel-admin-central/stripe-admin-details-mobile.png)
 
 ## 18 — Resultados da oficina
 
