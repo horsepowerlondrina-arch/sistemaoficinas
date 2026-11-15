@@ -182,7 +182,15 @@ try {
      }
     }
     w=await workspace();if(w.orders.find(o=>o.id===s.ids.order).payment_status!=='paid')throw Error('RECEIPT_NOT_PERSISTED');
-    await page.goto(HOMOLOGATION+`/ordens/${s.ids.order}`);
+    if (modules.finance && order.payment_status !== 'paid') {
+     const dialog = page.getByRole('dialog', { name: 'Recebimento concluído', exact: true });
+     await check(dialog).toHaveAccessibleDescription(`OS #${order.number} finalizada. Deseja entregar uma cópia ao cliente?`);
+     await dialog.getByRole('button', { name: 'Agora não', exact: true }).click();
+     await check(page).toHaveURL(HOMOLOGATION + '/ordens');
+     await check(page.getByRole('heading', { name: 'Ordens de Serviço', exact: true })).toBeVisible();
+    } else {
+     await page.goto(HOMOLOGATION+`/ordens/${s.ids.order}`);
+    }
     await shot('recebimento-confirmado');
    });
    if(modules.finance)await step('despesa-pagamento-caixa',async()=>{
