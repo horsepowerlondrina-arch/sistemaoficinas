@@ -18,12 +18,12 @@ try{
  let ent={plan_code:null,effective_plan_code:null,plan_policy_activated_at:null,trial_active:false,plan_configured:false,plan_module_defaults:{},module_overrides:{},override_expires_at:{},modules,plate_lookup:{status:"unauthorized",enabled:false,configured:true,authorized:false},max_users_override:null,max_users:null,trial_days_override:null,trial_days:14,user_count:2};
  let workshop={tenant_id:"fictional-a",name:"Oficina Demonstração ADM",document:"",phone:"",status:"trial",source:"admin",responsible_name:"Responsável Fictício",responsible_email:"owner@example.test",created_at:"2026-10-01T12:00:00Z",updated_at:null,email_verified_at:"2026-10-01T12:00:00Z",trial_started_at:"2026-10-01T12:00:00Z",trial_ends_at:"2026-10-15T12:00:00Z",trial_days_remaining:7,status_reason:"Ativação fictícia",invitation_status:"activated",invitation_expires_at:null,invitation_sent_at:null,catalog_access:{status:"active",enabled:true,valid_until:null,activated_at:null,grant_source:"commercial",updated_by_admin_id:null,updated_by_admin_email:"",updated_at:null,reason:"Autorização fictícia",catalog_installed:true}};
  let members=[{user_id:"owner",name:"Responsável Fictício",email:"owner@example.test",role:"owner"},{user_id:"operator",name:"Colaborador Fictício",email:"operator@example.test",role:"operator"}];
- let events=[{id:"event1",action:"admin.workshop.membership_changed",result:"success",actor_email:"admin@example.test",created_at:"2026-10-01T12:00:00Z",technical_context:{reason:"Revisão fictícia de acesso"}}];
+ let events=[{id:"event1",action:"admin.workshop.membership_changed",result:"success",actor_email:"admin@example.test",created_at:"2026-10-01T12:00:00Z",technical_context:{reason:"Revisão fictícia de acesso"}},{id:"event-invite-failure",action:"admin.workshop.invitation.delivery_failed",result:"failure",actor_email:"admin@example.test",created_at:"2026-10-01T13:00:00Z",technical_context:{reason:"provider_unavailable_or_rejected"}}];
  await page.route("**/admin-api/**",async route=>{
   const req=route.request(),path=new URL(req.url()).pathname,method=req.method(),body=req.postDataJSON();
   const json=(value,status=200)=>route.fulfill({status,json:value});
   if(path.endsWith("/session"))return json({administrator:{id:"admin",name:"Admin Fictício",email:"admin@example.test",role:"principal",permissions:readOnly?["workshops:read"]:["workshops:read","workshops:manage","modules:manage","data-transfer:manage","audit:read"]}});
-  if(path==="/admin-api/monitoring")return json({checked_at:"2026-11-13T12:00:00Z",database_available:true,integrations:[{name:"Stripe",configured:true,failures:2},{name:"Resend",configured:true,failures:0},{name:"FipePlaca",configured:true,failures:1}],audit_failures:[{action:"integration.stripe.failure",count:2}]});
+  if(path==="/admin-api/monitoring")return json({checked_at:"2026-11-13T12:00:00Z",database_available:true,integrations:[{name:"Stripe",configured:true,failures:2},{name:"Resend",configured:true,failures:0},{name:"FipePlaca",configured:true,failures:1}],audit_failures:[{action:"integration.stripe.failure",count:2},{action:"admin.workshop.invitation.delivery_failed",count:1}]});
   if(path==="/admin-api/support/tickets")return json([{id:"ticket-a",subject:"Consulta de teste",workshop_name:"Oficina fictícia",status:"open",updated_at:"2026-11-13T12:00:00Z"}]);
   if(path.endsWith("/ticket-a/messages"))return json([{id:"message-a",sender_kind:"workshop",body:"Mensagem fictícia",created_at:"2026-11-13T12:00:00Z"}]);
   if(path==="/admin-api/workshops")return json({items:[workshop],total:1});
@@ -66,6 +66,8 @@ try{
  failHistory=false;await page.getByRole("button",{name:"Atualizar histórico"}).click();
  await expect(page.getByText("Vínculo de usuário alterado",{exact:true})).toBeVisible();
  await expect(page.getByText("Justificativa: Revisão fictícia de acesso")).toBeVisible();
+ await expect(page.getByText("Falha no envio do convite",{exact:true})).toBeVisible();
+ await page.screenshot({path:resolve(output,"oficina-historico-convites-desktop.png"),fullPage:true});
  await page.getByRole("tab",{name:"Acessos e permissões",exact:true}).click();
  await expect(page.getByLabel("Acesso da oficina",{exact:true})).toBeEnabled();
  await page.getByLabel("Acesso da oficina",{exact:true}).selectOption("professional");
@@ -110,6 +112,8 @@ try{
  await page.getByRole("tab",{name:"Convites",exact:true}).click();
  await page.getByRole("button",{name:"Gerar link manual",exact:true}).click();
  await expect(page.getByRole("button",{name:"Confirmar e gerar link"})).toBeDisabled();
+ await expect(page.getByText("O link não será enviado por e-mail. Ele expira em 48 horas e a geração invalida convites anteriores ainda não utilizados.",{exact:true})).toBeVisible();
+ await page.screenshot({path:resolve(output,"oficina-convite-confirmacao-mobile.png"),fullPage:true});
  await page.getByRole("checkbox").check();
  await page.getByRole("button",{name:"Confirmar e gerar link"}).click();
  await expect(page.getByLabel("Link de ativação",{exact:true})).toHaveValue(/fictitious-ui-only/);
@@ -120,6 +124,7 @@ try{
  await expect(page.getByText("2 falha(s) em 24 horas",{exact:true})).toBeVisible();
  await page.getByRole("tab",{name:"Falhas registradas",exact:true}).click();
  await expect(page.getByText("Falha na comunicação com Stripe",{exact:true})).toBeVisible();
+ await expect(page.getByText("Falha no envio do convite",{exact:true})).toBeVisible();
  await page.screenshot({path:resolve(output,"monitoramento-mobile.png"),fullPage:true});
  await page.getByRole("button",{name:"Suporte",exact:true}).click();
  await page.getByRole("button",{name:/Consulta de teste/}).click();

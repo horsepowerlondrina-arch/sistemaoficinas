@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {adminActionLabel,adminReason,adminRequest,localDateInput,optionalWholeNumber,plannedWorkshopPlans,workshopTabs} from "../src/lib/adminPresentation";
+import {adminActionLabel,adminResultLabel,adminReason,adminRequest,localDateInput,optionalWholeNumber,plannedWorkshopPlans,workshopTabs} from "../src/lib/adminPresentation";
 test("ADM-002.1: sections preserve transfers and future plans do not supply effective grants",()=>{
  assert.deepEqual(workshopTabs.map(t=>t[0]),["general","access","users","invitations","history","transfer"]);
  assert.deepEqual(plannedWorkshopPlans.map(p=>p.label),["Básico","Profissional","Premium"]);
@@ -31,4 +31,13 @@ test("ADM-002.1: request failures are actionable and retain same-origin authenti
   globalThis.fetch=async(url,options)=>{assert.equal(url,"/admin-api/workshops");assert.equal(options?.credentials,"same-origin");return Response.json({ok:true});};
   assert.deepEqual(await adminRequest("/workshops"),{ok:true});
  }finally{globalThis.fetch=original;}
+});
+
+test("ADM: invitation delivery failures have explicit labels without changing audit identifiers",()=>{
+ for(const action of ["admin.workshop.invitation.delivery_failed","admin.workshop.invitation_failed"]){
+  assert.equal(adminActionLabel(action),"Falha no envio do convite");
+ }
+ assert.equal(adminResultLabel("failure"),"Falhou");
+ assert.equal(adminActionLabel("admin.workshop.invitation.created"),"Convite de ativação preparado");
+ assert.equal(adminActionLabel("admin.workshop.invitation.unknown"),"Convite de ativação atualizado");
 });
