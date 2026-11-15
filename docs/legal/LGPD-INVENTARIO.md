@@ -18,6 +18,17 @@ Este inventário foi feito pela leitura do código e das migrações. Ele não c
 
 Evidência principal: `supabase/migrations/20261003220749_horse_power_cloud.sql`, `supabase/migrations/20261023000500_platform_workshops.sql`, `server/services/dataTransferExport.ts`, `server/services/checklistPhotoStorage.ts`, `server/services/stripeBilling.ts`, `server/services/workshopActivation.ts` e `server/platformAdminApp.ts`.
 
+## Controles observados e limites da auditoria
+
+- O backend usa sessão com cookie `httpOnly` e `sameSite: strict`, permissões e contexto da oficina. A existência desses controles no código não demonstra por si só que todas as tabelas, rotas e objetos privados estejam corretamente isolados no ambiente publicado.
+- Os links públicos de documentos têm token, vencimento e revogação. O processo de exclusão precisa revogar os links ativos antes de retirar a oficina.
+- A exportação `.hptx` é criptografada e transforma referências de fotos privadas em conteúdo portátil. A restauração completa e a guarda fora do banco ainda precisam ser testadas para este novo fluxo.
+- Existe página de privacidade da extensão Horse Power, mas ela não descreve o serviço OSDrive. Não foi encontrado no código um aviso/aceite próprio do OSDrive para os novos termos.
+- Não foi confirmado prazo de eliminação para todos os eventos de auditoria, logs técnicos, convites e registros de cobrança. Nem todos podem seguir o prazo de 90 dias dos dados operacionais.
+- Campos livres de OS, checklists, suporte e documentos podem receber dados pessoais adicionais inseridos pelas oficinas. A análise de schema não permite afirmar quais tipos de dados reais os usuários armazenam neles.
+
+**Conclusão da auditoria de código:** existem controles técnicos de autenticação, escopo por oficina e exportação, mas ainda não há evidência suficiente para afirmar conformidade integral com a LGPD. Os documentos, a governança de pedidos dos titulares, os contratos com prestadores e a retenção por categoria seguem pendentes.
+
 ## Lacunas a resolver antes da publicação comercial
 
 1. Identificar a pessoa jurídica responsável pelo OSDrive, contato de privacidade e a relação contratual entre OSDrive e cada oficina. A classificação controlador/operador depende de quem decide finalidade e meios essenciais em cada fluxo; não pode ser inferida apenas do esquema do banco.
@@ -29,3 +40,4 @@ Evidência principal: `supabase/migrations/20261003220749_horse_power_cloud.sql`
 6. Testar exportação, restauração, integridade e eliminação de backups, bem como a revogação de links públicos e sessões na exclusão.
 
 Referências: [ANPD — agentes de tratamento](https://www.gov.br/anpd/pt-br/centrais-de-conteudo/materiais-educativos-e-publicacoes/guia-orientativo-para-definicoes-dos-agentes-de-tratamento-de-dados-pessoais-e-do-encarregado), [ANPD — direitos dos titulares](https://www.gov.br/anpd/pt-br/assuntos/titular-de-dados-1/direito-dos-titulares) e [ANPD — término e conservação](https://www.gov.br/anpd/pt-br/acesso-a-informacao/perguntas-frequentes).
+
