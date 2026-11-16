@@ -1,4 +1,5 @@
 import { randomBytes, randomUUID } from "node:crypto";
+import { isOsdriveCommercial } from "../osdriveCommercial.js";
 import { digestAdminToken } from "../auth/platformAdmin.js";
 
 export const workshopActivationTtlHours = 48;
@@ -39,7 +40,10 @@ export async function sendWorkshopActivationEmail(
   input: WorkshopActivationEmail,
   config: WorkshopActivationMailConfig = {},
 ) {
-  const apiKey = config.apiKey ?? process.env.RESEND_API_KEY;
+  const commercial = isOsdriveCommercial(process.env);
+  if (commercial && input.email !== "validacao-comercial@testes.osdrive.com.br")
+    throw new Error("activation_mail_recipient_not_allowed");
+  const apiKey = commercial ? process.env.OSDRIVE_TEST_INVITE_KEY : config.apiKey ?? process.env.RESEND_API_KEY;
   const from = config.from ?? process.env.WORKSHOP_ACTIVATION_FROM;
   const appOrigin = config.appOrigin ?? process.env.APP_ORIGIN;
   if (!apiKey || !from || !appOrigin) throw new Error("activation_mail_not_configured");
