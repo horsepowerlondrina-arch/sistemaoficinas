@@ -1228,6 +1228,20 @@
       "reason": "Captura da interface real com API e dados fictícios no CI PostgreSQL 17 #917; o navegador de teste não representa a câmera do aparelho."
     },
     {
+      "id": "checklist-camera-mobile",
+      "module": "05-checklist",
+      "title": "Câmera no checklist (mobile)",
+      "description": "Câmera integrada aberta no checklist de teste, com prévia e botão para capturar foto.",
+      "route": "/checklists/fictional",
+      "kind": "Formulário e evidências",
+      "viewport": "mobile",
+      "status": "capturada",
+      "image": "docs/mapeamento-visual/capturas/05-checklist/checklist-camera-mobile.png",
+      "updatedAt": "2026-11-16",
+      "commit": "0a5cf08d4e06002a4016b1d6cdf36523a2e83bce",
+      "reason": "Captura da câmera fictícia no navegador mobile do CI PostgreSQL 17 #922; requer validação final no celular real."
+    },
+    {
       "id": "checklist-finalizado",
       "module": "05-checklist",
       "title": "Checklist finalizado",

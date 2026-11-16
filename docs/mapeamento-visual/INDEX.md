@@ -238,6 +238,14 @@ Câmera e galeria disponíveis em checklist de teste com foto fictícia.
 
 Estado: capturada · mobile · captura 2026-11-16 · commit de origem: aafecb8904620f4b591959e47704084c46fc07d2 · [arquivo completo](./capturas/05-checklist/checklist-photo-mobile.png)
 
+### Câmera no checklist (mobile)
+
+Câmera integrada aberta no checklist de teste, com prévia e botão para capturar foto.
+
+[![Câmera no checklist (mobile)](./capturas/05-checklist/checklist-camera-mobile.png)](./capturas/05-checklist/checklist-camera-mobile.png)
+
+Estado: capturada · mobile · captura 2026-11-16 · commit de origem: 0a5cf08d4e06002a4016b1d6cdf36523a2e83bce · [arquivo completo](./capturas/05-checklist/checklist-camera-mobile.png)
+
 ### CAD-005 — Veículo no checklist (desktop)
 
 Formulário real com dados fictícios; identificação FIPE independente da associação técnica.
