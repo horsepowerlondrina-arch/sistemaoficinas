@@ -262,6 +262,14 @@ Estado inicial do formulário; não foi criado nenhum registro.
 
 Estado: capturada · desktop · captura 2026-11-08 · commit de origem: dca9c029e9b6ad77cb847ed9c46d42c52ef4a23e · [arquivo completo](./capturas/05-checklist/novo-checklist-desktop.png)
 
+### Captura de fotos no checklist (mobile)
+
+Câmera e galeria disponíveis em checklist de teste com foto fictícia.
+
+[![Captura de fotos no checklist (mobile)](./capturas/05-checklist/checklist-photo-mobile.png)](./capturas/05-checklist/checklist-photo-mobile.png)
+
+Estado: capturada · mobile · captura 2026-11-16 · commit de origem: ab9a2560ce48ddb2fcf1d13b72592eef9a394454 · [arquivo completo](./capturas/05-checklist/checklist-photo-mobile.png)
+
 ### CAD-005 — Veículo no checklist (desktop)
 
 Formulário real com dados fictícios; identificação FIPE independente da associação técnica.
