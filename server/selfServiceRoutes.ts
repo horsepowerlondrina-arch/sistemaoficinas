@@ -5,7 +5,7 @@ import { z } from "zod";
 import { digestAdminToken } from "./auth/platformAdmin.js";
 import { workshopRegistrationSchema } from "./services/platformWorkshops.js";
 import { sendWorkshopActivationEmail } from "./services/workshopActivation.js";
-import { selfServiceTestEmails, testOrigin } from "./services/selfServicePolicy.js";
+import { commercialRegistrationEnabled, selfServiceTestEmails, testOrigin } from "./services/selfServicePolicy.js";
 
 const schema = z.object({ workshop: workshopRegistrationSchema, plan_code: z.enum(["basic", "professional", "premium"]) }).strict();
 const accepted = { message: "Se o cadastro puder prosseguir, você receberá o e-mail de ativação. Confira a caixa de entrada." };
@@ -17,7 +17,8 @@ export function selfServiceRoutes(pool: Pool, deliver = sendWorkshopActivationEm
     if (!emails.length) { res.status(404).json({ error: "Cadastro indisponível." }); return; }
     const local = !process.env.VERCEL && process.env.NODE_ENV !== "production";
     const origin = req.get("origin");
-    if (origin !== testOrigin && !(local && origin === "http://127.0.0.1:5173")) { res.status(403).json({ error: "Origem não autorizada." }); return; }
+    const allowedOrigin = commercialRegistrationEnabled() ? "https://osdrive.com.br" : testOrigin;
+    if (origin !== allowedOrigin && !(local && origin === "http://127.0.0.1:5173")) { res.status(403).json({ error: "Origem não autorizada." }); return; }
     const input = schema.safeParse(req.body);
     if (!input.success) { res.status(400).json({ error: "Confira os dados do cadastro." }); return; }
     const email = input.data.workshop.responsible_email.toLowerCase();

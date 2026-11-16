@@ -1,4 +1,5 @@
 import { randomBytes, randomUUID } from "node:crypto";
+import { commercialPilotEmail, commercialRegistrationEnabled } from "./selfServicePolicy.js";
 import { isOsdriveCommercial } from "../osdriveCommercial.js";
 import { digestAdminToken } from "../auth/platformAdmin.js";
 
@@ -41,7 +42,8 @@ export async function sendWorkshopActivationEmail(
   config: WorkshopActivationMailConfig = {},
 ) {
   const commercial = isOsdriveCommercial(process.env);
-  if (commercial && input.email !== "validacao-comercial@testes.osdrive.com.br")
+  if (commercial && input.email !== "validacao-comercial@testes.osdrive.com.br" &&
+      !(commercialRegistrationEnabled() && input.email === commercialPilotEmail))
     throw new Error("activation_mail_recipient_not_allowed");
   const apiKey = commercial ? process.env.OSDRIVE_TEST_INVITE_KEY : config.apiKey ?? process.env.RESEND_API_KEY;
   const from = config.from ?? process.env.WORKSHOP_ACTIVATION_FROM;
