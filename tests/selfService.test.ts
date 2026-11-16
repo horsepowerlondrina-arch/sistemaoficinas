@@ -56,3 +56,10 @@ test("self service enforces origins, avoids email enumeration and never returns 
     Object.assign(process.env, previous);
   }
 });
+
+test("piloto comercial só habilita a caixa autorizada em Production do projeto comercial", () => {
+  const env = { VERCEL_PROJECT_ID: "prj_2VoHx0Sja7OSsWAzhMA1Ww3ZLrza", VERCEL_ENV: "production", APP_ORIGIN: "https://osdrive.com.br", OSDRIVE_SELF_SERVICE_TEST: "true", OSDRIVE_TEST_INVITE_KEY: "fake" };
+  assert.deepEqual(selfServiceTestEmails(env), ["autocadastro-comercial@testes.osdrive.com.br"]);
+  for (const change of [{ VERCEL_ENV: "preview" }, { APP_ORIGIN: testOrigin }, { OSDRIVE_SELF_SERVICE_TEST: "false" }, { OSDRIVE_TEST_INVITE_KEY: "" }, { VERCEL_PROJECT_ID: "other" }])
+    assert.deepEqual(selfServiceTestEmails({...env, ...change}), []);
+});
