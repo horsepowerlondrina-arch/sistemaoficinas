@@ -73,7 +73,11 @@ test("PostgreSQL: pacote recuperado inclui só os registros da oficina fictícia
     assert.equal(result.manifest.tenantId, tenant);
     assert.ok(result.manifest.chunks.length >= 1);
     assert.ok([...objects.keys()].every(key => key.startsWith(`${tenant}/`)));
-  } finally { await db.close(); await root.end(); }
+  } finally {
+    await root.query("DELETE FROM horse_power.customers WHERE tenant_id=ANY($1::text[])", [[tenant, other]]);
+    await root.query("DELETE FROM horse_power.tenants WHERE id=ANY($1::text[])", [[tenant, other]]);
+    await db.close(); await root.end();
+  }
 });
 
 test("PostgreSQL: aviso do dia 89 é único e não atinge oficina com liberação administrativa", async () => {
@@ -102,7 +106,13 @@ test("PostgreSQL: aviso do dia 89 é único e não atinge oficina com liberaçã
     assert.equal(rows.rows[0].sent, true);
     assert.equal(rows.rows[0].delivered, true);
     assert.equal((await pool.query("SELECT count(*)::int AS n FROM platform_admin.workshop_retention_notices WHERE tenant_id=$1", [granted])).rows[0].n, 0);
-  } finally { await pool.end(); await root.end(); }
+  } finally {
+    await root.query("DELETE FROM platform_admin.workshop_retention_notices WHERE tenant_id=ANY($1::text[])", [[trial, granted]]);
+    await root.query("DELETE FROM platform_admin.workshop_retention_cases WHERE tenant_id=ANY($1::text[])", [[trial, granted]]);
+    await root.query("DELETE FROM platform_admin.workshops WHERE tenant_id=ANY($1::text[])", [[trial, granted]]);
+    await root.query("DELETE FROM horse_power.tenants WHERE id=ANY($1::text[])", [[trial, granted]]);
+    await pool.end(); await root.end();
+  }
 });
 
 test("PostgreSQL: rotina só exclui oficina fictícia após aviso final e cópia verificada", async()=>{
@@ -134,7 +144,14 @@ test("PostgreSQL: rotina só exclui oficina fictícia após aviso final e cópia
     assert.equal((await root.query('SELECT count(*)::int AS n FROM horse_power.customers WHERE tenant_id=$1',[other])).rows[0].n,1);
     assert.equal((await root.query('SELECT status,backup_verified_at IS NOT NULL AS verified FROM platform_admin.workshop_retention_cases WHERE tenant_id=$1',[tenant])).rows[0].status,'deleted');
     assert.ok(objects.size>0);
-  }finally{await db.close();await pool.end();await root.end();}
+  }finally{
+    await root.query("DELETE FROM platform_admin.workshop_retention_notices WHERE tenant_id=ANY($1::text[])", [[tenant,other]]);
+    await root.query("DELETE FROM platform_admin.workshop_retention_cases WHERE tenant_id=ANY($1::text[])", [[tenant,other]]);
+    await root.query("DELETE FROM platform_admin.workshops WHERE tenant_id=ANY($1::text[])", [[tenant,other]]);
+    await root.query("DELETE FROM horse_power.customers WHERE tenant_id=ANY($1::text[])", [[tenant,other]]);
+    await root.query("DELETE FROM horse_power.tenants WHERE id=ANY($1::text[])", [[tenant,other]]);
+    await db.close();await pool.end();await root.end();
+  }
 });
 
 test('PostgreSQL: pagamento posterior descarta a cópia antiga sem excluir dados',async()=>{
