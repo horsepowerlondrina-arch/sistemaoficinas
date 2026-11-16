@@ -20,8 +20,8 @@ try {
     await delay(250);
   }
   if (!ready) throw Error("TEST_SERVER_UNAVAILABLE");
-  browser = await chromium.launch({ headless: true, ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH } : {}) });
-  const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  browser = await chromium.launch({ headless: true, args: ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream"], ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH } : {}) });
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 }, permissions: ["camera"] });
   const errors = []; page.on("pageerror", error => errors.push(error.message));
   let photos = [{ id: "fictional-photo-1", kind: "front" }];
   let uploads = 0;
@@ -47,14 +47,28 @@ try {
     const context = canvas.getContext("2d"); context.fillStyle = "#b3342d"; context.fillRect(0, 0, 200, 150);
     return canvas.toDataURL("image/png").split(",")[1];
   });
-  for (const [index, label] of ["Tirar foto", "Escolher da galeria"].entries()) {
-    const chooser = page.waitForEvent("filechooser");
-    await page.getByText(label, { exact: true }).click();
-    const fileChooser = await chooser;
-    await expect(page.locator(".checklist-photo-grid img")).toHaveCount(0);
-    await fileChooser.setFiles({ name: "foto-ficticia.png", mimeType: "image/png", buffer: Buffer.from(picture, "base64") });
-    await expect(page.locator(".checklist-photo-grid img")).toHaveCount(index + 2);
-  }
+  await page.getByRole("button", { name: "Tirar foto" }).click();
+  await expect(page.getByRole("button", { name: "Capturar foto" })).toBeEnabled();
+  await expect(page.locator(".checklist-photo-grid img")).toHaveCount(0);
+  await page.screenshot({ path: resolve(output, "checklist-camera-mobile.png"), fullPage: true });
+  await page.evaluate(() => { window.__checklistCameraTrack = document.querySelector("video").srcObject.getVideoTracks()[0]; });
+  await page.getByRole("button", { name: "Capturar foto" }).click();
+  await expect(page.locator(".checklist-photo-grid img")).toHaveCount(2);
+  expect(await page.evaluate(() => window.__checklistCameraTrack.readyState)).toBe("ended");
+
+  const chooser = page.waitForEvent("filechooser");
+  await page.getByText("Escolher da galeria", { exact: true }).click();
+  const fileChooser = await chooser;
+  await expect(page.locator(".checklist-photo-grid img")).toHaveCount(0);
+  await fileChooser.setFiles({ name: "foto-ficticia.png", mimeType: "image/png", buffer: Buffer.from(picture, "base64") });
+  await expect(page.locator(".checklist-photo-grid img")).toHaveCount(3);
+
+  await page.getByRole("button", { name: "Tirar foto" }).click();
+  await expect(page.getByRole("button", { name: "Capturar foto" })).toBeEnabled();
+  await page.evaluate(() => { window.__cancelledCameraTrack = document.querySelector("video").srcObject.getVideoTracks()[0]; });
+  await page.getByRole("button", { name: "Cancelar" }).click();
+  await expect(page.locator(".checklist-photo-grid img")).toHaveCount(3);
+  expect(await page.evaluate(() => window.__cancelledCameraTrack.readyState)).toBe("ended");
   expect(uploads).toBe(2);
   expect(errors).toEqual([]);
   if (await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1)) throw Error("MOBILE_OVERFLOW");
