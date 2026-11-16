@@ -1,4 +1,5 @@
 import { VehiclePlate } from "../components/VehiclePlate";
+import { ChecklistCamera } from "../components/ChecklistCamera";
 import { IssuedDocument } from "../components/IssuedDocument";
 import { NumericInput } from "../components/NumericInput";
 import {
@@ -265,7 +266,7 @@ export function ChecklistEditor() {
   const [photoKind, setPhotoKind] =
     useState<(typeof photoKinds)[number][0]>("front");
   const [photoPickerActive, setPhotoPickerActive] = useState(false);
-  const cameraInput = useRef<HTMLInputElement>(null);
+  const [cameraOpen, setCameraOpen] = useState(false);
   const galleryInput = useRef<HTMLInputElement>(null);
   const [damageType, setDamageType] =
     useState<Damage["type"]>("Risco");
@@ -294,7 +295,7 @@ export function ChecklistEditor() {
   }, [id]);
 
   useEffect(() => {
-    const inputs = [cameraInput.current, galleryInput.current];
+    const inputs = [galleryInput.current];
     const cancelled = () => setPhotoPickerActive(false);
     for (const input of inputs) input?.addEventListener("cancel", cancelled);
     return () => {
@@ -398,7 +399,7 @@ export function ChecklistEditor() {
     }
   };
 
-  const upload = async (file?: File) => {
+  const upload = async (file?: File | Blob) => {
     if (!file || !record) {
       setPhotoPickerActive(false);
       return;
@@ -406,7 +407,7 @@ export function ChecklistEditor() {
     setBusy(true);
     setError("");
     try {
-      const blob = await compressChecklistPhoto(file);
+      const blob = file instanceof File ? await compressChecklistPhoto(file) : file;
       const response = await fetch(
         `/api/checklists/${record.id}/photos?kind=${encodeURIComponent(photoKind)}`,
         {
@@ -431,6 +432,14 @@ export function ChecklistEditor() {
 
   // Release decoded thumbnails before Android opens its camera or file picker.
   const preparePhotoPicker = () => flushSync(() => setPhotoPickerActive(true));
+  const openCamera = () => flushSync(() => {
+    setPhotoPickerActive(true);
+    setCameraOpen(true);
+  });
+  const closeCamera = () => {
+    setCameraOpen(false);
+    setPhotoPickerActive(false);
+  };
 
   const removePhoto = async (photoId: string) => {
     if (!record) return;
@@ -731,6 +740,7 @@ export function ChecklistEditor() {
 
   return (
     <>
+      {cameraOpen && <ChecklistCamera onClose={closeCamera} onCapture={upload} />}
       <IssuedDocument key={record.id} kind="checklist" id={record.id} />
       <div className="no-print">
         <button className="back-link" onClick={() => navigate("/checklists")}>
@@ -947,22 +957,10 @@ export function ChecklistEditor() {
                   </option>
                 ))}
               </select>
-              <label className="button primary">
+              <button type="button" className="button primary" disabled={busy} onClick={openCamera}>
                 <Camera size={17} />
                 Tirar foto
-                <input
-                  ref={cameraInput}
-                  className="sr-only"
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  onClick={preparePhotoPicker}
-                  onChange={(e) => {
-                    void upload(e.target.files?.[0]);
-                    e.currentTarget.value = "";
-                  }}
-                />
-              </label>
+              </button>
               <label className="button">
                 Escolher da galeria
                 <input
