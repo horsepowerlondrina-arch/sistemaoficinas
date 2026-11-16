@@ -24,7 +24,7 @@ export function RegisterWorkshop() {
   return <main className="activation-page"><section className="activation-card" aria-label="Cadastro da oficina">
     <PlatformBrand /><h1>Criar minha oficina</h1>
     {loading ? <p role="status">Carregando…</p> : !enabled ? <p>O cadastro de oficinas ainda não está disponível.</p> : message ? <p role="status">{message}</p> : <>
-      <p>Confirme seu e-mail para ativar a oficina. Depois, confira os valores e contrate pelo seu acesso Master.</p>
+      <p>Confirme seu e-mail para iniciar 14 dias de teste com os recursos do plano Premium.</p>
       <form onSubmit={submit}>
         <label>Nome da oficina<input name="name" required minLength={2} maxLength={160} disabled={busy}/></label>
         <label>Nome do responsável<input name="responsible_name" required minLength={2} maxLength={120} disabled={busy}/></label>
