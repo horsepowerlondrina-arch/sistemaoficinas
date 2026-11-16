@@ -10,6 +10,7 @@ import { stripePublicRoutes } from "./stripeBillingRoutes.js";
 import { createApp } from "./app.js";
 import { createPostgresDatabase } from "./db/postgres.js";
 import pg from "pg";
+import { assertOsdriveCommercial, isOsdriveCommercial } from "./osdriveCommercial.js";
 import { assertDevelopmentIsolation } from "./developmentIsolation.js";
 import { assertHorsePowerIsolation } from "./horsePowerIsolation.js";
 import {
@@ -23,7 +24,9 @@ import { workshopRetentionRoutes } from "./workshopRetentionRoutes.js";
 export async function createCloudRuntime(options: { ca?: string; operationalUrl?: string; administrativeUrl?: string; hyperdrive?: boolean; onStage?: (stage: string) => void } = {}) {
   if (options.hyperdrive && (!isCloudflareHomologation(process.env) || !options.operationalUrl || !options.administrativeUrl)) throw new Error("Hyperdrive exige os dois bindings da homologação paralela.");
   const standaloneHorsePower = process.env.APP_ENV === "horse_power";
-  if (standaloneHorsePower) assertHorsePowerIsolation(process.env);
+  const commercial = isOsdriveCommercial(process.env);
+  if (commercial) assertOsdriveCommercial(process.env);
+  else if (standaloneHorsePower) assertHorsePowerIsolation(process.env);
   else assertDevelopmentIsolation(process.env);
   const productionHost = process.env.VERCEL_PROJECT_PRODUCTION_URL;
   if (!process.env.APP_ORIGIN && productionHost)
@@ -36,7 +39,7 @@ export async function createCloudRuntime(options: { ca?: string; operationalUrl?
   let app: ReturnType<typeof createApp>;
   let adminPoolForClose: pg.Pool | undefined;
   try {
-    if (process.env.LOCAL_HOMOLOGATION === "true" || isCloudflareHomologation(process.env)) {
+    if (commercial || process.env.LOCAL_HOMOLOGATION === "true" || isCloudflareHomologation(process.env)) {
       options.onStage?.("operational_role");
       const role = await db
         .prepare(
