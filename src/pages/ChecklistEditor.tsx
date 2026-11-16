@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { api, send } from "../lib/api";
+import { compressChecklistPhoto } from "../lib/checklistPhotoCompression";
 import { useApp } from "../lib/context";
 import type { Entity } from "../lib/types";
 import { Empty, Field, PageHeading } from "../components/ui";
@@ -67,38 +68,6 @@ function emptyConditionMap() {
 }
 function emptyPanelMap() {
   return Object.fromEntries(panelItems.map((item) => [item, false]));
-}
-
-async function compressPhoto(file: File) {
-  const url = URL.createObjectURL(file);
-  try {
-    const image = new Image();
-    await new Promise<void>((resolve, reject) => {
-      image.onload = () => resolve();
-      image.onerror = () => reject(new Error("Não foi possível abrir a foto."));
-      image.src = url;
-    });
-    const max = 1280;
-    const scale = Math.min(1, max / Math.max(image.width, image.height));
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.max(1, Math.round(image.width * scale));
-    canvas.height = Math.max(1, Math.round(image.height * scale));
-    const context = canvas.getContext("2d");
-    if (!context) throw new Error("Não foi possível preparar a foto.");
-    context.drawImage(image, 0, 0, canvas.width, canvas.height);
-    return await new Promise<Blob>((resolve, reject) =>
-      canvas.toBlob(
-        (blob) =>
-          blob
-            ? resolve(blob)
-            : reject(new Error("Não foi possível preparar a foto.")),
-        "image/jpeg",
-        0.72,
-      ),
-    );
-  } finally {
-    URL.revokeObjectURL(url);
-  }
 }
 
 function SignaturePad({
@@ -421,7 +390,7 @@ export function ChecklistEditor() {
     setBusy(true);
     setError("");
     try {
-      const blob = await compressPhoto(file);
+      const blob = await compressChecklistPhoto(file);
       const response = await fetch(
         `/api/checklists/${record.id}/photos?kind=${encodeURIComponent(photoKind)}`,
         {
