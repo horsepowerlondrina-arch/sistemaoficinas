@@ -1,9 +1,18 @@
 import { PlatformBrand } from "../components/PlatformBrand";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Eye, EyeOff, LoaderCircle } from "lucide-react";
 import { send } from "../lib/api";
 import { Link } from "react-router-dom";
 export function Login({ onLogin }: { onLogin: () => Promise<void> }) {
+  const [registrationEnabled, setRegistrationEnabled] = useState(false);
+  useEffect(() => {
+    const controller = new AbortController();
+    void fetch("/admin-api/workshop-registration", { signal: controller.signal })
+      .then(response => response.ok ? response.json() : null)
+      .then(result => setRegistrationEnabled(result?.enabled === true))
+      .catch(() => {});
+    return () => controller.abort();
+  }, []);
   const [email, setEmail] = useState(() => {
     try {
       return localStorage.getItem("hp-login-email") || "";
@@ -95,6 +104,7 @@ export function Login({ onLogin }: { onLogin: () => Promise<void> }) {
             {busy ? <><LoaderCircle size={18} className="spin" /> Entrando...</> : "Entrar na oficina"}
           </button>
         </form>
+        {registrationEnabled && <Link className="button secondary" to="/criar-oficina">Criar minha oficina</Link>}
         <p className="office-auth-note">Acesso exclusivo à sua oficina.</p>
       </section>
     </main>
