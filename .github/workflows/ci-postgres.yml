@@ -52,6 +52,16 @@ jobs:
         run: npx tsx --test tests/stripeBilling.postgres.integration.ts
       - name: Install isolated Playwright browser
         run: npx playwright install --with-deps chromium
+      - name: Checklist photo capture and gallery on mobile layout
+        run: node scripts/test-checklist-photo-ui.mjs
+        timeout-minutes: 3
+      - name: Store checklist photo interface evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: checklist-photo-ui
+          path: ${{ runner.temp }}/checklist-photo-ui
+          retention-days: 14
       - name: Horse Power cash balance regression on PostgreSQL 17
         run: npx tsx --test tests/hpFinancial.postgres.integration.ts
       - name: Financial report and mixed payment regression
