@@ -1214,6 +1214,20 @@
       "reason": "A interação ainda não possui arquivo PNG correspondente; executar em navegador e dados de teste isolados."
     },
     {
+      "id": "checklist-fotos-mobile",
+      "module": "05-checklist",
+      "title": "Captura de fotos no checklist (mobile)",
+      "description": "Câmera e galeria disponíveis em checklist de teste com foto fictícia.",
+      "route": "/checklists/fictional",
+      "kind": "Formulário e evidências",
+      "viewport": "mobile",
+      "status": "capturada",
+      "image": "docs/mapeamento-visual/capturas/05-checklist/checklist-photo-mobile.png",
+      "updatedAt": "2026-11-16",
+      "commit": "aafecb8904620f4b591959e47704084c46fc07d2",
+      "reason": "Captura da interface real com API e dados fictícios no CI PostgreSQL 17 #917; o navegador de teste não representa a câmera do aparelho."
+    },
+    {
       "id": "checklist-finalizado",
       "module": "05-checklist",
       "title": "Checklist finalizado",
