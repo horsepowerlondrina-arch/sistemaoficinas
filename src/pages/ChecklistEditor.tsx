@@ -8,6 +8,7 @@ import {
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
+import { flushSync } from "react-dom";
 import {
   Camera,
   CheckCircle2,
@@ -263,6 +264,9 @@ export function ChecklistEditor() {
   const [error, setError] = useState("");
   const [photoKind, setPhotoKind] =
     useState<(typeof photoKinds)[number][0]>("front");
+  const [photoPickerActive, setPhotoPickerActive] = useState(false);
+  const cameraInput = useRef<HTMLInputElement>(null);
+  const galleryInput = useRef<HTMLInputElement>(null);
   const [damageType, setDamageType] =
     useState<Damage["type"]>("Risco");
 
@@ -288,6 +292,15 @@ export function ChecklistEditor() {
   useEffect(() => {
     void load();
   }, [id]);
+
+  useEffect(() => {
+    const inputs = [cameraInput.current, galleryInput.current];
+    const cancelled = () => setPhotoPickerActive(false);
+    for (const input of inputs) input?.addEventListener("cancel", cancelled);
+    return () => {
+      for (const input of inputs) input?.removeEventListener("cancel", cancelled);
+    };
+  }, [record?.status]);
 
   const selectedCustomer = data.customers.find(
     (customer) => customer.id === creating.customer_id,
@@ -386,7 +399,10 @@ export function ChecklistEditor() {
   };
 
   const upload = async (file?: File) => {
-    if (!file || !record) return;
+    if (!file || !record) {
+      setPhotoPickerActive(false);
+      return;
+    }
     setBusy(true);
     setError("");
     try {
@@ -409,8 +425,12 @@ export function ChecklistEditor() {
       setError((e as Error).message);
     } finally {
       setBusy(false);
+      setPhotoPickerActive(false);
     }
   };
+
+  // Release decoded thumbnails before Android opens its camera or file picker.
+  const preparePhotoPicker = () => flushSync(() => setPhotoPickerActive(true));
 
   const removePhoto = async (photoId: string) => {
     if (!record) return;
@@ -929,12 +949,28 @@ export function ChecklistEditor() {
               </select>
               <label className="button primary">
                 <Camera size={17} />
-                Tirar / adicionar foto
+                Tirar foto
                 <input
+                  ref={cameraInput}
                   className="sr-only"
                   type="file"
                   accept="image/*"
                   capture="environment"
+                  onClick={preparePhotoPicker}
+                  onChange={(e) => {
+                    void upload(e.target.files?.[0]);
+                    e.currentTarget.value = "";
+                  }}
+                />
+              </label>
+              <label className="button">
+                Escolher da galeria
+                <input
+                  ref={galleryInput}
+                  className="sr-only"
+                  type="file"
+                  accept="image/*"
+                  onClick={preparePhotoPicker}
                   onChange={(e) => {
                     void upload(e.target.files?.[0]);
                     e.currentTarget.value = "";
@@ -944,12 +980,23 @@ export function ChecklistEditor() {
             </div>
           )}
 
-          {(record.photos || []).length ? (
+          {photoPickerActive && (
+            <p className="muted" role="status">
+              Preparando a foto. As imagens do checklist reaparecem após o envio.
+              <button type="button" className="text-button" onClick={() => setPhotoPickerActive(false)}>
+                Mostrar fotos
+              </button>
+            </p>
+          )}
+
+          {!photoPickerActive && ((record.photos || []).length ? (
             <div className="checklist-photo-grid">
               {record.photos.map((photo: Entity) => (
                 <figure key={photo.id}>
                   <img
                     src={`/api/checklist-photos/${photo.id}`}
+                    loading="lazy"
+                    decoding="async"
                     alt={
                       photoKinds.find(
                         ([value]) => value === photo.kind,
@@ -978,7 +1025,7 @@ export function ChecklistEditor() {
             </div>
           ) : (
             <p className="muted">Nenhuma foto adicionada ainda.</p>
-          )}
+          ))}
         </section>
 
         <section className="panel checklist-section">
