@@ -390,22 +390,6 @@ Formulário real com dados fictícios; identificação FIPE independente da asso
 
 Estado: capturada · mobile · captura 2026-11-14 · commit de origem: 3f53da28177e3d9d5cca9811e7a403e008863a9a · [arquivo completo](./capturas/07-ordens-servico/cad005-switch-mobile.png)
 
-### Equipe e autorizações da OS
-
-Atribuição por OS a funcionário sem login e pedido de aprovação de desconto.
-
-[![Equipe e autorizações da OS](./capturas/07-ordens-servico/ops004-order-access-desktop.png)](./capturas/07-ordens-servico/ops004-order-access-desktop.png)
-
-Estado: capturada · desktop · captura 2026-11-14 · commit de origem: 10ab46c5db3eca34b8947849ab96439d55f650b5 · [arquivo completo](./capturas/07-ordens-servico/ops004-order-access-desktop.png)
-
-### Equipe e autorizações da OS
-
-Atribuição por OS a funcionário sem login e pedido de aprovação de desconto.
-
-[![Equipe e autorizações da OS](./capturas/07-ordens-servico/ops004-order-access-mobile.png)](./capturas/07-ordens-servico/ops004-order-access-mobile.png)
-
-Estado: capturada · mobile · captura 2026-11-14 · commit de origem: 10ab46c5db3eca34b8947849ab96439d55f650b5 · [arquivo completo](./capturas/07-ordens-servico/ops004-order-access-mobile.png)
-
 ### OS atribuída — perfil Mecânico
 
 Identificação do Mecânico e anos de fabricação/modelo distintos; sem cadastro completo, contatos ou valores comerciais.
@@ -1215,7 +1199,7 @@ Gestão de acessos e autorizações internas da oficina fictícia.
 1. Usuários, funcionários e vagas (capturada) — [imagem](./capturas/14-configuracoes/ops004-users-desktop.png)
 2. Perfil e permissões individuais (capturada) — [imagem](./capturas/14-configuracoes/ops004-permissions-desktop.png)
 3. Funcionário sem login e vínculo opcional (capturada) — [imagem](./capturas/14-configuracoes/ops004-staff-desktop.png)
-4. Equipe e autorizações da OS (capturada) — [imagem](./capturas/07-ordens-servico/ops004-order-access-desktop.png)
+4. Detalhes da OS sem painel de equipe (pendente)
 5. Central interna de aprovações (capturada) — [imagem](./capturas/14-configuracoes/ops004-approvals-desktop.png)
 6. Seleção da oficina ativa (capturada) — [imagem](./capturas/01-login-acesso/ops004-office-desktop.png)
 7. Ativação de colaborador (capturada) — [imagem](./capturas/01-login-acesso/ops004-invite-desktop.png)
