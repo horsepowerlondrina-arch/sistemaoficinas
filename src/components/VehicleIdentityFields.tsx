@@ -1,20 +1,22 @@
+import type { ReactNode } from "react";
 import { Field } from "./ui";
 import { NumericInput } from "./NumericInput";
 import { vehicleDisplayModel, vehicleModelYear } from "../../shared/vehicleIdentity";
 
 type Vehicle = Record<string, any>;
-export function VehicleIdentityFields({ vehicle, onChange, disabled = false, required = true, km, onKmChange }: {
+export function VehicleIdentityFields({ vehicle, onChange, disabled = false, required = true, km, onKmChange, modelPicker }: {
   vehicle: Vehicle;
   onChange: (next: Vehicle) => void;
   disabled?: boolean;
   required?: boolean;
   km?: number;
   onKmChange?: (next: number) => void;
+  modelPicker?: ReactNode;
 }) {
   const set = (field: string, value: unknown) => onChange({ ...vehicle, [field]: value });
   return <div className="vehicle-identity-fields full">
     <Field label={`Marca${required ? " *" : ""}`}><input required={required} disabled={disabled} maxLength={150} value={vehicle.brand || ""} onChange={(event) => set("brand", event.target.value)} /></Field>
-    <Field label={`Modelo${required ? " *" : ""}`}><input required={required} disabled={disabled} maxLength={300} value={vehicleDisplayModel(vehicle)} onChange={(event) => onChange({ ...vehicle, fipe_model: event.target.value, model: event.target.value.slice(0, 150), fipe_code: "", fipe_year_id: "", service_model_id: null, service_link_mode: "none" })} /></Field>
+    {modelPicker || <Field label={`Modelo${required ? " *" : ""}`}><input required={required} disabled={disabled} maxLength={150} value={vehicleDisplayModel(vehicle)} onChange={(event) => onChange({ ...vehicle, model: event.target.value, fipe_model: "", fipe_code: "", fipe_year_id: "", service_model_id: null, service_link_mode: "none" })} /></Field>}
     <Field label="Código FIPE"><input disabled={disabled} maxLength={8} value={vehicle.fipe_code || ""} placeholder="Não identificado" onChange={(event) => set("fipe_code", event.target.value)} /></Field>
     <Field label={`Ano de fabricação${required ? " *" : ""}`}><NumericInput required={required} disabled={disabled} type="number" min={1900} max={2100} value={vehicle.year || ""} onChange={(event) => set("year", event.target.value ? Number(event.target.value) : null)} /></Field>
     <Field label="Ano do modelo"><NumericInput disabled={disabled} type="number" min={1900} max={2100} value={vehicleModelYear(vehicle) || ""} onChange={(event) => set("model_year", event.target.value ? Number(event.target.value) : null)} /></Field>
