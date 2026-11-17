@@ -26,8 +26,8 @@ import type { Entity } from "../lib/types";
 import { Empty, Field, PageHeading } from "../components/ui";
 import { PlateField } from "../components/PlateField";
 import { VehicleIdentityFields } from "../components/VehicleIdentityFields";
-import { VehicleTechnicalAssociation } from "../components/VehicleTechnicalAssociation";
-import { fipeFields, emptyFipe } from "../../shared/vehicleFipe";
+import { VehicleModelSelection } from "../components/VehicleModelSelection";
+import { fipeFields, emptyFipe, type FipeCandidate } from "../../shared/vehicleFipe";
 import { mergeVehicleLookup, lookupWouldReplace, vehicleDisplayModel } from "../../shared/vehicleIdentity";
 
 const conditionItems = [
@@ -259,6 +259,7 @@ export function ChecklistEditor() {
     inspector: session.user.name,
   });
   const [lookupDone, setLookupDone] = useState(!!initialVehicle);
+  const [plateCandidates, setPlateCandidates] = useState<FipeCandidate[]>([]);
   const [record, setRecord] = useState<Entity | null>(null);
   const [loading, setLoading] = useState(!!id);
   const [busy, setBusy] = useState(false);
@@ -509,9 +510,11 @@ export function ChecklistEditor() {
 
           <PlateField
             value={creating.plate}
+            showFipeSelection={false}
             disabled={!!initialOrder}
             onChange={(plate) => {
               setLookupDone(false);
+              setPlateCandidates([]);
               setCreating((current) => ({
                 ...current,
                 plate,
@@ -532,6 +535,7 @@ export function ChecklistEditor() {
               }));
             }}
             onFound={(result) => {
+              setPlateCandidates(result.fipe_candidates || []);
               if (result.selectionOnly) {
                 setCreating(current => ({ ...current, vehicle_data: { ...current.vehicle_data, ...fipeFields(result.vehicle) } }));
                 return;
@@ -665,8 +669,7 @@ export function ChecklistEditor() {
               )}
 
               <div className="form-grid checklist-vehicle-step">
-                <VehicleIdentityFields vehicle={creating.vehicle_data} disabled={local} onChange={(value) => setCreating((current) => ({ ...current, vehicle_data: value as typeof current.vehicle_data }))} km={creating.km} onKmChange={(value) => setCreating((current) => ({ ...current, km: value }))} />
-                <VehicleTechnicalAssociation vehicle={creating.vehicle_data} modelId={String(creating.vehicle_data.service_model_id || "")} onModelChange={(id) => setCreating((current) => ({ ...current, vehicle_data: { ...current.vehicle_data, service_model_id: id || null, service_link_mode: id ? "manual" : "none" } }))} />
+                <VehicleIdentityFields vehicle={creating.vehicle_data} disabled={local} onChange={(value) => setCreating((current) => ({ ...current, vehicle_data: value as typeof current.vehicle_data }))} km={creating.km} onKmChange={(value) => setCreating((current) => ({ ...current, km: value }))} modelPicker={!local ? <VehicleModelSelection vehicle={creating.vehicle_data} onChange={(value) => setCreating((current) => ({ ...current, vehicle_data: value as typeof current.vehicle_data }))} candidates={plateCandidates} /> : undefined} />
                 <Field label="Nível de combustível">
                   <select
                     value={creating.fuel_level}
