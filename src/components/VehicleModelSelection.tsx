@@ -40,8 +40,7 @@ export function VehicleModelSelection({ vehicle, onChange, candidates = [] }: {
     return () => { active = false; };
   }, [vehicle.brand, vehicle.model, codeKey, search]);
   const matches = candidates.filter((candidate) => !!candidate.modelo && (!search || normalize(candidate.modelo).includes(normalize(search)) || String(candidate.codigoFipe || "").includes(search)));
-  const chooseCandidate = (candidate: FipeCandidate) => {
-    const option = options.find((item) => item.fipe_code && item.fipe_code === candidate.codigoFipe);
+  const chooseCandidate = (candidate: FipeCandidate, option?: Option) => {
     onChange({
       ...vehicle,
       brand: option?.brand || vehicle.brand,
@@ -67,10 +66,13 @@ export function VehicleModelSelection({ vehicle, onChange, candidates = [] }: {
     <label className="field"><span>Modelo *</span><input required type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Digite ou escolha o modelo do veículo..." maxLength={150} /></label>
     {busy && <p className="muted" role="status">Buscando modelos…</p>}
     {!busy && matches.length > 0 && <div className="vehicle-model-options" role="group" aria-label="Versões do veículo">
-      {matches.map((candidate, index) => <label className="checkbox-row" key={`${candidate.codigoFipe}-${candidate.anoId}-${index}`}>
-        <input type="radio" name="vehicle-model-option" checked={vehicle.model === candidate.modelo && vehicle.fipe_code === candidate.codigoFipe} onChange={() => chooseCandidate(candidate)} />
-        <span>{candidate.modelo} · {candidate.anoModelo} · FIPE {candidate.codigoFipe}{!options.some((option) => option.fipe_code === candidate.codigoFipe) && <small> · sem correspondência técnica</small>}</span>
-      </label>)}
+      {matches.flatMap((candidate, index) => {
+        const linked = options.filter((option) => option.fipe_code && option.fipe_code === candidate.codigoFipe);
+        return (linked.length ? linked : [undefined]).map((option) => <label className="checkbox-row" key={`${candidate.codigoFipe}-${candidate.anoId}-${index}-${option?.id || "manual"}`}>
+          <input type="radio" name="vehicle-model-option" checked={vehicle.model === candidate.modelo && vehicle.fipe_code === candidate.codigoFipe && (vehicle.service_model_id || null) === (option?.id || null)} onChange={() => chooseCandidate(candidate, option)} />
+          <span>{candidate.modelo} · {candidate.anoModelo} · FIPE {candidate.codigoFipe}{linked.length > 1 && <small> · {option?.name}</small>}</span>
+        </label>);
+      })}
     </div>}
     {!busy && !candidates.length && options.length > 0 && <div className="vehicle-model-options" role="group" aria-label="Modelos do veículo">
       {options.map((option) => <label className="checkbox-row" key={option.id}>
