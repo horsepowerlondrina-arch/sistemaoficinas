@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { send } from "../lib/api";
 import type { FipeCandidate } from "../../shared/vehicleFipe";
+import { vehicleDisplayModel } from "../../shared/vehicleIdentity";
 
 type Option = { id: string; name: string; brand: string; fipe_code: string };
 const normalize = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -13,8 +14,8 @@ export function VehicleModelSelection({ vehicle, onChange, candidates = [] }: {
   const [options, setOptions] = useState<Option[]>([]);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
-  const [search, setSearch] = useState(String(vehicle.model || ""));
-  useEffect(() => { setSearch(String(vehicle.model || "")); }, [vehicle.model]);
+  const [search, setSearch] = useState(vehicleDisplayModel(vehicle));
+  useEffect(() => { setSearch(vehicleDisplayModel(vehicle)); }, [vehicle.model, vehicle.fipe_model]);
   const codes = useMemo(() => [...new Set([
     ...candidates.map((candidate) => candidate.codigoFipe).filter((code): code is string => !!code),
     ...(vehicle.fipe_code ? [String(vehicle.fipe_code)] : []),
