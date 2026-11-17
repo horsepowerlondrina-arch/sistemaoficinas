@@ -50,3 +50,15 @@ DO $grants$ BEGIN
     EXECUTE 'CREATE POLICY tenant_scope_local ON horse_power.appointments FOR ALL TO hp_local_app USING (tenant_id=NULLIF(current_setting(''app.tenant_id'',true),'''')) WITH CHECK (tenant_id=NULLIF(current_setting(''app.tenant_id'',true),''''))';
   END IF;
 END $grants$;
+
+-- Keep the existing retention deletion fail-closed for unknown future tables,
+-- while including this tenant table in its verified deletion order.
+DO $retention$
+DECLARE definition text; marker text:='''horse_power.audit_events'',''horse_power.capture_sessions''';
+BEGIN
+  SELECT pg_get_functiondef('platform_admin.retention_delete_workshop(text,date)'::regprocedure) INTO definition;
+  IF definition IS NULL OR position(marker IN definition)=0 OR position('''horse_power.appointments''' IN definition)>0 THEN
+    RAISE EXCEPTION 'A rotina de retenção mudou; revise a agenda antes de aplicá-la.';
+  END IF;
+  EXECUTE replace(definition,marker,chr(39)||'horse_power.appointments'||chr(39)||','||marker);
+END $retention$;
