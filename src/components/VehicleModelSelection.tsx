@@ -81,7 +81,7 @@ export function VehicleModelSelection({ vehicle, onChange, candidates = [] }: {
         <span>{option.name}{option.fipe_code && <small> · FIPE {option.fipe_code}</small>}</span>
       </label>)}
     </div>}
-    {search.trim() && search.trim() !== vehicle.model && <button type="button" className="btn secondary" onClick={useManual}>Usar modelo informado</button>}
+    {search.trim() && search.trim() !== vehicle.model && !busy && !matches.length && !options.length && <button type="button" className="btn secondary" onClick={useManual}>Usar modelo informado</button>}
     {vehicle.model && <p className="muted" role="status">Modelo selecionado: {vehicle.model}</p>}
     {message && <p role="status" className="muted">{message}</p>}
   </section>;
