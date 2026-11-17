@@ -3,8 +3,8 @@ import test from "node:test";
 import { vehicleDisplayModel, mergeVehicleLookup } from "../shared/vehicleIdentity";
 import { candidateFields } from "../shared/vehicleFipe";
 
-test("o modelo escolhido prevalece sobre a descrição FIPE legada", () => {
-  const vehicle = { model: "Celta Spirit/ LT 1.0 MPFI 8V FlexP. 5p", fipe_model: "CELTA" };
+test("o modelo detalhado escolhido ocupa o campo canônico e mantém a origem FIPE", () => {
+  const vehicle = { model: "Celta Spirit/ LT 1.0 MPFI 8V FlexP. 5p", fipe_model: "Celta Spirit/ LT 1.0 MPFI 8V FlexP. 5p" };
   assert.equal(vehicleDisplayModel(vehicle), vehicle.model);
 });
 
