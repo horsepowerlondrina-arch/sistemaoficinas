@@ -18,7 +18,7 @@ const inputSchema = z.object({
 
 function requireAgenda(ctx: Context) {
   requireAdmin(ctx);
-  if (ctx.modules?.agenda === false) throw Object.assign(
+  if (ctx.modules?.agenda !== true) throw Object.assign(
     new Error("A Agenda está disponível nos planos Profissional e Premium."), { status: 403 },
   );
 }
