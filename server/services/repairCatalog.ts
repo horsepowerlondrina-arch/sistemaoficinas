@@ -252,7 +252,7 @@ export async function registrationVehicleModels(db: DB, ctx: Context, input: unk
   const value = registrationInput.parse(input);
   const codes = [...new Set(value.fipe_codes)];
   const search = vehicleSearchKey(value.search);
-  if (search && (!value.brand || search.length < 2))
+  if (search && !codes.length && (!value.brand || search.length < 2))
     return { status: "not_identified" as const, options: [] };
   if (!search && !codes.length && !value.selected_model_id && (!value.brand || vehicleSearchKey(value.model).length < 3))
     return { status: "not_identified" as const, options: [] };
