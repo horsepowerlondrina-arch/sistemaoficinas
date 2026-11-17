@@ -18,7 +18,7 @@ CREATE POLICY tenant_scope ON horse_power.appointments FOR ALL TO horse_power_ap
  USING (tenant_id=NULLIF(current_setting('app.tenant_id',true),''))
  WITH CHECK (tenant_id=NULLIF(current_setting('app.tenant_id',true),''));
 REVOKE ALL ON horse_power.appointments FROM PUBLIC,anon,authenticated;
-GRANT SELECT,INSERT,UPDATE ON horse_power.appointments TO horse_power_app;
+GRANT SELECT,INSERT,UPDATE,DELETE ON horse_power.appointments TO horse_power_app;
 
 -- Preserve the existing tenant and membership checks while adding a plan-derived key.
 CREATE OR REPLACE FUNCTION horse_power.local_tenant_module_access(p_tenant_id text)
@@ -46,7 +46,7 @@ END
 $function$;
 DO $grants$ BEGIN
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname='hp_local_app') THEN
-    GRANT SELECT,INSERT,UPDATE ON horse_power.appointments TO hp_local_app;
+    GRANT SELECT,INSERT,UPDATE,DELETE ON horse_power.appointments TO hp_local_app;
     EXECUTE 'CREATE POLICY tenant_scope_local ON horse_power.appointments FOR ALL TO hp_local_app USING (tenant_id=NULLIF(current_setting(''app.tenant_id'',true),'''')) WITH CHECK (tenant_id=NULLIF(current_setting(''app.tenant_id'',true),''''))';
   END IF;
 END $grants$;
