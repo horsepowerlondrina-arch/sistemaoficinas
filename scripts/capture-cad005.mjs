@@ -14,15 +14,16 @@ export async function captureCad005(page, entry) {
   if (register || review) {
     if (register) {
       await scope.getByRole("textbox", { name: /^Marca/ }).fill("Marca Fictícia");
-      await scope.getByRole("textbox", { name: /^Modelo/ }).fill("Modelo Fictício");
+      await scope.getByRole("searchbox", { name: /^Modelo/ }).fill("Modelo Fictício");
+      await scope.getByRole("button", { name: "Usar modelo informado" }).click();
       await scope.getByRole("spinbutton", { name: /^Ano de fabricação/ }).fill("2020");
       await scope.getByRole("spinbutton", { name: "Ano do modelo", exact: true }).fill("2021");
       await scope.getByRole("textbox", { name: "Combustível", exact: true }).fill("Flex");
     }
-    await expect(scope.getByRole("heading", { name: "Escolha o modelo do veículo" })).toBeVisible();
+    await expect(scope.getByRole("searchbox", { name: /^Modelo/ })).toBeVisible();
     if (entry.id.includes("review-catalog")) {
       await scope.getByRole("textbox", { name: "Código FIPE" }).fill("999999-9");
-      await scope.getByRole("searchbox", { name: "Pesquisar outro modelo" }).fill("Modelo Fictício");
+      await scope.getByRole("searchbox", { name: /^Modelo/ }).fill("Modelo Fictício");
       const firstOption = scope.getByRole("group", { name: "Modelos do veículo" }).getByRole("radio").first();
       await expect(firstOption).toBeVisible();
       await firstOption.click();
@@ -42,10 +43,16 @@ export async function captureCad005(page, entry) {
   }
   if (!review && !entry.id.includes("switch")) {
     await scope.getByRole("textbox", { name: /^Marca/ }).fill("Marca Fictícia");
-    await scope.getByRole("textbox", { name: /^Modelo(?: FIPE)?/ }).fill("Modelo FIPE Fictício 1.0 Flex");
+    await scope.getByRole("searchbox", { name: /^Modelo/ }).fill("Modelo FIPE Fictício 1.0 Flex");
+    await scope.getByRole("button", { name: "Usar modelo informado" }).click();
     await scope.getByRole("spinbutton", { name: /^Ano de fabricação/ }).fill("2020");
     await scope.getByRole("spinbutton", { name: "Ano do modelo", exact: true }).fill("2021");
     await scope.getByRole("textbox", { name: "Combustível", exact: true }).fill("Flex");
+  }
+  if (entry.id.includes("checklist")) {
+    await expect(scope.getByRole("searchbox", { name: /^Modelo/ })).toHaveValue("Modelo FIPE Fictício 1.0 Flex");
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBeTruthy();
+    return;
   }
   const association = scope.locator(".vehicle-technical-association details");
   await expect(association).not.toHaveAttribute("open");
