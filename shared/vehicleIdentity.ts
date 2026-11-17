@@ -1,6 +1,6 @@
 export function vehicleDisplayModel(vehicle: unknown): string {
   const value = vehicle as { fipe_model?: unknown; model?: unknown } | null | undefined;
-  return String(value?.model || value?.fipe_model || "").trim();
+  return String(value?.fipe_model || value?.model || "").trim();
 }
 
 export function vehicleModelYear(vehicle: { model_year?: unknown; fipe_year_id?: unknown; year?: unknown } | null | undefined): number | null {
