@@ -35,7 +35,7 @@ function renderOrder(order: Order, options: { role?: string; vehicle?: Record<st
     session: {
       role: options.role || "owner",
       modules: options.modules,
-      access: { permissions: options.permissions },
+      ...(options.permissions ? { access: { permissions: options.permissions } } : {}),
       user: { id: "user-test", name: "Admin Teste", email: "admin@example.test" },
       tenant: { id: "tenant-test", name: "Oficina Fictícia" },
       tenants: [],
