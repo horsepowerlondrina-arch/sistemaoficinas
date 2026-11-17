@@ -1,4 +1,3 @@
-import {OrderAccessControls} from '../components/OrderAccessControls';
 import {can} from '../lib/userAccess';
 import { VehiclePlate } from "../components/VehiclePlate";
 import { basicOrderReceiptMethods, type BasicOrderReceiptMethod } from "../../shared/basicOrderReceipt";
@@ -336,7 +335,6 @@ export function OrderView() {
         </button>
       )}
       </div>
-      <div className="no-print"><OrderAccessControls orderId={order.id}/></div>
       <IssuedDocumentPreview />
       {postReceiptOpen && <PostReceiptActions order={order} shopName={session.tenant.name} customerPhone={customer?.phone} onDone={finishReceipt} />}
       {receiptOpen && (
