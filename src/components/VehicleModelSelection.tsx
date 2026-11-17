@@ -98,7 +98,7 @@ export function VehicleModelSelection({ vehicle, onChange, candidates = [] }: {
     setActiveIndex(0);
   };
   const keyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === "Escape") { setOpen(false); return; }
+    if (event.key === "Escape" && open) { event.preventDefault(); event.stopPropagation(); setOpen(false); return; }
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault();
       setOpen(true);
