@@ -43,8 +43,12 @@ export async function captureCad005(page, entry) {
   }
   if (!review && !entry.id.includes("switch")) {
     await scope.getByRole("textbox", { name: /^Marca/ }).fill("Marca Fictícia");
-    await scope.getByRole("searchbox", { name: /^Modelo/ }).fill("Modelo FIPE Fictício 1.0 Flex");
-    await scope.getByRole("button", { name: "Usar modelo informado" }).click();
+    if (entry.id.includes("checklist")) {
+      await scope.getByRole("searchbox", { name: /^Modelo/ }).fill("Modelo FIPE Fictício 1.0 Flex");
+      await scope.getByRole("button", { name: "Usar modelo informado" }).click();
+    } else {
+      await scope.getByRole("textbox", { name: /^Modelo(?: FIPE)?/ }).fill("Modelo FIPE Fictício 1.0 Flex");
+    }
     await scope.getByRole("spinbutton", { name: /^Ano de fabricação/ }).fill("2020");
     await scope.getByRole("spinbutton", { name: "Ano do modelo", exact: true }).fill("2021");
     await scope.getByRole("textbox", { name: "Combustível", exact: true }).fill("Flex");
