@@ -15,7 +15,7 @@ export async function captureCad005(page, entry) {
     if (register) {
       await scope.getByRole("textbox", { name: /^Marca/ }).fill("Marca Fictícia");
       await scope.getByRole("searchbox", { name: /^Modelo/ }).fill("Modelo Fictício");
-      await scope.getByRole("button", { name: "Usar modelo informado" }).click();
+      await scope.getByRole("group", { name: "Modelos do veículo" }).getByRole("radio").first().click();
       await scope.getByRole("spinbutton", { name: /^Ano de fabricação/ }).fill("2020");
       await scope.getByRole("spinbutton", { name: "Ano do modelo", exact: true }).fill("2021");
       await scope.getByRole("textbox", { name: "Combustível", exact: true }).fill("Flex");
