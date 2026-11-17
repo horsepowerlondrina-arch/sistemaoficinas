@@ -706,8 +706,7 @@ export function RegisterModal({
                               setVehicle((v) => mergeVehicleLookup(v, r.vehicle));
                           }}
                         />
-                        <VehicleIdentityFields vehicle={vehicle} onChange={setVehicle} km={vehicle.km} onKmChange={(value) => setVehicle((current) => ({ ...current, km: value }))} />
-                        <VehicleModelSelection vehicle={vehicle} onChange={setVehicle} candidates={plateCandidates} />
+                        <VehicleIdentityFields vehicle={vehicle} onChange={setVehicle} km={vehicle.km} onKmChange={(value) => setVehicle((current) => ({ ...current, km: value }))} modelPicker={<VehicleModelSelection vehicle={vehicle} onChange={setVehicle} candidates={plateCandidates} />} />
                       </div>
                     )}
                   </>
@@ -773,8 +772,7 @@ export function RegisterModal({
                       setForm((f) => mergeVehicleLookup(f, r.vehicle));
                   }}
                 />
-                <VehicleIdentityFields vehicle={form} onChange={setForm} km={form.km} onKmChange={(value) => set("km", value)} />
-                <VehicleModelSelection vehicle={form} onChange={setForm} candidates={plateCandidates} />
+                <VehicleIdentityFields vehicle={form} onChange={setForm} km={form.km} onKmChange={(value) => set("km", value)} modelPicker={<VehicleModelSelection vehicle={form} onChange={setForm} candidates={plateCandidates} />} />
               </>
             ) : kind === "catalog" ? (
               <>
