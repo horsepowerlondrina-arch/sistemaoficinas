@@ -122,7 +122,7 @@ export function Agenda() {
         <div className="agenda-form-row"><label>Data<input type="date" value={day} min={today()} onChange={event => setDay(event.target.value)} required/></label><label>Horário de início<input type="time" value={time} min={working?.open || undefined} max={working?.close || undefined} step={1800} onChange={event => setTime(event.target.value)} required/></label><label>Tempo reservado<select value={duration} onChange={event => setDuration(Number(event.target.value))}>{Array.from({ length: 16 }, (_, i) => (i + 1) * 30).map(n => <option key={n} value={n}>{n / 60} {n === 60 ? "hora" : "horas"}</option>)}</select></label></div>
         <label>Serviços previstos<textarea value={services} onChange={event => setServices(event.target.value)} placeholder="Descreva o relato do cliente e os serviços prováveis" required minLength={2} maxLength={2000}/></label>
         <p className="muted">A duração é uma estimativa. Outros veículos podem ser agendados no mesmo período; a mesma placa não pode ter horários sobrepostos.</p>
-        <div className="modal-actions"><button className="button" type="button" onClick={() => setCreating(false)}>Voltar</button><button className="button primary" type="submit" disabled={busy || !checkedPlate || !!working?.closed}>{busy ? "Salvando..." : "Salvar agendamento"}</button></div>
+        <div className="modal-actions"><button className="button" type="button" onClick={() => setCreating(false)}>Voltar</button><button className="button primary" type="submit" disabled={busy || !checkedPlate || !working || working.closed}>{busy ? "Salvando..." : "Salvar agendamento"}</button></div>
       </form>
     </Modal>}
   </>;

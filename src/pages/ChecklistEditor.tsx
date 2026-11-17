@@ -275,7 +275,7 @@ export function ChecklistEditor() {
         phone: customer?.phone || appointment.phone,
         vehicle_data: vehicle ? {
           ...fipeFields(vehicle), brand: vehicle.brand, model: vehicle.model,
-          year: Number(vehicle.year), color: vehicle.color || "", chassis: vehicle.chassis || "",
+          year: Number(vehicle.year) >= 1900 ? Number(vehicle.year) : new Date().getFullYear(), color: vehicle.color || "", chassis: vehicle.chassis || "",
           service_model_id: vehicle.service_model_id || null,
           service_link_mode: vehicle.service_link_mode || "",
         } : current.vehicle_data,

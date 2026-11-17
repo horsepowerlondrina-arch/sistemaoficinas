@@ -47,5 +47,6 @@ $function$;
 DO $grants$ BEGIN
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname='hp_local_app') THEN
     GRANT SELECT,INSERT,UPDATE ON horse_power.appointments TO hp_local_app;
+    EXECUTE 'CREATE POLICY tenant_scope_local ON horse_power.appointments FOR ALL TO hp_local_app USING (tenant_id=NULLIF(current_setting(''app.tenant_id'',true),'''')) WITH CHECK (tenant_id=NULLIF(current_setting(''app.tenant_id'',true),''''))';
   END IF;
 END $grants$;
