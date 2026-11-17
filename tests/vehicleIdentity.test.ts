@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { vehicleDisplayModel, vehicleModelYear, mergeVehicleLookup, lookupWouldReplace } from "../shared/vehicleIdentity";
+import { vehicleDisplayModel, vehicleModelYear, mergeVehicleLookup, lookupWouldReplace, lookupWouldReplaceDraft } from "../shared/vehicleIdentity";
 import { candidateFields } from "../shared/vehicleFipe";
 
 test("FIPE description is primary and old vehicles retain their legacy description", () => {
@@ -23,4 +23,13 @@ test("provider omissions preserve manual data and never replace the technical as
   assert.deepEqual(mergeVehicleLookup(current, null), current);
   assert.equal(lookupWouldReplace({ chassis: "manual" }, { chassis: "provider" }), true);
   assert.equal(lookupWouldReplace({ fipe_year_id: "2020-1" }, { fipe_year_id: "2021-1" }), true);
+});
+
+test("a primeira consulta de um veículo novo não trata o ano padrão como dado preenchido", () => {
+  const draft = { brand: "", model: "", year: new Date().getFullYear(), color: "", chassis: "" };
+  const lookup = { brand: "FIAT", model: "Uno Mille", year: 2004 };
+  assert.equal(lookupWouldReplace(draft, lookup), true);
+  assert.equal(lookupWouldReplaceDraft(draft, lookup), false);
+  assert.equal(lookupWouldReplaceDraft({ ...draft, model: "Outro modelo" }, lookup), true);
+  assert.equal(lookupWouldReplaceDraft({ ...draft, year: 2003 }, lookup), true);
 });

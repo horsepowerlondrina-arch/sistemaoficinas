@@ -29,7 +29,9 @@ export function Modal({
     <Dialog.Root open onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className="modal-overlay" />
-        <Dialog.Content className={`modal ${wide ? "wide" : ""}`}>
+        <Dialog.Content className={`modal ${wide ? "wide" : ""}`} onEscapeKeyDown={(event) => {
+          if (event.target instanceof HTMLInputElement && event.target.getAttribute("aria-expanded") === "true") event.preventDefault();
+        }}>
           <div className="modal-head">
             <div>
               <Dialog.Title>{title}</Dialog.Title>
