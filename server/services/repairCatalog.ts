@@ -263,17 +263,17 @@ export async function registrationVehicleModels(db: DB, ctx: Context, input: unk
     const addSelected = (items: Row[]) => selected && registrationBrandCompatible(value.brand, selected.brand) && !items.some((item) => item.id === selected.id)
       ? [selected, ...items]
       : items;
-    if (search) {
-      const brand = registrationBrandKey(value.brand).split(" ").filter(Boolean).join("%");
-      return db.prepare(
-        "SELECT m.id,m.name,m.fipe_code,b.name brand FROM service_catalog.models m JOIN service_catalog.brands b ON b.id=m.brand_id WHERE " + searchColumn("b.name") + " LIKE ? AND " + searchColumn("m.name") + " LIKE ? ORDER BY m.name,m.id LIMIT 51"
-      ).all("%" + brand + "%", "%" + search.split(" ").join("%") + "%");
-    }
     if (codes.length) {
       const exact = await db.prepare(
       "SELECT m.id,m.name,m.fipe_code,b.name brand FROM service_catalog.models m JOIN service_catalog.brands b ON b.id=m.brand_id WHERE m.fipe_code IN (" + codes.map(() => "?").join(",") + ") ORDER BY m.name,m.id LIMIT 51"
       ).all(...codes);
       if (exact.length) return addSelected(exact);
+    }
+    if (search) {
+      const brand = registrationBrandKey(value.brand).split(" ").filter(Boolean).join("%");
+      return db.prepare(
+        "SELECT m.id,m.name,m.fipe_code,b.name brand FROM service_catalog.models m JOIN service_catalog.brands b ON b.id=m.brand_id WHERE " + searchColumn("b.name") + " LIKE ? AND " + searchColumn("m.name") + " LIKE ? ORDER BY m.name,m.id LIMIT 51"
+      ).all("%" + brand + "%", "%" + search.split(" ").join("%") + "%");
     }
     const family = vehicleSearchKey(value.model).split(" ")[0];
     if (family.length < 3 || !value.brand) return addSelected([]);
