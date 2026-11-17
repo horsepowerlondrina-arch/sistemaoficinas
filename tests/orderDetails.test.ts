@@ -30,10 +30,11 @@ const baseOrder = (overrides: Partial<Order> = {}): Order => ({
   ...overrides,
 });
 
-function renderOrder(order: Order, options: { role?: string; vehicle?: Record<string, any> } = {}) {
+function renderOrder(order: Order, options: { role?: string; vehicle?: Record<string, any>; permissions?: Record<string, boolean> } = {}) {
   const context: any = {
     session: {
       role: options.role || "owner",
+      ...(options.permissions ? { access: { permissions: options.permissions } } : {}),
       user: { id: "user-test", name: "Admin Teste", email: "admin@example.test" },
       tenant: { id: "tenant-test", name: "Oficina Fictícia" },
       tenants: [],
@@ -164,4 +165,14 @@ test("service and parts totals appear beneath their respective item lists", () =
   assert.match(products, /Total de peças.*R\$\s?35,00/);
   const operator = renderOrder(baseOrder({ items: [{ id: "part-1", kind: "product", name: "Peça", quantity: 1, price: 3500 }] as Order["items"] }), { role: "operator" });
   assert.doesNotMatch(operator, /Total de peças|R\$\s?35,00/);
+});
+
+
+test("OS details omit the team and authorization panel even for users with access", () => {
+  const html = renderOrder(baseOrder(), {
+    permissions: { "orders.assign": true, "orders.discount": true },
+  });
+  assert.doesNotMatch(html, /Equipe e autorizações|Responsáveis pela OS|Solicitar aprovação de desconto|Central de aprovações/);
+  assert.match(html, /Observações para a equipe/);
+  assert.match(html, /Imprimir PDF/);
 });
