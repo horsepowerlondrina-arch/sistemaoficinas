@@ -7,8 +7,8 @@
 - O planejamento funcional e a priorização ficam nas conversas específicas do ChatGPT. O Codex executa tarefas já definidas, registra evidências e não cria escopo adicional.
 - **GOV-003 — Execução paralela controlada:** até dois Codex podem implementar tarefas independentes ao mesmo tempo, em branches e ambientes de trabalho isolados (worktrees próprios ou execuções remotas independentes). Nunca compartilham o mesmo diretório ou branch de trabalho. Tarefas que toquem os mesmos componentes, arquivos, configurações, estruturas de banco ou fluxos compartilhados são sequenciais.
 - Todo trabalho começa conferindo `main`, branches, estado do checkout e documentação atual. Cada tarefa usa branch própria derivada da versão atual de `main`; não se reutiliza uma branch antiga sem conferir sua base.
-- Cada solicitação de implementação do responsável autoriza o fluxo completo no escopo solicitado: branch, implementação, testes, PR e integração após CI aprovado e proteções satisfeitas. Não se pede aprovação rotineira adicional para merge nem para a publicação automática na homologação.
-- Migrações remotas, alterações persistentes/destrutivas de dados, mudanças sensíveis de credenciais, segredos, autenticação ou permissões e publicação em produção continuam exigindo autorização específica.
+- A solicitação autoriza branch, implementação, testes, PR, integração com CI aprovado e publicação. Siga a [política de publicação](PUBLICACAO.md) para classificar a tarefa, validar e publicar automaticamente nos destinos aplicáveis.
+- Migrações remotas, alterações de dados persistentes, ações destrutivas e mudanças sensíveis de credenciais, autenticação ou permissões continuam exigindo autorização específica.
 - **GOV-002 — Padronização de autorizações e publicação:** registrar como política de governança a execução ponta a ponta por tarefa, mantendo as exceções de segurança e os controles obrigatórios da plataforma.
 - **GOV-003 — Desenvolvimento paralelo:** conservar integralmente a autorização padrão da GOV-002 e suas exceções. Coordenar merges e publicações para que cada PR seja validado sobre uma `main` compatível. Nunca executar alterações simultâneas em bancos remotos persistentes.
 
@@ -63,8 +63,8 @@ Toda tarefa técnica deve registrar:
 4. Executar build, testes gerais e PostgreSQL exigidos pela tarefa. Dados de teste são fictícios.
 5. Revisar diff, segredos, arquivos incluídos e efeitos de migrações.
 6. Criar commit e PR para `main`; corrigir falhas na mesma branch.
-7. A solicitação da tarefa já autoriza o merge após CI obrigatório aprovado e proteções/revisões da branch satisfeitas, sem nova aprovação rotineira. O deployment automático na homologação também está coberto no escopo.
-8. Migrações remotas, alterações persistentes ou destrutivas de dados, mudanças sensíveis de credenciais/autenticação/permissões e produção exigem autorização específica. Validar a homologação com dados fictícios e registrar evidências sem alegar verificações não feitas.
+7. Siga a [política de publicação](PUBLICACAO.md) para classificar a tarefa, validar e publicar automaticamente nos destinos aplicáveis.
+8. Migrações remotas, alterações de dados persistentes, ações destrutivas e mudanças sensíveis de credenciais, autenticação ou permissões continuam exigindo autorização específica. CI usa PostgreSQL 17 descartável.
 
 ## Responsáveis funcionais
 
@@ -104,4 +104,4 @@ Estado: **Em revisão** no [PR #168](https://github.com/horsepowerlondrina-arch/
 
 O desenvolvimento Linux pode usar o Supabase de homologação com conexões restritas e MFA existentes, sem instalar PostgreSQL. GitHub Actions continua no PostgreSQL 17 temporário, sem banco remoto. Duas execuções usam branches, diretórios, portas, perfis de navegador e oficinas fictícias independentes; manutenção remota é sequencial.
 
-Durante o regime consolidado, eventos Git da Vercel ficam pausados por configuração versionada. CI aprovado permite integração na `main` sem publicação imediata; não declarar o commit publicado até conferir o deployment correspondente. A publicação manual consolidada e a retomada do automático são reversíveis e seguem o [manual INF-010](infraestrutura/INF-010-DESENVOLVIMENTO-LOCAL.md). Preservam-se todas as exigências de autorização, segurança e produção; a Horse Power definitiva não é alterada.
+O modo consolidado da INF-010 é histórico. Com eventos Git pausados, o agente inicia os deployments previstos na política vigente e registra separadamente o SHA integrado e o publicado.

@@ -6,8 +6,8 @@
 4. Faça commit e push da branch de tarefa; não é necessário ter `.env.local` para versionar.
 5. Abra um Pull Request para `main`. O GitHub Actions cria PostgreSQL 17 descartável, gera credenciais aleatórias apenas durante o job, aplica as migrações locais e executa build, testes gerais e `npm run test:postgres`.
 6. Corrija falhas na mesma branch e acompanhe as verificações obrigatórias do PR. A solicitação de implementação já autoriza criar o PR e integrar na `main` quando CI estiver aprovado e as proteções/revisões obrigatórias forem satisfeitas; não solicite aprovação rotineira adicional.
-7. A publicação automática e a validação na homologação `sistema-oficinas-homologacao` estão autorizadas dentro do escopo da tarefa. Use somente oficinas e dados fictícios.
-8. Migrações remotas, alterações persistentes/destrutivas de dados, mudanças sensíveis de credenciais, segredos, autenticação ou permissões e qualquer publicação em produção exigem autorização específica. CI nunca usa Supabase persistente.
+7. Siga a [política de publicação](PUBLICACAO.md) para classificar a tarefa, validar e publicar automaticamente nos destinos aplicáveis.
+8. Migrações remotas, alterações de dados persistentes, ações destrutivas e mudanças sensíveis de credenciais, autenticação ou permissões continuam exigindo autorização específica. CI usa PostgreSQL 17 descartável.
 9. Registre commits, verificações, efeitos de banco, deployment, validação e limitações. Respeite proteções e confirmações obrigatórias da plataforma; não as contorne.
 
 O serviço PostgreSQL do workflow é isolado por execução e descartado pelo GitHub Actions. O workflow aplica as migrações e cria as duas oficinas fictícias exigidas pelas integrações; as credenciais randômicas do seed ficam somente no workspace efêmero do runner e nunca são impressas. Não armazena credenciais em arquivos versionados nem exige arquivos `.env` do computador. O preparo recusa execução fora do GitHub Actions, fora de loopback ou sobre banco/roles preexistentes. O job não configura produção, homologação, Vercel ou Supabase.
@@ -25,4 +25,4 @@ O serviço PostgreSQL do workflow é isolado por execução e descartado pelo Gi
 
 O desenvolvimento Linux pode usar o Supabase de homologação com conexões restritas e MFA existentes, sem instalar PostgreSQL. GitHub Actions continua no PostgreSQL 17 temporário, sem banco remoto. Duas execuções usam branches, diretórios, portas, perfis de navegador e oficinas fictícias independentes; manutenção remota é sequencial.
 
-Durante o regime consolidado, eventos Git da Vercel ficam pausados por configuração versionada. CI aprovado permite integração na `main` sem publicação imediata; não declarar o commit publicado até conferir o deployment correspondente. A publicação manual consolidada e a retomada do automático são reversíveis e seguem o [manual INF-010](infraestrutura/INF-010-DESENVOLVIMENTO-LOCAL.md). Preservam-se todas as exigências de autorização, segurança e produção; a Horse Power definitiva não é alterada.
+O modo consolidado da INF-010 é histórico. Com eventos Git pausados, o agente inicia os deployments previstos na política vigente e registra separadamente o SHA integrado e o publicado.
