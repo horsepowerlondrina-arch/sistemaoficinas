@@ -317,21 +317,7 @@ try {
       expect(customer[field]).toBeUndefined();
   expect((await page.request.get(base + "/api/users")).status()).toBe(403);
   await page.goto(base + "/ordens/" + order.id);
-  const draftReason = page.getByRole("textbox", {
-    name: "Justificativa",
-    exact: true,
-  });
-  await draftReason.fill("Rascunho fictício ainda não enviado.");
-  const promptsBefore = guardPrompts;
-  rejectNextDialog = true;
-  await page
-    .getByRole("combobox", { name: "Oficina ativa" })
-    .selectOption(collaborator.tenantB);
-  await expect.poll(() => guardPrompts).toBe(promptsBefore + 1);
-  expect(
-    (await (await page.request.get(base + "/api/session")).json()).tenant.id,
-  ).toBe(collaborator.tenantA);
-  await expect(draftReason).toHaveValue("Rascunho fictício ainda não enviado.");
+  await expect(page.getByRole("heading", { name: "Equipe e autorizações" })).toHaveCount(0);
   await page
     .getByRole("combobox", { name: "Oficina ativa" })
     .selectOption(collaborator.tenantB);
