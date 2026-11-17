@@ -8,7 +8,7 @@ Este documento consolida as decisões vigentes acordadas para desenvolvimento. U
 2. `horse-power` é repositório histórico. Mudanças novas não são feitas nele sem decisão explícita.
 3. Cada tarefa trabalha em branch própria derivada da versão atualizada de `main`; a integração ocorre por PR.
 4. Até dois Codex podem implementar simultaneamente tarefas independentes, cada um em branch e ambiente isolado (worktree próprio ou execução remota independente), sem modificar o mesmo diretório. Antes de iniciar, ambos verificam a `main` atualizada e evitam arquivos, configurações, migrações e fluxos compartilhados. O planejamento funcional fica nas conversas específicas do ChatGPT; Codex executa o escopo aprovado.
-5. A solicitação de implementação do responsável autoriza, dentro do escopo pedido, branch, desenvolvimento, testes, PR, integração após CI obrigatório aprovado e proteções satisfeitas, e publicação automática na homologação. Não se pede autorização rotineira adicional para essas etapas. Migrações/alterações persistentes remotas, operações destrutivas, mudanças sensíveis de credenciais, segredos, autenticação ou permissões, produção e ações fora do escopo exigem autorização específica.
+5. A solicitação autoriza branch, testes, PR, integração e publicações no escopo previsto. Siga a [política de publicação](PUBLICACAO.md) para classificar a tarefa, validar e publicar automaticamente nos destinos aplicáveis. Migrações remotas, alterações de dados persistentes, ações destrutivas e mudanças sensíveis de credenciais, autenticação ou permissões continuam exigindo autorização específica.
 
 6. Cada tarefa mantém PR e testes próprios. Integrações na `main` são coordenadas e sequenciais. Se outro PR entrar primeiro, o PR remanescente verifica conflitos, atualiza a branch com segurança e repete testes invalidados. Depois do deployment correspondente, confirma que seu commit está presente na homologação. Capturas visuais compartilhadas exigem coordenação para não sobrescrever imagens/índices recentes.
 
@@ -17,7 +17,7 @@ Este documento consolida as decisões vigentes acordadas para desenvolvimento. U
 - Desenvolvimento local utiliza PostgreSQL e exclusivamente dados fictícios. O computador local é uma opção de desenvolvimento; não é requisito para versionar ou executar CI.
 - CI usa banco PostgreSQL 17 temporário e isolado por execução. CI não deve conectar a Supabase, Vercel ou dados de produção/homologação.
 - O projeto Vercel `sistema-oficinas-homologacao` e o Supabase identificado pelo projeto `vnclahdnirqlcbamodqy` são tratados como homologação conforme o registro atual. Confirmar referências antes de ações; não inferir que outros projetos sejam produção.
-- Produção, se/onde configurada, é ambiente separado. Identidade, domínio ou target “production” exibido pela Vercel não basta para classificar o uso do sistema.
+- OSDrive e Horse Power operam em projetos e bancos separados. Confira os endereços e identificadores na [política de publicação](PUBLICACAO.md).
 
 ## Segurança e oficinas
 
@@ -37,8 +37,8 @@ Este documento consolida as decisões vigentes acordadas para desenvolvimento. U
 
 - Antes da integração: revisar diff e segredos, executar `npm run build`, `npm test` e `npm run test:postgres` quando definidos/aplicáveis; resolver falhas ou registrar bloqueio externo.
 - CI obrigatório deve passar antes da integração. Revisões e aprovações que as proteções de branch ou a plataforma tornem obrigatórias continuam válidas; não podem ser contornadas.
-- A solicitação da tarefa autoriza a publicação automática e a validação na homologação dentro do escopo. Migrações remotas e alterações persistentes exigem autorização específica e devem ser aprovadas antes da aplicação.
-- Produção não pode ser modificada, migrada ou publicada sem autorização explícita para a operação concreta.
+- Siga a [política de publicação](PUBLICACAO.md) para classificar a tarefa, validar e publicar automaticamente nos destinos aplicáveis.
+- Migrações remotas, alterações de dados persistentes, ações destrutivas e mudanças sensíveis de credenciais, autenticação ou permissões continuam exigindo autorização específica.
 
 ## Planejamento
 
@@ -58,4 +58,4 @@ Decisões funcionais, escopo e prioridade são definidos nas conversas de planej
 
 O desenvolvimento Linux pode usar o Supabase de homologação com conexões restritas e MFA existentes, sem instalar PostgreSQL. GitHub Actions continua no PostgreSQL 17 temporário, sem banco remoto. Duas execuções usam branches, diretórios, portas, perfis de navegador e oficinas fictícias independentes; manutenção remota é sequencial.
 
-Durante o regime consolidado, eventos Git da Vercel ficam pausados por configuração versionada. CI aprovado permite integração na `main` sem publicação imediata; não declarar o commit publicado até conferir o deployment correspondente. A publicação manual consolidada e a retomada do automático são reversíveis e seguem o [manual INF-010](infraestrutura/INF-010-DESENVOLVIMENTO-LOCAL.md). Preservam-se todas as exigências de autorização, segurança e produção; a Horse Power definitiva não é alterada.
+O modo consolidado da INF-010 é histórico. Com eventos Git pausados, o agente inicia os deployments previstos na política vigente e registra separadamente o SHA integrado e o publicado.

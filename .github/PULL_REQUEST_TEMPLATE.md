@@ -49,5 +49,7 @@
 - [ ] Autorização de integração obtida quando necessária
 - [ ] Nenhuma migração remota executada sem autorização específica
 - Ambiente de publicação pretendido:
-- [ ] Autorização explícita para publicação obtida
+- [ ] Destinos conferidos conforme a [política de publicação](../docs/PUBLICACAO.md).
+- Tipo de mudança (correção, mudança existente ou recurso novo) e aplicabilidade à Horse Power:
+- OSDrive Testes, OSDrive e Horse Power: versão anterior, SHA/versão candidata, validação, promoção ou motivo da pendência por destino:
 - Validação após publicação:

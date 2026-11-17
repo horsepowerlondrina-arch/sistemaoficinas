@@ -113,7 +113,9 @@ Caso o Chromium do Playwright não esteja instalado, execute `npx playwright ins
 
 A INF-010 não modifica a interface do produto e não acrescenta galeria pública. Testes visuais do CI continuam produzindo evidências temporárias da aplicação real.
 
-## Publicação consolidada e retomada
+## Publicação consolidada e retomada (histórico)
+
+Desde 16/11/2026, siga a [política de publicação](../PUBLICACAO.md) para definir a ordem, os destinos e a promoção. As instruções abaixo descrevem o regime anterior.
 
 `vercel.json` define **`git.deploymentEnabled: false`**. Isso desliga deployments disparados por eventos Git sem desligar a aplicação existente, sem excluir histórico e sem desativar a integração Git/GitHub Actions. A configuração passa a valer nos commits que a contêm; branches antigas sem essa configuração ainda podem disparar Preview. Não modifica as configurações do projeto Horse Power definitivo nem sua versão publicada.
 
