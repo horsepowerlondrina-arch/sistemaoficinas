@@ -96,6 +96,11 @@
       "id": "19-suporte",
       "name": "Suporte da oficina",
       "description": "Chamados e comunicação com a administração central."
+    },
+    {
+      "id": "20-agenda",
+      "name": "Agenda da oficina",
+      "description": "Reserva de horários, busca interna por placa e entrada por checklist."
     }
   ],
   "entries": [
@@ -2774,6 +2779,36 @@
       "freshness": "atual",
       "reason": null,
       "driver": "monthly-expenses-interface"
+    },
+    {
+      "id": "agenda-lista-desktop",
+      "module": "20-agenda",
+      "title": "Agenda da semana",
+      "description": "Lista de agendamentos da oficina fictícia, sem dados reais.",
+      "route": "/agenda",
+      "kind": "Lista",
+      "viewport": "desktop",
+      "status": "pendente",
+      "image": "docs/mapeamento-visual/capturas/20-agenda/agenda-lista-desktop.png",
+      "updatedAt": null,
+      "commit": null,
+      "freshness": "revisar",
+      "reason": "Captura com dados fictícios em ambiente descartável pendente; a migração da Agenda ainda não foi aplicada ao banco de testes."
+    },
+    {
+      "id": "agenda-novo-desktop",
+      "module": "20-agenda",
+      "title": "Novo agendamento",
+      "description": "Pesquisa local de placa, contato provisório e estimativa de duração.",
+      "route": "/agenda",
+      "kind": "Formulário",
+      "viewport": "desktop",
+      "status": "pendente",
+      "image": "docs/mapeamento-visual/capturas/20-agenda/agenda-novo-desktop.png",
+      "updatedAt": null,
+      "commit": null,
+      "freshness": "revisar",
+      "reason": "Captura com dados fictícios em ambiente descartável pendente; a migração da Agenda ainda não foi aplicada ao banco de testes."
     }
   ],
   "flows": [

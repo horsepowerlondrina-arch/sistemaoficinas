@@ -1104,6 +1104,12 @@ Interface real e APIs fictícias: atualização de mensagens, estado e rascunho 
 
 Estado: capturada · mobile · captura 2026-11-13 · commit de origem: 1c7a0ed13dec531868f6a0eb168a08f2969dcb78 · [arquivo completo](./capturas/19-suporte/support-oficina-mobile.png)
 
+## 20 — Agenda da oficina
+
+Reserva de horários, busca interna por placa e entrada por checklist.
+
+Sem imagens reais disponíveis nesta área.
+
 ## 99 — Fluxos completos
 
 Sequências de navegação entre áreas.

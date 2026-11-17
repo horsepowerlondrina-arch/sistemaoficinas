@@ -63,6 +63,7 @@ import { OrderView } from "./pages/OrderView";
 import { Payment } from "./pages/Payment";
 import { Checklists } from "./pages/Checklists";
 import { ChecklistEditor } from "./pages/ChecklistEditor";
+import { Agenda } from "./pages/Agenda";
 import { WorkshopSupport } from "./pages/WorkshopSupport";
 export function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -431,6 +432,7 @@ export function App() {
                 <Route path="/checklists" element={<Checklists />} />
                 <Route path="/checklists/novo" element={<ChecklistEditor />} />
                 <Route path="/checklists/:id" element={<ChecklistEditor />} />
+                <Route path="/agenda" element={<Agenda />} />
                 <Route
                   path="/clientes"
                   element={
