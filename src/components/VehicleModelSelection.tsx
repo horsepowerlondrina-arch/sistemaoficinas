@@ -15,7 +15,8 @@ export function VehicleModelSelection({ vehicle, onChange, candidates = [] }: {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [search, setSearch] = useState(vehicleDisplayModel(vehicle));
-  useEffect(() => { setSearch(vehicleDisplayModel(vehicle)); }, [vehicle.model, vehicle.fipe_model]);
+  const [searchTouched, setSearchTouched] = useState(false);
+  useEffect(() => { setSearch(vehicleDisplayModel(vehicle)); setSearchTouched(false); }, [vehicle.model, vehicle.fipe_model]);
   const codes = useMemo(() => [...new Set([
     ...candidates.map((candidate) => candidate.codigoFipe).filter((code): code is string => !!code),
     ...(vehicle.fipe_code ? [String(vehicle.fipe_code)] : []),
@@ -40,7 +41,7 @@ export function VehicleModelSelection({ vehicle, onChange, candidates = [] }: {
       .finally(() => { if (active) setBusy(false); });
     return () => { active = false; };
   }, [vehicle.brand, vehicle.model, codeKey, search]);
-  const matches = candidates.filter((candidate) => !!candidate.modelo && (!search || normalize(candidate.modelo).includes(normalize(search)) || String(candidate.codigoFipe || "").includes(search)));
+  const matches = candidates.filter((candidate) => !!candidate.modelo && (!searchTouched || !search || normalize(candidate.modelo).includes(normalize(search)) || String(candidate.codigoFipe || "").includes(search)));
   const chooseCandidate = (candidate: FipeCandidate, option?: Option) => {
     onChange({
       ...vehicle,
@@ -64,7 +65,7 @@ export function VehicleModelSelection({ vehicle, onChange, candidates = [] }: {
     onChange({ ...vehicle, model: model.slice(0, 150), fipe_model: "", fipe_code: "", fipe_year_id: "", service_model_id: null, service_link_mode: "none" });
   };
   return <section className="vehicle-technical-association full">
-    <label className="field"><span>Modelo *</span><input required type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Digite ou escolha o modelo do veículo..." maxLength={150} /></label>
+    <label className="field"><span>Modelo *</span><input required type="search" value={search} onChange={(event) => { setSearchTouched(true); setSearch(event.target.value); }} placeholder="Digite ou escolha o modelo do veículo..." maxLength={150} /></label>
     {busy && <p className="muted" role="status">Buscando modelos…</p>}
     {!busy && matches.length > 0 && <div className="vehicle-model-options" role="group" aria-label="Versões do veículo">
       {matches.flatMap((candidate, index) => {
