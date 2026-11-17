@@ -270,6 +270,15 @@ try {
       fullPage: true,
     });
   }
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  const decisionDraft = page.getByRole("textbox", { name: "Justificativa da decisão" });
+  await decisionDraft.fill("Rascunho fictício ainda não enviado.");
+  const promptsBefore = guardPrompts;
+  rejectNextDialog = true;
+  await page.getByRole("link", { name: "Ordens de Serviço" }).click();
+  await expect.poll(() => guardPrompts).toBe(promptsBefore + 1);
+  await expect(decisionDraft).toHaveValue("Rascunho fictício ainda não enviado.");
+  await decisionDraft.fill("");
   await page.request.post(base + "/api/logout", { data: {} });
   await page.goto(base + "/inicio");
   await page.getByLabel("E-mail", { exact: true }).fill(collaborator.email);
