@@ -33,7 +33,7 @@ import {
 import { PlateField } from "../components/PlateField";
 import { VehicleIdentityFields } from "../components/VehicleIdentityFields";
 import { VehicleModelSelection } from "../components/VehicleModelSelection";
-import { mergeVehicleLookup, lookupWouldReplace, vehicleDisplayModel } from "../../shared/vehicleIdentity";
+import { mergeVehicleLookup, lookupWouldReplace, lookupWouldReplaceDraft, vehicleDisplayModel } from "../../shared/vehicleIdentity";
 import { VehicleCatalogReview } from "../components/VehicleCatalogReview";
 import { candidateFields, fipeFields, emptyFipe, type FipeCandidate } from "../../shared/vehicleFipe";
 type Kind = "customers" | "vehicles" | "catalog" | "professionals";
@@ -702,7 +702,7 @@ export function RegisterModal({
                               setVehicle(current => ({ ...current, ...fipeFields(r.vehicle) }));
                               return;
                             }
-                            if (r.vehicle && r.source !== "local" && (!lookupWouldReplace(vehicle, r.vehicle) || window.confirm("A consulta retornou dados diferentes dos já preenchidos. Aplicar os novos dados?")))
+                            if (r.vehicle && r.source !== "local" && (!lookupWouldReplaceDraft(vehicle, r.vehicle) || window.confirm("A consulta retornou dados diferentes dos já preenchidos. Aplicar os novos dados?")))
                               setVehicle((v) => mergeVehicleLookup(v, r.vehicle));
                           }}
                         />
@@ -767,7 +767,7 @@ export function RegisterModal({
                     if (
                       r.vehicle &&
                       (r.source !== "local" || r.vehicle.id === record?.id) &&
-                      (!lookupWouldReplace(form, r.vehicle) || window.confirm("A consulta retornou dados diferentes dos já preenchidos. Aplicar os novos dados?"))
+                      (!(record ? lookupWouldReplace(form, r.vehicle) : lookupWouldReplaceDraft(form, r.vehicle)) || window.confirm("A consulta retornou dados diferentes dos já preenchidos. Aplicar os novos dados?"))
                     )
                       setForm((f) => mergeVehicleLookup(f, r.vehicle));
                   }}

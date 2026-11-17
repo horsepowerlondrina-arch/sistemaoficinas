@@ -14,27 +14,32 @@ export async function captureCad005(page, entry) {
   if (register || review) {
     if (register) {
       await scope.getByRole("textbox", { name: /^Marca/ }).fill("Marca Fictícia");
-      await scope.getByRole("searchbox", { name: /^Modelo/ }).fill("Modelo Fictício");
-      await scope.getByRole("group", { name: "Modelos do veículo" }).getByRole("radio").first().click();
+      await scope.getByRole("combobox", { name: /^Modelo/ }).fill("Modelo Fictício");
+      await scope.getByRole("listbox", { name: "Modelos do veículo" }).getByRole("option").first().click();
+      await expect(scope.getByRole("listbox", { name: "Modelos do veículo" })).toHaveCount(0);
+      await scope.getByRole("combobox", { name: /^Modelo/ }).click();
+      await expect(scope.getByRole("listbox", { name: "Modelos do veículo" })).toBeVisible();
+      await scope.getByRole("combobox", { name: /^Modelo/ }).press("Escape");
+      await expect(scope.getByRole("listbox", { name: "Modelos do veículo" })).toHaveCount(0);
       await scope.getByRole("spinbutton", { name: /^Ano de fabricação/ }).fill("2020");
       await scope.getByRole("spinbutton", { name: "Ano do modelo", exact: true }).fill("2021");
       await scope.getByRole("textbox", { name: "Combustível", exact: true }).fill("Flex");
     }
-    await expect(scope.getByRole("searchbox", { name: /^Modelo/ })).toBeVisible();
+    await expect(scope.getByRole("combobox", { name: /^Modelo/ })).toBeVisible();
     if (entry.id.includes("review-catalog")) {
       await scope.getByRole("textbox", { name: "Código FIPE" }).fill("999999-9");
-      await scope.getByRole("searchbox", { name: /^Modelo/ }).fill("Modelo Fictício");
-      const firstOption = scope.getByRole("group", { name: "Modelos do veículo" }).getByRole("radio").first();
+      await scope.getByRole("combobox", { name: /^Modelo/ }).fill("Modelo Fictício");
+      const firstOption = scope.getByRole("listbox", { name: "Modelos do veículo" }).getByRole("option").first();
       await expect(firstOption).toBeVisible();
       await firstOption.click();
+      await expect(scope.getByRole("listbox", { name: "Modelos do veículo" })).toHaveCount(0);
       await expect(scope.getByRole("textbox", { name: "Código FIPE" })).toHaveValue("999999-9");
       await scope.getByRole("button", { name: "Salvar cadastro", exact: true }).click();
       await expect(scope).toHaveCount(0);
       await page.getByRole("button", { name: "Editar CAD0A05", exact: true }).click();
       await expect(scope.getByRole("textbox", { name: "Código FIPE" })).toHaveValue("999999-9");
-      await expect(scope.locator('input[name="vehicle-model-option"]:checked')).toHaveCount(1);
+      await expect(scope.getByRole("combobox", { name: /^Modelo/ })).toHaveValue("Modelo Fictício");
       await expect(page.getByText("Cadastro salvo com sucesso.", { exact: true })).toHaveCount(0, { timeout: 10000 });
-      await scope.locator('input[name="vehicle-model-option"]:checked').evaluate(element => element.scrollIntoView({ block: "center" }));
     }
     if (entry.id.includes("-footer-")) await scope.evaluate(element => { element.scrollTop = element.scrollHeight; });
     else if (!entry.id.includes("review-catalog")) await scope.evaluate(element => { element.scrollTop = 0; });
@@ -44,8 +49,8 @@ export async function captureCad005(page, entry) {
   if (!review && !entry.id.includes("switch")) {
     await scope.getByRole("textbox", { name: /^Marca/ }).fill("Marca Fictícia");
     if (entry.id.includes("checklist")) {
-      await scope.getByRole("searchbox", { name: /^Modelo/ }).fill("Modelo FIPE Fictício 1.0 Flex");
-      await scope.getByRole("button", { name: "Usar modelo informado" }).click();
+      await scope.getByRole("combobox", { name: /^Modelo/ }).fill("Modelo FIPE Fictício 1.0 Flex");
+      await scope.getByRole("button", { name: /Usar modelo informado/ }).click();
     } else {
       await scope.getByRole("textbox", { name: /^Modelo(?: FIPE)?/ }).fill("Modelo FIPE Fictício 1.0 Flex");
     }
@@ -54,7 +59,8 @@ export async function captureCad005(page, entry) {
     await scope.getByRole("textbox", { name: "Combustível", exact: true }).fill("Flex");
   }
   if (entry.id.includes("checklist")) {
-    await expect(scope.getByRole("searchbox", { name: /^Modelo/ })).toHaveValue("Modelo FIPE Fictício 1.0 Flex");
+    await expect(scope.getByRole("combobox", { name: /^Modelo/ })).toHaveValue("Modelo FIPE Fictício 1.0 Flex");
+    await expect(scope.getByRole("listbox", { name: "Modelos do veículo" })).toHaveCount(0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBeTruthy();
     return;
   }

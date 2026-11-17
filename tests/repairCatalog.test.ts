@@ -901,6 +901,8 @@ test("Cadastro de veículo consulta só identidades mesmo sem licença técnica"
     assert.equal(result.status, "needs_confirmation");
     assert.equal(result.options.length, 3);
     assert.deepEqual(Object.keys(result.options[0]).sort(), ["brand", "fipe_code", "id", "name"]);
+    const detailedPlateName = await registrationVehicleModels(f.db, unlicensed, { brand: "Marca", model: "Versão FIPE detalhada", search: "Versão FIPE detalhada", fipe_codes: ["123456-7"] });
+    assert.equal(detailedPlateName.options.length, 3, "o código FIPE deve prevalecer sobre a descrição recebida da placa");
     const selected = await confirmRegistrationVehicleModel(f.db, unlicensed, f.model, "Marca");
     assert.equal(selected.id, f.model);
     await assert.rejects(() => searchModels(f.db, unlicensed, { brand_id: f.brand }), /desabilitado|habilitado|liberado|módulo/i);

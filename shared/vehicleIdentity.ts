@@ -17,6 +17,13 @@ export function lookupWouldReplace(current: Record<string, any>, incoming: Recor
     String(incoming[field]) !== String(current[field]));
 }
 
+// A new form starts with the current year as a placeholder, not as user-entered data.
+export function lookupWouldReplaceDraft(current: Record<string, any>, incoming: Record<string, any>): boolean {
+  const entered = { ...current };
+  if (Number(entered.year) === new Date().getFullYear()) delete entered.year;
+  return lookupWouldReplace(entered, incoming);
+}
+
 // Provider omissions must not clear manually entered data or a technical link.
 export function mergeVehicleLookup(current: Record<string, any>, incoming: Record<string, any> | null): Record<string, any> {
   const next = { ...current };

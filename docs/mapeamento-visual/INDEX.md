@@ -172,67 +172,67 @@ Estado: capturada · desktop · captura 2026-11-02 · commit de origem: 1ff8b23a
 
 ### CAD-005 — Novo veículo (desktop)
 
-Formulário real com dados fictícios; escolha única do modelo e vínculo técnico interno.
+Formulário real com dados fictícios; modelo em lista suspensa que fecha após a escolha.
 
 [![CAD-005 — Novo veículo (desktop)](./capturas/04-veiculos/cad005-register-desktop.png)](./capturas/04-veiculos/cad005-register-desktop.png)
 
-Estado: capturada · desktop · captura 2026-11-17 · commit de origem: 960426710f6bafb3a46bbd0fda816acac6695063 · [arquivo completo](./capturas/04-veiculos/cad005-register-desktop.png)
+Estado: capturada · desktop · captura 2026-11-17 · commit de origem: 27c7fb615ef31f460c7b9d12778dfd91fecaba01 · [arquivo completo](./capturas/04-veiculos/cad005-register-desktop.png)
 
 ### CAD-005 — Novo veículo (mobile)
 
-Formulário real com dados fictícios; escolha única do modelo e vínculo técnico interno.
+Formulário real com dados fictícios; modelo em lista suspensa que fecha após a escolha.
 
 [![CAD-005 — Novo veículo (mobile)](./capturas/04-veiculos/cad005-register-mobile.png)](./capturas/04-veiculos/cad005-register-mobile.png)
 
-Estado: capturada · mobile · captura 2026-11-17 · commit de origem: 960426710f6bafb3a46bbd0fda816acac6695063 · [arquivo completo](./capturas/04-veiculos/cad005-register-mobile.png)
+Estado: capturada · mobile · captura 2026-11-17 · commit de origem: 27c7fb615ef31f460c7b9d12778dfd91fecaba01 · [arquivo completo](./capturas/04-veiculos/cad005-register-mobile.png)
 
 ### CAD-005 — Revisão de veículo (desktop)
 
-Formulário real com dados fictícios; escolha única do modelo e vínculo técnico interno.
+Formulário real com dados fictícios; modelo em lista suspensa que fecha após a escolha.
 
 [![CAD-005 — Revisão de veículo (desktop)](./capturas/04-veiculos/cad005-review-desktop.png)](./capturas/04-veiculos/cad005-review-desktop.png)
 
-Estado: capturada · desktop · captura 2026-11-17 · commit de origem: 960426710f6bafb3a46bbd0fda816acac6695063 · [arquivo completo](./capturas/04-veiculos/cad005-review-desktop.png)
+Estado: capturada · desktop · captura 2026-11-17 · commit de origem: 27c7fb615ef31f460c7b9d12778dfd91fecaba01 · [arquivo completo](./capturas/04-veiculos/cad005-review-desktop.png)
 
 ### CAD-005 — Revisão de veículo (mobile)
 
-Formulário real com dados fictícios; escolha única do modelo e vínculo técnico interno.
+Formulário real com dados fictícios; modelo em lista suspensa que fecha após a escolha.
 
 [![CAD-005 — Revisão de veículo (mobile)](./capturas/04-veiculos/cad005-review-mobile.png)](./capturas/04-veiculos/cad005-review-mobile.png)
 
-Estado: capturada · mobile · captura 2026-11-17 · commit de origem: 960426710f6bafb3a46bbd0fda816acac6695063 · [arquivo completo](./capturas/04-veiculos/cad005-review-mobile.png)
+Estado: capturada · mobile · captura 2026-11-17 · commit de origem: 27c7fb615ef31f460c7b9d12778dfd91fecaba01 · [arquivo completo](./capturas/04-veiculos/cad005-review-mobile.png)
 
 ### CAD-005 — Novo veículo (mobile) — rodapé
 
-Formulário real com dados fictícios; escolha única do modelo e vínculo técnico interno.
+Formulário real com dados fictícios; modelo em lista suspensa que fecha após a escolha.
 
 [![CAD-005 — Novo veículo (mobile) — rodapé](./capturas/04-veiculos/cad005-register-footer-mobile.png)](./capturas/04-veiculos/cad005-register-footer-mobile.png)
 
-Estado: capturada · mobile · captura 2026-11-17 · commit de origem: 960426710f6bafb3a46bbd0fda816acac6695063 · [arquivo completo](./capturas/04-veiculos/cad005-register-footer-mobile.png)
+Estado: capturada · mobile · captura 2026-11-17 · commit de origem: 27c7fb615ef31f460c7b9d12778dfd91fecaba01 · [arquivo completo](./capturas/04-veiculos/cad005-register-footer-mobile.png)
 
 ### CAD-005 — Revisão de veículo (mobile) — rodapé
 
-Formulário real com dados fictícios; escolha única do modelo e vínculo técnico interno.
+Formulário real com dados fictícios; modelo em lista suspensa que fecha após a escolha.
 
 [![CAD-005 — Revisão de veículo (mobile) — rodapé](./capturas/04-veiculos/cad005-review-footer-mobile.png)](./capturas/04-veiculos/cad005-review-footer-mobile.png)
 
-Estado: capturada · mobile · captura 2026-11-17 · commit de origem: 960426710f6bafb3a46bbd0fda816acac6695063 · [arquivo completo](./capturas/04-veiculos/cad005-review-footer-mobile.png)
+Estado: capturada · mobile · captura 2026-11-17 · commit de origem: 27c7fb615ef31f460c7b9d12778dfd91fecaba01 · [arquivo completo](./capturas/04-veiculos/cad005-review-footer-mobile.png)
 
 ### CAD-005 — Escolha de modelo com FIPE divergente (desktop)
 
-Formulário real com dados fictícios; escolha única do modelo e vínculo técnico interno.
+Formulário real com dados fictícios; modelo em lista suspensa que fecha após a escolha.
 
 [![CAD-005 — Escolha de modelo com FIPE divergente (desktop)](./capturas/04-veiculos/cad005-review-catalog-desktop.png)](./capturas/04-veiculos/cad005-review-catalog-desktop.png)
 
-Estado: capturada · desktop · captura 2026-11-17 · commit de origem: 960426710f6bafb3a46bbd0fda816acac6695063 · [arquivo completo](./capturas/04-veiculos/cad005-review-catalog-desktop.png)
+Estado: capturada · desktop · captura 2026-11-17 · commit de origem: 27c7fb615ef31f460c7b9d12778dfd91fecaba01 · [arquivo completo](./capturas/04-veiculos/cad005-review-catalog-desktop.png)
 
 ### CAD-005 — Escolha de modelo com FIPE divergente (mobile)
 
-Formulário real com dados fictícios; escolha única do modelo e vínculo técnico interno.
+Formulário real com dados fictícios; modelo em lista suspensa que fecha após a escolha.
 
 [![CAD-005 — Escolha de modelo com FIPE divergente (mobile)](./capturas/04-veiculos/cad005-review-catalog-mobile.png)](./capturas/04-veiculos/cad005-review-catalog-mobile.png)
 
-Estado: capturada · mobile · captura 2026-11-17 · commit de origem: 960426710f6bafb3a46bbd0fda816acac6695063 · [arquivo completo](./capturas/04-veiculos/cad005-review-catalog-mobile.png)
+Estado: capturada · mobile · captura 2026-11-17 · commit de origem: 27c7fb615ef31f460c7b9d12778dfd91fecaba01 · [arquivo completo](./capturas/04-veiculos/cad005-review-catalog-mobile.png)
 
 ## 05 — Checklist
 
@@ -280,19 +280,19 @@ Estado: capturada · mobile · captura 2026-11-16 · commit de origem: 61398885f
 
 ### CAD-005 — Veículo no checklist (desktop)
 
-Formulário real com dados fictícios; escolha única do modelo e vínculo técnico interno.
+Formulário real com dados fictícios; modelo em lista suspensa que fecha após a escolha.
 
 [![CAD-005 — Veículo no checklist (desktop)](./capturas/05-checklist/cad005-checklist-desktop.png)](./capturas/05-checklist/cad005-checklist-desktop.png)
 
-Estado: capturada · desktop · captura 2026-11-17 · commit de origem: 960426710f6bafb3a46bbd0fda816acac6695063 · [arquivo completo](./capturas/05-checklist/cad005-checklist-desktop.png)
+Estado: capturada · desktop · captura 2026-11-17 · commit de origem: 27c7fb615ef31f460c7b9d12778dfd91fecaba01 · [arquivo completo](./capturas/05-checklist/cad005-checklist-desktop.png)
 
 ### CAD-005 — Veículo no checklist (mobile)
 
-Formulário real com dados fictícios; escolha única do modelo e vínculo técnico interno.
+Formulário real com dados fictícios; modelo em lista suspensa que fecha após a escolha.
 
 [![CAD-005 — Veículo no checklist (mobile)](./capturas/05-checklist/cad005-checklist-mobile.png)](./capturas/05-checklist/cad005-checklist-mobile.png)
 
-Estado: capturada · mobile · captura 2026-11-17 · commit de origem: 960426710f6bafb3a46bbd0fda816acac6695063 · [arquivo completo](./capturas/05-checklist/cad005-checklist-mobile.png)
+Estado: capturada · mobile · captura 2026-11-17 · commit de origem: 27c7fb615ef31f460c7b9d12778dfd91fecaba01 · [arquivo completo](./capturas/05-checklist/cad005-checklist-mobile.png)
 
 ## 06 — Orçamentos
 
