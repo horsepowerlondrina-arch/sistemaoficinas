@@ -28,7 +28,7 @@ import { PlateField } from "../components/PlateField";
 import { VehicleIdentityFields } from "../components/VehicleIdentityFields";
 import { VehicleModelSelection } from "../components/VehicleModelSelection";
 import { fipeFields, emptyFipe, type FipeCandidate } from "../../shared/vehicleFipe";
-import { mergeVehicleLookup, lookupWouldReplace, vehicleDisplayModel } from "../../shared/vehicleIdentity";
+import { mergeVehicleLookup, lookupWouldReplaceDraft, vehicleDisplayModel } from "../../shared/vehicleIdentity";
 
 const conditionItems = [
   "Para-brisa e vidros",
@@ -565,7 +565,7 @@ export function ChecklistEditor() {
                   km: Number(found.km || current.km || 0),
                 }));
               } else {
-                if (found && lookupWouldReplace(creating.vehicle_data, found) && !window.confirm("A consulta retornou dados diferentes dos já preenchidos. Aplicar os novos dados?")) return;
+                if (found && lookupWouldReplaceDraft(creating.vehicle_data, found) && !window.confirm("A consulta retornou dados diferentes dos já preenchidos. Aplicar os novos dados?")) return;
                 setCreating((current) => ({
                   ...current,
                   lookup_source: result.source || "manual",
