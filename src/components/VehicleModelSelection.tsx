@@ -26,7 +26,7 @@ export function VehicleModelSelection({ vehicle, onChange, candidates = [] }: {
     if (!vehicle.brand || (!search && !codes.length)) { setOptions([]); return; }
     let active = true;
     setBusy(true);
-    send("/vehicles/model-options", { brand: vehicle.brand, model: vehicle.model || "", search, selected_model_id: vehicle.service_model_id || null, fipe_codes: codes }, "POST")
+    send("/vehicles/model-options", { brand: vehicle.brand, model: vehicle.model || "", search: searchTouched ? search : "", selected_model_id: vehicle.service_model_id || null, fipe_codes: codes }, "POST")
       .then((result: { options: Option[] }) => {
         if (!active) return;
         setOptions(result.options);
@@ -40,7 +40,7 @@ export function VehicleModelSelection({ vehicle, onChange, candidates = [] }: {
       .catch(() => { if (active) { setOptions([]); setMessage("Não foi possível consultar os modelos. Você pode informar o modelo manualmente."); } })
       .finally(() => { if (active) setBusy(false); });
     return () => { active = false; };
-  }, [vehicle.brand, vehicle.model, codeKey, search]);
+  }, [vehicle.brand, vehicle.model, codeKey, search, searchTouched]);
   const matches = candidates.filter((candidate) => !!candidate.modelo && (!searchTouched || !search || normalize(candidate.modelo).includes(normalize(search)) || String(candidate.codigoFipe || "").includes(search)));
   const chooseCandidate = (candidate: FipeCandidate, option?: Option) => {
     onChange({
