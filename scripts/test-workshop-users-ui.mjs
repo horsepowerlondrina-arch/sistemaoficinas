@@ -228,25 +228,8 @@ try {
   );
   if (!order) throw Error("OS fictícia para validação de aprovação ausente.");
   await page.goto(base + "/ordens/" + order.id);
-  await page
-    .getByRole("checkbox", { name: "OPS004 Funcionário Fictício", exact: true })
-    .check();
-  await page
-    .getByRole("button", { name: "Salvar responsáveis", exact: true })
-    .click();
-  await expect
-    .poll(
-      async () =>
-        (
-          await (
-            await page.request.get(base + `/api/orders/${order.id}/assignments`)
-          ).json()
-        ).filter((a) => !a.removed_at).length,
-    )
-    .toBe(1);
-  await expect(
-    page.getByRole("button", { name: "Salvar responsáveis", exact: true }),
-  ).toBeEnabled();
+  await expect(page.getByRole("heading", { name: "Equipe e autorizações" })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Observações para a equipe" })).toBeVisible();
   for (const [viewport, size] of [
     ["desktop", { width: 1440, height: 1000 }],
     ["mobile", { width: 390, height: 844 }],
@@ -257,19 +240,19 @@ try {
       fullPage: true,
     });
   }
-
-  await page
-    .getByRole("spinbutton", { name: "Desconto total solicitado" })
-    .fill("1");
-  await page
-    .getByRole("textbox", { name: "Justificativa", exact: true })
-    .fill("Solicitação fictícia para validar a interface.");
-  await page
-    .getByRole("button", { name: "Solicitar aprovação", exact: true })
-    .click();
-  await expect(
-    page.getByRole("textbox", { name: "Justificativa", exact: true }),
-  ).toHaveValue("");
+  const staff = await (await page.request.get(base + "/api/staff")).json();
+  const professional = staff.find((row) => row.name === "OPS004 Funcionário Fictício");
+  if (!professional) throw Error("Funcionário fictício ausente.");
+  const assignment = await page.request.put(base + `/api/orders/${order.id}/assignments`, {
+    data: { professional_ids: [professional.id] },
+  });
+  expect(assignment.status()).toBe(200);
+  const assignments = await (await page.request.get(base + `/api/orders/${order.id}/assignments`)).json();
+  expect(assignments.filter((row) => !row.removed_at).map((row) => row.professional_id)).toContain(professional.id);
+  const discountRequest = await page.request.post(base + `/api/orders/${order.id}/discount-requests`, {
+    data: { mode: "money", value: 100, justification: "Solicitação fictícia para validar o histórico." },
+  });
+  expect(discountRequest.status()).toBe(201);
   await page.goto(base + "/aprovacoes");
   await expect(
     page.getByRole("heading", { name: "Central de aprovações", exact: true }),
