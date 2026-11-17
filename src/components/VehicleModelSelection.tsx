@@ -56,7 +56,7 @@ export function VehicleModelSelection({ vehicle, onChange, candidates = [] }: {
     });
   };
   const chooseOption = (option: Option) => {
-    onChange({ ...vehicle, brand: option.brand, model: option.name.slice(0, 150), fipe_code: vehicle.fipe_code || option.fipe_code || "", service_model_id: option.id, service_link_mode: "manual" });
+    onChange({ ...vehicle, brand: option.brand, model: option.name.slice(0, 150), fipe_model: "", fipe_code: vehicle.fipe_code || option.fipe_code || "", service_model_id: option.id, service_link_mode: "manual" });
   };
   const useManual = () => {
     const model = search.trim();
