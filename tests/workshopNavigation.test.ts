@@ -21,7 +21,7 @@ test("Início e menu compartilham todos os destinos disponíveis ao proprietári
   assert.deepEqual(paths(visibleWorkshopNavigation(session())), [
     "/dashboard", "/ordens", "/checklists",
     "/cadastros", "/catalogo", "/servicos", "/profissionais", "/fornecedores",
-    "/estoque", "/financeiro", "/suporte", "/configuracoes",
+    "/agenda", "/estoque", "/financeiro", "/suporte", "/configuracoes",
   ]);
 });
 
@@ -34,10 +34,10 @@ test("oficina sem acesso administrativo vê apenas os mesmos destinos operaciona
 test("módulos desligados não aparecem nos atalhos nem no menu", () => {
   const visible = visibleWorkshopNavigation(session({
     support_available: false,
-    modules: { orders: false, catalog: false, inventory: false },
+    modules: { orders: false, catalog: false, inventory: false, agenda: false },
   }));
   const links = paths(visible);
-  for (const path of ["/ordens", "/catalogo", "/servicos", "/estoque", "/suporte"])
+  for (const path of ["/ordens", "/catalogo", "/servicos", "/agenda", "/estoque", "/suporte"])
     assert.equal(links.includes(path), false, path);
   assert.equal(links.includes("/configuracoes"), true);
 });
