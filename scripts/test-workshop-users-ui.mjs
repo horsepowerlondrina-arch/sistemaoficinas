@@ -270,6 +270,7 @@ try {
       fullPage: true,
     });
   }
+  await page.setViewportSize({ width: 1440, height: 1000 });
   const decisionDraft = page.getByRole("textbox", { name: "Justificativa da decisão" });
   await decisionDraft.fill("Rascunho fictício ainda não enviado.");
   const promptsBefore = guardPrompts;
