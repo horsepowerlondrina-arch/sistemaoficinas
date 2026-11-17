@@ -230,6 +230,7 @@ export function ChecklistEditor() {
   const navigate = useNavigate();
   const { data, session, notify, refresh } = useApp();
   const orderParam = params.get("order") || "";
+  const appointmentParam = params.get("agenda") || "";
   const initialOrder = data.orders.find((o) => o.id === orderParam);
   const initialVehicle = data.vehicles.find(
     (v) => v.id === initialOrder?.vehicle_id,
@@ -259,6 +260,30 @@ export function ChecklistEditor() {
     inspector: session.user.name,
   });
   const [lookupDone, setLookupDone] = useState(!!initialVehicle);
+  useEffect(() => {
+    if (!appointmentParam || id) return;
+    let active = true;
+    api<Entity>(`/agenda/${encodeURIComponent(appointmentParam)}`).then(appointment => {
+      if (!active) return;
+      const vehicle = data.vehicles.find(v => v.plate === appointment.plate);
+      const customer = data.customers.find(c => c.id === vehicle?.customer_id);
+      setCreating(current => ({ ...current,
+        plate: appointment.plate,
+        lookup_source: vehicle ? "local" : "manual",
+        customer_id: customer?.id || "",
+        customer_name: customer?.name || appointment.customer_name,
+        phone: customer?.phone || appointment.phone,
+        vehicle_data: vehicle ? {
+          ...fipeFields(vehicle), brand: vehicle.brand, model: vehicle.model,
+          year: Number(vehicle.year), color: vehicle.color || "", chassis: vehicle.chassis || "",
+          service_model_id: vehicle.service_model_id || null,
+          service_link_mode: vehicle.service_link_mode || "",
+        } : current.vehicle_data,
+      }));
+      setLookupDone(true);
+    }).catch(e => { if (active) setError((e as Error).message); });
+    return () => { active = false; };
+  }, [appointmentParam, id]);
   const [plateCandidates, setPlateCandidates] = useState<FipeCandidate[]>([]);
   const [record, setRecord] = useState<Entity | null>(null);
   const [loading, setLoading] = useState(!!id);
@@ -314,6 +339,7 @@ export function ChecklistEditor() {
     try {
       const result = await send("/checklists", {
         ...creating,
+        appointment_id: appointmentParam || undefined,
         order_id: creating.order_id || null,
         customer_id: creating.customer_id || null,
       });
@@ -497,6 +523,7 @@ export function ChecklistEditor() {
               </strong>
             </div>
           )}
+          {appointmentParam && <div className="checklist-order-context">Entrada vinculada à Agenda. Confira os dados do veículo antes de iniciar.</div>}
 
           <div className="checklist-first-question">
             <span>1</span>
@@ -511,7 +538,7 @@ export function ChecklistEditor() {
           <PlateField
             value={creating.plate}
             showFipeSelection={false}
-            disabled={!!initialOrder}
+            disabled={!!initialOrder || !!appointmentParam}
             onChange={(plate) => {
               setLookupDone(false);
               setPlateCandidates([]);

@@ -18,6 +18,7 @@ export function canOpenPath(session: Session, path: string) {
       (!p.endsWith("/receber") || can(session, "finance.receive"))
     );
   if (p.startsWith("/checklists")) return can(session, "checklists.view");
+  if (p.startsWith("/agenda")) return session.modules?.agenda !== false && can(session, "checklists.view");
   if (
     p.startsWith("/cadastros") ||
     p.startsWith("/clientes") ||

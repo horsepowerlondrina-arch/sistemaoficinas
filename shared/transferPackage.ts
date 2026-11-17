@@ -21,7 +21,7 @@ export const TRANSFER_TABLES = [
   "suppliers", "receivables", "cash_entries", "payment_installments",
   "payment_settings", "card_rates", "card_machines", "card_machine_rates", "expense_templates", "payables",
   "cash_accounts", "cash_movements", "service_aliases", "service_merge_history",
-  "external_catalog_links", "external_captures", "service_times", "checklists", "checklist_photos",
+  "external_catalog_links", "external_captures", "service_times", "checklists", "checklist_photos", "appointments",
   "document_revisions", "data_transfer_archived_documents", "audit_events",
 ] as const;
 /** Tenant fields are strictly operational; plan, billing, activation and platform metadata stay local. */

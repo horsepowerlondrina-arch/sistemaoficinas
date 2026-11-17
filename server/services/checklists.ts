@@ -6,6 +6,7 @@ import type { Context } from "../auth/session.js";
 import { transaction, type DB } from "../db/transactions.js";
 import { requireAdmin } from "./payments.js";
 import { normalizePlate } from "./vehicleLookup.js";
+import { appointmentForChecklist } from "./appointments.js";
 import { vehicleFipeFields } from "./vehicleFipeFields.js";
 import { audit, id, saveOrder, scoped } from "./workshop.js";
 import { confirmVehicleModel, catalogAccessState, identifyVehicleModel } from "./repairCatalog.js";
@@ -28,6 +29,7 @@ const vehicleDataSchema = z.object({
   service_link_mode: z.enum(["", "manual", "auto", "none"]).optional(),
 });
 const createSchema = z.object({
+  appointment_id: z.string().trim().optional(),
   order_id: z.string().trim().min(1).nullable().optional(),
   plate: z.string().trim().max(12),
   lookup_source: z.string().trim().max(30).default(""),
@@ -169,6 +171,7 @@ export async function createChecklist(
     const plate = normalizePlate(v.plate);
     if (!/^[A-Z]{3}\d[A-Z0-9]\d{2}$/.test(plate))
       throw new Error("Informe uma placa brasileira válida.");
+    if (v.appointment_id) await appointmentForChecklist(db, ctx, v.appointment_id, plate);
 
     let order: Record<string, any> | null = null;
     let vehicle: Record<string, any> | null = null;
@@ -260,6 +263,11 @@ export async function createChecklist(
         JSON.stringify(vehicleData),
       );
     await audit(db, ctx, "checklist.created", checklistId);
+    if (v.appointment_id) {
+      await db.prepare("UPDATE appointments SET status='arrived',checklist_id=?,updated_at=CURRENT_TIMESTAMP WHERE tenant_id=? AND id=? AND status='scheduled'")
+        .run(checklistId, ctx.tenantId, v.appointment_id);
+      await audit(db, ctx, "appointment.arrived", v.appointment_id);
+    }
     return { id: checklistId };
   });
 }
