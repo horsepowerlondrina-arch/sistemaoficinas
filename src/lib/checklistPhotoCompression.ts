@@ -1,4 +1,4 @@
-const maxSide = 1280;
+const maxSide = 1920;
 const maxUploadBytes = 1_600_000;
 
 /** Read only the image header so large camera photos can be decoded at a smaller size. */
@@ -34,6 +34,8 @@ function encode(canvas: HTMLCanvasElement, quality: number): Promise<Blob> {
 }
 
 export async function compressChecklistPhoto(file: File): Promise<Blob> {
+  // Keep the native camera's original JPEG when it already fits the server limit.
+  if (file.type === "image/jpeg" && file.size >= 100 && file.size <= maxUploadBytes) return file;
   const dimensions = await imageDimensions(file);
   let bitmap: ImageBitmap | null = null;
   let image: HTMLImageElement | null = null;
@@ -43,7 +45,7 @@ export async function compressChecklistPhoto(file: File): Promise<Blob> {
     if (typeof createImageBitmap === "function") {
       let decodeError: unknown;
       const alreadySmall = dimensions && Math.max(dimensions.width, dimensions.height) <= maxSide;
-      for (const side of alreadySmall ? [maxSide] : [1280, 960, 720]) {
+      for (const side of alreadySmall ? [maxSide] : [1920, 1600, 1280, 960]) {
         try {
           const resize = alreadySmall
             ? {}
@@ -77,12 +79,12 @@ export async function compressChecklistPhoto(file: File): Promise<Blob> {
     canvas = document.createElement("canvas");
     const context = canvas.getContext("2d");
     if (!context) throw new Error("Não foi possível preparar a foto.");
-    for (const side of [1280, 960, 720]) {
+    for (const [side, quality] of [[1920, 0.82], [1600, 0.78], [1280, 0.72], [960, 0.64]] as const) {
       const scale = Math.min(1, side / Math.max(width, height));
       canvas.width = Math.max(1, Math.round(width * scale));
       canvas.height = Math.max(1, Math.round(height * scale));
       context.drawImage(source, 0, 0, canvas.width, canvas.height);
-      const blob = await encode(canvas, side === 1280 ? 0.72 : 0.6);
+      const blob = await encode(canvas, quality);
       if (blob.size >= 100 && blob.size <= maxUploadBytes) return blob;
     }
     throw new Error("A foto ficou muito grande. Tente novamente.");
