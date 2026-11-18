@@ -4244,18 +4244,6 @@ body {
   gap: 10px;
   margin-bottom: 17px;
 }
-.photo-capture-bar select {
-  min-width: 210px;
-}
-.checklist-camera-body video {
-  display: block;
-  width: 100%;
-  max-height: min(65vh, 620px);
-  aspect-ratio: 4 / 3;
-  object-fit: contain;
-  border-radius: 8px;
-  background: #111;
-}
 .checklist-photo-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

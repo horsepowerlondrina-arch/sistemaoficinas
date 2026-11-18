@@ -1,5 +1,4 @@
 import { VehiclePlate } from "../components/VehiclePlate";
-import { ChecklistCamera } from "../components/ChecklistCamera";
 import { IssuedDocument } from "../components/IssuedDocument";
 import { NumericInput } from "../components/NumericInput";
 import {
@@ -42,15 +41,6 @@ const conditionItems = [
   "Tapetes",
 ];
 const panelItems = ["Injeção", "ABS", "Airbag", "Bateria", "Temperatura"];
-const photoKinds = [
-  ["front", "Frente"],
-  ["rear", "Traseira"],
-  ["left", "Lateral esquerda"],
-  ["right", "Lateral direita"],
-  ["dashboard", "Painel / quilometragem"],
-  ["damage", "Avaria / adicional"],
-  ["other", "Foto adicional"],
-] as const;
 const damageTypes = [
   "Risco",
   "Amassado",
@@ -264,10 +254,9 @@ export function ChecklistEditor() {
   const [loading, setLoading] = useState(!!id);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [photoKind, setPhotoKind] =
-    useState<(typeof photoKinds)[number][0]>("front");
   const [photoPickerActive, setPhotoPickerActive] = useState(false);
-  const [cameraOpen, setCameraOpen] = useState(false);
+  const [photoProgress, setPhotoProgress] = useState("");
+  const cameraInput = useRef<HTMLInputElement>(null);
   const galleryInput = useRef<HTMLInputElement>(null);
   const [damageType, setDamageType] =
     useState<Damage["type"]>("Risco");
@@ -296,7 +285,7 @@ export function ChecklistEditor() {
   }, [id]);
 
   useEffect(() => {
-    const inputs = [galleryInput.current];
+    const inputs = [cameraInput.current, galleryInput.current];
     const cancelled = () => setPhotoPickerActive(false);
     for (const input of inputs) input?.addEventListener("cancel", cancelled);
     return () => {
@@ -400,32 +389,45 @@ export function ChecklistEditor() {
     }
   };
 
-  const upload = async (file?: File | Blob) => {
-    if (!file || !record) {
+  const upload = async (files: File[]) => {
+    if (!files.length || !record) {
       setPhotoPickerActive(false);
       return;
     }
     setBusy(true);
     setError("");
+    const remaining = Math.max(0, 40 - (record.photos || []).length);
+    const selected = files.slice(0, remaining);
+    let saved = 0;
+    const failed: string[] = [];
     try {
-      const blob = file instanceof File ? await compressChecklistPhoto(file) : file;
-      const response = await fetch(
-        `/api/checklists/${record.id}/photos?kind=${encodeURIComponent(photoKind)}`,
-        {
-          method: "POST",
-          credentials: "same-origin",
-          headers: { "Content-Type": "image/jpeg" },
-          body: blob,
-        },
-      );
-      const result = await response.json();
-      if (!response.ok)
-        throw new Error(result.error || "Não foi possível salvar a foto.");
-      await load();
-      notify("Foto adicionada.");
-    } catch (e) {
-      setError((e as Error).message);
+      for (const [index, file] of selected.entries()) {
+        setPhotoProgress(`Enviando foto ${index + 1} de ${selected.length}...`);
+        try {
+          const blob = await compressChecklistPhoto(file);
+          const response = await fetch(`/api/checklists/${record.id}/photos?kind=other`, {
+            method: "POST",
+            credentials: "same-origin",
+            headers: { "Content-Type": "image/jpeg" },
+            body: blob,
+          });
+          const result = await response.json();
+          if (!response.ok) throw new Error(result.error || "Não foi possível salvar a foto.");
+          saved++;
+        } catch (cause) {
+          failed.push(`${file.name}: ${(cause as Error).message}`);
+        }
+      }
+      if (saved) {
+        await load();
+        notify(`${saved} ${saved === 1 ? "foto adicionada" : "fotos adicionadas"}.`);
+      }
+      if (files.length > selected.length) failed.push(`Limite de 40 fotos: ${files.length - selected.length} não enviada(s).`);
+      if (failed.length) setError(`Algumas fotos não foram salvas: ${failed.join("; ")}`);
+    } catch (cause) {
+      setError((cause as Error).message);
     } finally {
+      setPhotoProgress("");
       setBusy(false);
       setPhotoPickerActive(false);
     }
@@ -433,14 +435,6 @@ export function ChecklistEditor() {
 
   // Release decoded thumbnails before Android opens its camera or file picker.
   const preparePhotoPicker = () => flushSync(() => setPhotoPickerActive(true));
-  const openCamera = () => flushSync(() => {
-    setPhotoPickerActive(true);
-    setCameraOpen(true);
-  });
-  const closeCamera = () => {
-    setCameraOpen(false);
-    setPhotoPickerActive(false);
-  };
 
   const removePhoto = async (photoId: string) => {
     if (!record) return;
@@ -743,7 +737,6 @@ export function ChecklistEditor() {
 
   return (
     <>
-      {cameraOpen && <ChecklistCamera onClose={closeCamera} onCapture={upload} />}
       <IssuedDocument key={record.id} kind="checklist" id={record.id} />
       <div className="no-print">
         <button className="back-link" onClick={() => navigate("/checklists")}>
@@ -940,41 +933,44 @@ export function ChecklistEditor() {
           <div className="section-heading">
             <div>
               <h2>Fotos</h2>
-              <p>
-                Fotografe frente, traseira, laterais, painel e avarias.
-              </p>
+              <p>Adicione fotos do veículo e das avarias.</p>
             </div>
           </div>
 
           {!locked && (
             <div className="photo-capture-bar">
-              <select
-                value={photoKind}
-                onChange={(e) =>
-                  setPhotoKind(e.target.value as typeof photoKind)
-                }
-              >
-                {photoKinds.map(([value, label]) => (
-                  <option value={value} key={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-              <button type="button" className="button primary" disabled={busy} onClick={openCamera}>
+              <label className="button primary">
                 <Camera size={17} />
                 Tirar foto
-              </button>
+                <input
+                  ref={cameraInput}
+                  className="sr-only"
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  disabled={busy}
+                  onClick={preparePhotoPicker}
+                  onChange={(e) => {
+                    const files = Array.from(e.currentTarget.files || []);
+                    e.currentTarget.value = "";
+                    void upload(files);
+                  }}
+                />
+              </label>
               <label className="button">
-                Escolher da galeria
+                Selecionar da galeria
                 <input
                   ref={galleryInput}
                   className="sr-only"
                   type="file"
                   accept="image/*"
+                  multiple
+                  disabled={busy}
                   onClick={preparePhotoPicker}
                   onChange={(e) => {
-                    void upload(e.target.files?.[0]);
+                    const files = Array.from(e.currentTarget.files || []);
                     e.currentTarget.value = "";
+                    void upload(files);
                   }}
                 />
               </label>
@@ -983,7 +979,7 @@ export function ChecklistEditor() {
 
           {photoPickerActive && (
             <p className="muted" role="status">
-              Preparando a foto. As imagens do checklist reaparecem após o envio.
+              {photoProgress || "Abrindo fotos. As imagens do checklist reaparecem após o envio."}
               <button type="button" className="text-button" onClick={() => setPhotoPickerActive(false)}>
                 Mostrar fotos
               </button>
@@ -992,23 +988,17 @@ export function ChecklistEditor() {
 
           {!photoPickerActive && ((record.photos || []).length ? (
             <div className="checklist-photo-grid">
-              {record.photos.map((photo: Entity) => (
+              {record.photos.map((photo: Entity, index: number) => (
                 <figure key={photo.id}>
                   <img
                     src={`/api/checklist-photos/${photo.id}`}
                     loading="lazy"
                     decoding="async"
-                    alt={
-                      photoKinds.find(
-                        ([value]) => value === photo.kind,
-                      )?.[1] || "Foto"
-                    }
+                    alt={`Foto ${index + 1} do veículo`}
                   />
                   <figcaption>
                     <span>
-                      {photoKinds.find(
-                        ([value]) => value === photo.kind,
-                      )?.[1] || "Foto adicional"}
+                      Foto {index + 1}
                     </span>
                     {!locked && (
                       <button

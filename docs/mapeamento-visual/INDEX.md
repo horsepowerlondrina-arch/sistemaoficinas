@@ -230,21 +230,13 @@ Estado inicial do formulário; não foi criado nenhum registro.
 
 Estado: capturada · mobile · captura 2026-10-22 · commit de origem: não registrado · [arquivo completo](./capturas/05-checklist/novo-checklist.png)
 
-### Captura de fotos no checklist (mobile)
+### Adicionar fotos no checklist (mobile)
 
-Câmera e galeria disponíveis em checklist de teste com foto fictícia.
+Câmera nativa e seleção múltipla da galeria, sem escolha da posição da foto.
 
-[![Captura de fotos no checklist (mobile)](./capturas/05-checklist/checklist-photo-mobile.png)](./capturas/05-checklist/checklist-photo-mobile.png)
+[![Adicionar fotos no checklist (mobile)](./capturas/05-checklist/checklist-photo-mobile.png)](./capturas/05-checklist/checklist-photo-mobile.png)
 
-Estado: capturada · mobile · captura 2026-11-16 · commit de origem: aafecb8904620f4b591959e47704084c46fc07d2 · [arquivo completo](./capturas/05-checklist/checklist-photo-mobile.png)
-
-### Câmera no checklist (mobile)
-
-Câmera integrada aberta no checklist de teste, com prévia e botão para capturar foto.
-
-[![Câmera no checklist (mobile)](./capturas/05-checklist/checklist-camera-mobile.png)](./capturas/05-checklist/checklist-camera-mobile.png)
-
-Estado: capturada · mobile · captura 2026-11-16 · commit de origem: 0a5cf08d4e06002a4016b1d6cdf36523a2e83bce · [arquivo completo](./capturas/05-checklist/checklist-camera-mobile.png)
+Estado: capturada · mobile · captura 2026-11-18 · commit de origem: 922676979c1ded9a642575b7043be5cdd27d7304 · [arquivo completo](./capturas/05-checklist/checklist-photo-mobile.png)
 
 ### CAD-005 — Veículo no checklist (desktop)
 

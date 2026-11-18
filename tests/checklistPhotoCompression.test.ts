@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { compressChecklistPhoto } from "../src/lib/checklistPhotoCompression.js";
 
 function cameraJpeg() {
-  const data = Buffer.alloc(1_000_000);
+  const data = Buffer.alloc(2_000_000);
   // JPEG SOF: a highly compressed 8000 x 6000 camera image.
   Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 4, 0, 0, 0xff, 0xc0, 0, 17, 8, 0x17, 0x70, 0x1f, 0x40]).copy(data);
   return new File([data], "camera.jpg", { type: "image/jpeg" });
@@ -38,7 +38,7 @@ test("foto grande é decodificada já reduzida, sem carregar a imagem original n
   });
   try {
     const output = await compressChecklistPhoto(cameraJpeg());
-    assert.equal(options?.resizeWidth, 1280);
+    assert.equal(options?.resizeWidth, 1920);
     assert.equal(output.size, 150_000);
     assert.equal(drawn, 1);
     assert.equal(encoded, 1);
@@ -103,7 +103,7 @@ test("falha de decodificação em alta resolução tenta dimensões menores ante
   Object.defineProperty(globalThis, "createImageBitmap", {
     configurable: true, value: async (_file: File, options: ImageBitmapOptions) => {
       attempts.push(options.resizeWidth!);
-      if (options.resizeWidth === 1280) throw new Error("out of memory");
+      if (options.resizeWidth === 1920) throw new Error("out of memory");
       return { width: 960, height: 720, close: () => { closed = true; } };
     },
   });
@@ -113,11 +113,16 @@ test("falha de decodificação em alta resolução tenta dimensões menores ante
   });
   try {
     assert.equal((await compressChecklistPhoto(cameraJpeg())).size, 1000);
-    assert.deepEqual(attempts, [1280, 960]);
+    assert.deepEqual(attempts, [1920, 1600]);
     assert.equal(closed, true);
   } finally {
     for (const [key, descriptor] of [["createImageBitmap", oldBitmap], ["document", oldDocument], ["Image", oldImage]] as const)
       if (descriptor) Object.defineProperty(globalThis, key, descriptor);
       else Reflect.deleteProperty(globalThis, key);
   }
+});
+
+test("JPEG da câmera dentro do limite é enviado sem perda de qualidade ou decodificação", async () => {
+  const file = new File([Buffer.alloc(500_000)], "camera.jpg", { type: "image/jpeg" });
+  assert.equal(await compressChecklistPhoto(file), file);
 });
