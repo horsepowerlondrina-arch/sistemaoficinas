@@ -8,6 +8,15 @@ const conditionLabels: Record<string, string> = {
   issue: "Avaria",
   unchecked: "Não verificado",
 };
+const photoLabels: Record<string, string> = {
+  front: "Frente",
+  rear: "Traseira",
+  left: "Lateral esquerda",
+  right: "Lateral direita",
+  dashboard: "Painel / quilometragem",
+  damage: "Avaria / adicional",
+  other: "Foto adicional",
+};
 
 export function ChecklistPrint({
   checklist,
@@ -100,14 +109,14 @@ export function ChecklistPrint({
         <section className="checklist-print-photos-section">
           <h2>Fotos de entrada</h2>
           <div className="checklist-print-photos">
-            {photos.map((photo: Entity, index: number) => (
+            {photos.map((photo: Entity) => (
               <figure key={photo.id}>
                 <img
                   src={photo.image_url || `/api/checklist-photos/${photo.id}`}
-                  alt={`Foto ${index + 1} do veículo`}
+                  alt={photoLabels[photo.kind] || "Foto"}
                 />
                 <figcaption>
-                  Foto {index + 1}
+                  {photoLabels[photo.kind] || "Foto adicional"}
                 </figcaption>
               </figure>
             ))}
