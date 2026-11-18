@@ -20,59 +20,59 @@ try {
     await delay(250);
   }
   if (!ready) throw Error("TEST_SERVER_UNAVAILABLE");
-  browser = await chromium.launch({ headless: true, args: ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream"], ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH } : {}) });
-  const page = await browser.newPage({ viewport: { width: 390, height: 844 }, permissions: ["camera"] });
+  browser = await chromium.launch({ headless: true, ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH } : {}) });
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
   const errors = []; page.on("pageerror", error => errors.push(error.message));
   let photos = [{ id: "fictional-photo-1", kind: "front" }];
   let uploads = 0;
   await page.route("**/api/**", async route => {
-    const { pathname } = new URL(route.request().url());
+    const { pathname, searchParams } = new URL(route.request().url());
     if (pathname === "/api/checklists/fictional" && route.request().method() === "GET")
       return route.fulfill({ json: { id: "fictional", status: "draft", customer_name: "Cliente Fictício", vehicle_label: "Veículo Fictício", plate: "ABC1D23", inspector: "Responsável Fictício", km: 0, fuel_level: 50, signature_data: "", signature_absent_reason: "", photos } });
     if (pathname === "/api/documents/checklist/fictional") return route.fulfill({ json: { legacy: false, revisions: [] } });
     if (pathname.startsWith("/api/checklist-photos/")) return route.fulfill({ contentType: "image/png", body: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9R9C8AAAAASUVORK5CYII=", "base64") });
     if (pathname === "/api/checklists/fictional/photos" && route.request().method() === "POST") {
+      expect(searchParams.get("kind")).toBe("other");
       expect(route.request().headers()["content-type"]).toBe("image/jpeg");
       expect(route.request().postDataBuffer().length).toBeGreaterThan(100);
-      photos = [...photos, { id: `fictional-photo-${++uploads + 1}`, kind: "front" }];
+      photos = [...photos, { id: `fictional-photo-${++uploads + 1}`, kind: "other" }];
       return route.fulfill({ status: 201, json: { id: photos.at(-1).id } });
     }
     throw Error(`UNEXPECTED_API_REQUEST ${route.request().method()} ${pathname}`);
   });
   await page.goto("http://127.0.0.1:5189/checklist-photo-fixture.html");
   await expect(page.locator(".checklist-photo-grid img")).toHaveCount(1);
+  await expect(page.getByText("Foto 1", { exact: true })).toBeVisible();
+  await expect(page.locator(".photo-capture-bar select")).toHaveCount(0);
+  await expect(page.locator(".checklist-camera-body")).toHaveCount(0);
+  expect(await page.locator('input[capture="environment"]').count()).toBe(1);
+  expect(await page.locator('input[multiple][type="file"]').count()).toBe(1);
   await page.screenshot({ path: resolve(output, "checklist-photo-mobile.png"), fullPage: true });
   const picture = await page.evaluate(async () => {
     const canvas = document.createElement("canvas"); canvas.width = 200; canvas.height = 150;
     const context = canvas.getContext("2d"); context.fillStyle = "#b3342d"; context.fillRect(0, 0, 200, 150);
     return canvas.toDataURL("image/png").split(",")[1];
   });
-  await page.getByRole("button", { name: "Tirar foto" }).click();
-  await expect(page.getByRole("button", { name: "Capturar foto" })).toBeEnabled();
+  const cameraChooser = page.waitForEvent("filechooser");
+  await page.getByText("Tirar foto", { exact: true }).click();
+  const nativeCamera = await cameraChooser;
+  expect(await nativeCamera.element().getAttribute("capture")).toBe("environment");
   await expect(page.locator(".checklist-photo-grid img")).toHaveCount(0);
-  await page.screenshot({ path: resolve(output, "checklist-camera-mobile.png"), fullPage: true });
-  await page.evaluate(() => { window.__checklistCameraTrack = document.querySelector("video").srcObject.getVideoTracks()[0]; });
-  await page.getByRole("button", { name: "Capturar foto" }).click();
+  await nativeCamera.setFiles({ name: "camera-ficticia.png", mimeType: "image/png", buffer: Buffer.from(picture, "base64") });
   await expect(page.locator(".checklist-photo-grid img")).toHaveCount(2);
-  expect(await page.evaluate(() => window.__checklistCameraTrack.readyState)).toBe("ended");
 
   const chooser = page.waitForEvent("filechooser");
-  await page.getByText("Escolher da galeria", { exact: true }).click();
+  await page.getByText("Selecionar da galeria", { exact: true }).click();
   const fileChooser = await chooser;
+  expect(fileChooser.isMultiple()).toBe(true);
   await expect(page.locator(".checklist-photo-grid img")).toHaveCount(0);
-  await fileChooser.setFiles({ name: "foto-ficticia.png", mimeType: "image/png", buffer: Buffer.from(picture, "base64") });
-  await expect(page.locator(".checklist-photo-grid img")).toHaveCount(3);
-
-  await page.getByRole("button", { name: "Tirar foto" }).click();
-  await expect(page.getByRole("button", { name: "Capturar foto" })).toBeEnabled();
-  await page.evaluate(() => { window.__cancelledCameraTrack = document.querySelector("video").srcObject.getVideoTracks()[0]; });
-  await page.getByRole("button", { name: "Cancelar" }).click();
-  await expect(page.locator(".checklist-photo-grid img")).toHaveCount(3);
-  expect(await page.evaluate(() => window.__cancelledCameraTrack.readyState)).toBe("ended");
-  expect(uploads).toBe(2);
+  await fileChooser.setFiles([1, 2].map(index => ({ name: `galeria-ficticia-${index}.png`, mimeType: "image/png", buffer: Buffer.from(picture, "base64") })));
+  await expect(page.locator(".checklist-photo-grid img")).toHaveCount(4);
+  await expect(page.getByText("Foto 4", { exact: true })).toBeVisible();
+  expect(uploads).toBe(3);
   expect(errors).toEqual([]);
   if (await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1)) throw Error("MOBILE_OVERFLOW");
-  console.log("Captura e galeria conferidas em viewport móvel com API e imagens fictícias.");
+  console.log("Câmera nativa e seleção múltipla da galeria conferidas em viewport móvel com API e imagens fictícias.");
 } finally {
   await browser?.close(); server.kill("SIGTERM");
   for (const file of files) rmSync(file, { force: true });
