@@ -80,7 +80,7 @@ Menu e atalhos da conta de demonstração.
 
 [![Início da Oficina Fictícia A](./capturas/02-dashboard/inicio-oficina.png)](./capturas/02-dashboard/inicio-oficina.png)
 
-Estado: capturada · mobile · captura 2026-11-14 · commit de origem: c5aebc1bb00a73ac99f6575c8b39f25434b82278 · [arquivo completo](./capturas/02-dashboard/inicio-oficina.png)
+Estado: capturada · mobile · captura 2026-11-18 · commit de origem: 039e7d83f1850e150a4923cff716b71e7e67a14a · [arquivo completo](./capturas/02-dashboard/inicio-oficina.png)
 
 ### Visão geral da Oficina Fictícia A
 
@@ -112,7 +112,7 @@ Menu e atalhos da conta de demonstração.
 
 [![Início da Oficina Fictícia A](./capturas/02-dashboard/inicio-oficina-desktop.png)](./capturas/02-dashboard/inicio-oficina-desktop.png)
 
-Estado: capturada · desktop · captura 2026-11-14 · commit de origem: c5aebc1bb00a73ac99f6575c8b39f25434b82278 · [arquivo completo](./capturas/02-dashboard/inicio-oficina-desktop.png)
+Estado: capturada · desktop · captura 2026-11-18 · commit de origem: 039e7d83f1850e150a4923cff716b71e7e67a14a · [arquivo completo](./capturas/02-dashboard/inicio-oficina-desktop.png)
 
 ## 03 — Clientes
 
