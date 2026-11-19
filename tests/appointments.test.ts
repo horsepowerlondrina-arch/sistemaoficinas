@@ -34,7 +34,9 @@ test("Agenda mantém cadastro provisório e isola oficinas", async () => {
   await assert.rejects(createAppointment(db, owner, { ...input, starts_at: `${day}T10:00` }), /já tem agendamento/);
   await assert.rejects(createAppointment(db, owner, { ...input, plate: "XYZ1A23" }), /já tem agendamento/);
   await createAppointment(db, owner, { ...input, plate: "XYZ1A23", professional_id: "second" });
-  await assert.rejects(createAppointment(db, owner, { ...input, starts_at: `${day}T11:30`, ends_at: `${day}T13:30` }), /intervalo/);
+  await createAppointment(db, owner, { ...input, starts_at: `${day}T11:30`, ends_at: `${day}T13:30` });
+  await assert.rejects(createAppointment(db, owner, { ...input, starts_at: `${day}T12:30`, ends_at: `${day}T14:00` }), /início fora do intervalo/);
+  await assert.rejects(createAppointment(db, owner, { ...input, starts_at: `${day}T11:30`, ends_at: `${day}T12:30` }), /final fora do intervalo/);
   await assert.rejects(createAppointment(db, { ...owner, modules: { agenda: false } }, input), /Profissional e Premium/);
   await cancelAppointment(db, owner, saved.id);
   await createAppointment(db, owner, input);
