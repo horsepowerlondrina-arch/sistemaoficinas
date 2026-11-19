@@ -143,10 +143,10 @@
       "viewport": "mobile",
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/02-dashboard/inicio-oficina.png",
-      "updatedAt": "2026-11-14",
-      "commit": "c5aebc1bb00a73ac99f6575c8b39f25434b82278",
+      "updatedAt": "2026-11-18",
+      "commit": "039e7d83f1850e150a4923cff716b71e7e67a14a",
       "freshness": "atual",
-      "reason": "Captura Playwright no CI com oficina fictícia e PostgreSQL 17 temporário."
+      "reason": "Captura Playwright no CI #984 com oficina fictícia e PostgreSQL 17 temporário; menu em ordem Visão geral, Checklists, Ordens de Serviço."
     },
     {
       "id": "dashboard-oficina-a",
@@ -654,10 +654,10 @@
       "viewport": "desktop",
       "status": "capturada",
       "image": "docs/mapeamento-visual/capturas/02-dashboard/inicio-oficina-desktop.png",
-      "updatedAt": "2026-11-14",
-      "commit": "c5aebc1bb00a73ac99f6575c8b39f25434b82278",
+      "updatedAt": "2026-11-18",
+      "commit": "039e7d83f1850e150a4923cff716b71e7e67a14a",
       "freshness": "atual",
-      "reason": "Captura Playwright no CI com oficina fictícia e PostgreSQL 17 temporário."
+      "reason": "Captura Playwright no CI #984 com oficina fictícia e PostgreSQL 17 temporário; menu em ordem Visão geral, Checklists, Ordens de Serviço."
     },
     {
       "id": "dashboard-oficina-a-desktop",
