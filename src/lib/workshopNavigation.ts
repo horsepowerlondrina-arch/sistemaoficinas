@@ -30,8 +30,8 @@ export const workshopNavGroups: WorkshopNavGroup[] = [
     title: "PRINCIPAL",
     items: [
       { path: "/dashboard", label: "Visão geral", description: "Indicadores e resultados da oficina.", Icon: LayoutDashboard },
-      { path: "/ordens", label: "Ordens de Serviço", description: "Acompanhe orçamentos e atendimentos até a entrega.", Icon: ClipboardList },
       { path: "/checklists", label: "Checklists de entrada", description: "Registre fotos, avarias, acessórios e assinatura.", Icon: ClipboardCheck },
+      { path: "/ordens", label: "Ordens de Serviço", description: "Acompanhe orçamentos e atendimentos até a entrega.", Icon: ClipboardList },
     ],
   },
   {
