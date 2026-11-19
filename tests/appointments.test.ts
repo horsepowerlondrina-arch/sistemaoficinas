@@ -8,7 +8,7 @@ const day = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", ye
 const weekday = new Date(`${day}T12:00:00Z`).getUTCDay();
 const hours = [{ day: weekday, closed: false, open: "08:00", close: "18:00", break_start: "12:00", break_end: "13:00" }];
 const owner = { tenantId: "t", userId: "u", role: "owner", modules: { agenda: true } };
-const input = { starts_at: `${day}T09:00`, duration_minutes: 120, plate: "ABC1D23", customer_name: "Cliente Temporário", phone: "43999999999", planned_services: "Revisão de freios" };
+const input = { starts_at: `${day}T09:00`, ends_at: `${day}T11:00`, professional_id: "mechanic", plate: "ABC1D23", customer_name: "Cliente Temporário", phone: "43999999999", planned_services: "Revisão de freios" };
 
 function fixture() {
   const db = createDatabase(":memory:");
@@ -17,6 +17,8 @@ function fixture() {
   db.prepare("INSERT INTO users(id,name,email,password_hash) VALUES(?,?,?,?)").run("u", "Responsável", "u@example.test", "fixture");
   db.prepare("INSERT INTO memberships(user_id,tenant_id,role) VALUES(?,?,?)").run("u", "t", "owner");
   db.prepare("INSERT INTO memberships(user_id,tenant_id,role) VALUES(?,?,?)").run("u", "other", "owner");
+  db.prepare("INSERT INTO professionals(id,tenant_id,name) VALUES(?,?,?)").run("mechanic", "t", "Mecânico A");
+  db.prepare("INSERT INTO professionals(id,tenant_id,name) VALUES(?,?,?)").run("second", "t", "Mecânico B");
   return db;
 }
 
@@ -30,7 +32,9 @@ test("Agenda mantém cadastro provisório e isola oficinas", async () => {
   assert.equal(db.prepare("SELECT count(*) AS total FROM customers WHERE tenant_id='t'").get()?.total, 0);
   assert.equal((await listAppointments(db, { ...owner, tenantId: "other" }, day)).length, 0);
   await assert.rejects(createAppointment(db, owner, { ...input, starts_at: `${day}T10:00` }), /já tem agendamento/);
-  await assert.rejects(createAppointment(db, owner, { ...input, starts_at: `${day}T11:30` }), /intervalo/);
+  await assert.rejects(createAppointment(db, owner, { ...input, plate: "XYZ1A23" }), /já tem agendamento/);
+  await createAppointment(db, owner, { ...input, plate: "XYZ1A23", professional_id: "second" });
+  await assert.rejects(createAppointment(db, owner, { ...input, starts_at: `${day}T11:30`, ends_at: `${day}T13:30` }), /intervalo/);
   await assert.rejects(createAppointment(db, { ...owner, modules: { agenda: false } }, input), /Profissional e Premium/);
   await cancelAppointment(db, owner, saved.id);
   await createAppointment(db, owner, input);
@@ -60,5 +64,5 @@ test("Placa cadastrada reutiliza cliente, e horário fora do expediente é recus
   assert.equal(row?.customer_id, "c");
   assert.equal(row?.customer_name, "Cliente Cadastrado");
   assert.equal(row?.phone, "43988888888");
-  await assert.rejects(createAppointment(db, owner, { ...input, starts_at: `${day}T17:30`, duration_minutes: 60 }), /horário de atendimento/);
+  await assert.rejects(createAppointment(db, owner, { ...input, starts_at: `${day}T17:30`, ends_at: `${day}T18:30` }), /horário de atendimento/);
 });

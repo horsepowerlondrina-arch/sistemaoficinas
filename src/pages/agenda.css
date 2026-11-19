@@ -1,0 +1,12 @@
+.agenda-grid-scroll { overflow-x: auto; }
+.agenda-grid { border-collapse: collapse; min-width: 100%; }
+.agenda-grid th, .agenda-grid td { border: 1px solid var(--border); padding: 8px; vertical-align: top; min-width: 80px; }
+.agenda-grid th:first-child { position: sticky; left: 0; background: var(--surface, white); min-width: 130px; z-index: 1; }
+.agenda-free { background: #e9f7ed; color: #16452b; }
+.agenda-occupied { background: #dbeafe; color: #173763; }
+.agenda-break { background: #e9edf2; color: #414b59; }
+.agenda-slot { width: 100%; min-height: 42px; border: 0; background: transparent; color: inherit; cursor: pointer; }
+.agenda-slot:hover { background: #ccebd5; }
+.agenda-booking { display: grid; gap: 5px; min-width: 128px; overflow-wrap: anywhere; }
+.agenda-legend { display: flex; gap: 8px; }
+.agenda-legend span { padding: 4px 8px; border-radius: 4px; }
