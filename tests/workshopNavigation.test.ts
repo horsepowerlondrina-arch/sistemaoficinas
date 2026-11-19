@@ -20,7 +20,7 @@ test("Início e menu compartilham todos os destinos disponíveis ao proprietári
   assert.deepEqual(paths(visibleWorkshopNavigation(session())), [
     "/dashboard", "/ordens", "/checklists",
     "/cadastros", "/catalogo", "/servicos", "/profissionais", "/fornecedores",
-    "/estoque", "/financeiro", "/configuracoes",
+    "/agenda", "/estoque", "/financeiro", "/configuracoes",
   ]);
 });
 

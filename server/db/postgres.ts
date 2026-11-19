@@ -69,6 +69,7 @@ export function postgresSql(input: string) {
     "external_captures",
     "service_times",
     "checklists",
+    "appointments",
     "checklist_photos",
     "document_revisions",
     "data_transfer_records",
@@ -165,10 +166,10 @@ export function createPostgresDatabase(url = process.env.DATABASE_URL, options: 
       try {
         const result = await query("SELECT horse_power.local_tenant_module_access($1) AS modules", [tenant]);
         const value = result.rows[0]?.modules;
-        return { ...defaultWorkshopModules, ...(value && typeof value === "object" ? value : {}) };
+        return { ...defaultWorkshopModules, ...(value && typeof value === "object" ? value : {}), agenda: process.env.APP_ENV === "horse_power" || value?.agenda === true };
       } catch (error) {
         // The additive migration may not be installed yet during a Vercel Preview.
-        if ((error as { code?: string }).code === "42883") return { ...defaultWorkshopModules };
+        if ((error as { code?: string }).code === "42883") return { ...defaultWorkshopModules, agenda: process.env.APP_ENV === "horse_power" };
         throw error;
       }
     },
