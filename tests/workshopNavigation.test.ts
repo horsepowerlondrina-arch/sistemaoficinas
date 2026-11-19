@@ -19,7 +19,7 @@ const paths = (value: ReturnType<typeof visibleWorkshopNavigation>) => [
 
 test("Início e menu compartilham todos os destinos disponíveis ao proprietário", () => {
   assert.deepEqual(paths(visibleWorkshopNavigation(session())), [
-    "/dashboard", "/ordens", "/checklists",
+    "/dashboard", "/checklists", "/ordens",
     "/cadastros", "/catalogo", "/servicos", "/profissionais", "/fornecedores",
     "/agenda", "/estoque", "/financeiro", "/suporte", "/configuracoes",
   ]);
