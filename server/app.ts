@@ -25,6 +25,7 @@ import {
   updateStagedCaptureItem,
 } from "./services/extension.js";
 import { listProductCategories, saveProductCategory, removeProductCategory, validProductCategory } from "./services/productCategories.js";
+import { listAppointments, getAppointment, createAppointment, cancelAppointment } from "./services/appointments.js";
 import { assertUniqueService } from "./services/serviceCatalog.js";
 import { createProductBatch } from "./services/productBatch.js";
 import { generateExpenses, payExpense, currentExpenseMonth } from "./services/expenses.js";
@@ -602,6 +603,18 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
   });
   app.get("/api/checklists", async (_req, res) => {
     res.json(await listChecklists(db, res.locals.context));
+  });
+  app.get("/api/agenda", async (req, res) => {
+    res.json(await listAppointments(db, res.locals.context, String(req.query.date || "")));
+  });
+  app.get("/api/agenda/:id", async (req, res) => {
+    res.json(await getAppointment(db, res.locals.context, String(req.params.id)));
+  });
+  app.post("/api/agenda", async (req, res) => {
+    res.status(201).json(await createAppointment(db, res.locals.context, req.body));
+  });
+  app.post("/api/agenda/:id/cancel", async (req, res) => {
+    res.json(await cancelAppointment(db, res.locals.context, String(req.params.id)));
   });
   app.post("/api/checklists", async (req, res) => {
     res

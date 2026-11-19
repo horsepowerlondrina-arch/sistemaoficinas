@@ -27,6 +27,12 @@ test("PostgreSQL: planos, teste Premium, exceções, limites e isolamento", asyn
     const status = async () => (await db.query("SELECT platform_admin.workshop_entitlement_status($1) AS entitlements",[tenant])).rows[0].entitlements;
     const assign = async (plan: string) => (await db.query("SELECT platform_admin.set_workshop_plan($1,$2,$3,$4) AS entitlements",
       [tenant,token,plan,`Atribuir plano ${plan} à oficina fictícia`])).rows[0].entitlements;
+    const agendaAllowed = async () => {
+      await db.query("SELECT set_config('app.tenant_id',$1,true),set_config('app.user_id',$2,true)",[tenant,users[0]]);
+      await db.query("SET LOCAL ROLE hp_local_app");
+      try { return (await db.query("SELECT horse_power.local_tenant_module_access($1) AS modules",[tenant])).rows[0].modules.agenda; }
+      finally { await db.query("RESET ROLE"); }
+    };
 
     await db.query("SAVEPOINT invalid_plan");
     await assert.rejects(assign("enterprise"),{code:"22023"});
@@ -40,6 +46,7 @@ test("PostgreSQL: planos, teste Premium, exceções, limites e isolamento", asyn
     assert.equal(state.max_users,null,"oficina existente não recebe limite antes da atribuição");
     assert.equal(state.modules.finance,true,"acesso legado é preservado");
     state = await assign("basic");
+    assert.equal(await agendaAllowed(),false,"Básico não abre a Agenda");
     const visibleBrands = async () => {
       await db.query("SELECT set_config('app.tenant_id',$1,true),set_config('app.user_id',$2,true)",[tenant,users[0]]);
       await db.query("SET LOCAL ROLE hp_local_app");
@@ -60,6 +67,7 @@ test("PostgreSQL: planos, teste Premium, exceções, limites e isolamento", asyn
     assert.equal(state.modules.external_plate_lookup,false);
     assert.equal(state.modules.technical_catalog,false);
     state = await assign("professional");
+    assert.equal(await agendaAllowed(),true,"Profissional abre a Agenda");
     assert.equal(state.max_users,5);
     assert.equal(state.modules.finance,true);
     assert.equal(state.modules.inventory,true);
@@ -67,6 +75,7 @@ test("PostgreSQL: planos, teste Premium, exceções, limites e isolamento", asyn
     assert.equal(state.modules.external_plate_lookup,true);
     assert.equal(state.modules.technical_catalog,false);
     state = await assign("premium");
+    assert.equal(await agendaAllowed(),true,"Premium abre a Agenda");
     assert.equal(state.max_users,10);
     assert.equal(state.modules.technical_catalog,true);
     assert.equal((await db.query("SELECT count(*)::int AS total FROM service_catalog.tenant_access WHERE tenant_id=$1",[tenant])).rows[0].total,0);

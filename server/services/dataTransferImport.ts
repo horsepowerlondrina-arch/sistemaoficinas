@@ -17,13 +17,13 @@ const insertOrder: TransferTable[] = [
   "payment_settings", "card_rates", "card_machines", "card_machine_rates", "cash_accounts", "orders", "order_items",
   "stock_invoices", "stock_invoice_products", "stock_movements", "receivables",
   "payment_installments", "cash_entries", "payables", "cash_movements", "service_aliases",
-  "service_merge_history", "external_catalog_links", "external_captures", "service_times", "checklists",
+  "service_merge_history", "external_catalog_links", "external_captures", "service_times", "checklists", "appointments",
   "checklist_photos", "document_revisions", "data_transfer_archived_documents", "audit_events",
 ];
 const immutableOrFinancial = new Set<TransferTable>([
   "orders", "order_items", "stock_movements", "stock_invoices", "stock_invoice_products",
   "receivables", "cash_entries", "payment_installments", "cash_movements", "payables",
-  "service_merge_history", "external_captures", "document_revisions", "data_transfer_archived_documents", "audit_events", "checklists", "checklist_photos",
+  "service_merge_history", "external_captures", "document_revisions", "data_transfer_archived_documents", "audit_events", "checklists", "checklist_photos", "appointments",
 ]);
 const retainedHistory = new Set<TransferTable>(["document_revisions", "data_transfer_archived_documents", "audit_events"]);
 const BACKUP_RETENTION_DAYS = 30;
@@ -56,6 +56,7 @@ const linkedIdFields: Partial<Record<TransferTable, Record<string, TransferTable
   external_catalog_links: { catalog_id: "catalog" },
   external_captures: { order_id: "orders", item_id: "order_items", catalog_id: "catalog" },
   checklists: { customer_id: "customers", vehicle_id: "vehicles", order_id: "orders" },
+  appointments: { professional_id: "professionals", customer_id: "customers", checklist_id: "checklists" },
   checklist_photos: { checklist_id: "checklists" },
 };
 type IdRemaps = Map<TransferTable, Map<string, string>>;

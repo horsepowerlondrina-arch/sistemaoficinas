@@ -1,5 +1,6 @@
 import {
   ClipboardCheck,
+  CalendarDays,
   ClipboardList,
   LayoutDashboard,
   Package,
@@ -47,6 +48,7 @@ export const workshopNavGroups: WorkshopNavGroup[] = [
   {
     title: "GESTÃO",
     items: [
+      { path: "/agenda", label: "Agenda", description: "Agende veículos e inicie o checklist na chegada.", Icon: CalendarDays },
       { path: "/estoque", label: "Estoque", description: "Controle saldos, entradas e saídas de peças.", Icon: Package },
       { path: "/financeiro", label: "Financeiro", description: "Acesse contas a pagar, a receber e caixa.", Icon: Wallet },
     ],

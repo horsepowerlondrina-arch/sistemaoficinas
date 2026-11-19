@@ -50,6 +50,7 @@ export function permissionForRequest(
         : method === "POST" && p === "/checklists"
           ? "checklists.create"
           : "checklists.edit";
+  if (p.startsWith("/agenda")) return read ? "checklists.view" : "checklists.create";
   if (p.startsWith("/documents"))
     return p.includes("/checklist/") ? "checklists.view" : "orders.view";
   if (p.startsWith("/customers") || p.startsWith("/vehicles"))

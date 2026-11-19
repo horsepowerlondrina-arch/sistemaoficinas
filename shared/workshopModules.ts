@@ -2,6 +2,7 @@ export const workshopModuleKeys = [
   "dashboard",
   "orders",
   "checklists",
+  "agenda",
   "customers_vehicles",
   "catalog",
   "technical_catalog",
@@ -20,6 +21,7 @@ export const workshopModuleLabels: Record<WorkshopModuleKey, string> = {
   dashboard: "Visão geral",
   orders: "Ordens de serviço e orçamentos",
   checklists: "Checklists",
+  agenda: "Agenda",
   customers_vehicles: "Clientes e veículos",
   catalog: "Produtos e serviços da oficina",
   technical_catalog: "Catálogo Técnico de Tempos",
@@ -39,6 +41,7 @@ const moduleForUiPath = (path: string): WorkshopModuleKey | null => {
   if (path.startsWith("/dashboard")) return "dashboard";
   if (path.startsWith("/ordens") || path.startsWith("/orcamentos")) return "orders";
   if (path.startsWith("/checklists")) return "checklists";
+  if (path.startsWith("/agenda")) return "agenda";
   if (["/cadastros", "/clientes", "/veiculos"].some((prefix) => path.startsWith(prefix))) return "customers_vehicles";
   if (["/catalogo", "/servicos", "/tempos"].some((prefix) => path.startsWith(prefix))) return "catalog";
   if (path.startsWith("/profissionais")) return "professionals";
@@ -62,6 +65,7 @@ export function moduleForApiRequest(path: string, method = "GET"): WorkshopModul
     return isCreatingOrEditing ? ["orders","customers_vehicles"] : ["orders"];
   }
   if (/^\/checklists(?:\/|$)/.test(p) || /^\/checklist-photos(?:\/|$)/.test(p)) return ["checklists"];
+  if (/^\/agenda(?:\/|$)/.test(p)) return ["agenda"];
   if (p === "/documents/archives" || p.startsWith("/documents/archives/")) return ["orders", "checklists"];
   if (p.startsWith("/documents/")) {
     const kind = p.split("/")[2];
