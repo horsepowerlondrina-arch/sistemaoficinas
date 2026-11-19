@@ -56,7 +56,7 @@ const linkedIdFields: Partial<Record<TransferTable, Record<string, TransferTable
   external_catalog_links: { catalog_id: "catalog" },
   external_captures: { order_id: "orders", item_id: "order_items", catalog_id: "catalog" },
   checklists: { customer_id: "customers", vehicle_id: "vehicles", order_id: "orders" },
-  appointments: { customer_id: "customers", checklist_id: "checklists" },
+  appointments: { professional_id: "professionals", customer_id: "customers", checklist_id: "checklists" },
   checklist_photos: { checklist_id: "checklists" },
 };
 type IdRemaps = Map<TransferTable, Map<string, string>>;
