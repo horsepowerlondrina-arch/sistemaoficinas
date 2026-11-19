@@ -41,8 +41,13 @@ function scheduleEnd(starts: string, ends: string, hours: BusinessDay[]) {
   if (ends.slice(0, 10) !== date || end <= start) throw new Error("O horário final deve ser posterior ao início, no mesmo dia.");
   if (start < minutes(rule.open) || end > minutes(rule.close))
     throw new Error("O agendamento deve caber no horário de atendimento da oficina.");
-  if (rule.break_start && rule.break_end && start < minutes(rule.break_end) && end > minutes(rule.break_start))
-    throw new Error("O agendamento não pode atravessar o intervalo de atendimento.");
+  if (rule.break_start && rule.break_end) {
+    const breakStart = minutes(rule.break_start), breakEnd = minutes(rule.break_end);
+    if (start >= breakStart && start < breakEnd)
+      throw new Error("Escolha um horário de início fora do intervalo de atendimento.");
+    if (end > breakStart && end < breakEnd)
+      throw new Error("Escolha um horário final fora do intervalo de atendimento.");
+  }
   return ends;
 }
 

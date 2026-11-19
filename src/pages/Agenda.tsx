@@ -137,7 +137,7 @@ export function Agenda() {
                   toMinutes(working.break_start) < limit && toMinutes(working.break_end) > slot);
                 const startsHere = assigned.filter(row => Math.max(toMinutes(row.starts_at.slice(11)), opening) >= slot &&
                   Math.max(toMinutes(row.starts_at.slice(11)), opening) < limit);
-                return <td key={slot} className={occupied ? "agenda-occupied" : paused ? "agenda-break" : "agenda-free"}>
+                return <td key={slot} className={paused ? "agenda-break" : occupied ? "agenda-occupied" : "agenda-free"}>
                   {startsHere.map(row => <div key={row.id} className="agenda-booking">
                     <VehiclePlate value={row.plate} compact/>
                     <strong>{row.starts_at.slice(11)}–{row.ends_at.slice(11)}</strong>
@@ -174,7 +174,7 @@ export function Agenda() {
           <label>Horário final<input type="time" value={end} min={working?.open} max={working?.close} onChange={event => setEnd(event.target.value)} required/></label>
         </div>
         <label>Serviços previstos<textarea value={services} onChange={event => setServices(event.target.value)} placeholder="Descreva o relato do cliente e os serviços prováveis" required minLength={2} maxLength={2000}/></label>
-        <p className="muted">O horário deve ficar dentro do expediente, sem atravessar o intervalo.</p>
+        <p className="muted">A reserva pode atravessar o intervalo. Escolha o início e o fim em horários de atendimento.</p>
         <div className="modal-actions"><button className="button" type="button" onClick={() => setCreating(false)}>Voltar</button><button className="button primary" type="submit" disabled={busy}>{busy ? "Salvando..." : "Salvar agendamento"}</button></div>
       </form>
     </Modal>}
