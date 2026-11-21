@@ -1,4 +1,5 @@
 import test from "node:test";
+import { once } from "node:events";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { adminClient } from "../scripts/local-admin";
@@ -300,7 +301,6 @@ test("OPS-004 PostgreSQL17: concurrent seats, invitations, reactivation, last Ma
       );
     });
     const { createApp } = await import("../server/app.js");
-    const { once } = await import("node:events");
     const server = createApp(db).listen(0, "127.0.0.1");
     try {
       await once(server, "listening");
