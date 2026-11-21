@@ -31,7 +31,13 @@ const labelDate = (day: string) => new Date(`${day}T12:00:00Z`).toLocaleDateStri
 export function Agenda() {
   const { data, session, notify } = useApp();
   const navigate = useNavigate();
-  const [weekDay, setWeekDay] = useState(today());
+  const hours = workshopIdentity(session.tenant).business_hours;
+  const workingFor = (value: string) => hours.find(h =>
+    h.day === new Date(`${value}T12:00:00Z`).getUTCDay() && !h.closed && h.open && h.close);
+  const currentDay = today();
+  const [weekDay, setWeekDay] = useState(() =>
+    Array.from({ length: 7 }, (_, offset) => shiftDate(currentDay, offset)).find(workingFor) || currentDay);
+
   const [selected, setSelected] = useState(today());
   const [rows, setRows] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -47,9 +53,6 @@ export function Agenda() {
   const [phone, setPhone] = useState("");
   const [time, setTime] = useState("");
   const [services, setServices] = useState("");
-  const hours = workshopIdentity(session.tenant).business_hours;
-  const workingFor = (value: string) => hours.find(h =>
-    h.day === new Date(`${value}T12:00:00Z`).getUTCDay() && !h.closed && h.open && h.close);
   const week = useMemo(() => Array.from({ length: 7 }, (_, i) => shiftDate(startOfWeek(weekDay), i)), [weekDay]);
   const openDays = week.filter(workingFor);
   const day = openDays.includes(selected) ? selected : (openDays.find(value => value >= weekDay) || openDays[0] || "");
@@ -137,7 +140,8 @@ export function Agenda() {
                   toMinutes(working.break_start) < limit && toMinutes(working.break_end) > slot);
                 const startsHere = assigned.filter(row => Math.max(toMinutes(row.starts_at.slice(11)), opening) >= slot &&
                   Math.max(toMinutes(row.starts_at.slice(11)), opening) < limit);
-                return <td key={slot} className={paused ? "agenda-break" : occupied ? "agenda-occupied" : "agenda-free"}>
+                const canBook = !occupied && !paused && day >= currentDay && mechanics.some(p => p.id === mechanic.id);
+                return <td key={slot} className={paused ? "agenda-break" : occupied ? "agenda-occupied" : canBook ? "agenda-free agenda-bookable" : "agenda-free"}>
                   {startsHere.map(row => <div key={row.id} className="agenda-booking">
                     <VehiclePlate value={row.plate} compact/>
                     <strong>{row.starts_at.slice(11)}–{row.ends_at.slice(11)}</strong>
@@ -146,7 +150,7 @@ export function Agenda() {
                     {row.status === "scheduled" && <button className="button" disabled={busy} onClick={() => void cancel(row)}><X size={16}/> Cancelar</button>}
                     {row.status === "arrived" && row.checklist_id && <button className="button" onClick={() => navigate(`/checklists/${row.checklist_id}`)}>Abrir checklist</button>}
                   </div>)}
-                  {!occupied && !paused && day >= today() && mechanics.some(p => p.id === mechanic.id) && <button type="button" className="agenda-slot" aria-label={`Agendar ${mechanic.name} às ${timeLabel(slot)}`} onClick={() => {
+                  {canBook && <button type="button" className="agenda-slot" aria-label={`Agendar ${mechanic.name} às ${timeLabel(slot)}`} onClick={() => {
                     setProfessional(mechanic.id); setTime(timeLabel(slot)); setEnd(timeLabel(limit)); setFormError(""); setCreating(true);
                   }}>+</button>}
                 </td>;
