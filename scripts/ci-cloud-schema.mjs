@@ -76,6 +76,27 @@ try {
     (SELECT count(*) FROM pg_tables WHERE schemaname='horse_power' AND rowsecurity) >= 30 AS tenant_rls`);
   if (!Object.values(result.rows[0]).every(Boolean))
     throw new Error("Esquema isolado incompleto.");
+  const adminRls = await check.query(`SELECT relrowsecurity
+    FROM pg_class WHERE oid = 'platform_admin.settings'::regclass`);
+  if (!adminRls.rows[0]?.relrowsecurity) throw new Error("RLS administrativa ausente.");
+  await check.query("BEGIN");
+  try {
+    const key = "Oficina d'Água; Sul";
+    await check.query("INSERT INTO platform_admin.settings(key,value) VALUES ($1,$2::jsonb)", [key, JSON.stringify("fictício")]);
+    await check.query("SET LOCAL ROLE hp_platform_admin_app");
+    const visible = await check.query("SELECT value FROM platform_admin.settings WHERE key=$1", [key]);
+    if (visible.rowCount !== 1 || visible.rows[0].value !== "fictício")
+      throw new Error("A consulta parametrizada ou o acesso do painel falhou.");
+    await check.query("SET LOCAL ROLE anon");
+    try {
+      await check.query("SELECT value FROM platform_admin.settings WHERE key=$1", [key]);
+      throw new Error("O papel anônimo conseguiu consultar configuração administrativa.");
+    } catch (error) {
+      if (error.code !== "42501") throw error;
+    }
+  } finally {
+    await check.query("ROLLBACK");
+  }
   // The historical chain needs a tiny release; the definitive catalog must start empty.
   await check.query("BEGIN");
   try {
