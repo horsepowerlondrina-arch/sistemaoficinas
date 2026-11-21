@@ -28,6 +28,7 @@ export function Orders() {
     }
   }, [filterStorageKey, filterSearch]);
   const [search, setSearch] = useState("");
+  const canListQuotes = session.role === "owner" || session.access?.profile === "mechanic";
   const status = appliedParams.get("status") || "active";
   const initialStatuses =
     status === "all"
@@ -37,7 +38,8 @@ export function Orders() {
             "open",
             "working",
             "ready",
-            ...(session.role === "owner" ? ["quote", "awaiting_payment"] : []),
+            ...(canListQuotes ? ["quote"] : []),
+            ...(session.role === "owner" ? ["awaiting_payment"] : []),
           ]
         : status.split(",");
   const requestedBasis = appliedParams.get("basis");
@@ -59,7 +61,7 @@ export function Orders() {
   }, [filterKey]);
   const [showReport, setShowReport] = useState(false);
   const [exporting, setExporting] = useState(false);
-  const rows = selectReportOrders(data.orders, filters, data, search, session.role === "owner");
+  const rows = selectReportOrders(data.orders, filters, data, search, canListQuotes);
   const financialRows = rows.filter((o) => o.status !== "quote");
   const appliedFiltersCount =
     Number(filters.statuses.length > 0) +
@@ -184,7 +186,7 @@ export function Orders() {
                 Todas
               </label>
               {[
-                ...(session.role === "owner" ? ["quote"] : []),
+                ...(canListQuotes ? ["quote"] : []),
                 "open",
                 "working",
                 "ready",
