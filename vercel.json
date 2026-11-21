@@ -3,7 +3,7 @@
   "framework": "vite",
   "env": {
     "APP_ENV": "development",
-    "EXPECTED_DATABASE_PROJECT": "vnclahdnirqlcbamodqy"
+    "EXPECTED_DATABASE_PROJECT": "fbsydwogucicfjwwbtts"
   },
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
