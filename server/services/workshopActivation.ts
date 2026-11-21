@@ -1,6 +1,7 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { commercialPilotEmail, commercialRegistrationEnabled } from "./selfServicePolicy.js";
-import { isOsdriveCommercial } from "../osdriveCommercial.js";
+import { commercialPublicSignup, isOsdriveCommercial } from "../osdriveCommercial.js";
+import { invitationEmail } from "./invitationEmail.js";
 import { digestAdminToken } from "../auth/platformAdmin.js";
 
 export const workshopActivationTtlHours = 48;
@@ -14,12 +15,6 @@ export function workshopActivationUrl(appOrigin: string, token: string) {
   const url = new URL("/ativar-oficina", base.origin);
   url.hash = token;
   return url.toString();
-}
-
-function escapeHtml(value: string) {
-  return value.replace(/[&<>"']/g, (character) => ({
-    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
-  })[character]!);
 }
 
 export type WorkshopActivationEmail = {
@@ -42,17 +37,16 @@ export async function sendWorkshopActivationEmail(
   config: WorkshopActivationMailConfig = {},
 ) {
   const commercial = isOsdriveCommercial(process.env);
-  if (commercial && input.email !== "validacao-comercial@testes.osdrive.com.br" &&
+  const publicSignup = commercialPublicSignup(process.env) && !input.email.endsWith("@testes.osdrive.com.br");
+  if (commercial && !publicSignup && input.email !== "validacao-comercial@testes.osdrive.com.br" &&
       !(commercialRegistrationEnabled() && input.email === commercialPilotEmail))
     throw new Error("activation_mail_recipient_not_allowed");
-  const apiKey = commercial ? process.env.OSDRIVE_TEST_INVITE_KEY : config.apiKey ?? process.env.RESEND_API_KEY;
+  const apiKey = publicSignup ? process.env.OSDRIVE_COMMERCIAL_RESEND_KEY : commercial ? process.env.OSDRIVE_TEST_INVITE_KEY : config.apiKey ?? process.env.RESEND_API_KEY;
   const from = config.from ?? process.env.WORKSHOP_ACTIVATION_FROM;
   const appOrigin = config.appOrigin ?? process.env.APP_ORIGIN;
   if (!apiKey || !from || !appOrigin) throw new Error("activation_mail_not_configured");
   const activationUrl = workshopActivationUrl(appOrigin, input.token);
   const fetchImpl = config.fetchImpl ?? globalThis.fetch;
-  const name = escapeHtml(input.workshopName);
-  const safeUrl = escapeHtml(activationUrl);
   const expires = input.expiresAt.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
   const response = await fetchImpl("https://api.resend.com/emails", {
     method: "POST",
@@ -65,8 +59,14 @@ export async function sendWorkshopActivationEmail(
       from,
       to: [input.email],
       subject: `Ative o acesso da oficina ${input.workshopName}`,
-      text: `A oficina ${input.workshopName} foi cadastrada no Sistema Oficinas. Abra o link para confirmar seu e-mail e definir a senha: ${activationUrl}\n\nO convite expira em ${expires}. Se você não solicitou este acesso, ignore esta mensagem.`,
-      html: `<p>A oficina <strong>${name}</strong> foi cadastrada no Sistema Oficinas.</p><p>Confirme seu e-mail e configure o acesso em até 48 horas:</p><p><a href="${safeUrl}">Ativar acesso da oficina</a></p><p>O convite expira em ${escapeHtml(expires)}. Se você não solicitou este acesso, ignore esta mensagem.</p>`,
+      ...invitationEmail({
+        title: "Ative o acesso da sua oficina",
+        workshopName: input.workshopName,
+        instructions: "Confirme seu e-mail e defina uma senha para começar a usar o OSDrive.",
+        action: "Ativar acesso da oficina",
+        url: new URL(activationUrl),
+        expiry: `Convite válido até ${expires} (horário de Brasília).`,
+      }),
     }),
     signal: AbortSignal.timeout(10_000),
   });
