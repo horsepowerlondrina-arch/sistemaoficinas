@@ -30,3 +30,19 @@ export function assertOsdriveCommercial(env: Environment) {
       env.WORKSHOP_RETENTION_ENABLED === "true")
     throw new Error("A integração de teste e a retenção comercial estão configuradas incorretamente.");
 }
+
+// The staged deployment has its own immutable hostname. Keep this workflow
+// separate from the commercial origin allowlist and all other API mutations.
+export function isCommercialPhotoCandidateRequest(
+  env: Environment, request: { host: string; origin: string; method: string; path: string },
+) {
+  const host = env.VERCEL_URL;
+  const deadline = Number(env.OSDRIVE_PHOTO_CANDIDATE_UNTIL);
+  return commercialProduction(env) &&
+    env.VERCEL_GIT_COMMIT_REF === "fix/osdrive-foto-origem-candidata" &&
+    Number.isSafeInteger(deadline) && deadline > Date.now() &&
+    !!host && /^osdrive-comercial-[a-z0-9]+-osd-rive\.vercel\.app$/.test(host) &&
+    request.host === host && request.origin === `https://${host}` &&
+    (request.method === "POST" && ["/login", "/logout", "/checklists"].includes(request.path) ||
+      request.method === "POST" && /^\/checklists\/[a-z0-9-]+\/photos$/.test(request.path));
+}
