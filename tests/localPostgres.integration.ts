@@ -374,6 +374,8 @@ test("PostgreSQL local: autenticação, oficinas, transações e RLS do catálog
           const other={tenantId:"local-b",userId:"local-owner-b",role:"owner"};
           await assert.rejects(createShare(db,other,order),/não encontrado nesta oficina/);
           await assert.rejects(readDocument(db,other,"order",order,Number(currentPdf.revision)),/não encontrado nesta oficina/);
+          await assert.rejects(saveOrder(db,other,input("Alteração de outra oficina"),order),/não encontrado/);
+          assert.equal((await issueDocument(db,ctx,"order",order,true)).order.notes,"Descrição atualizada");
         }
 
         // Manual revocation invalidates the latest link and preserves all audit rows.

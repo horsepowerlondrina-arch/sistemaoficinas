@@ -1,4 +1,5 @@
 import test from "node:test";
+import { once } from "node:events";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { adminClient } from "../scripts/local-admin";
@@ -299,6 +300,31 @@ test("OPS-004 PostgreSQL17: concurrent seats, invitations, reactivation, last Ma
         0,
       );
     });
+    const { createApp } = await import("../server/app.js");
+    const server = createApp(db).listen(0, "127.0.0.1");
+    try {
+      await once(server, "listening");
+      const address = server.address();
+      assert.ok(address && typeof address !== "string");
+      const base = `http://127.0.0.1:${address.port}`;
+      const login = await fetch(base + "/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Origin: "http://127.0.0.1:5173" },
+        body: JSON.stringify({ email: scopedUser + "@example.test", password }),
+      });
+      assert.equal(login.status, 200, await login.text());
+      const cookie = login.headers.get("set-cookie")?.split(";")[0];
+      assert.ok(cookie);
+      const read = (path: string) => fetch(base + path, { headers: { Cookie: cookie } });
+      const workspace = await read("/api/workspace");
+      assert.equal(workspace.status, 200);
+      assert.deepEqual((await workspace.json()).orders.map((order: { id: string }) => order.id), [visible]);
+      for (const path of ["/api/cash-control", "/api/users"]) {
+        assert.equal((await read(path)).status, 403, `O Mecânico não deve abrir ${path}`);
+      }
+    } finally {
+      await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+    }
     await admin.query(
       "UPDATE horse_power.order_assignments SET removed_at=$1 WHERE tenant_id=$2 AND order_id=$3",
       [Date.now(), t, visible],
