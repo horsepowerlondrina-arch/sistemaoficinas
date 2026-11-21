@@ -10,7 +10,7 @@ import { stripePublicRoutes } from "./stripeBillingRoutes.js";
 import { createApp } from "./app.js";
 import { createPostgresDatabase } from "./db/postgres.js";
 import pg from "pg";
-import { assertOsdriveCommercial, isOsdriveCommercial } from "./osdriveCommercial.js";
+import { assertOsdriveCommercial, commercialPublicSignup, commercialLiveBilling, isOsdriveCommercial } from "./osdriveCommercial.js";
 import { assertDevelopmentIsolation } from "./developmentIsolation.js";
 import { assertHorsePowerIsolation } from "./horsePowerIsolation.js";
 import {
@@ -91,9 +91,10 @@ export async function createCloudRuntime(options: { ca?: string; operationalUrl?
       await assertPlatformAdminDatabase(adminPool);
       const transfer = createPlatformAdminDataTransfer(db, adminPool);
       const recordFailure = integrationFailureRecorder(adminPool);
+      const live = commercialLiveBilling(process.env);
       const stripeRequest =
         process.env.STRIPE_BILLING_ENABLED === "true"
-          ? createStripeGateway(process.env.STRIPE_SECRET_KEY || "")
+          ? createStripeGateway((live ? process.env.OSDRIVE_STRIPE_LIVE_KEY : process.env.STRIPE_SECRET_KEY) || "", fetch, live)
           : undefined;
       const billing =
         process.env.STRIPE_BILLING_ENABLED === "true"
@@ -109,22 +110,25 @@ export async function createCloudRuntime(options: { ca?: string; operationalUrl?
                 .map((v) => v.trim())
                 .filter(Boolean),
               selfServiceTestEmails(),
+              live,
             )
           : undefined;
-      if (billing && !process.env.STRIPE_WEBHOOK_SECRET?.startsWith("whsec_"))
-        throw new Error("Configure o webhook Stripe de teste.");
+      const webhookSecret = live ? process.env.OSDRIVE_STRIPE_LIVE_WEBHOOK_SECRET : process.env.STRIPE_WEBHOOK_SECRET;
+      if (billing && !webhookSecret?.startsWith("whsec_"))
+        throw new Error("Configure o segredo do webhook Stripe correspondente ao ambiente.");
       options.onStage?.("application");
       app = createApp(
         db,
         createPlatformAdminApp(adminPool, adminKey, transfer, billing),
-        {},
+        commercialPublicSignup(process.env) ? {apiKey: process.env.OSDRIVE_COMMERCIAL_RESEND_KEY} : {},
         billing,
         billing
           ? stripePublicRoutes(
               billing,
-              process.env.STRIPE_WEBHOOK_SECRET!,
+              webhookSecret!,
               process.env.STRIPE_CRON_SECRET || "",
               process.env.CRON_SECRET,
+              live,
             )
           : undefined,
         recordFailure,

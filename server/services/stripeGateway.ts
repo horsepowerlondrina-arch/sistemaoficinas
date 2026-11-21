@@ -10,7 +10,7 @@ export function stripeTestKey(value: string | undefined) {
     throw new Error("Configure uma chave Stripe de teste. Cobranças reais estão desabilitadas.");
   return value;
 }
-export function verifiedStripeEvent(raw: Buffer, signature: string, secret: string, now = Date.now()) {
+export function verifiedStripeEvent(raw: Buffer, signature: string, secret: string, now = Date.now(), live = false) {
   if (!secret || !secret.startsWith("whsec_") || raw.length > 262144)
     throw new Error("Notificação inválida.");
   const parts = signature.split(",").map(part => part.split("="));
@@ -26,7 +26,7 @@ export function verifiedStripeEvent(raw: Buffer, signature: string, secret: stri
   const event = z.object({
     id: z.string().regex(/^evt_[A-Za-z0-9]+$/),
     type: z.string().max(150),
-    livemode: z.literal(false),
+    livemode: z.literal(live),
     data: z.object({ object: z.object({ id: z.string().min(1).max(150) }).passthrough() }),
   }).parse(JSON.parse(raw.toString("utf8")));
   return event;
@@ -44,8 +44,10 @@ export function stripeForm(input: Record<string, unknown>) {
   Object.entries(input).forEach(([key,value]) => append(key,value));
   return body;
 }
-export function createStripeGateway(key: string, send: typeof fetch = fetch) {
-  stripeTestKey(key);
+export function createStripeGateway(key: string, send: typeof fetch = fetch, live = false) {
+  if (live) {
+    if (!/^(sk|rk)_live_[A-Za-z0-9]+$/.test(key)) throw new Error("Configure a chave Stripe comercial.");
+  } else stripeTestKey(key);
   return async function request(path: string, input?: Record<string, unknown>, idempotencyKey?: string, deadline?:number): Promise<unknown> {
     if (!/^\/(charges|disputes|customers|prices|products|checkout\/sessions|subscriptions|invoices|payment_intents|billing_portal\/sessions)(\/[A-Za-z0-9_]+)?(\?[A-Za-z0-9_%=&.\[\]-]+)?$/.test(path))
       throw new Error("Recurso de pagamento inválido.");
@@ -63,7 +65,7 @@ export function createStripeGateway(key: string, send: typeof fetch = fetch) {
       if (!response.ok) throw new StripeUnavailable();
       const result: unknown = await response.json();
       if (typeof result !== "object" || result === null ||
-          ("livemode" in result && result.livemode !== false)) throw new StripeUnavailable();
+          ("livemode" in result && result.livemode !== live)) throw new StripeUnavailable();
       return result;
     } catch { throw new StripeUnavailable(); }
   };
