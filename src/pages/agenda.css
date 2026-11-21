@@ -5,8 +5,9 @@
 .agenda-free { background: #e9f7ed; color: #16452b; }
 .agenda-occupied { background: #dbeafe; color: #173763; }
 .agenda-break { background: #e9edf2; color: #414b59; }
-.agenda-slot { width: 100%; min-height: 42px; border: 0; background: transparent; color: inherit; cursor: pointer; }
-.agenda-slot:hover { background: #ccebd5; }
+.agenda-grid td.agenda-bookable { padding: 0; height: 42px; position: relative; }
+.agenda-slot { position: absolute; inset: 0; font-size: 20px; font-weight: 700; width: 100%; min-height: 42px; border: 0; background: transparent; color: inherit; cursor: pointer; }
+.agenda-slot:hover, .agenda-slot:focus-visible { background: #ccebd5; }
 .agenda-booking { display: grid; gap: 5px; min-width: 128px; overflow-wrap: anywhere; }
 .agenda-legend { display: flex; gap: 8px; }
 .agenda-legend span { padding: 4px 8px; border-radius: 4px; }
