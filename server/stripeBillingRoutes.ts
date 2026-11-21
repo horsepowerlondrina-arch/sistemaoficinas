@@ -11,12 +11,12 @@ export function billingError(error:unknown,res:Response){
  if(error instanceof BillingConflict){res.status(409).json({error:error.message});return;}
  res.status(503).json({error:"Não foi possível confirmar a cobrança. Nenhum acesso foi liberado sem confirmação. Atualize a situação e tente novamente."});
 }
-export function stripePublicRoutes(billing:StripeBilling,secret:string,cronSecret:string,schedulerSecret?:string){
+export function stripePublicRoutes(billing:StripeBilling,secret:string,cronSecret:string,schedulerSecret?:string,live=false){
  const app=express.Router();
  app.use((_req,res,next)=>{res.set("Cache-Control","no-store");next();});
  app.post("/api/billing/stripe/webhook",express.raw({type:"application/json",limit:"256kb"}),async(req,res)=>{
   let event;
-  try{if(!Buffer.isBuffer(req.body))throw new Error();event=verifiedStripeEvent(req.body,req.get("stripe-signature")||"",secret);}
+  try{if(!Buffer.isBuffer(req.body))throw new Error();event=verifiedStripeEvent(req.body,req.get("stripe-signature")||"",secret,Date.now(),live);}
   catch{res.status(400).json({error:"Notificação inválida."});return;}
   try{await billing.webhook(event);res.json({received:true});}catch{res.status(503).json({error:"Notificação pendente de processamento."});}
  });

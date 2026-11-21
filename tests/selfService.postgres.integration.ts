@@ -52,6 +52,24 @@ test("three plans: registration, email activation, settled payment, seats and is
   const offices: string[] = [];
   let previousOperationalOrder: string | undefined;
   try {
+    const commercialTenant = randomUUID();
+    const commercialEmail = suffix + "@example.test";
+    const activationHash = digest(randomUUID());
+    const commercial = stripeBillingService(pool, async () => {
+      throw new Error("O teste de elegibilidade não deve acionar o provedor");
+    }, "https://osdrive.com.br", [], [], true);
+    await pool.query(
+      "SELECT platform_admin.create_workshop_commercial($1,$2,$3,$4,'','','basic',$5,$6,now()+interval '48 hours')",
+      [commercialTenant, "Oficina comercial fictícia", "Master fictício", commercialEmail, randomUUID(), activationHash],
+    );
+    await assert.rejects(commercial.summary(commercialTenant), /não está autorizada/);
+    const activated = await pool.query(
+      "SELECT activated FROM platform_admin.complete_workshop_activation($1,$2,$3,'',0,$4)",
+      [activationHash, randomUUID(), "a".repeat(32)+":"+"b".repeat(128), randomUUID()],
+    );
+    assert.equal(activated.rows[0].activated, true);
+    assert.equal((await commercial.summary(commercialTenant)).test_mode, false);
+    await assert.rejects(billing.summary(commercialTenant), /não está autorizada/);
     for (let i = 0; i < plans.length; i++) {
       const plan = plans[i], email = emails[i];
       const registration = await post("/admin-api/workshop-registration", { workshop: { name: `Oficina Fictícia ${plan}`, responsible_name: "Master Fictício", responsible_email: email }, plan_code: plan });
@@ -68,6 +86,7 @@ test("three plans: registration, email activation, settled payment, seats and is
       assert.equal((await post("/admin-api/workshop-activation/complete", { token, password: "Fictitious-Replay-Only" })).status, 400);
       const owner = (await root.query("SELECT user_id FROM horse_power.memberships WHERE tenant_id=$1", [pending.tenant_id])).rows[0].user_id;
       assert.equal((await billing.summary(pending.tenant_id)).can_subscribe_during_trial, true);
+      await assert.rejects(commercial.summary(pending.tenant_id), /não está autorizada/);
       const priceId = randomUUID(), amount = [9900, 19900, 29900][i];
       await root.query("INSERT INTO platform_admin.stripe_prices(id,plan_code,amount_cents,active,reason,created_by) VALUES($1,$2,$3,false,'Isolated test fixture',$4)", [priceId, plan, amount, actor]);
       // Existing offers stay unchanged. This private synthetic offer is enabled only while selecting it.

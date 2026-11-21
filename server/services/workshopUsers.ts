@@ -5,6 +5,8 @@ import type { DB } from "../db/transactions.js";
 import { transaction } from "../db/transactions.js";
 import type { Context } from "../auth/session.js";
 import { digest, verifyPassword, hashPassword } from "../auth/session.js";
+import { commercialPublicSignup } from "../osdriveCommercial.js";
+import { invitationEmail } from "./invitationEmail.js";
 import { audit, invalidateOrderShares } from "./workshop.js";
 import { requirePermission, accessDenied } from "./userAccess.js";
 import {
@@ -258,7 +260,9 @@ export async function deliverEmployeeInvite(input: {
 }) {
   const origin = process.env.APP_ORIGIN,
     from = process.env.WORKSHOP_ACTIVATION_FROM,
-    key = process.env.RESEND_API_KEY;
+    key = commercialPublicSignup(process.env) && !input.email.endsWith("@testes.osdrive.com.br")
+      ? process.env.OSDRIVE_COMMERCIAL_RESEND_KEY
+      : process.env.RESEND_API_KEY;
   if (!origin || !from || !key)
     throw new Error("Envio de convites indisponível.");
   const url = new URL("/aceitar-convite", origin);
@@ -274,7 +278,14 @@ export async function deliverEmployeeInvite(input: {
       from,
       to: [input.email],
       subject: `Convite para a oficina ${input.workshopName}`,
-      text: `Você foi convidado para acessar ${input.workshopName}. Aceite o convite em até 48 horas: ${url}\nSe já possui conta, utilize sua senha atual. Nenhuma senha é enviada por e-mail.`,
+      ...invitationEmail({
+        title: "Você recebeu um convite",
+        workshopName: input.workshopName,
+        instructions: "Aceite o convite para acessar a oficina no OSDrive. Se você já tem uma conta, use seu acesso atual.",
+        action: "Aceitar convite",
+        url,
+        expiry: "Convite válido por 48 horas.",
+      }),
     }),
     signal: AbortSignal.timeout(10000),
   });

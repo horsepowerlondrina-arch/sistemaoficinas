@@ -5,6 +5,16 @@ const origin = "https://osdrive.com.br";
 export const isOsdriveCommercial = (env: Environment) =>
   env.VERCEL_PROJECT_ID === project || env.APP_ENV === "osdrive_comercial";
 
+export const commercialProduction = (env: Environment) =>
+  env.VERCEL_PROJECT_ID === project && env.VERCEL_ENV === "production" &&
+  env.APP_ORIGIN === origin && env.EXPECTED_DATABASE_PROJECT === database;
+
+export const commercialPublicSignup = (env: Environment) =>
+  commercialProduction(env) && env.OSDRIVE_PUBLIC_SIGNUP_ENABLED === "true" && !!env.OSDRIVE_COMMERCIAL_RESEND_KEY;
+
+export const commercialLiveBilling = (env: Environment) =>
+  commercialProduction(env) && env.OSDRIVE_LIVE_BILLING_ENABLED === "true";
+
 export function assertOsdriveCommercial(env: Environment) {
   if (env.VERCEL_PROJECT_ID !== project || env.VERCEL_ENV !== "production" ||
       env.APP_ENV === "horse_power" || env.LOCAL_HOMOLOGATION === "true" ||
@@ -18,5 +28,5 @@ export function assertOsdriveCommercial(env: Environment) {
   }
   if (env.RESEND_API_KEY || (env.STRIPE_SECRET_KEY && !/^(sk|rk)_test_/.test(env.STRIPE_SECRET_KEY)) ||
       env.WORKSHOP_RETENTION_ENABLED === "true")
-    throw new Error("O piloto comercial exige integrações de teste.");
+    throw new Error("A integração de teste e a retenção comercial estão configuradas incorretamente.");
 }
