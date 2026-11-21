@@ -1,4 +1,5 @@
 import test from "node:test";
+import { once } from "node:events";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { adminClient } from "../scripts/local-admin";
@@ -218,7 +219,9 @@ test("OPS-004 PostgreSQL17: concurrent seats, invitations, reactivation, last Ma
       customer = randomUUID(),
       vehicle = randomUUID(),
       visible = randomUUID(),
-      hidden = randomUUID();
+      hidden = randomUUID(),
+      assignedQuote = randomUUID(),
+      unassignedQuote = randomUUID();
     await admin.query(
       "INSERT INTO horse_power.users(id,name,email,password_hash) VALUES($1,'Mecânico Fictício',$2,$3)",
       [scopedUser, scopedUser + "@example.test", hashPassword(password)],
@@ -247,30 +250,29 @@ test("OPS-004 PostgreSQL17: concurrent seats, invitations, reactivation, last Ma
       "INSERT INTO horse_power.vehicles(id,tenant_id,customer_id,plate,brand,model,year,model_year) VALUES($1,$2,$3,'TST1A01','Fictícia','Fictício',2024,2025)",
       [vehicle, t, customer],
     );
-    for (const [number, order] of [visible, hidden].entries()) {
+    for (const [number, order] of [visible, hidden, assignedQuote, unassignedQuote].entries()) {
+      const quote = order === assignedQuote || order === unassignedQuote;
       await admin.query(
-        "INSERT INTO horse_power.orders(id,tenant_id,number,status,kind,customer_id,vehicle_id,entered_on,due_on,km) VALUES($1,$2,$3,'open','order',$4,$5,'2026-11-13','2026-11-14',0)",
-        [order, t, number + 1, customer, vehicle],
+        "INSERT INTO horse_power.orders(id,tenant_id,number,status,kind,customer_id,vehicle_id,entered_on,due_on,km) VALUES($1,$2,$3,$6,$7,$4,$5,'2026-11-13','2026-11-14',0)",
+        [order, t, number + 1, customer, vehicle, quote ? "quote" : "open", quote ? "quote" : "order"],
       );
       await admin.query(
         "INSERT INTO horse_power.order_items(id,tenant_id,order_id,kind,name,quantity,price,cost,service_snapshot) VALUES($1,$2,$3,'service','Serviço Fictício',1,10000,1000,'{}')",
         [randomUUID(), t, order],
       );
     }
-    await admin.query(
+    for (const order of [visible, assignedQuote]) await admin.query(
       "INSERT INTO horse_power.order_assignments(tenant_id,order_id,professional_id,assigned_by,assigned_at) VALUES($1,$2,$3,$4,$5)",
-      [t, visible, professional, owner, Date.now()],
+      [t, order, professional, owner, Date.now()],
     );
     await db.withRequestContext!(settings(scopedUser), async () => {
       const scopedOrders = await listOrders(db, t);
-      assert.deepEqual(scopedOrders.map((order) => order.id), [visible]);
+      assert.deepEqual(new Set(scopedOrders.map((order) => order.id)), new Set([visible, assignedQuote]));
       assert.equal(scopedOrders[0].vehicle_year, 2024);
       assert.equal(scopedOrders[0].vehicle_model_year, 2025);
       assert.deepEqual(
-        (
-          await db.prepare("SELECT id FROM orders WHERE tenant_id=?").all(t)
-        ).map((o) => o.id),
-        [visible],
+        new Set((await db.prepare("SELECT id FROM orders WHERE tenant_id=?").all(t)).map((o) => o.id)),
+        new Set([visible, assignedQuote]),
       );
       assert.equal(
         (
@@ -299,9 +301,53 @@ test("OPS-004 PostgreSQL17: concurrent seats, invitations, reactivation, last Ma
         0,
       );
     });
+    const { createApp } = await import("../server/app.js");
+    const server = createApp(db).listen(0, "127.0.0.1");
+    try {
+      await once(server, "listening");
+      const address = server.address();
+      assert.ok(address && typeof address !== "string");
+      const base = `http://127.0.0.1:${address.port}`;
+      const login = await fetch(base + "/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Origin: "http://127.0.0.1:5173" },
+        body: JSON.stringify({ email: scopedUser + "@example.test", password }),
+      });
+      assert.equal(login.status, 200, await login.text());
+      const cookie = login.headers.get("set-cookie")?.split(";")[0];
+      assert.ok(cookie);
+      const read = (path: string) => fetch(base + path, { headers: { Cookie: cookie } });
+      const workspace = await read("/api/workspace");
+      assert.equal(workspace.status, 200);
+      const assertVisible = async (response: Response, expected: string[]) => {
+        assert.equal(response.status, 200);
+        const orders = (await response.json()).orders;
+        assert.deepEqual(new Set(orders.map((order: { id: string }) => order.id)), new Set(expected));
+        const quote = orders.find((order: { id: string }) => order.id === assignedQuote);
+        assert.equal(quote.status, "quote");
+        assert.ok(!("price" in quote.items[0]), "O orçamento deve preservar a restrição de preço do Mecânico");
+        assert.equal((await read(`/api/orders/${assignedQuote}/assignments`)).status, 200);
+        assert.equal((await read(`/api/orders/${unassignedQuote}/assignments`)).status, 404);
+      };
+      await assertVisible(workspace, [visible, assignedQuote]);
+      await admin.query(
+        "UPDATE horse_power.workshop_user_access SET order_scope='all' WHERE tenant_id=$1 AND user_id=$2",
+        [t, scopedUser],
+      );
+      await assertVisible(await read("/api/workspace"), [visible, hidden, assignedQuote]);
+      await admin.query(
+        "UPDATE horse_power.workshop_user_access SET order_scope='assigned' WHERE tenant_id=$1 AND user_id=$2",
+        [t, scopedUser],
+      );
+      for (const path of ["/api/cash-control", "/api/users"]) {
+        assert.equal((await read(path)).status, 403, `O Mecânico não deve abrir ${path}`);
+      }
+    } finally {
+      await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+    }
     await admin.query(
-      "UPDATE horse_power.order_assignments SET removed_at=$1 WHERE tenant_id=$2 AND order_id=$3",
-      [Date.now(), t, visible],
+      "UPDATE horse_power.order_assignments SET removed_at=$1 WHERE tenant_id=$2 AND professional_id=$3",
+      [Date.now(), t, professional],
     );
     await db.withRequestContext!(settings(scopedUser), async () =>
       assert.equal(
