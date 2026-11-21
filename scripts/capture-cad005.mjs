@@ -54,6 +54,18 @@ export async function captureCad005(page, entry) {
     await scope.getByRole("spinbutton", { name: "Ano do modelo", exact: true }).fill("2021");
     await scope.getByRole("textbox", { name: "Combustível", exact: true }).fill("Flex");
   }
+  if (entry.id === "cad005-order-desktop") {
+    await scope.getByRole("button", { name: "Salvar atendimento", exact: true }).click();
+    await scope.getByRole("button", { name: "Editar atendimento", exact: true }).click();
+    const model = scope.getByRole("combobox", { name: /^Modelo/ });
+    await expect(model).toHaveValue("Modelo FIPE Fictício 1.0 Flex");
+    await model.fill("Modelo Fictício Revisado");
+    await scope.getByRole("button", { name: /Usar modelo informado/ }).click();
+    await scope.getByRole("button", { name: "Salvar atendimento", exact: true }).click();
+    await scope.getByRole("button", { name: "Editar atendimento", exact: true }).click();
+    await expect(model).toHaveValue("Modelo Fictício Revisado");
+    return;
+  }
   await expect(scope.getByText("Associação ao Catálogo Técnico", { exact: true })).toHaveCount(0);
   if (!entry.id.includes("switch")) {
     await expect(scope.getByRole("combobox", { name: /^Modelo/ })).toHaveValue("Modelo FIPE Fictício 1.0 Flex");

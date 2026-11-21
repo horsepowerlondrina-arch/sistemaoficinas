@@ -112,7 +112,9 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
     data.customers.find((c) => c.id === order?.customer_id)?.phone || "",
   );
   const initialVehicle = data.vehicles.find((v) => v.id === order?.vehicle_id);
-  const [lookedUp, setLookedUp] = useState<Record<string, any>>(initialVehicle || {});
+  const [lookedUp, setLookedUp] = useState<Record<string, any>>(() => initialVehicle || {
+    model: !order?.vehicle_id && !order?.guest_plate ? order?.guest_vehicle || "" : "",
+  });
   const [plateCandidates, setPlateCandidates] = useState<FipeCandidate[]>([]);
   const [tab, setTab] = useState(initialCapture && order ? "items" : "details");
   const [itemKind, setItemKind] = useState("product");
@@ -613,7 +615,7 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
                           handleServiceModelChange(String(next.service_model_id || ""));
                           setForm((current) => ({
                             ...current,
-                            guest_vehicle: [next.brand, vehicleDisplayModel(next)].filter(Boolean).join(" "),
+                            guest_vehicle: !lookupPlate ? vehicleDisplayModel(next) : current.guest_vehicle,
                           }));
                         }} />
                       ) : undefined}
@@ -624,11 +626,6 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
                     <Field label={!form.customer_id && customerName.trim() ? "Telefone / WhatsApp *" : "Telefone / WhatsApp"}>
                       <input type="tel" autoComplete="tel" maxLength={60} value={customerPhone} readOnly={!!form.customer_id} required={!form.customer_id && !!customerName.trim()} placeholder="(43) 99999-9999" onChange={(e) => setCustomerPhone(e.target.value)} />
                     </Field>
-                    {form.status === "quote" && !lookupPlate && !form.vehicle_id && (
-                      <Field label="Descrição do veículo (opcional)" full>
-                        <input maxLength={200} value={form.guest_vehicle} onChange={(e) => set("guest_vehicle", e.target.value)} />
-                      </Field>
-                    )}
                     {!form.customer_id && customerName.trim() && <p className="muted full">O cliente será cadastrado ao salvar o atendimento.</p>}
                     <Field label="Data de entrada">
                       <input type="date" value={form.entered_on} onChange={(e) => set("entered_on", e.target.value)} />
