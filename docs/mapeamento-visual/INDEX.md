@@ -304,7 +304,7 @@ Formulário real com dados fictícios e identificação pelo campo Modelo.
 
 [![CAD-005 — Veículo na abertura do atendimento (desktop)](./capturas/06-orcamentos/cad005-order-desktop.png)](./capturas/06-orcamentos/cad005-order-desktop.png)
 
-Estado: capturada · desktop · captura 2026-11-21 · commit de origem: 61b620b82831eaf2708ff41f3fe7029c98a37584 · [arquivo completo](./capturas/06-orcamentos/cad005-order-desktop.png)
+Estado: capturada · desktop · captura 2026-11-21 · commit de origem: c4c59204f1b2ec5c68966db7ef7c71e332d11bcf · [arquivo completo](./capturas/06-orcamentos/cad005-order-desktop.png)
 
 ### CAD-005 — Veículo na abertura do atendimento (mobile)
 
@@ -312,7 +312,7 @@ Formulário real com dados fictícios e identificação pelo campo Modelo.
 
 [![CAD-005 — Veículo na abertura do atendimento (mobile)](./capturas/06-orcamentos/cad005-order-mobile.png)](./capturas/06-orcamentos/cad005-order-mobile.png)
 
-Estado: capturada · mobile · captura 2026-11-21 · commit de origem: 61b620b82831eaf2708ff41f3fe7029c98a37584 · [arquivo completo](./capturas/06-orcamentos/cad005-order-mobile.png)
+Estado: capturada · mobile · captura 2026-11-21 · commit de origem: c4c59204f1b2ec5c68966db7ef7c71e332d11bcf · [arquivo completo](./capturas/06-orcamentos/cad005-order-mobile.png)
 
 ## 07 — Ordens de serviço
 
