@@ -7,10 +7,11 @@ type Option = { id: string; name: string; brand: string; fipe_code: string };
 type Choice = { key: string; name: string; detail: string; candidate?: FipeCandidate; option?: Option };
 const normalize = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
-export function VehicleModelSelection({ vehicle, onChange, candidates = [] }: {
+export function VehicleModelSelection({ vehicle, onChange, candidates = [], required = true }: {
   vehicle: Record<string, any>;
   onChange: (next: Record<string, any>) => void;
   candidates?: FipeCandidate[];
+  required?: boolean;
 }) {
   const [options, setOptions] = useState<Option[]>([]);
   const [message, setMessage] = useState("");
@@ -110,7 +111,7 @@ export function VehicleModelSelection({ vehicle, onChange, candidates = [] }: {
     }
   };
   return <section ref={rootRef} className="vehicle-technical-association full">
-    <label className="field"><span>Modelo *</span><input required type="search" role="combobox" aria-expanded={open} aria-controls={listId} aria-autocomplete="list" value={search} onFocus={() => { setOpen(true); setActiveIndex(0); }} onChange={(event) => { setSearchTouched(true); setSearch(event.target.value); setOpen(true); setActiveIndex(0); }} onKeyDown={keyDown} placeholder="Digite ou escolha o modelo do veículo..." maxLength={150} /></label>
+    <label className="field"><span>{required ? "Modelo *" : "Modelo"}</span><input required={required} type="search" role="combobox" aria-expanded={open} aria-controls={listId} aria-autocomplete="list" value={search} onFocus={() => { setOpen(true); setActiveIndex(0); }} onChange={(event) => { setSearchTouched(true); setSearch(event.target.value); setOpen(true); setActiveIndex(0); }} onKeyDown={keyDown} placeholder="Digite ou escolha o modelo do veículo..." maxLength={150} /></label>
     {open && <div className="catalog-dropdown" style={{ position: "relative", inset: "auto", width: "100%", marginTop: 4, zIndex: 2 }}>
       <div className="catalog-dropdown-list" style={{ maxHeight: 240 }}>
         <div id={listId} role="listbox" aria-label="Modelos do veículo">

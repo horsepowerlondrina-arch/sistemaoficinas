@@ -48,57 +48,31 @@ export async function captureCad005(page, entry) {
   }
   if (!review && !entry.id.includes("switch")) {
     await scope.getByRole("textbox", { name: /^Marca/ }).fill("Marca Fictícia");
-    if (entry.id.includes("checklist")) {
-      await scope.getByRole("combobox", { name: /^Modelo/ }).fill("Modelo FIPE Fictício 1.0 Flex");
-      await scope.getByRole("button", { name: /Usar modelo informado/ }).click();
-    } else {
-      await scope.getByRole("textbox", { name: /^Modelo(?: FIPE)?/ }).fill("Modelo FIPE Fictício 1.0 Flex");
-    }
+    await scope.getByRole("combobox", { name: /^Modelo/ }).fill("Modelo FIPE Fictício 1.0 Flex");
+    await scope.getByRole("button", { name: /Usar modelo informado/ }).click();
     await scope.getByRole("spinbutton", { name: /^Ano de fabricação/ }).fill("2020");
     await scope.getByRole("spinbutton", { name: "Ano do modelo", exact: true }).fill("2021");
     await scope.getByRole("textbox", { name: "Combustível", exact: true }).fill("Flex");
   }
-  if (entry.id.includes("checklist")) {
+  if (entry.id === "cad005-order-desktop") {
+    await scope.getByRole("button", { name: "Salvar atendimento", exact: true }).click();
+    await scope.getByRole("button", { name: "Editar atendimento", exact: true }).click();
+    const model = scope.getByRole("combobox", { name: /^Modelo/ });
+    await expect(model).toHaveValue("Modelo FIPE Fictício 1.0 Flex");
+    await model.fill("Modelo Fictício Revisado");
+    await scope.getByRole("button", { name: /Usar modelo informado/ }).click();
+    await scope.getByRole("button", { name: "Salvar atendimento", exact: true }).click();
+    await scope.getByRole("button", { name: "Editar atendimento", exact: true }).click();
+    await expect(model).toHaveValue("Modelo Fictício Revisado");
+    return;
+  }
+  await expect(scope.getByText("Associação ao Catálogo Técnico", { exact: true })).toHaveCount(0);
+  if (!entry.id.includes("switch")) {
     await expect(scope.getByRole("combobox", { name: /^Modelo/ })).toHaveValue("Modelo FIPE Fictício 1.0 Flex");
     await expect(scope.getByRole("listbox", { name: "Modelos do veículo" })).toHaveCount(0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBeTruthy();
     return;
   }
-  const association = scope.locator(".vehicle-technical-association details");
-  await expect(association).not.toHaveAttribute("open");
-  await association.locator("summary").click();
-  await expect(scope.getByRole("button", { name: "Sem associação", exact: true })).toBeVisible();
-  if (entry.id.includes("review-catalog")) {
-    await scope.getByRole("button", { name: "Sem associação", exact: true }).click();
-    await scope.getByRole("button", { name: "Associação automática", exact: true }).click();
-    await expect(scope.getByText("Sem correspondência única e confiável. Pesquise e escolha manualmente, se desejar.")).toBeVisible();
-    await scope.getByRole("combobox", { name: /^Marca/ }).fill("Marca");
-    // A real pointer click must work inside the modal, without force or JS click.
-    await page.locator(".catalog-dropdown-option").filter({ hasText: "Marca Fictícia" }).click({ timeout: 5000 });
-    await scope.getByRole("combobox", { name: /^Veículo/ }).fill("Modelo");
-    await page.locator(".catalog-dropdown-option").filter({ hasText: "Modelo Fictício" }).click();
-    await expect(scope.getByRole("textbox", { name: /^Modelo(?: FIPE)?/ })).toHaveValue("Modelo FIPE Fictício 1.0 Flex");
-    await scope.getByRole("button", { name: "Salvar cadastro", exact: true }).click();
-    await expect(scope).toHaveCount(0);
-    const workspaceResponse = await page.request.get(new URL("/api/workspace", page.url()).toString());
-    expect(workspaceResponse.ok()).toBeTruthy();
-    const workspace = await workspaceResponse.json();
-    const savedVehicle = workspace.vehicles.find(vehicle => vehicle.id === "cad005-visual-vehicle");
-    expect(savedVehicle.service_model_id).toBe("00000000-0000-4000-8000-000000000005");
-    expect(savedVehicle.service_link_mode).toBe("manual");
-    expect(savedVehicle.fipe_model).toBe("Modelo FIPE Fictício 1.0 Flex");
-    await page.getByRole("button", { name: "Editar CAD0A05", exact: true }).click();
-    await association.locator("summary").click();
-    await expect(scope.getByRole("combobox", { name: /^Veículo/ })).toHaveValue("Modelo Fictício");
-    await scope.getByRole("button", { name: "Abrir marcas", exact: true }).click();
-    await expect(page.getByRole("option", { name: /Marca Fictícia/ })).toBeVisible();
-    await scope.evaluate(element => { element.scrollTop = element.scrollHeight; });
-    await expect(page.getByText("Cadastro salvo com sucesso.", { exact: true })).toHaveCount(0, { timeout: 10000 });
-    await expect(page.getByRole("option", { name: /Marca Fictícia/ })).toBeInViewport();
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBeTruthy();
-    return;
-  }
-  await association.locator("summary").click();
   if (entry.id.includes("switch")) {
     const linkedPlate = page.locator(".field").filter({ hasText: "Placa do veículo vinculado" }).getByRole("img");
     const currentPlate = await linkedPlate.getAttribute("aria-label");

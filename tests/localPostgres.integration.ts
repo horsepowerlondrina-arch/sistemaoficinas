@@ -195,6 +195,7 @@ test("PostgreSQL local: autenticação, oficinas, transações e RLS do catálog
     const services=await catalogRead("local-a",()=>searchRepairServices(db,ctx,model,{q:serviceQuery}));
     const service=serviceId ? services.items.find(item=>item.service_id===serviceId) : services.items[0];
     assert.ok(service);
+    const existingOrderIds = (await listOrders(db, "local-a")).map((row) => row.id).sort();
     const stop=new Error("rollback fixture OS");
     await assert.rejects(db.transaction(async()=>{
        await db.prepare("SELECT set_config('app.user_id',?,true)").get(ctx.userId);
@@ -208,7 +209,7 @@ test("PostgreSQL local: autenticação, oficinas, transações e RLS do catálog
       assert.equal((await listOrders(db,"local-b")).length,0);
       throw stop;
     }),e=>e===stop);
-    assert.equal((await listOrders(db,"local-a")).length,0);
+    assert.deepEqual((await listOrders(db, "local-a")).map((row) => row.id).sort(), existingOrderIds);
   });
   await t.test("OS finalizada reabre com reversão atômica e bloqueia recebimento confirmado", async () => {
     const { saveOrder, transitionOrder, listOrders } = await import("../server/services/workshop");
