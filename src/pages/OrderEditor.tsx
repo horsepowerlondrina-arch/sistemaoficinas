@@ -608,7 +608,7 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
                       disabled={!!form.vehicle_id || !!locked}
                       required={form.status !== "quote" || !!lookupPlate}
                       modelPicker={!form.vehicle_id && !locked ? (
-                        <VehicleModelSelection vehicle={lookedUp} candidates={plateCandidates} onChange={(next) => {
+                        <VehicleModelSelection vehicle={lookedUp} required={form.status !== "quote" || !!lookupPlate} candidates={plateCandidates} onChange={(next) => {
                           setLookedUp(next);
                           handleServiceModelChange(String(next.service_model_id || ""));
                           setForm((current) => ({
