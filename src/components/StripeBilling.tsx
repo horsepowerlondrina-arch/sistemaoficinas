@@ -40,6 +40,8 @@ export function WorkshopBilling({tenantId}:{tenantId:string}){
   return()=>{active=false;};
  },[tenantId]);
  async function act(action:()=>Promise<void>){if(busy)return;setBusy(true);setError("");try{await action();}catch(e){setError((e as Error).message);}finally{setBusy(false);}}
+ const commercialCheckout=data?.test_mode===false;
+ const checkoutMethod=commercialCheckout?"card":method;
  const selectedPrice=data?.prices.find(p=>p.id===priceId);
  const seatsToRelease=selectedPrice?.seats_to_release??0;
  const account=data?.account;
@@ -84,11 +86,11 @@ export function WorkshopBilling({tenantId}:{tenantId:string}){
        {data.prices.map(p=><option key={p.id} value={p.id}>{billingPlanNames[p.plan_code]} — {money(p.amount_cents)} / mês</option>)}
       </select></label>
       {seatsToRelease>0&&<p role="alert" className="error-box">{downgradeSeatMessage(seatsToRelease)}</p>}
-      <label>Forma de pagamento<select value={method} disabled={busy} onChange={e=>{setMethod(e.target.value as "card"|"pix");setConfirmed(false);}}><option value="card">Cartão — renovação mensal automática</option><option value="pix">Pix — confirmar pagamento todo mês</option></select></label>
+      <label>Forma de pagamento<select value={checkoutMethod} disabled={busy} onChange={e=>{setMethod(e.target.value as "card"|"pix");setConfirmed(false);}}><option value="card">Cartão — renovação mensal automática</option>{!commercialCheckout&&<option value="pix">Pix — confirmar pagamento todo mês</option>}</select></label>
       {trialActive&&data.can_subscribe_during_trial&&<p>A contratação começa agora, com cobrança imediata do valor exibido. O teste gratuito não será reiniciado.</p>}
-      <label className="billing-check"><input type="checkbox" checked={confirmed} onChange={e=>setConfirmed(e.target.checked)}/> Li os valores e autorizo {method==="card"?"a renovação mensal no cartão":"a criação das mensalidades Pix, que pagarei a cada mês"}.</label>
+      <label className="billing-check"><input type="checkbox" checked={confirmed} onChange={e=>setConfirmed(e.target.checked)}/> Li os valores e autorizo {checkoutMethod==="card"?"a renovação mensal no cartão":"a criação das mensalidades Pix, que pagarei a cada mês"}.</label>
       <button type="button" className="button" disabled={busy||!confirmed||!selectedPrice||seatsToRelease>0} onClick={()=>void act(async()=>{
-       const result=await send("/account/billing/checkout",{price_id:priceId,method}) as {url:string};
+       const result=await send("/account/billing/checkout",{price_id:priceId,method:checkoutMethod}) as {url:string};
        const target=checkoutUrl(result.url);if(!target)throw new Error("Endereço de pagamento inválido.");
        window.location.assign(target);
       })}>Continuar no Stripe</button>

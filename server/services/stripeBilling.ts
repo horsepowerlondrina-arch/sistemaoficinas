@@ -130,6 +130,7 @@ export function stripeBillingService(pool:Pool,gateway:StripeRequest,origin:stri
  async function checkout(tenant:string,email:string,input:unknown,renewal=false){
   await requireBillingTenant(tenant);
   const p=z.object({price_id:z.string().uuid(),method:z.enum(["card","pix"])}).strict().parse(input);
+  if(live&&p.method==="pix")throw new BillingConflict("A assinatura comercial está disponível no cartão de crédito.");
   const earlySubscription=await selfServiceEligible(tenant);
   const stale=await pool.query("SELECT provider_id FROM platform_admin.stripe_checkouts WHERE tenant_id=$1 AND status='open' AND to_timestamp((request_body->>'expires_at')::bigint)<=now()",[tenant]);
   if(stale.rows[0])await syncSession(stale.rows[0].provider_id);

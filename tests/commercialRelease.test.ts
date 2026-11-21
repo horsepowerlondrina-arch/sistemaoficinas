@@ -51,3 +51,18 @@ test("branded invitations escape workshop names and include the same action in b
   assert.ok(mail.html.includes(url.href) && mail.text.includes(url.href));
   assert.ok(mail.text.includes("48 horas"));
 });
+
+test("commercial subscription refuses Pix before contacting Stripe", async () => {
+  const { stripeBillingService } = await import("../server/services/stripeBilling.js");
+  const pool = { query: async () => ({ rowCount: 1 }) } as unknown as import("pg").Pool;
+  const billing = stripeBillingService(pool, async () => {
+    assert.fail("Rejected payment methods must not contact Stripe");
+  }, "https://osdrive.com.br", [], [], true);
+  await assert.rejects(
+    billing.checkout("fixture", "oficina@example.test", {
+      price_id: "00000000-0000-4000-8000-000000000001",
+      method: "pix",
+    }),
+    /disponível no cartão de crédito/,
+  );
+});
