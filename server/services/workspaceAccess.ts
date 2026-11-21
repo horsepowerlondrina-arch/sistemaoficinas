@@ -10,16 +10,18 @@ export async function projectWorkspace(
   const p = ctx.access.permissions;
   const result = { ...workspace };
   let orders = p["orders.view"] ? [...(workspace.orders || [])] : [];
-  if (ctx.access.profile === "mechanic" && !p["orders.edit"])
-    orders = orders.filter((o: any) => o.status !== "quote");
-  if (ctx.access.orderScope === "assigned") {
+  const mechanic = ctx.access.profile === "mechanic";
+  const assignedOnly = ctx.access.orderScope === "assigned";
+  if (orders.length && (assignedOnly || mechanic)) {
     const assignments = await db
       .prepare(
         "SELECT a.order_id FROM order_assignments a JOIN staff_accounts s ON s.tenant_id=a.tenant_id AND s.professional_id=a.professional_id WHERE a.tenant_id=? AND s.user_id=? AND a.removed_at IS NULL",
       )
       .all(ctx.tenantId, ctx.userId);
     const allowed = new Set(assignments.map((a) => a.order_id));
-    orders = orders.filter((o: any) => allowed.has(o.id));
+    orders = orders.filter(
+      (order: any) => allowed.has(order.id) || (!assignedOnly && order.status !== "quote"),
+    );
   }
   result.orders = orders;
   if (!p["settings.manage"] && !p["catalog.prices"] && !p["finance.costs"])

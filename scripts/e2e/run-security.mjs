@@ -8,7 +8,8 @@ const configuration = readAccountsFile(file);
 const report = { environment: configuration.baseURL, startedAt: new Date().toISOString(), checks: [], blockers: [] };
 let pool;
 try {
-  pool = await createSessionPool(configuration.baseURL, configuration.accounts);
+  const accounts = configuration.accounts.map(({ visibleOrderIds, ...account }) => account);
+  pool = await createSessionPool(configuration.baseURL, accounts);
   const identities = new Map(), workspaces = new Map();
   for (const [id, session] of pool.sessions) {
     identities.set(id, await session.identity()); workspaces.set(id, await session.workspace());
@@ -33,9 +34,35 @@ try {
       const response = await session.request("GET", path);
       assert.equal(response.status(), identity.access.permissions[permission] ? 200 : 403, "ACTION_PERMISSION_MISMATCH");
     }
+    const assignedQuotes = [];
     if (session.account.profile === "mechanic") {
       const sameOfficeMaster = [...pool.sessions.values()].find(s => s.account.tenantId === session.account.tenantId && s.account.profile === 'master');
-      const unassigned = (workspaces.get(sameOfficeMaster?.account.id)?.orders || []).filter(o => !(workspace.orders || []).some(visible => visible.id === o.id));
+      assert.ok(sameOfficeMaster, "SAME_OFFICE_MASTER_REQUIRED");
+      const staff = await sameOfficeMaster.request("GET", "/api/staff");
+      assert.equal(staff.status(), 200, "MASTER_STAFF_UNAVAILABLE");
+      const professionalIds = new Set((await staff.json())
+        .filter(member => member.user_id === identity.user.id)
+        .map(member => member.id));
+      assert.ok(professionalIds.size, "LINKED_MECHANIC_REQUIRED");
+      const unassigned = [];
+      for (const order of workspaces.get(sameOfficeMaster.account.id).orders) {
+        const response = await sameOfficeMaster.request("GET", `/api/orders/${order.id}/assignments`);
+        assert.equal(response.status(), 200, "MASTER_ASSIGNMENTS_UNAVAILABLE");
+        const assigned = (await response.json()).some(
+          entry => entry.removed_at == null && professionalIds.has(entry.professional_id),
+        );
+        if (assigned && order.status === "quote") assignedQuotes.push(order);
+        if (!assigned && (identity.access.orderScope === "assigned" || order.status === "quote")) unassigned.push(order);
+      }
+      assert.ok(assignedQuotes.length, "ASSIGNED_QUOTE_FIXTURE_REQUIRED");
+      for (const quote of assignedQuotes) {
+        assert.ok(workspace.orders.some(order => order.id === quote.id), "ASSIGNED_QUOTE_MISSING_FROM_WORKSPACE");
+        const response = await session.request("GET", `/api/orders/${quote.id}/assignments`);
+        assert.equal(response.status(), 200, "ASSIGNED_QUOTE_NOT_ACCESSIBLE");
+      }
+      for (const order of unassigned) {
+        assert.ok(!workspace.orders.some(visible => visible.id === order.id), "UNASSIGNED_ORDER_IN_WORKSPACE");
+      }
       assert.ok(unassigned.length, 'UNASSIGNED_ORDER_FIXTURE_REQUIRED');
       for (const order of unassigned) {
         const denied = await session.request('GET', `/api/orders/${order.id}/assignments`);
@@ -51,7 +78,14 @@ try {
     const page = await session.context.newPage();
     await page.goto(pool.origin + "/dashboard", { waitUntil: "networkidle" });
     await page.getByText(profiles[session.account.profile], { exact: true }).first().waitFor();
-    report.checks.push({ account: id, profile: identity.access.profile, tenant: session.account.tenantId, status: "passed", orders: workspace.orders.length, crossOfficeOrdersChecked: Math.min(forbiddenIds.length, 10) });
+    if (assignedQuotes.length) {
+      await page.goto(pool.origin + "/ordens", { waitUntil: "domcontentloaded" });
+      for (const quote of assignedQuotes) {
+        await page.getByRole("link", { name: `Abrir OS ${quote.number}, `, exact: false })
+          .filter({ visible: true }).first().waitFor();
+      }
+    }
+    report.checks.push({ account: id, profile: identity.access.profile, tenant: session.account.tenantId, status: "passed", assignedQuotesChecked: assignedQuotes.length, orders: workspace.orders.length, crossOfficeOrdersChecked: Math.min(forbiddenIds.length, 10) });
     await page.close();
   }
 } catch (error) {

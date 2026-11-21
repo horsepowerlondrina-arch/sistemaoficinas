@@ -75,7 +75,10 @@ export async function assertOrderVisible(
     throw Object.assign(new Error("OS não encontrada nesta oficina."), {
       status: 404,
     });
-  if (ctx.access?.orderScope === "assigned") {
+  if (
+    ctx.access?.orderScope === "assigned" ||
+    (ctx.access?.profile === "mechanic" && order.status === "quote")
+  ) {
     const match = await db
       .prepare(
         "SELECT 1 FROM order_assignments a JOIN staff_accounts s ON s.tenant_id=a.tenant_id AND s.professional_id=a.professional_id WHERE a.tenant_id=? AND a.order_id=? AND s.user_id=? AND a.removed_at IS NULL",
