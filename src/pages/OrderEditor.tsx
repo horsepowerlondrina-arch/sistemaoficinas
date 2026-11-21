@@ -27,10 +27,10 @@ import { useApp } from "../lib/context";
 import { send } from "../lib/api";
 import { saveOrderAndRefresh } from "../lib/orderSaveFlow";
 import { PlateField } from "../components/PlateField";
-import { fipeFields } from "../../shared/vehicleFipe";
+import { fipeFields, type FipeCandidate } from "../../shared/vehicleFipe";
 import { mergeVehicleLookup, lookupWouldReplace, vehicleDisplayModel } from "../../shared/vehicleIdentity";
 import { VehicleIdentityFields } from "../components/VehicleIdentityFields";
-import { VehicleTechnicalAssociation } from "../components/VehicleTechnicalAssociation";
+import { VehicleModelSelection } from "../components/VehicleModelSelection";
 import { RegisterModal } from "./Registers";
 import { money, today, statusLabel, type Entity } from "../lib/types";
 import {
@@ -113,6 +113,7 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
   );
   const initialVehicle = data.vehicles.find((v) => v.id === order?.vehicle_id);
   const [lookedUp, setLookedUp] = useState<Record<string, any>>(initialVehicle || {});
+  const [plateCandidates, setPlateCandidates] = useState<FipeCandidate[]>([]);
   const [tab, setTab] = useState(initialCapture && order ? "items" : "details");
   const [itemKind, setItemKind] = useState("product");
   const [serviceModelId,setServiceModelId]=useState(data.vehicles.find(v=>v.id===order?.vehicle_id)?.service_model_id||'');
@@ -500,9 +501,11 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
                       </Field>
                     ) : (
                     <PlateField
+                      showFipeSelection={false}
                       value={lookupPlate}
                       disabled={!!locked}
                       onChange={(plate) => {
+                        setPlateCandidates([]);
                         setLookupPlate(plate);
                         setLookedUp((current) => ({ ...current, plate }));
                         setError("");
@@ -515,6 +518,7 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
                         }
                         setError("");
                         if (result.source === "local" && result.vehicle) {
+                          setPlateCandidates([]);
                           setLookedUp(result.vehicle);
                           setServiceModelId(String(result.vehicle.service_model_id || ""));
                           const owner = data.customers.find((c) => c.id === result.vehicle!.customer_id);
@@ -535,6 +539,7 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
                           setCustomerPhone(owner.phone || "");
                         } else {
                           if (result.vehicle && lookupWouldReplace(lookedUp, result.vehicle) && !window.confirm("A consulta retornou dados diferentes dos já preenchidos. Aplicar os novos dados?")) return;
+                          setPlateCandidates(result.fipe_candidates || []);
                           const description = [result.vehicle?.brand, vehicleDisplayModel(result.vehicle)].filter(Boolean).join(" ");
                           setLookedUp(mergeVehicleLookup(lookedUp, result.vehicle));
                           setForm((f) => ({
@@ -597,8 +602,22 @@ function Editor({ order, quote }: { order?: Entity; quote: boolean }) {
                         Editar veículo vinculado
                       </button>
                     )}
-                    <VehicleIdentityFields vehicle={lookedUp} onChange={setLookedUp} disabled={!!form.vehicle_id} required={form.status !== "quote" || !!lookupPlate} />
-                    <VehicleTechnicalAssociation vehicle={lookedUp} modelId={serviceModelId} onModelChange={(id) => { setServiceModelId(id); setServiceModelTouched(true); setLookedUp((current) => ({ ...current, service_model_id: id || null, service_link_mode: id ? "manual" : "none" })); }} />
+                    <VehicleIdentityFields
+                      vehicle={vehicle || lookedUp}
+                      onChange={setLookedUp}
+                      disabled={!!form.vehicle_id || !!locked}
+                      required={form.status !== "quote" || !!lookupPlate}
+                      modelPicker={!form.vehicle_id && !locked ? (
+                        <VehicleModelSelection vehicle={lookedUp} candidates={plateCandidates} onChange={(next) => {
+                          setLookedUp(next);
+                          handleServiceModelChange(String(next.service_model_id || ""));
+                          setForm((current) => ({
+                            ...current,
+                            guest_vehicle: [next.brand, vehicleDisplayModel(next)].filter(Boolean).join(" "),
+                          }));
+                        }} />
+                      ) : undefined}
+                    />
                     <Field label="Quilometragem">
                       <NumericInput type="number" min="0" value={form.km} onChange={(e) => set("km", Number(e.target.value))} />
                     </Field>
