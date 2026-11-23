@@ -65,6 +65,7 @@ export const workshopProfileSchema=z.object({
  street:text(200),number:text(30),district:text(120),complement:text(150),maps_url:optionalUrl,
  accent_color:z.string().regex(/^#[0-9a-f]{6}$/i,"Escolha uma cor válida."),
  business_hours:z.array(businessDay).max(7).refine(h=>new Set(h.map(x=>x.day)).size===h.length,"Dia da semana duplicado."),
+ show_document_hours:z.boolean().default(true),
  quote_validity_days:z.number().int().min(0).max(365),
  payment_terms:text(2000),warranty_text:text(3000),default_notes:text(3000),document_footer:text(1000),pix_key:text(200),receiving_info:text(2000)
 });
@@ -85,6 +86,7 @@ export async function saveWorkshopProfile(db:DB,ctx:Context,input:unknown) {
   let preserved:Record<string,unknown>={};
   try { const parsed=JSON.parse(String((await db.prepare("SELECT profile_data FROM tenants WHERE id=?").get(ctx.tenantId))?.profile_data||"{}")); if(parsed&&typeof parsed==="object"&&!Array.isArray(parsed))preserved=parsed; } catch {}
   for(const key of EXTRA_PROFILE_FIELDS)extra[key]=value[key];
+  extra.show_document_hours=value.show_document_hours;
   extra.business_hours=value.business_hours;extra.quote_validity_days=value.quote_validity_days;
   await db.prepare("UPDATE tenants SET name=?,legal_name=?,document=?,phone=?,email=?,address=?,city=?,state=?,document_logo=?,profile_data=? WHERE id=?")
    .run(value.name,value.legal_name,value.document,value.phone,value.email,value.address,value.city,value.state,value.document_logo,JSON.stringify({...preserved,...extra}),ctx.tenantId);

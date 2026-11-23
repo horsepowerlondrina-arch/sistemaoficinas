@@ -33,6 +33,8 @@ export function WorkshopProfile() {
  const {session,refreshSession,notify}=useApp();
  const [activeSection,setActiveSection]=useState("identificacao");
  const [draft,setDraft]=useState<WorkshopIdentity>(()=>workshopIdentity(session.tenant));
+ const [batchDays,setBatchDays]=useState([1,2,3,4,5]);
+ const [batchHours,setBatchHours]=useState({open:"",close:"",break_start:"",break_end:""});
  const [savedDraft,setSavedDraft]=useState(()=>JSON.stringify(draft));
  const dirty=JSON.stringify(draft)!==savedDraft;
  useUnsavedSettings(dirty);
@@ -94,14 +96,25 @@ export function WorkshopProfile() {
   </div><p className="muted">Uma única logo para interface e documentos. Sem imagem, serão exibidos nome e iniciais. O contraste do texto sobre a cor é ajustado automaticamente.</p></section>}
   {activeSection==="horarios"&&<section id="perfil-horarios" role="tabpanel" aria-labelledby="perfil-tab-horarios" className="panel work-order-section"><h2>Horários</h2>
    <label className="schedule-enabled"><input type="checkbox" disabled={busy} checked={draft.business_hours.length>0} onChange={e=>setDraft(v=>({...v,business_hours:e.target.checked?DAYS.map((_,day)=>({day,closed:true,open:"",close:"",break_start:"",break_end:""})):[]}))}/>Informar horários de atendimento</label>
-   <p className="muted">Informativos, sem bloquear o acesso ao sistema. Sem feriados ou horários especiais.</p>
+   {draft.business_hours.length>0&&<fieldset className="business-day" disabled={busy}>
+    <legend>Aplicar o mesmo horário a vários dias</legend>
+    <div>{[1,2,3,4,5,6,0].map(day=><label key={day}><input type="checkbox" checked={batchDays.includes(day)} onChange={e=>setBatchDays(days=>e.target.checked?[...days,day]:days.filter(value=>value!==day))}/>{DAYS[day]} </label>)}</div>
+    <div className="form-grid">{([["open","Abertura"],["close","Fechamento"],["break_start","Início do intervalo"],["break_end","Fim do intervalo"]] as const).map(([key,label])=><Field key={key} label={label}><input type="time" value={batchHours[key]} onChange={e=>setBatchHours({...batchHours,[key]:e.target.value})}/></Field>)}</div>
+    <button type="button" className="button" disabled={!batchDays.length||!batchHours.open||batchHours.close<=batchHours.open||
+     (!!(batchHours.break_start||batchHours.break_end)&&!(batchHours.open<batchHours.break_start&&batchHours.break_start<batchHours.break_end&&batchHours.break_end<batchHours.close))}
+     onClick={()=>setDraft(v=>({...v,business_hours:DAYS.map((_,day)=>batchDays.includes(day)?{day,closed:false,...batchHours}:
+      v.business_hours.find(value=>value.day===day)??{day,closed:true,open:"",close:"",break_start:"",break_end:""})}))}>Aplicar aos dias selecionados</button>
+   </fieldset>}
+   <details><summary>Ver e ajustar dia por dia</summary>
    {draft.business_hours.map((day,index)=><fieldset className="business-day" key={day.day}><legend>{DAYS[day.day]}</legend>
     <label><input type="checkbox" disabled={busy} checked={day.closed} onChange={e=>setDay(index,"closed",e.target.checked)}/>Fechado</label>
     {!day.closed&&<div className="form-grid">{([["open","Abertura"],["close","Fechamento"],["break_start","Início do intervalo (opcional)"],["break_end","Fim do intervalo (opcional)"]] as const).map(([key,label])=><Field key={key} label={DAYS[day.day]+" · "+label}><input type="time" disabled={busy} required={key==="open"||key==="close"} value={day[key]} onChange={e=>setDay(index,key,e.target.value)}/></Field>)}</div>}
    </fieldset>)}
+   </details>
   </section>}
   {activeSection==="documentos"&&<section id="perfil-documentos" role="tabpanel" aria-labelledby="perfil-tab-documentos" className="panel work-order-section"><h2>Documentos</h2>
    <p>Aplicados somente às novas emissões. Revisões emitidas são imutáveis; a validade comercial do orçamento não altera a validade do link compartilhado.</p><div className="form-grid">
+    <label><input type="checkbox" disabled={busy} checked={draft.show_document_hours} onChange={e=>setDraft(v=>({...v,show_document_hours:e.target.checked}))}/> Mostrar horário de atendimento nos documentos</label>
     {area("payment_terms","Condições de pagamento",2000)}{area("warranty_text","Texto de garantia",3000)}
     <p className="muted">As condições comerciais não afastam os direitos e garantias previstos na legislação aplicável. Esse aviso acompanha os documentos e não é editável.</p>
     <Field label="Validade padrão de orçamentos em dias (0 = não informar)"><input type="number" min={0} max={365} disabled={busy} value={draft.quote_validity_days} onChange={e=>setDraft(v=>({...v,quote_validity_days:Number(e.target.value)}))}/></Field>
