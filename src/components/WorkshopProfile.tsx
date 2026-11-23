@@ -98,7 +98,7 @@ export function WorkshopProfile() {
    <label className="schedule-enabled"><input type="checkbox" disabled={busy} checked={draft.business_hours.length>0} onChange={e=>setDraft(v=>({...v,business_hours:e.target.checked?DAYS.map((_,day)=>({day,closed:true,open:"",close:"",break_start:"",break_end:""})):[]}))}/>Informar horários de atendimento</label>
    {draft.business_hours.length>0&&<fieldset className="business-day" disabled={busy}>
     <legend>Aplicar o mesmo horário a vários dias</legend>
-    <div>{[1,2,3,4,5,6,0].map(day=><label key={day}><input type="checkbox" checked={batchDays.includes(day)} onChange={e=>setBatchDays(days=>e.target.checked?[...days,day]:days.filter(value=>value!==day))}/>{DAYS[day]} </label>)}</div>
+    <div className="schedule-days">{[1,2,3,4,5,6,0].map(day=><label className="schedule-enabled" key={day}><input type="checkbox" checked={batchDays.includes(day)} onChange={e=>setBatchDays(days=>e.target.checked?[...days,day]:days.filter(value=>value!==day))}/><span>{DAYS[day]}</span></label>)}</div>
     <div className="form-grid">{([["open","Abertura"],["close","Fechamento"],["break_start","Início do intervalo"],["break_end","Fim do intervalo"]] as const).map(([key,label])=><Field key={key} label={label}><input type="time" value={batchHours[key]} onChange={e=>setBatchHours({...batchHours,[key]:e.target.value})}/></Field>)}</div>
     <button type="button" className="button" disabled={!batchDays.length||!batchHours.open||batchHours.close<=batchHours.open||
      (!!(batchHours.break_start||batchHours.break_end)&&!(batchHours.open<batchHours.break_start&&batchHours.break_start<batchHours.break_end&&batchHours.break_end<batchHours.close))}
@@ -114,7 +114,7 @@ export function WorkshopProfile() {
   </section>}
   {activeSection==="documentos"&&<section id="perfil-documentos" role="tabpanel" aria-labelledby="perfil-tab-documentos" className="panel work-order-section"><h2>Documentos</h2>
    <p>Aplicados somente às novas emissões. Revisões emitidas são imutáveis; a validade comercial do orçamento não altera a validade do link compartilhado.</p><div className="form-grid">
-    <label><input type="checkbox" disabled={busy} checked={draft.show_document_hours} onChange={e=>setDraft(v=>({...v,show_document_hours:e.target.checked}))}/> Mostrar horário de atendimento nos documentos</label>
+    <label className="schedule-enabled"><input type="checkbox" disabled={busy} checked={draft.show_document_hours} onChange={e=>setDraft(v=>({...v,show_document_hours:e.target.checked}))}/><span>Mostrar horário de atendimento nos documentos</span></label>
     {area("payment_terms","Condições de pagamento",2000)}{area("warranty_text","Texto de garantia",3000)}
     <p className="muted">As condições comerciais não afastam os direitos e garantias previstos na legislação aplicável. Esse aviso acompanha os documentos e não é editável.</p>
     <Field label="Validade padrão de orçamentos em dias (0 = não informar)"><input type="number" min={0} max={365} disabled={busy} value={draft.quote_validity_days} onChange={e=>setDraft(v=>({...v,quote_validity_days:Number(e.target.value)}))}/></Field>
