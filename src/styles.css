@@ -4731,6 +4731,8 @@ body {
 .business-day legend { padding:0 6px; font-weight:600; }
 .business-day > label,.schedule-enabled { display:flex; align-items:center; gap:8px; }
 .business-day input[type=checkbox],.schedule-enabled input { width:auto; }
+.schedule-days { display:flex; flex-wrap:wrap; gap:8px 16px; margin-bottom:12px; }
+.schedule-enabled input[type=checkbox] { flex:none; margin:0; }
 .document-text { white-space:pre-wrap; overflow-wrap:anywhere; }
 .document-hours { margin-top:8px; font-size:10px; }
 .document-hours p { margin:2px 0; }

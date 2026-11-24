@@ -10,7 +10,7 @@ export type WorkshopIdentity = {
  state_registration:string; municipal_registration:string; whatsapp:string; website:string; instagram:string; social_links:string;
  postal_code:string; street:string; number:string; district:string; complement:string; maps_url:string; accent_color:string;
  payment_terms:string; warranty_text:string; default_notes:string; document_footer:string; pix_key:string; receiving_info:string;
- quote_validity_days:number; business_hours:BusinessDay[];
+ quote_validity_days:number; business_hours:BusinessDay[]; show_document_hours:boolean;
  historical_identity_status?:string;
 };
 export function workshopIdentity(value:Record<string,unknown>={}):WorkshopIdentity {
@@ -22,6 +22,7 @@ export function workshopIdentity(value:Record<string,unknown>={}):WorkshopIdenti
  for(const key of ["name","legal_name","document","phone","email","address","city","state","document_logo",...EXTRA_PROFILE_FIELDS])result[key]=text(key);
  result.accent_color=/^#[0-9a-f]{6}$/i.test(text("accent_color"))?text("accent_color"):"#26364b";
  result.quote_validity_days=Number.isInteger(data.quote_validity_days)?Number(data.quote_validity_days):0;
+ result.show_document_hours=data.show_document_hours!==false;
  result.business_hours=Array.isArray(data.business_hours)?data.business_hours:[];
  if(data.historical_identity_status)result.historical_identity_status=String(data.historical_identity_status);
  return result as WorkshopIdentity;
@@ -31,7 +32,26 @@ export function workshopAddress(shop:WorkshopIdentity) {
  return [shop.street,shop.number,shop.complement,shop.district,[shop.city,shop.state].filter(Boolean).join(" / "),shop.postal_code].filter(Boolean).join(", ");
 }
 export function readableHours(shop:WorkshopIdentity) {
- return shop.business_hours.map(h=>DAYS[h.day]+": "+(h.closed?"Fechado":h.open+"–"+h.close+(h.break_start?" · Intervalo "+h.break_start+"–"+h.break_end:"")));
+ if(!shop.show_document_hours)return [];
+ const labels=["dom","seg","ter","qua","qui","sex","sáb"];
+ const days=shop.business_hours.filter(day=>!day.closed&&day.open&&day.close)
+  .sort((a,b)=>(a.day+6)%7-(b.day+6)%7);
+ const groups:BusinessDay[][]=[];
+ for(const day of days){
+  const previous=groups.at(-1)?.at(-1);
+  if(previous&&(previous.day+1)%7===day.day&&previous.open===day.open&&previous.close===day.close&&
+   previous.break_start===day.break_start&&previous.break_end===day.break_end)groups.at(-1)!.push(day);
+  else groups.push([day]);
+ }
+ const hour=(value:string)=>value.replace(/^0/,"");
+ return groups.map(group=>{
+  const first=group[0];
+  const label=group.length===1?labels[first.day]:labels[first.day]+" a "+labels[group.at(-1)!.day];
+  const span=(start:string,end:string)=>"das "+hour(start)+" às "+hour(end);
+  return label+" "+(first.break_start&&first.break_end
+   ?span(first.open,first.break_start)+" e "+span(first.break_end,first.close)
+   :span(first.open,first.close));
+ });
 }
 export function contrastInk(color:string) {
  const channels=(/^#[0-9a-f]{6}$/i.test(color)?color:"#26364b").slice(1).match(/../g)!.map(x=>parseInt(x,16)/255).map(v=>v<=0.04045?v/12.92:((v+0.055)/1.055)**2.4);
