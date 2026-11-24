@@ -1,3 +1,4 @@
+import { isCommercialPhotoCandidateRequest } from "./osdriveCommercial.js";
 import {readUserAccess} from './services/userAccess.js';
 import {employeePublicRoutes,workshopUserRoutes} from './workshopUserRoutes.js';
 import {userAuthorization,redactResponse} from './auth/userAuthorization.js';
@@ -267,6 +268,9 @@ export function createApp(db: DB, platformAdminApp?: express.RequestHandler, pas
         /^chrome-extension:\/\/[a-p]{32}$/.test(req.headers.origin);
       const valid =
         extensionRequest ||
+        isCommercialPhotoCandidateRequest(process.env, {
+          host: req.headers.host ?? "", origin: origin.origin, method: req.method, path: req.path,
+        }) ||
         (process.env.NODE_ENV === "production"
           ? [
               process.env.APP_ORIGIN,
