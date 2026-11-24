@@ -30,7 +30,7 @@ export const TRANSFER_TENANT_FIELDS = [
   "municipal_registration", "whatsapp", "email", "website", "instagram",
   "social_links", "postal_code", "street", "number", "district", "complement",
   "city", "state", "full_address", "maps_url", "logo_url", "accent_color",
-  "document_logo", "business_hours", "payment_terms", "warranty_text", "quote_validity_days",
+  "document_logo", "business_hours", "show_document_hours", "payment_terms", "warranty_text", "quote_validity_days",
   "default_notes", "document_footer", "pix_key", "pix_details", "profile_data",
 ] as const;
 export type TransferTable = (typeof TRANSFER_TABLES)[number];
